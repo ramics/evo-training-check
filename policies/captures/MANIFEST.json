@@ -3,6 +3,57 @@
   "note": "Retrieval provenance for A0.1. `committed: false` entries are publisher content recorded by checksum only and kept out of git; re-fetch from `url` to verify.",
   "captures": [
     {
+      "capture": "pdfs/2024.07.01.600583v2.full.pdf",
+      "url": "https://www.biorxiv.org/content/10.1101/2024.07.01.600583v2.full.pdf",
+      "doi": "10.1101/2024.07.01.600583",
+      "title": "Hayes et al. \u2014 Simulating 500 million years of evolution with a language model (ESM3 preprint)",
+      "models": [
+        "ESM3",
+        "esm3-sm-open-v1"
+      ],
+      "sha256": "386256d46792a62ff58a9c993d5602a41ab06a8d97fa9c41ea514fe3dce39abf",
+      "bytes": 9922489,
+      "pages": 71,
+      "retrieved_at": "2026-10-13T14:39:16Z",
+      "licence": "CC-BY-NC-ND 4.0 International (bioRxiv page-1 stamp)",
+      "committed": true,
+      "note": "Supplied by the project owner; committed on main. Preprint version \u2014 check against the version of record before citing a quote."
+    },
+    {
+      "capture": "pdfs/2025.02.18.638918v1.full.pdf",
+      "url": "https://www.biorxiv.org/content/10.1101/2025.02.18.638918v1.full.pdf",
+      "doi": "10.1101/2025.02.18.638918",
+      "title": "Brixi et al. \u2014 Genome modeling and design across all domains of life with Evo 2 (preprint)",
+      "models": [
+        "Evo 2",
+        "OpenGenome2"
+      ],
+      "sha256": "76c658fcc8394686d32b2dec05e0198a308d9e4f5f3f0bdf5a8c23aae0cce93e",
+      "bytes": 25121454,
+      "pages": 65,
+      "retrieved_at": "2026-10-13T14:39:16Z",
+      "licence": "CC-BY-ND 4.0 International (bioRxiv page-1 stamp)",
+      "committed": true,
+      "note": "Supplied by the project owner; committed on main. Preprint version \u2014 check against the version of record before citing a quote."
+    },
+    {
+      "capture": "pdfs/2026.06.03.729735v1.full.pdf",
+      "url": "https://www.biorxiv.org/content/10.64898/2026.06.03.729735v1.full.pdf",
+      "doi": "10.64898/2026.06.03.729735",
+      "title": "Candido et al. \u2014 Language Modeling Materializes a World Model of Protein Biology (ESMC/ESMFold2 preprint)",
+      "models": [
+        "ESMC",
+        "ESMFold2"
+      ],
+      "sha256": "802067eb7208078ad5e4e52506f421e2ab28d9db4d51af4c299239c840645869",
+      "bytes": 19514425,
+      "pages": 111,
+      "retrieved_at": "2026-10-13T14:39:16Z",
+      "licence": "CC-BY 4.0 International (bioRxiv page-1 stamp)",
+      "committed": true,
+      "note": "Supplied by the project owner; committed on main. Preprint version \u2014 check against the version of record before citing a quote."
+    },
+    {
       "capture": "policies/captures/esm-ESM3_README.md",
       "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/_assets/ESM3_README.md",
       "sha256": "2f564153712e32ad668f1586b6e78599d1a7fd6a3b3b7049718d85f9b33f79a6",
@@ -159,6 +210,7 @@
   ],
   "observations": [
     "policies/captures/hf-ESMC-6B-README.md and hf-ESMC-600M-README.md are byte-identical (sha256 64096baa2f73...): HuggingFace serves one shared ESMC card across variants, so it does not distinguish training-data policy per variant.",
-    "policies/captures/esm-README.md was served identically from both the evolutionaryscale/esm and Biohub/esm paths (same sha256), confirming the repository redirect rather than assuming it."
+    "policies/captures/esm-README.md was served identically from both the evolutionaryscale/esm and Biohub/esm paths (same sha256), confirming the repository redirect rather than assuming it.",
+    "pdfs/* are preprints supplied by the project owner. Licences differ: the ESM3 preprint is CC-BY-NC-ND, the Evo 2 preprint CC-BY-ND, the ESMC preprint CC-BY. All permit verbatim redistribution with attribution; the ND terms restrict derivative works, which matters for any figure redrawn from them rather than for quotation."
   ]
 }
