@@ -590,3 +590,44 @@ decision has a threshold or parameter in it, the number goes in the entry.
   whole-genome dataset", which is consistent with a filter designed for a corpus that contained no
   eukaryotic genomes at all — the scope gap opens with Evo 2's additions rather than with Evo 1.
   The gate's open item is now discharged; opening the gate itself remains the project owner's call.
+
+### D-020 — OpenGenome v1 does contain the viral component; the earlier conclusion is corrected
+- **Date:** 2026-10-13
+- **Task:** A1.1 (gate)
+- **Context:** D-019 concluded that the v1 release "exposes no separately identifiable viral
+  component", on the card's configuration block and a file listing, and left open whether the
+  release contained viral sequence at all. The project owner asked for that settled, by reading
+  the stage 2 files and by seeking Evo 1's version of record.
+- **Decision:** The earlier conclusion is corrected. **Stage 2 is the viral component.** Sampling
+  800 rows of `stage2/train` across eight offsets spanning all 2,652,947 rows: every sampled row
+  carries an inline taxonomic lineage tag, and every tag is a viral realm — 696 Duplodnaviria, 104
+  Monodnaviria, no prokaryotic or eukaryotic lineage, no Riboviria. The tag format uses the same
+  rank prefixes as the stop-taxa in Evo 1's published rule. Most records resolve no deeper than
+  class: 675 of 800 fill four ranks. Stage 1 is differentiated by a `record` field of GTDB and
+  IMG/PR accessions. The sample is stored as S-OPENGENOME1-ROWS, holding lineage tags and counts
+  only — no genomic sequence enters this repo — and its source entry states that it supports
+  qualitative claims and no published proportion: 0.03% of rows, contiguous blocks rather than
+  random, rows are context windows rather than records, one dated revision.
+  **Evo 1's version of record remains unretrieved** and is now registered as S-EVO1-SCIENCE with
+  its blockers: science.org 403, Europe PMC holds PMC12057570 but serves fullTextXML as 500 and
+  marks the article not open access, and the PMC article page returns HTTP 200 while serving a
+  reCAPTCHA challenge instead of content.
+- **Rejected:** Letting the path-based conclusion stand with the open question appended — it read
+  as "no viral component in the release", which is false, and a reader would have carried that into
+  A7.1. Publishing any proportion from the sample, including the realm split — the sampling design
+  does not support it. Downloading stage 2 in full to get exact counts — 16.9 GB against a fixed
+  session disk allowance, for numbers that only become publishable under a sampling design this
+  task does not need. Recording the PMC attempt as a success because it returned HTTP 200.
+- **Consequence:** A7.1 improves. Evo 1's published procedure can be re-executed against Evo 1's
+  own released corpus — input IMG/VR v4, output `stage2` — rather than borrowing Evo 2's release
+  for the output, and the inline lineage tags are exactly the field the taxonomy rules consume. The
+  three rules that need IMG/VR metadata rather than taxonomy — the high-confidence gate, the vOTU
+  representative and the prokaryotic-host count — still cannot be checked from the release, since
+  that metadata does not travel with the records; that limitation is now a property of the release
+  rather than an assumption. Running the diff against OpenGenome2 as well stays worthwhile because
+  the releases differ. Independently, the release refutes the strict rank rule withdrawn in D-016
+  and D-018: `require_rank: family` would have removed 675 of 800 released records, about 84% of
+  the sampled viral corpus, which the developers plainly kept. Two lessons worth carrying: a file
+  listing answers questions about paths and not about contents, and in this session both an HTTP
+  401 against a repository that does not exist and an HTTP 200 serving a bot challenge would have
+  produced a wrong entry in this store if the status code had been trusted over the content.

@@ -113,21 +113,49 @@ itself rather than left as an inference. The stored file listing (S-OPENGENOME1-
 `stage1/imgpr`, three stage 2 parquet files, the README and `.gitattributes`. No path at any depth
 corresponds to IMG/VR or to viral sequence.
 
-What that does and does not establish, stated precisely because the distinction decides A7.1's
-input:
+### Corrected: stage 2 *is* the viral component
 
-- **Established.** The release exposes no separately identifiable viral component. Stage 1 is GTDB
-  and IMG/PR only, by both the card's configuration and the file listing.
-- **Not established.** That the release contains no viral sequence at all. The three stage 2
-  parquet files are undifferentiated by source, so viral records could sit inside them; settling
-  that needs the parquet contents read, not the paths listed. It is also a claim about one dated
-  revision.
+An earlier version of this section concluded that "the release exposes no separately identifiable
+viral component". That was true of the file paths and wrong about the release. Stage 2 is the viral
+component; it simply is not named by path, and the records inside it are not undifferentiated at
+all. Each one carries its taxonomic lineage inline.
 
-**Consequence for A7.1.** The post-filter viral set to diff against is OpenGenome2's IMG/VR
-component, which its card does name, not OpenGenome v1's. This does not weaken the conformance
-check — §2's input/output pair is unaffected — but it does mean the audited output belongs to the
-Evo 2 release while the audited procedure belongs to the Evo 1 paper, and the write-up should say
-so rather than referring to "OpenGenome" as though the two releases were one artefact.
+Sampled with the HuggingFace rows API on 2026-10-13 — 800 rows of `stage2/train`, eight contiguous
+blocks of 100 spread across all 2,652,947 rows (S-OPENGENOME1-ROWS):
+
+- **Every sampled row carries a lineage tag**, formatted `|r__…;k__…;p__…;c__…;;;;|` ahead of the
+  sequence. That is the same rank-prefix scheme as the stop-taxa in Evo 1's published rule, which
+  names `r:Riboviria`, `k:Heunggongvirae`, `c:Tectiliviricetes` and the rest.
+- **Every sampled tag is a viral realm**: 696 `r__Duplodnaviria`, 104 `r__Monodnaviria`. No
+  prokaryotic or eukaryotic lineage appeared, and neither did `r__Riboviria`.
+- **Most records resolve no deeper than class**: of 800 tags, 675 fill four ranks, 33 fill five and
+  92 fill six.
+
+Stage 1 is differentiated too, by a `record` field carrying accessions — GTDB contig accessions and
+`IMGPR_plasmid_*` identifiers — against stage 2's single `text` field.
+
+What this supports and what it does not. The qualitative claim is solid: the released v1 corpus
+contains viral sequence, in stage 2, labelled per record with the taxonomy the filter acts on. No
+proportion from it should be published: 800 of 2.65M rows is 0.03%, the blocks are contiguous
+rather than random so rare categories are under-represented, rows are context windows rather than
+records so one genome may span many, and the sample describes one dated revision. The absence of
+`r__Riboviria` is consistent with a filter that removed eukaryote-infecting lineages but is a
+sample of 800, not a census, and must not be reported as an absence from the corpus.
+
+**Consequence for A7.1, and it is better than §2 assumed.** The conformance check no longer has to
+borrow Evo 2's release for its output: Evo 1's own procedure can be re-executed against Evo 1's own
+released corpus, with input IMG/VR v4 and output `stage2`, and the lineage tags supply exactly the
+field the taxonomy rules need. The rules needing IMG/VR metadata rather than taxonomy — the
+high-confidence gate, the vOTU representative, and the prokaryotic-host count — still cannot be
+checked from the release alone, because none of that metadata travels with the released records.
+Running the diff against OpenGenome2 as well remains worthwhile, since the two releases differ, but
+it is no longer the only option.
+
+**And a check on our own work.** The withdrawn strict reading that required family-rank assignment
+(D-016, D-018) would have removed 675 of these 800 released records — roughly 84% of the sampled
+viral corpus — on the grounds that they are too unspecific to test against a family-and-order
+denylist. The developers kept them. Whatever else that rule was, it was not a reading of what these
+authors did, and the release says so independently of the textual argument that defeated it.
 
 ## 4. What the released corpus shows about filter scope
 
