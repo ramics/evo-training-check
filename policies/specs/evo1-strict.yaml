@@ -1,0 +1,252 @@
+# Evo 1 / OpenGenome eukaryote-infecting virus exclusion — STRICT reading.
+#
+# The broadest reading a cautious reviewer would want, and the one that rests on the authors'
+# own statement of what the exclusion was for:
+#
+#   "By excluding genomic sequences of viruses that infect eukaryotes from our training data, we
+#    aimed to ensure our openly shared model did not disseminate the capability to manipulate
+#    and design pathogenic human viruses." (Evo 2, p18)
+#
+# That is a claim about what the released model was not taught. A reviewer holding the policy to
+# it reads two things more broadly than the published implementation does:
+#
+#   1. SCOPE IS THE CORPUS, NOT A COMPONENT. The commitment is about the training data of the
+#      model, so every component is in scope — including the eukaryotic reference genomes Evo 2
+#      added, whose published curation contains no viral screening step at all (policies/evo.md
+#      §5). Under this reading those components are `retained` or `removed` on their merits
+#      rather than `out_of_scope`. That difference against the literal reading is the Phase A
+#      headline, and A4.3 quantifies it.
+#   2. ABSENCE OF HOST EVIDENCE IS NOT EVIDENCE OF A PROKARYOTIC HOST. A record "found within a
+#      prokaryotic host at least twice" is retained on two observations even where eukaryotic
+#      host evidence also exists; a cautious reviewer retains only on positive and exclusively
+#      prokaryotic evidence, and carries the published count rather than replacing it.
+#
+# WITHDRAWN AFTER REVIEW — viral-derived sequence that carries no viral label. An earlier draft
+# removed records carrying a detected endogenous viral element, endogenous retrovirus or
+# provirus, on the argument that "genomic sequences from viruses that infect eukaryotic hosts"
+# predicates on the sequence rather than on the record carrying it. Two things defeated it.
+#
+# First, the authors somewhere predicate on what a sequence can do rather than on what it is.
+# The caption head of Evo 2's Figure S2 — the figure whose panel A the p4 sentence cites as its
+# own verification — says safety filtering was performed "to remove viral sequences that can
+# infect eukaryotic hosts", and Evo 1's Figure S1 caption says "We excluded viruses that are
+# likely to infect eukaryotic hosts (Methods)". A capacity and a likelihood, not a property of
+# origin. Two caveats, because this is the weaker of the two reasons: these are two formulations
+# out of ten, the rest using the bare indicative "infect"; and the step from "can infect" to
+# "excludes an integrated element" needs the premise that such an element is in the ordinary
+# case a defective relic that cannot infect anything, which is true but appears in NEITHER PDF.
+# It is an external biological premise, flagged as such here rather than passed off as a reading.
+#
+# Second, and decisively, the corpus refutes the reading. Eukaryotic reference genomes are in it
+# in bulk, and the human reference is among them — "the only human genome in OpenGenome2 is the
+# reference genome" (Evo 2, p9). Such genomes unavoidably carry endogenous viral sequence. So on
+# the withdrawn reading the authors' own published exclusion claim would be false of the corpus
+# they built and released, and a reading on which a published claim is true of what was built
+# beats one on which it is false. This leg needs no premise either paper lacks.
+# See DECISIONS.md D-016 and D-018.
+#
+# The finding that survives is stronger than the rule was, and it is an under-specification
+# result rather than a predicate: the exclusion is stated TEN different ways across the two
+# papers — once on whole viral genomes, four times on genomic sequences of or from viruses,
+# twice on a database subset or on the dataset as a whole, once as an operational rule over
+# IMG/VR host metadata, and twice on a capacity or likelihood to infect — and not one of them
+# resolves what happens to viral-derived sequence integrated in a eukaryotic genome the corpus
+# retains. Neither paper contains the words endogenous, provirus or retrovirus outside the
+# denylisted taxon names; Evo 2's only integrated-element vocabulary is prophage, and only as a
+# mechanistic-interpretability result, never as a curation step. That is exactly what DESIGN.md
+# §A0 means by under-specification being data, and it belongs to A0.4 and A4.3 to report.
+# A0.4 should enumerate the ten formulations rather than restating this count.
+#
+# What this reading does NOT do, and why each refusal is deliberate:
+#
+#   * It adds no clade to the published denylist. Every taxon named below is named in Evo 1
+#     Appendix B.2, and no reading adds one. A broader
+#     reading of published words is a finding; a hazard list of our own authorship would be
+#     neither traceable to a source nor the thing under audit, and DESIGN.md §4 keeps this
+#     project to published material on well-characterised proteins.
+#   * It does not remove prophage, and nothing here reaches phage. IMG/VR is described in the
+#     source as "curated prokaryotic viruses" and phage retention is explicit and deliberate, so
+#     removing them would contradict a published decision rather than read it strictly. Phage
+#     retention is also what gives Phase A its within-corpus contrast (policies/evo.md §5).
+#     "Strict" means the broadest defensible reading of the stated aim, not the largest filter
+#     expressible.
+
+policy:
+  id: evo1-strict
+  model: Evo 1 (inherited unchanged by Evo 2)
+  reading: strict
+  source: S-EVO2-PREPRINT
+  note: >-
+    Rule-level `components` carry the weight here. The policy's scope is the whole corpus, but a
+    viral-taxonomy predicate cannot be applied to a bacterial or vertebrate genome record: it
+    has no viral realm to be unspecific about and no vOTU. So every rule declares the viral
+    component it can act on, and with the element rule withdrawn no rule reaches the rest of the
+    corpus at all. That is not a defect of the encoding — it is the finding. A record in a
+    component this reading reaches but no rule touches evaluates to `retained`: examined, and
+    nothing removed it. Under the literal reading the same record is `out_of_scope`: never
+    looked at. The two are different claims about the same sequence, and the gap between them on
+    the eukaryotic-genome component is what A4.3 quantifies.
+
+  scope:
+    components: ["*"]
+    note: >-
+      Every component, named or not: GTDB v214.1 prokaryotic genomes, IMG/VR v4 viruses, IMG/PR
+      plasmids, and the eukaryotic reference genomes Evo 2 added — 16,704 downloaded, 15,032
+      retained after deduplication and quality filtering, 6.98 trillion nucleotides (A1.1,
+      policies/corpora.md). The wildcard rather
+      than an enumeration is deliberate — the components whose curation nobody published are
+      precisely the ones this reading exists to reach, so they cannot be listed by name.
+
+  rules:
+    - id: keep-high-confidence
+      kind: keep_if_attribute_in
+      components: [IMG/VR]
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        attribute: confidence
+        values: ["High-confidence"]
+      note: >-
+        Carried unchanged from the literal reading and scoped to the component whose metadata
+        defines it. Kept in all three readings so A0.4's spread isolates interpretive difference;
+        a quality gate is not a hazard predicate in any reading.
+
+    - id: keep-one-per-votu
+      kind: keep_one_per
+      components: [IMG/VR]
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        attribute: vOTU
+      note: Carried unchanged; deduplication, and only IMG/VR records have a vOTU.
+
+    - id: keep-only-exclusively-prokaryotic-hosts
+      kind: keep_if_host_evidence_exclusive
+      components: [IMG/VR]
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        host_class: prokaryotic
+        count: 2
+      note: >-
+        The strict reading of "These sequences were further curated to remove potential
+        eukaryotic viruses by keeping only sequences whose assigned taxonomic classification was
+        found within a prokaryotic host at least twice." The published rule retains a record on
+        two prokaryotic observations even when eukaryotic host evidence also exists, and retains
+        nothing on an absent host assignment. A reviewer asking whether the model was taught
+        eukaryote-infecting viral sequence requires positive host evidence that is exclusively
+        prokaryotic, and treats a record with mixed or missing evidence as unresolved and
+        therefore removable. It carries the published count of two rather than replacing it:
+        review caught an earlier draft that dropped it, which left a classification with a
+        single prokaryotic observation removed by the literal reading and kept by this one — a
+        strict reading that was not uniformly stricter (DECISIONS.md D-016). With the count
+        carried, this rule subsumes the charitable reading's eukaryotic-host rule, so that rule
+        does not appear separately here.
+
+    - id: remove-denylisted-families
+      kind: remove_if_taxon_in
+      components: [IMG/VR]
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        rank: family
+        names:
+          - Adenoviridae
+          - Caliciviridae
+          - Coronaviridae
+          - Filoviridae
+          - Flaviviridae
+          - Hantaviridae
+          - Hepadnaviridae
+          - Herpesviridae
+          - Orthomyxoviridae
+          - Papillomaviridae
+          - Paramyxoviridae
+          - Picornaviridae
+          - Poxviridae
+          - Reoviridae
+          - Retroviridae
+          - Rhabdoviridae
+          - Circoviridae
+          - Geminiviridae
+          - Picobirnaviridae
+      note: >-
+        The 19 families named in the source, unchanged. The strict reading broadens where the
+        policy reaches, never whose names are on the list.
+
+    - id: remove-denylisted-orders
+      kind: remove_if_taxon_in
+      components: [IMG/VR]
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        rank: order
+        names:
+          - Amarillovirales
+          - Durnavirales
+          - Geplafuvirales
+          - Herpesvirales
+          - Lefavirales
+          - Ortervirales
+          - Orthopolintovirales
+          - Piccovirales
+          - Picornavirales
+          - Priklausovirales
+          - Cirlivirales
+          - Mulpavirales
+      note: The 12 orders named in the source, unchanged.
+
+    - id: remove-taxonomically-unspecific
+      kind: remove_if_unspecific
+      components: [IMG/VR]
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        require_rank: realm
+        ranks: [realm, kingdom, phylum, class, order, family, genus, species]
+        stop_taxa:
+          - Riboviria
+          - Monodnaviria
+          - Heunggongvirae
+          - Bamfordvirae
+          - Preplasmiviricota
+          - Cressdnaviricota
+          - Pisuviricota
+          - Tectiliviricetes
+      note: >-
+        Identical to the literal reading, after review. An earlier draft raised the required rank
+        from realm to family, arguing that a record placed only at realm or class cannot be tested
+        against a family-and-order denylist. Review against the PDF defeated it twice over, and
+        both points are worth keeping: the authors printed the rank of every stop they named —
+        "r:Riboviria, r:Monodnaviria, k:Heunggongvirae, k:Bamfordvirae, p:Preplasmiviricota,
+        p:Cressdnaviricota, p:Pisuviricota, or c:Tectiliviricetes" — and the enumeration ceilings
+        at class, with no order and no family among them; and the published procedure carries a
+        12-order denylist, which on any reading gives order-resolved records something to be tested
+        against, with family/order pairs (Herpesviridae and Herpesvirales, Picornaviridae and
+        Picornavirales, Circoviridae and Cirlivirales) present in the published lists. The purpose
+        of the order list is not stated anywhere in Appendix B.2, so that reading of it is ours,
+        not theirs. Requiring family would have made the order denylist redundant for exactly the
+        records it is best placed to catch — those whose deepest assignment is an order. An earlier
+        draft of this note said it would have made the order list dead code, which review showed is
+        false on the published lists themselves: Lefavirales and Piccovirales are denylisted orders
+        contributing no family to the 19, and Ortervirales contributes only one of several, so the
+        order list removes fully family-resolved records the family list alone would miss.
+        DECISIONS.md D-016 and D-018.
+
+
+        The stop-taxa are the eight named in the source. `names` carries the bare taxon names
+        because that is what a corpus record's taxonomy field holds; the `r:`/`k:`/`p:`/`c:`
+        prefixes in the quote above are the authors' own rank annotations, recorded here rather
+        than in the data. Their real significance is a finding, not a formatting detail: the
+        published parameter is an enumerated stop-list with an unquantified "including", not a
+        rank threshold of any kind. The enumeration is also plainly partial — only two realms are
+        named among the stops — but that does not by itself close off a threshold reading, since a
+        loosely written threshold would look much the same; what the text does is underdetermine
+        the generalisation its own "including" invites. (An earlier draft put this as "cannot be
+        read as anything at or above class", resting on a count of recognised realms that comes
+        from ICTV rather than from either paper: a denominator from a source this project has not
+        retrieved, which the primary-source rule forbids as much for denominators as for
+        quotations.) `require_rank: realm` is a
+        conservative encoding of "those with no assigned realm at all"; the generalisation the
+        word "including" invites is not recoverable from the text, and that gap is what A9.1
+        measures as this rule decays against an evolving taxonomy.

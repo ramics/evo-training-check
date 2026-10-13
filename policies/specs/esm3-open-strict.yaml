@@ -1,0 +1,94 @@
+# ESM3-open similarity-based removal — STRICT reading.
+#
+# The broadest reading a cautious reviewer would want. Here that reviewer has an unusually
+# strong hook: the developers published two different descriptions of this filter, and the
+# broader one is the one most readers see. The model card says
+#
+#   "data related to viruses has been removed from the training dataset" (S-ESM3-HF-OPEN)
+#
+# while the paper says
+#
+#   "We identified and removed sequences unique to viruses, as well as viral and non-viral
+#    sequences from the Select Agents and Toxins List" (S-ESM3-PREPRINT, A.6.1 p67)
+#
+# "Related to viruses" and "unique to viruses" are not the same set, and the difference is not
+# academic: the paper's seed set is built from sequences that "align almost exclusively to other
+# viral sequences in UniProt", so viral sequence with cellular homologs is excluded from the
+# denylist by construction. A reader of the card would reasonably believe that sequence was
+# removed. It was not removed BY THIS ROUTE — and that is the careful form of the claim, because
+# the paper also says "all hits were removed from the training set", so sequence resembling a
+# denylisted entry closely enough still went, whatever its own annotation. Whether a given viral
+# protein family with cellular homologs survived is therefore an empirical question, not a
+# textual one, and A0.4 answers it by counting what each reading removes. Review flagged the
+# earlier flat "It was not." as overstating what the text supports (DECISIONS.md D-016). The
+# strict reading is the card's claim taken as the policy, and the records it removes that the
+# charitable reading retains are the measure of the gap between the developers' two
+# descriptions.
+#
+# Two moves, both reading published words rather than adding our own judgement:
+#
+#   1. SEED SET. Drop the "almost exclusively" narrowing: everything annotated as viral in
+#      UniProt seeds the denylist, which is what "data related to viruses" says. Still a
+#      published annotation applied wholesale, not a list of our authorship.
+#   2. THRESHOLD. Any detected alignment, rather than a chosen identity cut. The source states
+#      only "at or above a given sequence identity threshold", so a reviewer who wants the claim
+#      to hold reads it at its most inclusive. This is the upper endpoint of the sweep the three
+#      readings bound; the lower is the literal reading's `undetermined` and the middle is the
+#      charitable reading's 0.70. See DECISIONS.md D-015.
+#
+# What this reading does not do: it does not extend the Select Agents seed set beyond the
+# published statutory list, and it names no organism or sequence of its own anywhere. Both
+# seed sets remain published artefacts — a UniProt annotation and a statutory list — which is
+# what keeps the audit traceable and inside DESIGN.md §4.
+
+policy:
+  id: esm3-open-strict
+  model: ESM3-open (esm3-sm-open-v1)
+  reading: strict
+  source: S-ESM3-HF-OPEN
+  note: >-
+    The policy source is the model card, deliberately: this reading exists because the card is
+    the broader claim and the one a downstream developer relies on. Rule sources stay with the
+    paper where the paper supplies the mechanism. The function-decoder keyword filter is absent
+    here as in the other two readings — it acts on the prompt vocabulary, not on training
+    records, and its term list is withheld from publication, so it is not independently
+    checkable in any reading (policies/esm3-open.md open question 4).
+
+  scope:
+    components: ["*"]
+    note: >-
+      Every component of the training corpus, named or not. Same as the charitable reading:
+      once "the full set of training databases" is read as the scope, there is nothing left for
+      a stricter reading to widen on this axis.
+
+  rules:
+    - id: remove-viral-annotated-hits
+      kind: remove_if_similar_to
+      source: S-ESM3-HF-OPEN
+      locator: model card, training-data note
+      params:
+        seed_set: viral-annotated-all
+        identity_threshold: 0.0
+      note: >-
+        Seed set is every UniProt sequence annotated as viral, without the paper's "align almost
+        exclusively to other viral sequences" filter — the card's "data related to viruses" read
+        as written. A threshold of 0.0 means any alignment MMseqs2 detects is a hit: records
+        carry only detected hits, so the floor is "a hit exists" rather than a numeric cut. The
+        reach of this rule relative to `esm3-open-charitable` is the quantity A0.4 reports, and
+        it is the one place in this audit where a developer's own two descriptions of the same
+        filter can be given numbers side by side.
+
+    - id: remove-select-agent-denylist-hits
+      kind: remove_if_similar_to
+      source: S-ESM3-PREPRINT
+      locator: Appendix A.6.1, p67
+      params:
+        seed_set: select-agent-denylist
+        identity_threshold: 0.0
+      note: >-
+        Seed set unchanged and still the published statutory list as the paper describes it —
+        "all sequences in UniProt belonging to organisms on the Select Agents and Toxins List".
+        Only the threshold is read strictly. The card's "some proteins" is narrower than the
+        paper here, so for this rule the paper is the broader statement and the strict reading
+        follows it, the reverse of the viral rule above. Worth stating plainly in A0.4: neither
+        document is uniformly the broader one.

@@ -1,0 +1,93 @@
+# ESM3-open similarity-based removal — CHARITABLE reading.
+#
+# What the authors most plausibly meant, on two axes where the literal reading had to stop short.
+#
+# SCOPE. The source says MMseqs "was used to query against the full set of training databases,
+# (including PDB, UniRef, MGnify, and JGI)". The literal reading takes the four named databases,
+# because "including" does not promise the list is exhaustive. The charitable reading takes the
+# head of that phrase at its word — "the full set of training databases" — and applies the filter
+# corpus-wide. This is the more plausible intent by some margin: the sentence is describing
+# completeness, and a developer filtering a training corpus has no reason to exempt a component.
+#
+# THRESHOLD. The matching threshold is never published, and that remains the largest
+# under-specification in this audit (policies/esm3-open.md open question 1). The literal reading
+# therefore evaluates to `undetermined`, which is correct but unusable: with no number, the
+# filter cannot be re-executed at all and the ESM3 arm of A7.1 and A1.4 cannot run.
+#
+# The charitable reading supplies 0.70, and the reasoning is traceable rather than invented. When
+# the authors themselves needed an identity cut against this very denylist — defining the held-out
+# viral structure set they evaluated the filtered model on — they used one number:
+#
+#   "For the chains in PDB that were > 70% sequence identity hits to the Viral Denylist, we
+#    cluster at 40% sequence identity and then select the longest chain (with length ≤ 1024)
+#    from each cluster." (S-ESM3-PREPRINT, p69)
+#
+# That is the only published figure anywhere in the source tying sequence identity to the Viral
+# Denylist, and 0.70 is a conventional MMseqs2 working value. It is still an inference, and the
+# weakest link in these four readings: the 70% cut defines an evaluation set, not the filter.
+#
+# So read it as an UPPER BOUND that the text licenses, with 0.70 taken as the single evaluable
+# point on it, rather than as a point estimate of the authors' parameter. The authors built that
+# evaluation set from chains above 70% identity to the denylist and then reported the filtered
+# model still scoring on them, which only makes sense if the filter's own threshold was at or
+# below 70% — a filter set higher would have left those chains in the training data. The bound is
+# what the text supports; the point is what an executable predicate needs. Review accepted the
+# number on this framing and asked for the framing to be stated (DECISIONS.md D-016).
+#
+# Either way it is labelled as a reading, never as the authors' parameter, and A7.1 sweeps the
+# range the three readings bound — undetermined (literal), 0.70 (here), any detected hit
+# (strict) — rather than reporting any one of them as the filter's reach. See DECISIONS.md
+# D-015.
+
+policy:
+  id: esm3-open-charitable
+  model: ESM3-open (esm3-sm-open-v1)
+  reading: charitable
+  source: S-ESM3-PREPRINT
+  note: >-
+    The paper's procedure, not the model card's broader claim: "sequences unique to viruses"
+    plus the Select Agents denylist. Reading the card's "data related to viruses has been
+    removed" as the policy would credit the authors with a filter their own methods do not
+    describe; that is the strict reading's job, and the gap between the two is the finding
+    (policies/esm3-open.md open question 3). The function-decoder keyword filter is still absent
+    from all three readings: it acts on the prompt vocabulary rather than on training records,
+    so it is not expressible as a corpus predicate.
+
+  scope:
+    components: ["*"]
+    note: >-
+      "the full set of training databases" — every component, named or not. The wildcard rather
+      than the four names is the whole difference from the literal reading's scope, and the
+      count of records it alone reaches is what A0.4 reports on this axis.
+
+  rules:
+    - id: remove-viral-denylist-hits
+      kind: remove_if_similar_to
+      source: S-ESM3-PREPRINT
+      locator: Appendix A.6.1, p67
+      params:
+        seed_set: viral-denylist
+        identity_threshold: 0.70
+      note: >-
+        Seed set unchanged from the literal reading: "sequences that are annotated as viral in
+        UniProt and align almost exclusively to other viral sequences in UniProt", roughly 4M
+        sequences. "Almost exclusively" stays unquantified and is not reinterpreted here — the
+        charitable reading supplies the one number it can argue for from the text, and leaves the
+        other gap visible. Note the consequence the authors describe themselves: sequence with
+        cellular homologs never entered the seed set, so virus-associated protein families with
+        cellular relatives are outside this filter by construction, at any threshold. That is
+        Phase B's subject, not a defect in this reading.
+
+    - id: remove-select-agent-denylist-hits
+      kind: remove_if_similar_to
+      source: S-ESM3-PREPRINT
+      locator: Appendix A.6.1, p67
+      params:
+        seed_set: select-agent-denylist
+        identity_threshold: 0.70
+      note: >-
+        Same single threshold: the source describes one matching step applied to both denylists,
+        so a reading that splits them would be inventing a distinction. Seed set is "all
+        sequences in UniProt belonging to organisms on the Select Agents and Toxins List" — the
+        paper's own description, which the model card's "some proteins" understates
+        (policies/esm3-open.md open question 5). The charitable reading follows the paper.

@@ -28,6 +28,15 @@ rather than forcing a guess that would silently become a finding. See :class:`Un
 filter policy nobody can trace to its source is the problem this project exists to document;
 reproducing that failure in our own specs would be indefensible.
 
+A0.3 added what the broader readings need, without redefining anything above. Two rule kinds
+(``remove_if_host_class_in`` and ``keep_if_host_evidence_exclusive``),
+a wildcard scope (:attr:`Scope.ANY`) for a reading that holds a policy to the whole corpus rather
+than to the components its methods happen to name, and an optional per-rule ``components`` list so
+such a policy can still say which rules reach which components — a viral-taxonomy predicate has
+nothing to say about a bacterial genome record. Note the asymmetry that makes this worth the
+machinery: a record in a wildcard-scope policy that no rule reaches is ``RETAINED``, meaning it was
+examined and nothing removed it, which is a different claim from ``OUT_OF_SCOPE``.
+
 Evaluation here is a *reference* implementation over an in-memory record model. It exists to
 prove the schema is executable and to pin its semantics with tests. The corpus-scale evaluator
 is A1.4, and the conformance diff is A7.1; both should consume these specs rather than
@@ -163,6 +172,11 @@ RULE_KINDS = {
     "remove_if_unspecific": {"require_rank", "stop_taxa", "ranks"},
     # drop records aligning to `seed_set` at or above `identity_threshold`
     "remove_if_similar_to": {"seed_set", "identity_threshold"},
+    # --- added by A0.3 for the charitable and strict readings ---
+    # drop records whose taxon has any recorded host occurrence in one of `host_classes`
+    "remove_if_host_class_in": {"host_classes"},
+    # keep only records seen in `host_class` at least `count` times and in no other host class
+    "keep_if_host_evidence_exclusive": {"host_class", "count"},
 }
 
 
@@ -176,13 +190,25 @@ class Rule:
     source: str
     locator: str = ""
     note: str = ""
+    #: Components this rule acts on. `None` means the policy's whole scope. Added by A0.3:
+    #: a reading that holds a policy to the whole corpus still cannot apply a viral-taxonomy
+    #: predicate to a bacterial genome, so a corpus-wide policy declares which of its rules
+    #: reach which components. Narrowing only — a rule cannot act outside its policy's scope.
+    components: list[str] | None = None
 
     def unspecified_params(self) -> list[str]:
         return sorted(k for k, v in self.params.items() if isinstance(v, Unspecified))
 
+    def applies_to(self, component: str, *, scope: Scope) -> bool:
+        if self.components is None:
+            return scope.covers(component)
+        return scope.covers(component) and (
+            Scope.ANY in self.components or component in self.components
+        )
+
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any], *, where: str) -> Rule:
-        known = {"id", "kind", "source", "locator", "note"} | set(RULE_KINDS)
+        known = {"id", "kind", "source", "locator", "note", "components"} | set(RULE_KINDS)
         unknown = set(raw) - known - {"params"}
         if unknown:
             raise PolicyError(f"{where}: unknown rule field(s) {sorted(unknown)}")
@@ -208,6 +234,12 @@ class Rule:
             raise PolicyError(
                 f"{where}: rule kind {kind!r} got unexpected param(s) {sorted(extra)}"
             )
+        components = raw.get("components")
+        if components is not None and (not isinstance(components, list) or not components):
+            raise PolicyError(
+                f"{where}: rule `components` must be a non-empty list when present; omit it "
+                "for a rule that acts on the policy's whole scope"
+            )
         return cls(
             id=raw["id"],
             kind=kind,
@@ -215,6 +247,7 @@ class Rule:
             source=raw["source"],
             locator=raw.get("locator", ""),
             note=raw.get("note", ""),
+            components=list(components) if components is not None else None,
         )
 
 
@@ -234,8 +267,18 @@ class Scope:
     components: list[str]
     note: str = ""
 
+    #: A scope of `["*"]` covers every component, including ones nobody has enumerated.
+    #: Added by A0.3: a reading that holds a policy to the whole corpus cannot be expressed
+    #: by listing components, because the question it answers is what happens to the ones the
+    #: published methods never name. Still a declaration, not an inference.
+    ANY = "*"
+
     def covers(self, component: str) -> bool:
-        return component in self.components
+        return self.ANY in self.components or component in self.components
+
+    @property
+    def is_corpus_wide(self) -> bool:
+        return self.ANY in self.components
 
 
 @dataclasses.dataclass
@@ -424,6 +467,28 @@ def _decide(rule: Rule, record: Record, *, kept_values: dict[str, set]) -> Decis
                     rule.id,
                     f"aligns to {p['seed_set']} at {identity:.3f} >= {p['identity_threshold']}",
                 )
+        case "remove_if_host_class_in":
+            hit = [hc for hc in p["host_classes"] if record.host_occurrences.get(hc, 0) > 0]
+            if hit:
+                return Decision(
+                    record.id,
+                    Outcome.REMOVED,
+                    rule.id,
+                    f"has host evidence in {', '.join(sorted(hit))}",
+                )
+        case "keep_if_host_evidence_exclusive":
+            wanted, needed = p["host_class"], p["count"]
+            seen = record.host_occurrences.get(wanted, 0)
+            other = sorted(
+                hc for hc, n in record.host_occurrences.items() if n > 0 and hc != wanted
+            )
+            if seen < needed or other:
+                why = (
+                    f"seen in {wanted} {seen} time(s), needs >= {needed}"
+                    if seen < needed
+                    else f"also has host evidence in {', '.join(other)}"
+                )
+                return Decision(record.id, Outcome.REMOVED, rule.id, why)
         case _:  # pragma: no cover - guarded by Rule.from_dict
             raise PolicyError(f"no evaluator for rule kind {rule.kind!r}")
     return None
@@ -452,6 +517,8 @@ def evaluate(policy: Policy, records: Iterable[Record]) -> list[Decision]:
             continue
         decision = None
         for rule in policy.rules:
+            if not rule.applies_to(record.component, scope=policy.scope):
+                continue
             decision = _decide(rule, record, kept_values=kept_values)
             if decision is not None:
                 break
@@ -473,7 +540,8 @@ def describe(policy: Policy) -> str:
     lines.append("  rules, in order:")
     for i, rule in enumerate(policy.rules, 1):
         where = f"{rule.source}" + (f" {rule.locator}" if rule.locator else "")
-        lines.append(f"    {i}. [{rule.kind}] {rule.id}  <- {where}")
+        on = f" on {', '.join(rule.components)}" if rule.components else ""
+        lines.append(f"    {i}. [{rule.kind}] {rule.id}{on}  <- {where}")
         for key, value in rule.params.items():
             shown = (
                 f"UNSPECIFIED ({value.reason})" if isinstance(value, Unspecified) else repr(value)

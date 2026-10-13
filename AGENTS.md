@@ -147,6 +147,12 @@ not "the model table in B1". Keep updates short and lead with what changed or wh
 When a decision is needed, ask a direct question with the real options, rather than describing
 the tension and leaving it open.
 
+Two rules, not preferences:
+
+- **Simple and concise.** Short sentences, plain words, no preamble. Say the thing once.
+- **Ask with the choice mechanism.** Every question goes through the tool that renders real
+  options to pick from, never as prose in a message. One question, the real options, done.
+
 Precision in the repo files is a separate matter: task files, decisions and write-ups still
 cite `DESIGN.md` sections, because traceability is the point there.
 

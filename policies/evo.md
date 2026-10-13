@@ -27,6 +27,41 @@ described in terms of human pathogens.
 [source: S-EVO2-PREPRINT, p18]
 > By excluding genomic sequences of viruses that infect eukaryotes from our training data, we aimed to ensure our openly shared model did not disseminate the capability to manipulate and design pathogenic human viruses.
 
+Two further formulations state the measure as a capacity or a likelihood rather than as a
+property of origin. Both are in figure captions, and both were found during A0.3's review rather
+than A0.1's sweep; they matter because they bear on what the exclusion predicates on.
+
+[source: S-EVO2-PREPRINT, p51]
+> To decrease dual use risks, safety filtering was performed on the training data to remove viral sequences that can infect eukaryotic hosts.
+
+That is the caption head of Figure S2, the figure whose panel A the p4 sentence cites as its own
+verification. The same caption states the intended consequence:
+
+[source: S-EVO2-PREPRINT, p51]
+> Evo 2 is less performant on eukaryotic viruses, as intended.
+
+And Evo 1's Figure S1 caption, which defines the excluded class by pointer to the Methods:
+
+[source: S-EVO1-PREPRINT, p41]
+> We excluded viruses that are likely to infect eukaryotic hosts (Methods).
+
+**Counting the formulations.** Across the two papers the exclusion is stated ten distinct ways:
+once on whole viral genomes (Evo 1 p4), four times on genomic sequences of or from viruses (Evo 2
+p4, p18, p22; Evo 1 p14), twice on a database subset or the dataset as a whole (Evo 1 p9, p14),
+once as the operational rule over IMG/VR host metadata (Evo 1 p32), and twice on a capacity or
+likelihood to infect (the two captions above). "Potential eukaryotic viruses" at Evo 1 p32 is a
+third non-indicative framing within the operational rule. No two of them delimit the same class,
+and A0.4 reports the spread.
+
+One thing no formulation addresses, and the reason the count matters: none of the ten says what
+becomes of viral-derived sequence integrated in a eukaryotic genome the corpus retains. §4 below
+records the searches establishing that absence.
+
+The corpus does contain such genomes, including the human reference:
+
+[source: S-EVO2-PREPRINT, p9]
+> the only human genome in OpenGenome2 is the reference genome
+
 The same source also states, unprompted, that the measure is defeasible downstream:
 
 [source: S-EVO2-PREPRINT, p18]

@@ -1,0 +1,67 @@
+{
+  "retrieved": "2026-10-13",
+  "method": "HuggingFace datasets-server /rows, config=stage2, split=train, length=100 per call",
+  "dataset": "LongSafari/open-genome",
+  "split_rows_total": 2652947,
+  "offsets_sampled": [
+    0,
+    250000,
+    600000,
+    1000000,
+    1400000,
+    1800000,
+    2200000,
+    2600000
+  ],
+  "rows_sampled": 800,
+  "note": "Lineage tags and counts only. No genomic sequence is stored here or anywhere in this repo.",
+  "lineage_tag_counts_by_offset": {
+    "0": {
+      "r__Monodnaviria;k__Loebvirae;p__Hofneiviricota;c__Faserviricetes;o__Tubulavirales;f__Inoviridae;;": 85,
+      "r__Monodnaviria;k__Loebvirae;p__Hofneiviricota;c__Faserviricetes;o__Tubulavirales;;;": 12,
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;": 3
+    },
+    "250000": {
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;": 94,
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;o__Crassvirales;;;": 4,
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;f__Demerecviridae;;": 1,
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;f__Autographiviridae;;": 1
+    },
+    "600000": {
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;": 98,
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;f__Ackermannviridae;;": 1,
+      "r__Monodnaviria;k__Loebvirae;p__Hofneiviricota;c__Faserviricetes;o__Tubulavirales;f__Inoviridae;;": 1
+    },
+    "1000000": {
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;": 98,
+      "r__Monodnaviria;k__Loebvirae;p__Hofneiviricota;c__Faserviricetes;o__Tubulavirales;f__Inoviridae;;": 2
+    },
+    "1400000": {
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;": 97,
+      "r__Monodnaviria;k__Loebvirae;p__Hofneiviricota;c__Faserviricetes;o__Tubulavirales;f__Inoviridae;;": 2,
+      "r__Monodnaviria;k__Sangervirae;p__Phixviricota;c__Malgrandaviricetes;o__Petitvirales;f__Microviridae;;": 1
+    },
+    "1800000": {
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;": 98,
+      "r__Monodnaviria;k__Loebvirae;p__Hofneiviricota;c__Faserviricetes;o__Tubulavirales;f__Inoviridae;;": 1,
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;f__Autographiviridae;;": 1
+    },
+    "2200000": {
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;f__Autographiviridae;;": 7,
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;": 87,
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;o__Crassvirales;;;": 6
+    },
+    "2600000": {
+      "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;": 100
+    }
+  },
+  "realm_totals": {
+    "r__Monodnaviria": 104,
+    "r__Duplodnaviria": 696
+  },
+  "filled_rank_depth_totals": {
+    "4": 675,
+    "5": 33,
+    "6": 92
+  }
+}

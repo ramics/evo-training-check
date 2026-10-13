@@ -350,3 +350,298 @@ decision has a threshold or parameter in it, the number goes in the entry.
   sweep, which is itself the finding rather than a blocker. One test asserts the Phase A finding
   directly: the same Filoviridae record is `removed` in the viral component and `out_of_scope`
   in a host-genome component — what decides its fate is which file it was in, not what it is.
+
+### D-014 — The three readings differ by scope and inference, never by denylist membership
+- **Date:** 2026-10-13
+- **Task:** A0.3
+- **Context:** `DESIGN.md` §A0 requires each policy encoded three times — literal, charitable,
+  strict — and treats the spread as the finding. "Strict" needed an operational meaning before
+  anything was written, because the obvious reading of it (the largest filter the schema can
+  express) would have meant extending the published denylists with clades of our own choosing.
+  That would be untraceable, outside §4's limits, and would make the spread a measure of our own
+  hazard judgement rather than of the policies' ambiguity.
+- **Decision:** A reading may broaden only along axes the published words themselves leave open:
+  which corpus components the policy reaches, whether a stated proxy or the aim behind it is the
+  predicate, what counts as sufficient evidence to retain a record, which of a developer's two
+  published descriptions governs, and what an unstated parameter is taken to be. Every taxon
+  named in any of the six specs is quoted from its source; no reading adds one. Each rule carries
+  the published wording its reading rests on in its `note`, and each file header states what the
+  reading deliberately does not do. Two consequences worth recording: the strict Evo reading does
+  not remove prophage, because IMG/VR is described in the source as curated prokaryotic viruses
+  and phage retention is explicit and deliberate — and that retention is also Phase A's
+  within-corpus contrast; and the IMG/VR quality and deduplication steps are carried unchanged
+  into all three readings, so A0.4's spread isolates interpretive difference rather than mixing
+  in a dropped curation step.
+- **Rejected:** Extending the 19 families and 12 orders under the strict reading — unciteable,
+  and it would convert an audit into an assertion of our own hazard list. Dropping the
+  quality/dedup steps from the strict reading as "not hazard predicates" — defensible in itself,
+  but it moves the surviving-record count for a reason that has nothing to do with the
+  interpretation being tested. Making the charitable reading extend to corpus components whose
+  published curation contains no viral screening step — reading authors charitably means taking
+  their stated aim seriously, not crediting them with a procedure no source describes; component
+  scope is the strict reading's axis, and keeping each difference on one axis is what makes the
+  spread interpretable.
+- **Consequence:** Three schema additions were needed and are additive only (A0.2 permits new
+  rule kinds, not redefined ones): the rule kinds `remove_if_host_class_in`,
+  `keep_if_host_evidence_exclusive` and `remove_if_element_detected`; a wildcard scope `["*"]`
+  for a reading that holds a policy to the whole corpus, including components nobody enumerated;
+  and an optional per-rule `components` list, because a corpus-wide policy still cannot apply a
+  viral-taxonomy predicate to a bacterial genome record. A record that a wildcard-scope policy
+  reaches but no rule removes is `retained`, not `out_of_scope` — examined and survived, which is
+  a different claim and the one A4.3 needs. `remove_if_element_detected` consumes A2.3's
+  detections; it detects nothing itself, exactly as the similarity rules consume alignments.
+
+### D-015 — ESM3-open's unpublished threshold is read as a three-point range, not a value
+- **Date:** 2026-10-13
+- **Task:** A0.3
+- **Context:** The identity threshold that determines the entire reach of ESM3-open's filter is
+  never published — the paper says only "at or above a given sequence identity threshold". D-013
+  kept the literal spec honestly `undetermined` rather than guessing, which is correct and also
+  unusable: with no number the filter cannot be re-executed, and the ESM3 arms of A1.4, A7.1 and
+  A8.1 cannot run at all.
+- **Decision:** The three readings bound a sweep instead of naming a value. Literal stays
+  `undetermined`. Charitable reads 0.70, on the only published figure anywhere in the source that
+  ties sequence identity to the Viral Denylist: the authors used "> 70% sequence identity hits to
+  the Viral Denylist" to define the held-out viral structure set they evaluated the filtered model
+  on (S-ESM3-PREPRINT p69). Strict reads any detected alignment, encoded as 0.0 against a record
+  model that carries only detected hits. Downstream tasks sweep that range and report across it;
+  no task may describe any of the three as the developers' parameter. The charitable 0.70 is
+  flagged in the spec and in `policies/specs/README.md` as the weakest inference in the
+  directory, because the 70% cut defines an evaluation set rather than the filter.
+- **Rejected:** Leaving all three readings undetermined — it preserves the finding but ships no
+  usable predicate, and the under-specification is already recorded as a finding in its own right
+  by the literal reading and `policies/esm3-open.md`. Picking a single conventional MMseqs2
+  default (0.3 or 0.5) and proceeding — a fabricated parameter that would propagate into every
+  downstream number with nothing published behind it. Treating the two denylists as having
+  different thresholds — the source describes one matching step applied to both, so splitting
+  them would invent a distinction the text does not make.
+- **Consequence:** `esm3-open-charitable` and `esm3-open-strict` are fully determined, so the
+  ESM3 arm of Phase A can run; `esm3-open-literal` remains the standing record that it should not
+  have had to. A8.1's filter-agreement measurement inherits the range, so its results are
+  reported per reading rather than pooled. If the published version of record (S-ESM3-SCIENCE,
+  still unretrieved) states the threshold, this decision is superseded and the literal reading
+  becomes decidable — which is worth re-checking before publication.
+
+### D-016 — Two strict-reading rules withdrawn after independent review against the PDFs
+- **Date:** 2026-10-13
+- **Task:** A0.3
+- **Context:** A0.3's own Steps require each reading reviewed against the A0.1 verbatim text
+  before downstream use. Rather than a single read-through, the seven interpretive claims behind
+  the four new readings were each put to two independent agents working from the preprint PDFs —
+  one ruling on whether the published wording bears the reading, one attempting to refute that
+  ruling, with instructions that this project's own evidence store and the specs' own notes are
+  not authority for a verdict. Five claims survived. Two did not, and one survivor carried an
+  encoding defect both passes found independently.
+- **Decision:** Both failed rules are withdrawn from `evo1-strict`, and the defect is fixed.
+  **The endogenous-element rule is gone.** It removed records carrying a detected endogenous
+  viral element, retrovirus or provirus, on the argument that "genomic sequences from viruses that
+  infect eukaryotic hosts" predicates on the sequence rather than the record carrying it. Evo 2's
+  Figure S2 caption — the figure the p4 sentence cites as its own verification — says safety
+  filtering removed "viral sequences that can infect eukaryotic hosts". The predicate is a
+  capacity to infect, which a defective integrated relic does not have. And 16,704 eukaryotic
+  reference genomes, the human reference among them, unavoidably carry such elements, so on the
+  withdrawn reading the authors' own published claim would be false of the corpus they built; a
+  reading on which a published claim is true of what was built beats one on which it is false.
+  **`require_rank` returns to realm.** The raised rank was defeated twice: the authors printed the
+  rank of every stop-taxon they named (two realms, two kingdoms, three phyla, one class, ceiling
+  at class, no order and no family), and the published procedure carries a 12-order denylist
+  precisely so order-resolved records are testable without a family — with deliberate family/order
+  pairs showing they handled those records on purpose. A family requirement would have made their
+  order denylist dead code. **The strict host rule carries `count: 2`.** Dropping it left a
+  classification with a single prokaryotic observation removed by the literal reading and kept by
+  the strict one, so the strict reading was not uniformly stricter and its claim to subsume the
+  charitable host rule was false.
+- **Rejected:** Keeping either rule relabelled as the audit's own sensitivity arm — defensible,
+  and it would have kept the endogenous-element route executable for A2.3, but it costs the
+  property that makes these specs worth anything: that every reading rests on published wording.
+  An arm of our own construction belongs in a task of its own, declared as such. Also rejected:
+  encoding the printed `r:`/`k:`/`p:`/`c:` prefixes in `stop_taxa` — they are the authors' rank
+  annotations, not parts of the taxon names a corpus record carries, so putting them in the data
+  would break matching; they are recorded in the rule's note instead.
+- **Consequence:** The withdrawn element rule took its schema machinery with it —
+  `remove_if_element_detected` and `Record.detected_elements` are removed, since nothing uses them
+  and dead kinds in a contract are a liability. `keep_if_host_evidence_exclusive` now takes
+  `count`. The strict reading keeps its corpus-wide scope while no rule reaches any component but
+  the viral one, which is not a defect of the encoding: a eukaryotic genome record now evaluates
+  to `retained` under the strict reading and `out_of_scope` under the literal one, and that gap is
+  what A4.3 measures. Three findings came out of the review and belong to A0.4: the exclusion is
+  stated five ways across the two papers and none resolves integrated viral-derived sequence; the
+  published unspecificity parameter is an enumerated stop-list with an unquantified "including",
+  not a rank threshold of any kind; and the charitable host rule should report its removals in two
+  sets, those that would have failed the published count anyway and those removed despite clearing
+  it, because only the second is contested. Two wording corrections: the ESM3 strict note's flat
+  "It was not" overstated what the text supports, since the paper also says all hits were removed,
+  and the charitable 0.70 is now framed as an upper bound the text licenses rather than a point
+  estimate. D-015 stands as amended by that framing.
+
+### D-017 — Released-vs-actual verdicts, and why they differ by model
+- **Date:** 2026-10-13
+- **Task:** A1.1 (gate)
+- **Context:** §A1 and §7 make this the gate on corpus reconstruction: whether Phase A audits the
+  real training corpus or a proxy sets how strongly every downstream claim may be worded.
+  Evidence is in `policies/corpora.md`, every quote machine-checked against its source.
+- **Decision:** Four verdicts. **Evo 2 — verified as published.** The data availability statement
+  and the dataset card both state the released OpenGenome2 is the corpus used to train Evo 2, and
+  the card distinguishes the FASTA sequences from the preprocessed form the model consumed.
+  Nothing retrieved contradicts it. Byte-level identity between release and dataloader input is
+  not established and is not establishable from published sources for any model in this audit, so
+  the write-up states what was checked rather than implying more. **Evo 1 — procedure source, with
+  a gap.** Evo 1 is where the only published exclusion procedure lives; its own availability
+  section names source databases rather than a released artefact, while Evo 2 calls that corpus
+  "previously published". The release artefact is not in `sources.json` and has not been
+  retrieved, so this is recorded as an open item rather than resolved by assumption, and it should
+  be closed before A7.1 runs. **ESM3-open — proxy only.** Its availability statement covers
+  weights and code and says nothing about training data, so A1.3 must reconstruct from the stated
+  databases and every ESM3 result carries that qualifier. **ESM-2 — reconstructible proxy**, and
+  the best pinned of the four: no corpus release, but a pinned UniRef release plus published
+  held-out cluster IDs, which makes it the cheapest first target for the A1.3 pipeline. ESM-C
+  needs no verdict: no stated exclusion and no corpus release, so it enters only as a comparison.
+- **Rejected:** Treating Evo 2's released dataset as unverified because byte-identity cannot be
+  shown — that standard would fail every open model ever released and would discard the strongest
+  auditable artefact in the field. Treating Evo 1's corpus as released on the strength of Evo 2's
+  "previously published" — the artefact itself is unretrieved, and a dataset card nobody in this
+  project has read is a secondary source. Recording one verdict for "Evo" — the procedure and the
+  auditable corpus belong to different papers, and collapsing them would hide exactly that.
+- **Consequence:** A7.1 is runnable for Evo, and better than expected: the released viral
+  component is post-filter output while the filter's input, IMG/VR v4, is independently available
+  at its pinned version, so the conformance check is a diff rather than an inference. Two things
+  follow and are recorded in `policies/corpora.md` §2: the vOTU representative is not reproducible
+  because no input order is published, so the diff must be computed at vOTU level or it measures
+  our sort order; and whichever reading best reproduces the released component is the developers'
+  de facto reading, which turns A0.4's spread into an estimate for Evo and is an argument against
+  freezing any single reading as canonical before that number exists. For ESM3 no conformance
+  re-execution is possible at all; the reported 10.6M removal count is the only published quantity
+  a reconstruction can be checked against. **This gate stays closed.** AGENTS.md reserves opening
+  a gate to the project owner; the verdicts are recorded here for that decision.
+
+### D-018 — Corrections from re-reviewing the rewrites, and three errors of our own
+- **Date:** 2026-10-13
+- **Task:** A0.3
+- **Context:** D-016 withdrew two strict-reading rules. The rewrites were put back through the
+  same two-pass primary-source review, which refused both: not the withdrawals, which it upheld,
+  but the prose arguing for them. Four errors, three of them ours rather than the sources'.
+- **Decision:** All four corrected in place. **The formulation count was wrong.** The withdrawal
+  block claimed the exclusion is stated five ways across the two papers; there are ten, and the
+  typology was wrong too — only one formulation predicates on whole viral genomes, four on genomic
+  sequences of or from viruses, two on a database subset or the dataset, one on IMG/VR host
+  metadata, and two on a capacity or likelihood to infect. The ten are now enumerated with
+  verified quotes in `policies/evo.md`, where the quote checker covers them, and A0.4 enumerates
+  from there rather than restating a count. **An external premise was passed off as a reading.**
+  "An endogenous element is in the ordinary case a defective relic that cannot infect anything" is
+  true and appears in neither paper. It is now marked as an external biological premise, and the
+  withdrawal's weight moved onto the leg that needs no such premise: the corpus contains
+  eukaryotic genomes including the human reference, which carry endogenous viral sequence, so the
+  withdrawn reading would make the authors' own published claim false of their own released
+  corpus. **A claim about the denylists was false.** The rank note said requiring family would
+  have made the published 12-order denylist dead code. It would not: Lefavirales and Piccovirales
+  are denylisted orders contributing no family to the 19, and Ortervirales contributes only one of
+  several, so the order list removes fully family-resolved records the family list alone would
+  miss. Narrowed to the true claim — it would have made the order list redundant for the records
+  it is best placed to catch. **A denominator came from an unretrieved source.** "Only two of the
+  recognised virus realms appear, so the list cannot be read as anything at or above class" counts
+  realms from ICTV, which this project has not retrieved. The claim is now that the text
+  underdetermines the generalisation its own "including" invites, which is both weaker and sound.
+  Two attributions were also softened: the purpose of the order denylist and the deliberateness of
+  the family/order pairs are our inferences, not stated in Appendix B.2.
+- **Rejected:** Letting the count stand as "approximately five" — the enumeration is cheap, it is
+  the finding, and a count nobody checked is how the next error gets in. Keeping the dead-code
+  claim in hedged form — it is false on the published lists, not merely unsupported, and hedging a
+  false claim is worse than deleting it. Adding an ICTV release to `sources.json` to rescue the
+  realm count — defensible later, but the argument does not need the number, and fetching a source
+  to support a sentence already written is the wrong order of operations.
+- **Consequence:** Both withdrawals stand; the arguments for them are now narrower and, in the
+  element case, rest on the corpus rather than on a modal verb in a caption. The review also
+  caught the eukaryotic genome count being used as corpus contents when 16,704 is the NCBI
+  download and 15,032 is what survived dereplication — the same slip A1.1 found independently
+  within the hour, from the same Methods paragraph, which is some evidence the two checks are
+  genuinely independent. Standing lesson, worth more than the four fixes: every error here was in
+  prose arguing for a correct decision. The decisions survived two adversarial passes; the
+  reasoning did not. Write-ups should expect their supporting arguments to be the weakest part,
+  and X1.4's quote checker will not catch any of this class, since none of it is a misquotation.
+
+### D-019 — The Evo 1 corpus gap is closed, and the release exposes no viral component
+- **Date:** 2026-10-13
+- **Task:** A1.1 (gate)
+- **Context:** D-017 left one open item: Evo 2 calls Evo 1's corpus "previously published" while
+  Evo 1's own availability section names only source databases, and the release artefact was
+  unretrieved. The project owner's instruction was to close that gap before opening the gate.
+- **Decision:** Closed, with a finding attached. The artefact is at `LongSafari/open-genome`,
+  located via the pointer in Evo 1's own repository README rather than guessed — the obvious guess
+  under an `arcinstitute` namespace returns HTTP 401, which is worth recording because an error
+  from a wrong URL is indistinguishable from an absent artefact unless you follow the paper's own
+  pointer. Three sources are now stored at recorded checksums: the dataset card, the repository
+  README, and a file listing of the release. The finding: **the release exposes no separately
+  identifiable viral component.** Stage 1 is GTDB plus IMG/PR by both the card's configuration
+  block and the file listing; no path at any depth corresponds to IMG/VR. What is *not*
+  established is that the release contains no viral sequence — the three stage 2 parquet files are
+  undifferentiated by source, so settling that needs their contents read rather than their paths
+  listed, and the listing describes one dated revision.
+- **Rejected:** Reading the card's configuration block alone as proof of absence — a config is not
+  an inventory, and the file listing was one request away. Claiming the viral component was never
+  released — the stage 2 parquets are opaque to a path listing and the claim would outrun the
+  evidence. Storing the listing as though it were a document — it is dated and mutable, so its
+  source entry says so and claims from it carry the revision and date.
+- **Consequence:** A7.1's post-filter viral set must come from OpenGenome2's IMG/VR component,
+  which its card names, not from OpenGenome v1. The conformance check in D-017 is unaffected — its
+  input/output pair was always IMG/VR v4 against the Evo 2 release — but the audited *output*
+  belongs to the Evo 2 release while the audited *procedure* belongs to the Evo 1 paper, and
+  write-ups must not refer to "OpenGenome" as if the two releases were one artefact. Also
+  recorded, since it bears on A4.3: Evo 1's repository describes OpenGenome as "a prokaryotic
+  whole-genome dataset", which is consistent with a filter designed for a corpus that contained no
+  eukaryotic genomes at all — the scope gap opens with Evo 2's additions rather than with Evo 1.
+  The gate's open item is now discharged; opening the gate itself remains the project owner's call.
+
+### D-020 — OpenGenome v1 does contain the viral component; the earlier conclusion is corrected
+- **Date:** 2026-10-13
+- **Task:** A1.1 (gate)
+- **Context:** D-019 concluded that the v1 release "exposes no separately identifiable viral
+  component", on the card's configuration block and a file listing, and left open whether the
+  release contained viral sequence at all. The project owner asked for that settled, by reading
+  the stage 2 files and by seeking Evo 1's version of record.
+- **Decision:** The earlier conclusion is corrected. **Stage 2 is the viral component.** Sampling
+  800 rows of `stage2/train` across eight offsets spanning all 2,652,947 rows: every sampled row
+  carries an inline taxonomic lineage tag, and every tag is a viral realm — 696 Duplodnaviria, 104
+  Monodnaviria, no prokaryotic or eukaryotic lineage, no Riboviria. The tag format uses the same
+  rank prefixes as the stop-taxa in Evo 1's published rule. Most records resolve no deeper than
+  class: 675 of 800 fill four ranks. Stage 1 is differentiated by a `record` field of GTDB and
+  IMG/PR accessions. The sample is stored as S-OPENGENOME1-ROWS, holding lineage tags and counts
+  only — no genomic sequence enters this repo — and its source entry states that it supports
+  qualitative claims and no published proportion: 0.03% of rows, contiguous blocks rather than
+  random, rows are context windows rather than records, one dated revision.
+  **Evo 1's version of record remains unretrieved** and is now registered as S-EVO1-SCIENCE with
+  its blockers: science.org 403, Europe PMC holds PMC12057570 but serves fullTextXML as 500 and
+  marks the article not open access, and the PMC article page returns HTTP 200 while serving a
+  reCAPTCHA challenge instead of content.
+- **Rejected:** Letting the path-based conclusion stand with the open question appended — it read
+  as "no viral component in the release", which is false, and a reader would have carried that into
+  A7.1. Publishing any proportion from the sample, including the realm split — the sampling design
+  does not support it. Downloading stage 2 in full to get exact counts — 16.9 GB against a fixed
+  session disk allowance, for numbers that only become publishable under a sampling design this
+  task does not need. Recording the PMC attempt as a success because it returned HTTP 200.
+- **Consequence:** A7.1 improves. Evo 1's published procedure can be re-executed against Evo 1's
+  own released corpus — input IMG/VR v4, output `stage2` — rather than borrowing Evo 2's release
+  for the output, and the inline lineage tags are exactly the field the taxonomy rules consume. The
+  three rules that need IMG/VR metadata rather than taxonomy — the high-confidence gate, the vOTU
+  representative and the prokaryotic-host count — still cannot be checked from the release, since
+  that metadata does not travel with the records; that limitation is now a property of the release
+  rather than an assumption. Running the diff against OpenGenome2 as well stays worthwhile because
+  the releases differ. Independently, the release refutes the strict rank rule withdrawn in D-016
+  and D-018: `require_rank: family` would have removed 675 of 800 released records, about 84% of
+  the sampled viral corpus, which the developers plainly kept. Two lessons worth carrying: a file
+  listing answers questions about paths and not about contents, and in this session both an HTTP
+  401 against a repository that does not exist and an HTTP 200 serving a bot challenge would have
+  produced a wrong entry in this store if the status code had been trusted over the content.
+
+### D-021 — The A1.1 gate is opened
+- **Date:** 2026-10-13
+- **Task:** A1.1 (gate)
+- **Decision:** The project owner opened the gate. A1.1 is `done`; A1.2 and A1.3 are `ready`, and
+  A7.1 follows A1.2. Evidence and verdicts are in `policies/corpora.md` with D-017, D-019 and
+  D-020.
+- **Qualifiers carried, not resolved:** the Evo 2 verdict rests on the developers' own statement,
+  with no independent evidence of byte-level correspondence available for any model here; and
+  Evo 1's version of record (S-EVO1-SCIENCE) is unretrieved, so revisit that entry if it names a
+  deposit the preprint does not. Both were put to the owner before opening.
+- **Consequence:** A1.2, A1.3 and A7.1 each carry a "Strength of claim" section stating the verdict
+  that governs them, which is what A1.1's Done-when requires — so a downstream task cannot consume
+  a corpus without the qualifier in front of whoever runs it.

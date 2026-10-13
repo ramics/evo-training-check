@@ -1,0 +1,177 @@
+# Evo 1 / OpenGenome eukaryote-infecting virus exclusion — CHARITABLE reading.
+#
+# What the authors most plausibly meant. The published aim is stated twice in plain words —
+# "we excluded viral genomes that infect eukaryotic hosts" (Evo 1 p4) and "we excluded genomic
+# sequences from viruses that infect eukaryotic hosts from the training data" (Evo 2 p4) — and
+# the Evo 1 pipeline is how that aim was operationalised against IMG/VR metadata.
+#
+# The charitable reading takes the aim as the policy and the pipeline as its implementation.
+# Where the implementation reaches the aim by a proxy, this reading also applies the aim
+# directly: a record whose taxon has recorded eukaryotic host evidence is a virus that infects
+# a eukaryotic host, whether or not it also happens to clear the prokaryotic-host count or sits
+# outside the enumerated clades.
+#
+# Two things this reading deliberately does NOT do:
+#
+#   * It does not extend the policy to corpus components whose published curation contains no
+#     viral screening step (policies/evo.md §5, open question 1). Reading the authors
+#     charitably means taking their stated aim seriously; it does not mean crediting them with
+#     a procedure no source describes. Component scope is where the strict reading differs, and
+#     keeping that difference on one axis is what makes A0.4's spread interpretable.
+#   * It does not add a single clade to the published denylist. Every taxon named here is named
+#     in the source. The three readings differ in how the published words are read, never in
+#     our own view of which organisms are dangerous — a denylist of our own authorship would be
+#     neither traceable nor the subject of this audit.
+
+policy:
+  id: evo1-charitable
+  model: Evo 1 (inherited unchanged by Evo 2)
+  reading: charitable
+  source: S-EVO2-PREPRINT
+  note: >-
+    Rules carry the source each rests on: the aim statements are Evo 2's and Evo 1's main text,
+    the operational steps are Evo 1 Appendix B.2. Evo 2 restates the intent and defers to Evo 1
+    for the procedure ("As previously described"), so one spec serves both.
+
+  scope:
+    components: [IMG/VR]
+    note: >-
+      The viral component, as in the literal reading. Evo 1 Appendix B.2 describes the
+      exclusion steps only for IMG/VR, and no retrieved source describes viral screening of
+      GTDB, IMG/PR, or the eukaryotic reference genomes Evo 2 added. A0.4 reports the spread;
+      A4.3 quantifies what this leaves unexamined.
+
+  rules:
+    - id: keep-high-confidence
+      kind: keep_if_attribute_in
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        attribute: confidence
+        values: ["High-confidence"]
+      note: >-
+        Carried unchanged from the literal reading. A database-quality gate rather than a hazard
+        predicate, kept in all three readings so that the spread between them isolates
+        interpretive difference rather than mixing in a dropped curation step.
+
+    - id: keep-one-per-votu
+      kind: keep_one_per
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        attribute: vOTU
+      note: Carried unchanged; deduplication, not exclusion. Sort deterministically first.
+
+    - id: remove-eukaryotic-host-evidence
+      kind: remove_if_host_class_in
+      source: S-EVO2-PREPRINT
+      locator: p4
+      params:
+        host_classes: [eukaryotic]
+      note: >-
+        The interpretive choice that defines this reading. "As in Evo 1, we excluded genomic
+        sequences from viruses that infect eukaryotic hosts from the training data" is a predicate
+        about host range; the published implementation reaches it only through a prokaryotic-host
+        count and a clade enumeration. The authors subordinate the one to the other themselves:
+        the count is introduced as the means — "to remove potential eukaryotic viruses by keeping
+        only sequences whose assigned taxonomic classification was found within a prokaryotic host
+        at least twice" — so the host-range phrase is the aim and the count is the "by". Read
+        charitably, a record carrying positive eukaryotic host evidence is within that aim
+        regardless of how it fares under the two proxies. Review upheld this reading and corrected
+        the quotation, which an earlier draft gave with a capitalised "We" and truncated before
+        "from the training data" (DECISIONS.md D-016).
+
+
+        One honest qualification from the same review, for A0.4 rather than for the predicate: the
+        published "at least twice" test is itself a deliberate numeric resolution of records
+        carrying mixed host evidence, so a one-strike eukaryotic-host rule does not merely finish
+        an aim the authors left unimplemented — for records that clear the count it reverses a
+        choice they visibly made. A0.4 should therefore report this rule's removals in two sets,
+        those that would have failed the count anyway and those removed despite clearing it. Only
+        the second is the contested increment, and it is the number worth publishing.
+
+    - id: keep-prokaryotic-host-twice
+      kind: keep_if_host_occurrence_at_least
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        host_class: prokaryotic
+        count: 2
+      note: >-
+        The published proxy, retained as published: "keeping only sequences whose assigned
+        taxonomic classification was found within a prokaryotic host at least twice". The
+        threshold of two is stated without justification (policies/evo.md open question 2) and
+        is not reinterpreted here — a charitable reading of a stated number is the number.
+
+    - id: remove-denylisted-families
+      kind: remove_if_taxon_in
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        rank: family
+        names:
+          - Adenoviridae
+          - Caliciviridae
+          - Coronaviridae
+          - Filoviridae
+          - Flaviviridae
+          - Hantaviridae
+          - Hepadnaviridae
+          - Herpesviridae
+          - Orthomyxoviridae
+          - Papillomaviridae
+          - Paramyxoviridae
+          - Picornaviridae
+          - Poxviridae
+          - Reoviridae
+          - Retroviridae
+          - Rhabdoviridae
+          - Circoviridae
+          - Geminiviridae
+          - Picobirnaviridae
+      note: >-
+        The 19 families named in the source, unchanged. Under this reading the enumeration is
+        the authors' worked example of the aim rather than its boundary — which is why the
+        host-evidence rule above runs alongside it instead of the list being extended.
+
+    - id: remove-denylisted-orders
+      kind: remove_if_taxon_in
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        rank: order
+        names:
+          - Amarillovirales
+          - Durnavirales
+          - Geplafuvirales
+          - Herpesvirales
+          - Lefavirales
+          - Ortervirales
+          - Orthopolintovirales
+          - Piccovirales
+          - Picornavirales
+          - Priklausovirales
+          - Cirlivirales
+          - Mulpavirales
+      note: The 12 orders named in the source, unchanged.
+
+    - id: remove-taxonomically-unspecific
+      kind: remove_if_unspecific
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        require_rank: realm
+        ranks: [realm, kingdom, phylum, class, order, family, genus, species]
+        stop_taxa:
+          - Riboviria
+          - Monodnaviria
+          - Heunggongvirae
+          - Bamfordvirae
+          - Preplasmiviricota
+          - Cressdnaviricota
+          - Pisuviricota
+          - Tectiliviricetes
+      note: >-
+        Unchanged from the literal reading: the source states both the realm requirement and the
+        eight stop-taxa, so there is nothing left to read charitably. The strict reading raises
+        the required rank; the argument for doing so is in that file.

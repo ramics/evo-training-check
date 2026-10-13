@@ -42,6 +42,28 @@ stated rule against delivered data, claiming nothing about homology or capabilit
   conformance claim, and the write-up says so plainly where that applies.
 - Headline numbers independently reproduced via A3.3.
 
+## Strength of claim and inputs (carried from A1.1)
+
+See `policies/corpora.md` §2 and the corrected viral-component section, with DECISIONS.md D-017,
+D-019 and D-020.
+
+- **Evo is runnable, and against Evo 1's own release.** Input is IMG/VR v4 at its pinned version
+  from its own publisher; output is `stage2` of `LongSafari/open-genome`, whose records carry
+  inline lineage tags in the same rank-prefix scheme as the published stop-taxa. Running the diff
+  against OpenGenome2's IMG/VR component as well stays worthwhile, since the releases differ — but
+  do not write "OpenGenome" as though the two releases were one artefact.
+- **Three published rules cannot be checked from the release.** The high-confidence gate, the vOTU
+  representative and the prokaryotic-host count depend on IMG/VR metadata that does not travel
+  with the released records. That is a property of the release, not an assumption, and it belongs
+  in the write-up as a limit on what conformance was tested.
+- **The vOTU representative is not reproducible.** `keep_one_per` is order-dependent and no input
+  order is published, so compute the diff at vOTU level or it measures our sort order.
+- **ESM3 has no conformance arm.** Neither corpus nor threshold is published. The reported 10.6M
+  removal count is the only published quantity a reconstruction can be checked against, and any
+  threshold recovered that way ships as an estimate with an interval, never as their parameter.
+- **Qualify every Evo claim by the verdicts above**, and state plainly that the audited procedure
+  is Evo 1's while one of the two audited outputs is Evo 2's.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

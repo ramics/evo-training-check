@@ -1,0 +1,29 @@
+{
+  "retrieved": "2026-10-13",
+  "repo": "LongSafari/open-genome",
+  "revision": "main",
+  "files": [
+    ".gitattributes",
+    "README.md",
+    "stage1/gtdb/gtdb_test.parquet",
+    "stage1/gtdb/gtdb_train_shard_0.parquet",
+    "stage1/gtdb/gtdb_train_shard_1.parquet",
+    "stage1/gtdb/gtdb_train_shard_10.parquet",
+    "stage1/gtdb/gtdb_train_shard_11.parquet",
+    "stage1/gtdb/gtdb_train_shard_2.parquet",
+    "stage1/gtdb/gtdb_train_shard_3.parquet",
+    "stage1/gtdb/gtdb_train_shard_4.parquet",
+    "stage1/gtdb/gtdb_train_shard_5.parquet",
+    "stage1/gtdb/gtdb_train_shard_6.parquet",
+    "stage1/gtdb/gtdb_train_shard_7.parquet",
+    "stage1/gtdb/gtdb_train_shard_8.parquet",
+    "stage1/gtdb/gtdb_train_shard_9.parquet",
+    "stage1/gtdb/gtdb_valid_small.parquet",
+    "stage1/imgpr/imgpr_test.parquet",
+    "stage1/imgpr/imgpr_train.parquet",
+    "stage1/imgpr/imgpr_valid_small.parquet",
+    "stage2/test_stage2.parquet",
+    "stage2/train_stage2.parquet",
+    "stage2/valid_stage2.parquet"
+  ]
+}

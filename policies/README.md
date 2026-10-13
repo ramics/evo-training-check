@@ -11,6 +11,7 @@ and what was not said, and leaves ambiguities open rather than resolving them.
 sources.json   the citable source inventory — stable ids, URLs, checksums, retrieval status
 captures/      stored copies of openly-licensed sources (repo docs, model cards, licences)
 ../pdfs/       the papers
+corpora.md     released corpus vs actual training corpus, per model (A1.1)
 evo.md         Evo 1 and Evo 2 — one policy lineage
 esm3-open.md   ESM3-open
 esm-c.md       ESM-C — included for the record; it states no exclusion
