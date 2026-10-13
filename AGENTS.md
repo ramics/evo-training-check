@@ -140,6 +140,16 @@ negotiable by a task that finds them inconvenient.
 - **Write for the adversarial reader.** §7 notes Phase A names real labs and must be airtight.
   Assume a motivated, well-informed reviewer who wants the result to be wrong.
 
+## Reporting to the project owner
+
+Write plainly. Say what a thing is rather than citing a section number — "the model list"
+not "the model table in B1". Keep updates short and lead with what changed or what is needed.
+When a decision is needed, ask a direct question with the real options, rather than describing
+the tension and leaving it open.
+
+Precision in the repo files is a separate matter: task files, decisions and write-ups still
+cite `DESIGN.md` sections, because traceability is the point there.
+
 ## Decisions
 
 `tasks/DECISIONS.md` is append-only. Add an entry whenever you resolve an ambiguity that a
