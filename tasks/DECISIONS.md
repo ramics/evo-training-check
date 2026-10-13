@@ -558,3 +558,35 @@ decision has a threshold or parameter in it, the number goes in the entry.
   prose arguing for a correct decision. The decisions survived two adversarial passes; the
   reasoning did not. Write-ups should expect their supporting arguments to be the weakest part,
   and X1.4's quote checker will not catch any of this class, since none of it is a misquotation.
+
+### D-019 — The Evo 1 corpus gap is closed, and the release exposes no viral component
+- **Date:** 2026-10-13
+- **Task:** A1.1 (gate)
+- **Context:** D-017 left one open item: Evo 2 calls Evo 1's corpus "previously published" while
+  Evo 1's own availability section names only source databases, and the release artefact was
+  unretrieved. The project owner's instruction was to close that gap before opening the gate.
+- **Decision:** Closed, with a finding attached. The artefact is at `LongSafari/open-genome`,
+  located via the pointer in Evo 1's own repository README rather than guessed — the obvious guess
+  under an `arcinstitute` namespace returns HTTP 401, which is worth recording because an error
+  from a wrong URL is indistinguishable from an absent artefact unless you follow the paper's own
+  pointer. Three sources are now stored at recorded checksums: the dataset card, the repository
+  README, and a file listing of the release. The finding: **the release exposes no separately
+  identifiable viral component.** Stage 1 is GTDB plus IMG/PR by both the card's configuration
+  block and the file listing; no path at any depth corresponds to IMG/VR. What is *not*
+  established is that the release contains no viral sequence — the three stage 2 parquet files are
+  undifferentiated by source, so settling that needs their contents read rather than their paths
+  listed, and the listing describes one dated revision.
+- **Rejected:** Reading the card's configuration block alone as proof of absence — a config is not
+  an inventory, and the file listing was one request away. Claiming the viral component was never
+  released — the stage 2 parquets are opaque to a path listing and the claim would outrun the
+  evidence. Storing the listing as though it were a document — it is dated and mutable, so its
+  source entry says so and claims from it carry the revision and date.
+- **Consequence:** A7.1's post-filter viral set must come from OpenGenome2's IMG/VR component,
+  which its card names, not from OpenGenome v1. The conformance check in D-017 is unaffected — its
+  input/output pair was always IMG/VR v4 against the Evo 2 release — but the audited *output*
+  belongs to the Evo 2 release while the audited *procedure* belongs to the Evo 1 paper, and
+  write-ups must not refer to "OpenGenome" as if the two releases were one artefact. Also
+  recorded, since it bears on A4.3: Evo 1's repository describes OpenGenome as "a prokaryotic
+  whole-genome dataset", which is consistent with a filter designed for a corpus that contained no
+  eukaryotic genomes at all — the scope gap opens with Evo 2's additions rather than with Evo 1.
+  The gate's open item is now discharged; opening the gate itself remains the project owner's call.

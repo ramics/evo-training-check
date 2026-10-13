@@ -268,6 +268,51 @@
       ],
       "status": "unretrieved",
       "blocker": "Referenced in prose but never linked by the source that cites it. An under-specification finding in its own right: the guardrail detail is pointed at but not published."
+    },
+    {
+      "id": "S-OPENGENOME1-CARD",
+      "kind": "dataset_card",
+      "title": "HuggingFace dataset card: LongSafari/open-genome (OpenGenome v1)",
+      "url": "https://huggingface.co/datasets/LongSafari/open-genome/raw/main/README.md",
+      "licence": "apache-2.0",
+      "models": [
+        "OpenGenome"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-open-genome-README.md",
+      "sha256": "0165106607086042711f77b12d7531efde507ae8ce86a1c313a6f3750bb8a673",
+      "bytes": 1806,
+      "note": "The OpenGenome v1 release artefact, located via the pointer in Evo 1's own repository README (S-EVO1-REPO) rather than guessed: it sits under LongSafari, not under an arcinstitute namespace. Closes the A1.1 gap recorded in D-017."
+    },
+    {
+      "id": "S-EVO1-REPO",
+      "kind": "repo_doc",
+      "title": "evo-design/evo README (Evo 1)",
+      "url": "https://raw.githubusercontent.com/evo-design/evo/main/README.md",
+      "licence": "apache-2.0",
+      "models": [
+        "Evo 1"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/evo1-repo-README.md",
+      "sha256": "01a84248f24f64fe1a5b3d81a1a2aa84bf8a5379a6fbaeca24e925170147476f",
+      "bytes": 8821,
+      "note": "The repository Evo 1's paper names as its code and data pointer. Retrieved for the dataset location; also describes OpenGenome's scope in one line."
+    },
+    {
+      "id": "S-OPENGENOME1-TREE",
+      "kind": "file_listing",
+      "title": "File listing of LongSafari/open-genome at revision main",
+      "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/tree/main?recursive=true",
+      "licence": "apache-2.0",
+      "models": [
+        "OpenGenome"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-open-genome-files.json",
+      "sha256": "a43e9c3ca5d24dab5b8a4672b7291861e5a8260877936d4c717fef4d1e233398",
+      "bytes": 1009,
+      "note": "A listing, not a document: it records what the release exposed at the revision and date stored in the capture, and a later revision may differ. Used for a statement about which components the release exposes by path, which the card alone cannot settle. Claims from it must be dated."
     }
   ]
 }

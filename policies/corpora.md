@@ -74,11 +74,50 @@ own availability section names source databases rather than a released artefact:
 [source: S-EVO1-PREPRINT, p16]
 > Curated prokaryotic viruses from the IMG/VR v4 database
 
-Evo 2, quoted in §2 above, calls that corpus "previously published". **Those two statements do not
-contradict each other, but this store cannot close the gap between them**: the OpenGenome v1
-release artefact is not in `sources.json` and has not been retrieved. Recorded as an open item
-rather than resolved by assumption — a dataset card nobody in this project has read is a secondary
-source. It is cheap to close and should be closed before A7.1 runs.
+Evo 2, quoted in §2 above, calls that corpus "previously published". The artefact is indeed
+published, and it is now retrieved. Evo 1's own repository — the pointer its paper gives — names
+the location:
+
+[source: S-EVO1-REPO]
+> The OpenGenome dataset for pretraining Evo is available at [Hugging Face datasets](https://huggingface.co/datasets/LongSafari/open-genome).
+
+It sits under `LongSafari`, not under an `arcinstitute` namespace, which is worth recording
+because the obvious guess returns HTTP 401 and a guess that returns an error looks like an absent
+artefact. The same README describes its scope:
+
+[source: S-EVO1-REPO]
+> Evo has 7 billion parameters and is trained on [OpenGenome](https://huggingface.co/datasets/LongSafari/open-genome), a prokaryotic whole-genome dataset containing ~300 billion tokens.
+
+### What the release exposes, and the one thing it does not
+
+The card describes two stages and gives the data files for each:
+
+[source: S-OPENGENOME1-CARD]
+> The OpenGenome dataset is organized in 2 stages, where stage 1 has context length 8k and stage 2 has context length 131k.
+
+Its stage 1 configuration names two sources, `stage1/gtdb` and `stage1/imgpr` — GTDB genomes and
+IMG/PR plasmids. **It names no viral component**, in a corpus the paper describes as including
+IMG/VR. That is an observation about a configuration block, so it was checked against the release
+itself rather than left as an inference. The stored file listing (S-OPENGENOME1-TREE, retrieved
+2026-10-13 at revision `main`) contains 22 files: fourteen under `stage1/gtdb`, three under
+`stage1/imgpr`, three stage 2 parquet files, the README and `.gitattributes`. No path at any depth
+corresponds to IMG/VR or to viral sequence.
+
+What that does and does not establish, stated precisely because the distinction decides A7.1's
+input:
+
+- **Established.** The release exposes no separately identifiable viral component. Stage 1 is GTDB
+  and IMG/PR only, by both the card's configuration and the file listing.
+- **Not established.** That the release contains no viral sequence at all. The three stage 2
+  parquet files are undifferentiated by source, so viral records could sit inside them; settling
+  that needs the parquet contents read, not the paths listed. It is also a claim about one dated
+  revision.
+
+**Consequence for A7.1.** The post-filter viral set to diff against is OpenGenome2's IMG/VR
+component, which its card does name, not OpenGenome v1's. This does not weaken the conformance
+check — §2's input/output pair is unaffected — but it does mean the audited output belongs to the
+Evo 2 release while the audited procedure belongs to the Evo 1 paper, and the write-up should say
+so rather than referring to "OpenGenome" as though the two releases were one artefact.
 
 ## 4. What the released corpus shows about filter scope
 
