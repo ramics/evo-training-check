@@ -2,10 +2,10 @@
 id: C1.1
 title: Specify the leakage-score feature set
 phase: C
-status: blocked
+status: deferred
 gate: false
-depends_on: [A3.2, B3.5]
-blocks: [C2.1]
+depends_on: []
+blocks: []
 design_ref: "§C1"
 deliverable: 4
 owner: unassigned
@@ -14,6 +14,8 @@ owner: unassigned
 # C1.1 — Specify the leakage-score feature set
 
 **Design reference:** DESIGN.md §C1 · **Deliverable 4**
+
+**Deferred in v0.4.** Superseded by the collateral cost curve (C5.1–C7.1). Kept visible as work deliberately not run, per AGENTS.md; the paper names it and why. See DECISIONS.md D-009.
 
 ## Goal
 

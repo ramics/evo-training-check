@@ -2,10 +2,10 @@
 id: C3.1
 title: Ship the leakage-score CLI and library
 phase: C
-status: blocked
+status: deferred
 gate: false
-depends_on: [C2.4]
-blocks: [X1.2]
+depends_on: []
+blocks: []
 design_ref: "§C3, §5 deliverable 4"
 deliverable: 4
 owner: unassigned
@@ -14,6 +14,8 @@ owner: unassigned
 # C3.1 — Ship the leakage-score CLI and library
 
 **Design reference:** DESIGN.md §C3, §5 deliverable 4 · **Deliverable 4**
+
+**Deferred in v0.4.** Superseded by the collateral cost curve (C5.1–C7.1). Kept visible as work deliberately not run, per AGENTS.md; the paper names it and why. See DECISIONS.md D-009.
 
 ## Goal
 

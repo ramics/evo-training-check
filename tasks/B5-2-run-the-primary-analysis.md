@@ -5,7 +5,7 @@ phase: B
 status: blocked
 gate: false
 depends_on: [B5.1, B1.2]
-blocks: [B5.3, B5.4]
+blocks: [B5.3, B5.4, C6.2]
 design_ref: "§B5 primary"
 deliverable: 5
 owner: unassigned

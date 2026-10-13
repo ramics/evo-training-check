@@ -4,7 +4,7 @@ title: Write and release the preprint
 phase: X
 status: blocked
 gate: false
-depends_on: [A3.3, B5.1, C2.4, X2.1, X3.1]
+depends_on: [A3.3, B5.1, C6.3, X2.1, X3.1]
 blocks: []
 design_ref: "§5 deliverable 6"
 deliverable: 6

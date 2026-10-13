@@ -2,10 +2,10 @@
 id: C2.1
 title: Fit the retention model
 phase: C
-status: blocked
+status: deferred
 gate: false
-depends_on: [C1.1, B5.3]
-blocks: [C2.2]
+depends_on: []
+blocks: []
 design_ref: "§C2"
 deliverable: 4
 owner: unassigned
@@ -14,6 +14,8 @@ owner: unassigned
 # C2.1 — Fit the retention model
 
 **Design reference:** DESIGN.md §C2 · **Deliverable 4**
+
+**Deferred in v0.4.** Superseded by the collateral cost curve (C5.1–C7.1). Kept visible as work deliberately not run, per AGENTS.md; the paper names it and why. See DECISIONS.md D-009.
 
 ## Goal
 

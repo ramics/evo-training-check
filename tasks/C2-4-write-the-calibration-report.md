@@ -2,10 +2,10 @@
 id: C2.4
 title: Write the calibration report
 phase: C
-status: blocked
+status: deferred
 gate: false
-depends_on: [C2.2, C2.3]
-blocks: [C3.1, X1.3, X4.1]
+depends_on: []
+blocks: []
 design_ref: "§C2, §C3"
 deliverable: 4
 owner: unassigned
@@ -14,6 +14,8 @@ owner: unassigned
 # C2.4 — Write the calibration report
 
 **Design reference:** DESIGN.md §C2, §C3 · **Deliverable 4**
+
+**Deferred in v0.4.** Superseded by the collateral cost curve (C5.1–C7.1). Kept visible as work deliberately not run, per AGENTS.md; the paper names it and why. See DECISIONS.md D-009.
 
 ## Goal
 

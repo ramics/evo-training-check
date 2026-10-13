@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -141,6 +142,29 @@ def validate(tasks: dict[str, dict]) -> list[str]:
     return problems
 
 
+def fix_blocks(tasks: dict[str, dict]) -> int:
+    """Rewrite each task's `blocks` line from the forward edges. Returns files changed."""
+    expected: dict[str, list[str]] = {tid: [] for tid in tasks}
+    for tid, t in tasks.items():
+        for dep in t["depends_on"]:
+            if dep in expected:
+                expected[dep].append(tid)
+    changed = 0
+    for tid, t in tasks.items():
+        want = sorted(expected[tid])
+        if sorted(t["blocks"]) == want:
+            continue
+        path = TASKS / t["_file"]
+        text = path.read_text()
+        new_text, n = re.subn(
+            r"^blocks: \[.*\]$", f"blocks: [{', '.join(want)}]", text, count=1, flags=re.M
+        )
+        if n:
+            path.write_text(new_text)
+            changed += 1
+    return changed
+
+
 def gate_line(tasks: dict[str, dict], tid: str) -> str:
     t = tasks[tid]
     downstream = sorted(t["blocks"])
@@ -256,6 +280,12 @@ def render(tasks: dict[str, dict], problems: list[str]) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="validate only, do not write")
+    ap.add_argument(
+        "--fix-blocks",
+        action="store_true",
+        help="rewrite every task's `blocks` list from the `depends_on` edges, then regenerate. "
+        "Reverse edges are derivable, so maintaining them by hand only creates drift.",
+    )
     args = ap.parse_args()
 
     try:
@@ -263,6 +293,11 @@ def main() -> int:
     except Problem as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+    if args.fix_blocks:
+        fixed = fix_blocks(tasks)
+        print(f"rewrote `blocks` in {fixed} task file(s)")
+        tasks = load()
 
     problems = validate(tasks)
 

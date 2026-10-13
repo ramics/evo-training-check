@@ -2,10 +2,10 @@
 id: C2.3
 title: Validate by holding out a whole model
 phase: C
-status: blocked
+status: deferred
 gate: false
-depends_on: [C2.2]
-blocks: [C2.4]
+depends_on: []
+blocks: []
 design_ref: "§C2"
 deliverable: 4
 owner: unassigned
@@ -14,6 +14,8 @@ owner: unassigned
 # C2.3 — Validate by holding out a whole model
 
 **Design reference:** DESIGN.md §C2 · **Deliverable 4**
+
+**Deferred in v0.4.** Superseded by the collateral cost curve (C5.1–C7.1). Kept visible as work deliberately not run, per AGENTS.md; the paper names it and why. See DECISIONS.md D-009.
 
 ## Goal
 

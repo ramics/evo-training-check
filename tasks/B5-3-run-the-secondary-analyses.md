@@ -5,7 +5,7 @@ phase: B
 status: blocked
 gate: false
 depends_on: [B5.2]
-blocks: [C2.1]
+blocks: []
 design_ref: "§B5 secondary"
 deliverable: 5
 owner: unassigned
@@ -22,7 +22,8 @@ summaries, and cross-measure agreement.
 
 ## Steps
 
-- Compute retention ratios and regress against homology as specified.
+- Compute retention ratios and regress against homology as specified. These now feed C6.2's
+  premise check rather than a fitted predictor (DECISIONS.md D-009).
 - Produce the class-level summaries §B5 requires.
 - Measure agreement across the three homology measures; treat disagreement as informative.
 - Evaluate against the pre-stated effect-size threshold.

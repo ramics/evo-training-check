@@ -2,11 +2,28 @@
 
 **An independent audit of exclusion-based safeguards in open-weight biological models**
 
-Design specification, v0.3 — 13 October 2026
+Design specification, v0.4 — 13 October 2026
 
 ---
 
-## 0. What changed from v0.2
+## 0. What changed from v0.3
+
+Two changes, both from the prior-art check. See `tasks/DECISIONS.md` D-009 and D-010.
+
+- **Phase C becomes the collateral cost curve; the leakage score is dropped.** A predictor of
+  retained capability fitted to a few dozen measurements across three models cannot carry
+  honest uncertainty intervals narrow enough to guide a decision, and its users would be
+  extrapolating outside the fitted domain. The replacement asks a question that needs no fit:
+  for each hazard family, what else would have to be removed to actually remove the capability?
+  That prices the remedy instead of predicting the leak, and it is computable from public
+  databases with no GPU.
+- **Phase B shrinks to the homology check.** ESM-C's own preprint already publishes the model
+  comparison Phase B was built around — 25 viral DMS assays from ProteinGym against ESM-2 650M
+  and ESM3-open, with BLOSUM62 and EVMutation baselines. Redoing it would spend most of the
+  schedule re-deriving a published result. Phase B keeps the part that is new and that the cost
+  curve depends on: whether per-assay performance tracks homology to retained sequence.
+
+## 0.1. What changed from v0.2
 
 Three changes, all forced by primary-source verification in A0.1. See `tasks/DECISIONS.md`
 D-005 to D-007 for the evidence behind each.
@@ -204,7 +221,13 @@ and reports what survives, by route.
 
 # PHASE B — Capability audit
 
-(Substantially as v0.1.)
+**Narrowed in v0.4.** Phase B is no longer a standalone model comparison — ESM-C's developers
+have published that (25 ProteinGym viral assays against ESM-2 650M and ESM3-open, with
+BLOSUM62 and EVMutation baselines). Cite it; do not re-derive it. Phase B's job here is the one
+thing that comparison does not do and that Phase C depends on: **establish whether per-assay
+performance tracks homology to retained sequence.** That premise is what licenses the cost
+curve. Where this document still describes the fuller comparison, treat the homology regression
+as primary and everything else as supporting.
 
 ## B1. Models
 
@@ -288,46 +311,74 @@ Report per-assay, not only pooled. With n in the tens, pooled correlations are f
 
 ---
 
-# PHASE C — The leakage score
+# PHASE C — The collateral cost curve
 
-Turns a finding into an instrument. This is what makes the work infrastructure rather than a
-paper.
+Asks what it would cost to *not* leak. This is the part that turns an audit into a criterion
+reviewers can apply to filters that do not exist yet.
 
-## C1. Definition
+## C1–C4 (superseded in v0.4)
 
-For a protein family **F** and filter policy **P**, predict retained capability **L(F, P)**
-from inputs computable **without training or running any model**:
+The leakage score — a predictor of retained capability, fitted to Phase B measurements — is
+superseded by §C5–C8 below. See `tasks/DECISIONS.md` D-009. Tasks C1.1, C2.1–C2.4 and C3.1 are
+`deferred` rather than deleted: the work is deliberately not run, and the paper names it as
+such, with the reason.
 
-- family-level survival under P (Phase A)
-- best structural homolog TM-score in surviving space (Phase B3)
-- domain presence in surviving space
-- Neff of surviving homologs
-- route of survival (EVE / prophage / unclassified / cellular homolog)
+## C5. Definition
 
-## C2. Fitting and validation
+For a hazard protein family **F**, the cost curve answers: to remove F's capability from a
+training corpus, what else must be removed?
 
-Fit against measured retention ratios from Phase B.
+Capability tracks homology (Phase B). So removing the capability for F means removing F's
+homologs — and F's homologs may include cellular and phage proteins that are not hazards at
+all. For each F and each filter stringency **s** (a sequence-identity or structural-similarity
+threshold), compute two quantities:
 
-**Validation must hold out whole protein families, never random variants** — a random split
-leaks family identity across folds, and a leakage score with leaked evaluation would be
-self-refuting. Also hold out an entire model where n permits.
+- **Hazard removed** — the fraction of F's known diversity that a filter at stringency s would
+  remove.
+- **Collateral removed** — what else goes with it: non-hazard sequences, families and domains
+  that fall inside the same similarity neighbourhood.
 
-Report calibration honestly, with uncertainty intervals.
+The curve is hazard-removed against collateral-removed, swept over s, per family. Everything in
+it is computable from public sequence and structure databases. **No model is trained, fine-tuned
+or run to produce it.**
 
-## C3. Ship it
+## C6. The result is a triage, not a number
 
-A CLI and library: input a target family and a filter specification, output predicted retention
-with an uncertainty interval, plus the route breakdown that explains it.
+Two regimes, and which one a family falls into is the finding:
 
-**State the limitation plainly:** with n in the tens this is a calibrated heuristic, not a
-precise predictor. Present it as the first instrument of its kind and invite replacement. That
-framing is both honest and more durable than overclaiming.
+- **Cheap** — the curve rises steeply: most of F's diversity is removable for little collateral.
+  Filtering works for F. A reviewer can reasonably require it.
+- **Catastrophic** — removing F's diversity requires deleting a large slice of general biology.
+  **Filtering cannot work for F**, at any stringency, and no amount of filtering better will
+  change that. A different control is needed — access control, deployment-side guardrails,
+  structured access — and saying so is more useful than a leakage estimate.
 
-## C4. Why it matters
+This explains something Phase A found: ESM3-open removed only sequences "unique to viruses"
+(§A0, `policies/esm3-open.md`). That is precisely what a developer does on meeting the
+catastrophic regime. The design decision is already evidence for the curve; this work prices it.
 
-Pre-development review frameworks currently ask reviewers to judge whether a filter is
-adequate, with no criterion to apply. This gives them a number, a route breakdown, and a
-reproducible method — which is what turns a recommendation into a reviewable standard.
+**Pre-register the regime boundary before computing anything.** State what collateral fraction
+counts as catastrophic, in advance, as §B5 requires for its own threshold.
+
+## C7. Ship it
+
+A CLI and library: input a hazard family and a corpus, output the curve, the regime
+classification, and the similarity neighbourhood that explains it. The uncertainty is in the
+homology estimates and the database coverage, not in a fitted model, so it is reportable
+directly rather than as a calibration interval.
+
+**State the limitation plainly:** the curve is only as good as the databases' coverage of a
+family's diversity, and coverage is uneven across families. Report coverage per family
+alongside the curve, and never a curve without it.
+
+## C8. Why it matters
+
+Pre-development review frameworks ask reviewers to judge whether a filter is adequate, with no
+criterion to apply. A leakage estimate would tell them how much a specific filter leaked. The
+cost curve tells them something more useful and more durable: **whether any filter could work
+for this hazard, and what it would cost.** For the catastrophic families that converts the
+review question from "is this filter good enough" — which has no good answer — into "data
+filtering is the wrong control here, use another one."
 
 ---
 
@@ -352,6 +403,13 @@ Include a short section mapping the method onto those cases and stating clearly 
   disclosure process already in place. Name it in the paper as future work not run.
 - **No published ranking of which model is most capable for which pathogen.** Report by
   homology class, fold family and survival route.
+- **Cost curves are published aggregated by homology class, never as a per-family hazard
+  ranking.** A per-family curve read uncharitably is a map of which hazards filtering protects
+  least. This limit is set before Phase C runs, not after seeing results: publish the regime
+  classification by homology class and fold family; keep per-family curves in the disclosure
+  package and out of the preprint; and let the disclosure window close before any of it
+  circulates. The tool may compute a per-family curve for a user's own corpus — that is its
+  purpose — but this project does not publish a ranked table of them.
 - Published DMS data on well-characterised proteins only. No wet work. Nothing concerning
   enhancement, transmissibility or host range.
 - **Responsible disclosure:** share Phase A and B findings with Arc Institute,
@@ -365,9 +423,11 @@ developers to filter better, which is defensive-dominant.
 ## 5. Deliverables
 
 1. `filter-audit` — policy specification language, corpus auditor, survival-route reporting.
-2. Curated viral DMS collection with provenance and licensing.
+2. Viral DMS assay register with provenance and licensing — reusing published collections
+   where licensing allows, extended only where n is genuinely insufficient.
 3. Homology annotation pipeline.
-4. `leakage-score` — CLI and library, with calibration report.
+4. `cost-curve` — CLI and library: hazard family plus corpus in, curve, regime and
+   neighbourhood out, with per-family database coverage reported alongside.
 5. Results notebooks and figures.
 6. Preprint.
 7. Public repo: pinned environment, seeds, one-command reproduction.
@@ -380,9 +440,9 @@ developers to filter better, which is defensive-dominant.
 |---|---|
 | 1 | A0 policy formalisation (three readings); A1 corpus reconstruction; verify released-vs-actual training data |
 | 2 | A2 detection; A3 quantification; A4 taxonomy dependency; **Phase A results written up** |
-| 3 | B1–B3: ESM-2 vs ESM3-open vs ESM-C; viral DMS curation; homology axis against surviving corpora; MSA baseline |
-| 4 | Evo 2 7B; B5 analysis; C1–C2 fit and validation |
-| 5 | C3 tool; writeup; figures; repo polish; disclosure emails |
+| 3 | B1–B3: assay register; homology axis against surviving corpora; MSA baseline |
+| 4 | B5 homology regression; C5–C6 cost curves and regime classification |
+| 5 | C7 tool; writeup; figures; repo polish; disclosure emails |
 
 Four weekends is optimistic; five is realistic. Phase A alone is publishable if Phase B slips.
 
@@ -397,19 +457,24 @@ Four weekends is optimistic; five is realistic. Phase A alone is publishable if 
 | Policy prose too vague to implement | The three-readings design turns this from blocker into result |
 | Small viral n in Phase B | Curate beyond ProteinGym; hierarchical model; per-assay reporting; phage internal control |
 | ESM3-open filter threshold unpublished ("a given sequence identity threshold") | Report under all three readings; the unstated threshold is itself a finding |
-| Leakage score overfits | Family-level holdout; hold out a model; report calibration with intervals; call it a heuristic |
+| Cost curve misleads where database coverage of a family is thin | Report coverage per family alongside every curve; never publish a curve without it; treat thin coverage as an abstention, not a cheap verdict |
+| **Cost curve reads as a map of least-protected hazards** | Aggregate by homology class; per-family curves stay in the disclosure package; limit set in §4 before the work runs |
 | Scope creep | Phase A ships alone if needed. Resist adding models and assays for their own sake. |
 
 ---
 
 ## 8. Theory of change
 
-Taxonomic filtering is being written into governance as a primary safeguard for biological AI
-models, on the strength of developer self-assessment. This work asks whether it does what it
-claims, where it fails, and whether the failure is predictable in advance.
+Data filtering is being written into governance as a primary safeguard for biological AI
+models, on the strength of developer self-assessment. This work asks three things in order: was
+the filter even applied to the data it would need to cover, does the surviving capability track
+homology, and could any filter have worked for this hazard at an acceptable cost.
 
-If filtering leaks along homology lines, filtering policy must become homology-aware, and
-reviewers get a concrete criterion in place of a taxonomy label. If it does not leak, filtering
-is strengthened as a control and the evidence base improves either way.
+The third question is the one governance actually needs answered. A reviewer asked to judge a
+filter's adequacy has no criterion today. "How much did this filter leak" is the wrong
+criterion, because for some hazard families the answer is irrelevant: no filter can remove the
+capability without removing a large slice of general biology, and the right response is a
+different control altogether. Separating those families from the ones filtering genuinely
+protects is a usable standard, and nobody has drawn the line.
 
 The measurement is cheap, public, repeatable and defensive. That is the point.

@@ -22,8 +22,12 @@ statistical threat. Published data on well-characterised proteins only, per §4.
 
 ## Steps
 
-- Search systematically for published assays meeting the §4 constraints; record the search
-  strategy.
+- **Start from published collections.** The ESMC preprint's 25 ProteinGym viral assays and
+  ProteinGym itself may already suffice for the homology regression; v0.4 narrowed this task
+  to extending only where n is genuinely insufficient (DECISIONS.md D-010). Establish that
+  first and record the finding either way.
+- Only if n is insufficient: search systematically for further published assays meeting the
+  §4 constraints, and record the search strategy.
 - Apply documented QC and inclusion criteria, fixed before screening.
 - Record per assay: organism, protein, fold/domain, readout type, variant count, DOI, licence.
 - Exclude anything outside §4 scope and log the exclusion reason.

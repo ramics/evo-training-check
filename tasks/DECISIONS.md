@@ -201,3 +201,58 @@ decision has a threshold or parameter in it, the number goes in the entry.
   with the reason: the Evo 2 Nature Methods section, the ESM3 Science version of record, and
   the Biohub Platform Resources page (referenced in prose but never linked — itself an
   under-specification finding). A quote may not cite any of them, and the checker enforces it.
+
+### D-009 — Leakage score replaced by the collateral cost curve
+- **Date:** 2026-10-13
+- **Task:** A0.1 prior-art check (retires C1.1, C2.1–C2.4, C3.1; adds C5.1–C7.1)
+- **Context:** Phase C as specified fitted a predictor of retained capability to Phase B's
+  measurements: a few dozen assays across three or four models, validated by holding out whole
+  families and a whole model. Two problems. Statistically, honest intervals on a fit that small
+  will be too wide to guide the decision the deliverable promises, and §C3 already conceded it
+  was "a calibrated heuristic, not a precise predictor" — a reviewer applying it to a new filter
+  extrapolates outside the fitted domain. Substantively, a leakage estimate answers the wrong
+  question: it tells a reviewer how much one filter leaked, not whether filtering could work at
+  all for the hazard in front of them. Phase A had already turned up the evidence that the
+  second question is the live one — ESM3-open removed only sequences "unique to viruses",
+  deliberately retaining virus-associated sequence with cellular homologs.
+- **Decision:** Phase C becomes the collateral cost curve. For each hazard family, sweep filter
+  stringency and compute hazard-removed against collateral-removed, giving a per-family curve
+  and a regime classification: cheap, where filtering works, or catastrophic, where removing the
+  capability requires deleting a large slice of general biology and no filter can work. Computed
+  from public sequence and structure databases with no model trained, fine-tuned or run. The
+  regime boundary is pre-registered before computing, as §B5 requires of its own threshold.
+  C6.3 gates publication on an independent reimplementation, mirroring A3.3.
+- **Rejected:** Keeping the predictor — fails its own validation honestly applied. Running both
+  — the predictor's wide intervals would undercut the curve's cleaner claim, and the schedule
+  does not hold both. Phase A alone — leaves the governance question unanswered when it is now
+  answerable cheaply.
+- **Consequence:** `DESIGN.md` v0.4 replaces §C1–C4 with §C5–C8, leaving a superseded-note so
+  the deferred tasks' `design_ref` still resolves. Old Phase C tasks are `deferred`, not
+  deleted, and detached from the live graph. **A new scope limit went into §4 before any of this
+  work runs:** a per-family cost curve read uncharitably is a map of which hazards filtering
+  protects least, so published results aggregate by homology class, per-family curves stay in
+  the disclosure package, and nothing circulates before the disclosure window closes. Also a new
+  §7 risk row: thin database coverage of a family must produce an abstention, never a cheap
+  verdict.
+
+### D-010 — Phase B narrowed to the homology check
+- **Date:** 2026-10-13
+- **Task:** A0.1 prior-art check (affects B2.2, B5.3)
+- **Context:** The prior-art check found that ESM-C's developers have already published the
+  comparison Phase B was built around. The ESMC/ESMFold2 preprint evaluates on 25 viral DMS
+  assays from ProteinGym against ESM-2 650M and ESM3-open, with BLOSUM62 and EVMutation as
+  non-neural baselines — the same benchmark, the same models, and the same kind of
+  parameter-free baseline §B4 requires. Re-deriving it would consume most of the schedule.
+- **Decision:** Phase B keeps what is new and what Phase C depends on: whether per-assay
+  performance tracks homology to retained sequence. The published comparison is cited, not
+  repeated. B2.2 is narrowed to establish first whether existing published collections already
+  give sufficient n, and to extend only if they do not. B5.3's retention ratios now feed C6.2's
+  premise check rather than a fitted predictor.
+- **Rejected:** Keeping Phase B at full scope as independent replication — defensible in
+  principle, but it spends the bulk of the remaining time re-deriving a published result.
+  Cutting Phase B entirely — the cost curve's premise would then go untested, which is the first
+  thing a reviewer will push on.
+- **Consequence:** Deliverable 2 shrinks from a curated collection to an assay register reusing
+  published collections where licensing allows. A side effect worth noting: the ESMC paper is
+  now both prior art and a comparison point, so any Phase B result has a published number it
+  should be consistent with — and a discrepancy would itself be a finding.
