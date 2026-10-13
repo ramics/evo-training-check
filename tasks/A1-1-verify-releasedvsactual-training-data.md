@@ -2,13 +2,13 @@
 id: A1.1
 title: Verify released-vs-actual training data
 phase: A
-status: ready
+status: in-progress
 gate: true
 depends_on: [A0.1]
 blocks: [A1.2, A1.3, A7.1]
 design_ref: "§A1, §7"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # A1.1 — Verify released-vs-actual training data
