@@ -350,3 +350,74 @@ decision has a threshold or parameter in it, the number goes in the entry.
   sweep, which is itself the finding rather than a blocker. One test asserts the Phase A finding
   directly: the same Filoviridae record is `removed` in the viral component and `out_of_scope`
   in a host-genome component — what decides its fate is which file it was in, not what it is.
+
+### D-014 — The three readings differ by scope and inference, never by denylist membership
+- **Date:** 2026-10-13
+- **Task:** A0.3
+- **Context:** `DESIGN.md` §A0 requires each policy encoded three times — literal, charitable,
+  strict — and treats the spread as the finding. "Strict" needed an operational meaning before
+  anything was written, because the obvious reading of it (the largest filter the schema can
+  express) would have meant extending the published denylists with clades of our own choosing.
+  That would be untraceable, outside §4's limits, and would make the spread a measure of our own
+  hazard judgement rather than of the policies' ambiguity.
+- **Decision:** A reading may broaden only along axes the published words themselves leave open:
+  which corpus components the policy reaches, whether a stated proxy or the aim behind it is the
+  predicate, what counts as sufficient evidence to retain a record, which of a developer's two
+  published descriptions governs, and what an unstated parameter is taken to be. Every taxon
+  named in any of the six specs is quoted from its source; no reading adds one. Each rule carries
+  the published wording its reading rests on in its `note`, and each file header states what the
+  reading deliberately does not do. Two consequences worth recording: the strict Evo reading does
+  not remove prophage, because IMG/VR is described in the source as curated prokaryotic viruses
+  and phage retention is explicit and deliberate — and that retention is also Phase A's
+  within-corpus contrast; and the IMG/VR quality and deduplication steps are carried unchanged
+  into all three readings, so A0.4's spread isolates interpretive difference rather than mixing
+  in a dropped curation step.
+- **Rejected:** Extending the 19 families and 12 orders under the strict reading — unciteable,
+  and it would convert an audit into an assertion of our own hazard list. Dropping the
+  quality/dedup steps from the strict reading as "not hazard predicates" — defensible in itself,
+  but it moves the surviving-record count for a reason that has nothing to do with the
+  interpretation being tested. Making the charitable reading extend to corpus components whose
+  published curation contains no viral screening step — reading authors charitably means taking
+  their stated aim seriously, not crediting them with a procedure no source describes; component
+  scope is the strict reading's axis, and keeping each difference on one axis is what makes the
+  spread interpretable.
+- **Consequence:** Three schema additions were needed and are additive only (A0.2 permits new
+  rule kinds, not redefined ones): the rule kinds `remove_if_host_class_in`,
+  `keep_if_host_evidence_exclusive` and `remove_if_element_detected`; a wildcard scope `["*"]`
+  for a reading that holds a policy to the whole corpus, including components nobody enumerated;
+  and an optional per-rule `components` list, because a corpus-wide policy still cannot apply a
+  viral-taxonomy predicate to a bacterial genome record. A record that a wildcard-scope policy
+  reaches but no rule removes is `retained`, not `out_of_scope` — examined and survived, which is
+  a different claim and the one A4.3 needs. `remove_if_element_detected` consumes A2.3's
+  detections; it detects nothing itself, exactly as the similarity rules consume alignments.
+
+### D-015 — ESM3-open's unpublished threshold is read as a three-point range, not a value
+- **Date:** 2026-10-13
+- **Task:** A0.3
+- **Context:** The identity threshold that determines the entire reach of ESM3-open's filter is
+  never published — the paper says only "at or above a given sequence identity threshold". D-013
+  kept the literal spec honestly `undetermined` rather than guessing, which is correct and also
+  unusable: with no number the filter cannot be re-executed, and the ESM3 arms of A1.4, A7.1 and
+  A8.1 cannot run at all.
+- **Decision:** The three readings bound a sweep instead of naming a value. Literal stays
+  `undetermined`. Charitable reads 0.70, on the only published figure anywhere in the source that
+  ties sequence identity to the Viral Denylist: the authors used "> 70% sequence identity hits to
+  the Viral Denylist" to define the held-out viral structure set they evaluated the filtered model
+  on (S-ESM3-PREPRINT p69). Strict reads any detected alignment, encoded as 0.0 against a record
+  model that carries only detected hits. Downstream tasks sweep that range and report across it;
+  no task may describe any of the three as the developers' parameter. The charitable 0.70 is
+  flagged in the spec and in `policies/specs/README.md` as the weakest inference in the
+  directory, because the 70% cut defines an evaluation set rather than the filter.
+- **Rejected:** Leaving all three readings undetermined — it preserves the finding but ships no
+  usable predicate, and the under-specification is already recorded as a finding in its own right
+  by the literal reading and `policies/esm3-open.md`. Picking a single conventional MMseqs2
+  default (0.3 or 0.5) and proceeding — a fabricated parameter that would propagate into every
+  downstream number with nothing published behind it. Treating the two denylists as having
+  different thresholds — the source describes one matching step applied to both, so splitting
+  them would invent a distinction the text does not make.
+- **Consequence:** `esm3-open-charitable` and `esm3-open-strict` are fully determined, so the
+  ESM3 arm of Phase A can run; `esm3-open-literal` remains the standing record that it should not
+  have had to. A8.1's filter-agreement measurement inherits the range, so its results are
+  reported per reading rather than pooled. If the published version of record (S-ESM3-SCIENCE,
+  still unretrieved) states the threshold, this decision is superseded and the literal reading
+  becomes decidable — which is worth re-checking before publication.

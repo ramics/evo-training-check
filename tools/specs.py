@@ -24,7 +24,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio.policyspec import PolicyError, describe, load_policy_dir
+from amazebio.policyspec import Policy, PolicyError, describe, load_policy_dir
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 SPECS = REPO / "policies" / "specs"
@@ -55,6 +55,19 @@ def main() -> int:
                     f"{pid}: cites {sid}, whose status is '{sources[sid]['status']}'. A policy "
                     "may only be built from a source that was retrieved and stored."
                 )
+
+    # DESIGN.md §A0 requires three readings per policy, and A0.3 froze them. A model with a
+    # spec at all must have all three: a missing reading would silently narrow the spread that
+    # §A0 treats as the finding, and a downstream task would consume whichever readings existed.
+    by_model: dict[str, set[str]] = {}
+    for policy in policies.values():
+        by_model.setdefault(policy.model, set()).add(policy.reading)
+    for model, readings in sorted(by_model.items()):
+        if missing := set(Policy.READINGS) - readings:
+            problems.append(
+                f"{model}: missing the {', '.join(sorted(missing))} reading(s). DESIGN.md §A0 "
+                "requires all three per policy; the spread between them is the finding."
+            )
 
     for p in problems:
         print(f"problem: {p}", file=sys.stderr)

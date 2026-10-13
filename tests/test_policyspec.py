@@ -409,3 +409,309 @@ class TestCommittedSpecs:
             rendered = describe(policy)
             assert policy.model in rendered
             assert all(r.id in rendered for r in policy.rules)
+
+
+class TestReadingKinds:
+    """The rule kinds A0.3 added for the charitable and strict readings."""
+
+    def _policy(self, tmp_path, rule_yaml):
+        """Build a one-rule charitable policy around `rule_yaml`, a YAML list item."""
+        rules = textwrap.indent(textwrap.dedent(rule_yaml).strip(), "    ")
+        text = (
+            "policy:\n"
+            "  id: t-charitable\n"
+            "  model: Test\n"
+            "  reading: charitable\n"
+            "  source: S-EVO1-PREPRINT\n"
+            "  scope:\n"
+            "    components: [IMG/VR]\n"
+            "  rules:\n" + rules + "\n"
+        )
+        path = tmp_path / "t.yaml"
+        path.write_text(text)
+        return load_policy(path)
+
+    def test_remove_if_host_class_in_fires_on_any_occurrence(self, tmp_path):
+        policy = self._policy(
+            tmp_path,
+            """
+                    - id: euk
+                      kind: remove_if_host_class_in
+                      source: S-EVO2-PREPRINT
+                      params:
+                        host_classes: [eukaryotic]
+            """,
+        )
+        out = {
+            d.record_id: d
+            for d in evaluate(
+                policy,
+                [
+                    # one eukaryotic sighting is enough, even alongside many prokaryotic ones
+                    Record(
+                        id="mixed",
+                        component="IMG/VR",
+                        host_occurrences={"prokaryotic": 9, "eukaryotic": 1},
+                    ),
+                    Record(id="prok", component="IMG/VR", host_occurrences={"prokaryotic": 9}),
+                    # a recorded zero is not evidence of a host
+                    Record(id="zero", component="IMG/VR", host_occurrences={"eukaryotic": 0}),
+                    Record(id="unknown", component="IMG/VR"),
+                ],
+            )
+        }
+        assert out["mixed"].outcome is Outcome.REMOVED
+        assert out["prok"].outcome is Outcome.RETAINED
+        assert out["zero"].outcome is Outcome.RETAINED
+        assert out["unknown"].outcome is Outcome.RETAINED
+
+    def test_host_evidence_exclusive_requires_positive_evidence(self, tmp_path):
+        """The strict reading's point: absence of host evidence is not prokaryotic evidence."""
+        policy = self._policy(
+            tmp_path,
+            """
+                    - id: exclusive
+                      kind: keep_if_host_evidence_exclusive
+                      source: S-EVO1-PREPRINT
+                      params:
+                        host_class: prokaryotic
+            """,
+        )
+        out = {
+            d.record_id: d
+            for d in evaluate(
+                policy,
+                [
+                    Record(id="prok", component="IMG/VR", host_occurrences={"prokaryotic": 2}),
+                    Record(
+                        id="mixed",
+                        component="IMG/VR",
+                        host_occurrences={"prokaryotic": 9, "eukaryotic": 1},
+                    ),
+                    Record(id="none", component="IMG/VR"),
+                ],
+            )
+        }
+        assert out["prok"].outcome is Outcome.RETAINED
+        assert out["mixed"].outcome is Outcome.REMOVED
+        assert out["none"].outcome is Outcome.REMOVED
+        assert "no host evidence at all" in out["none"].why
+
+    def test_remove_if_element_detected(self, tmp_path):
+        policy = self._policy(
+            tmp_path,
+            """
+                    - id: elements
+                      kind: remove_if_element_detected
+                      source: S-EVO2-PREPRINT
+                      params:
+                        element_classes: [endogenous-viral-element, provirus]
+            """,
+        )
+        out = {
+            d.record_id: d
+            for d in evaluate(
+                policy,
+                [
+                    Record(
+                        id="eve", component="IMG/VR", detected_elements=["endogenous-viral-element"]
+                    ),
+                    # prophage is not in the listed classes: phage retention is deliberate
+                    Record(id="prophage", component="IMG/VR", detected_elements=["prophage"]),
+                    Record(id="clean", component="IMG/VR"),
+                ],
+            )
+        }
+        assert out["eve"].outcome is Outcome.REMOVED
+        assert out["prophage"].outcome is Outcome.RETAINED
+        assert out["clean"].outcome is Outcome.RETAINED
+
+
+class TestWildcardScopeAndRuleComponents:
+    def test_wildcard_scope_covers_unnamed_components(self, tmp_path):
+        policy = load_policy(
+            write(
+                tmp_path,
+                """
+                policy:
+                  id: t-strict
+                  model: Test
+                  reading: strict
+                  source: S-EVO2-PREPRINT
+                  scope:
+                    components: ["*"]
+                  rules:
+                    - id: elements
+                      kind: remove_if_element_detected
+                      source: S-EVO2-PREPRINT
+                      params:
+                        element_classes: [provirus]
+                """,
+            )
+        )
+        assert policy.scope.is_corpus_wide
+        assert policy.scope.covers("a-component-nobody-enumerated")
+        out = evaluate(
+            policy, [Record(id="x", component="whatever", detected_elements=["provirus"])]
+        )
+        assert out[0].outcome is Outcome.REMOVED
+
+    def test_rule_components_narrow_within_a_wildcard_scope(self, tmp_path):
+        """A viral-taxonomy predicate must not be applied to a bacterial genome record."""
+        policy = load_policy(
+            write(
+                tmp_path,
+                """
+                policy:
+                  id: t-strict
+                  model: Test
+                  reading: strict
+                  source: S-EVO2-PREPRINT
+                  scope:
+                    components: ["*"]
+                  rules:
+                    - id: unspecific
+                      kind: remove_if_unspecific
+                      components: [IMG/VR]
+                      source: S-EVO1-PREPRINT
+                      params:
+                        require_rank: realm
+                        ranks: [realm, family]
+                        stop_taxa: []
+                """,
+            )
+        )
+        out = {
+            d.record_id: d
+            for d in evaluate(
+                policy,
+                [
+                    # no viral realm, but the rule does not reach this component
+                    Record(id="bacterium", component="GTDB", taxonomy={"phylum": "Bacillota"}),
+                    Record(id="viral-unplaced", component="IMG/VR", taxonomy={}),
+                ],
+            )
+        }
+        # in scope, examined, nothing removed it — not the same claim as out_of_scope
+        assert out["bacterium"].outcome is Outcome.RETAINED
+        assert out["viral-unplaced"].outcome is Outcome.REMOVED
+
+    def test_rule_components_must_be_a_non_empty_list(self, tmp_path):
+        with pytest.raises(PolicyError, match="non-empty list"):
+            load_policy(
+                write(
+                    tmp_path,
+                    """
+                    policy:
+                      id: t-literal
+                      model: Test
+                      reading: literal
+                      source: S-EVO1-PREPRINT
+                      scope:
+                        components: [IMG/VR]
+                      rules:
+                        - id: drop
+                          kind: remove_if_taxon_in
+                          components: []
+                          source: S-EVO1-PREPRINT
+                          params:
+                            rank: family
+                            names: [Filoviridae]
+                    """,
+                )
+            )
+
+
+class TestThreeReadings:
+    """A0.3: three readings per policy, and the spread between them is the finding."""
+
+    def test_every_model_has_all_three_readings(self):
+        policies = load_policy_dir(SPECS)
+        by_model: dict[str, set[str]] = {}
+        for policy in policies.values():
+            by_model.setdefault(policy.model, set()).add(policy.reading)
+        assert by_model, "no specs found"
+        for model, readings in by_model.items():
+            assert readings == {"literal", "charitable", "strict"}, model
+
+    def test_reading_ids_are_frozen(self):
+        """Downstream tasks reference readings by id; renaming one silently rewires them."""
+        assert set(load_policy_dir(SPECS)) == {
+            "evo1-literal",
+            "evo1-charitable",
+            "evo1-strict",
+            "esm3-open-literal",
+            "esm3-open-charitable",
+            "esm3-open-strict",
+        }
+
+    def test_the_spread_on_one_record_in_a_host_genome(self):
+        """The headline Phase A contrast, as a test.
+
+        One endogenous filoviral element in a vertebrate reference genome — the motivating case
+        in DESIGN.md §2. The literal and charitable readings never look at the component it sits
+        in; the strict reading removes it on the published predicate.
+        """
+        policies = load_policy_dir(SPECS)
+        record = Record(
+            id="filo-eve-in-host-genome",
+            component="NCBI-eukaryotic-genomes",
+            attributes={"confidence": "High-confidence", "vOTU": "v1"},
+            taxonomy={"realm": "Riboviria", "family": "Filoviridae"},
+            detected_elements=["endogenous-viral-element"],
+        )
+        outcomes = {
+            reading: evaluate(policies[f"evo1-{reading}"], [record])[0]
+            for reading in ("literal", "charitable", "strict")
+        }
+        assert outcomes["literal"].outcome is Outcome.OUT_OF_SCOPE
+        assert outcomes["charitable"].outcome is Outcome.OUT_OF_SCOPE
+        assert outcomes["strict"].outcome is Outcome.REMOVED
+        assert outcomes["strict"].rule_id == "remove-eukaryote-infecting-elements"
+
+    def test_the_spread_on_one_viral_record_with_mixed_host_evidence(self):
+        """A record the published proxy retains and both broader readings do not."""
+        policies = load_policy_dir(SPECS)
+        record = Record(
+            id="mixed-host-phage-like",
+            component="IMG/VR",
+            attributes={"confidence": "High-confidence", "vOTU": "v1"},
+            taxonomy={"realm": "Duplodnaviria", "family": "Straboviridae"},
+            host_occurrences={"prokaryotic": 4, "eukaryotic": 1},
+        )
+        out = {
+            reading: evaluate(policies[f"evo1-{reading}"], [record])[0]
+            for reading in ("literal", "charitable", "strict")
+        }
+        assert out["literal"].outcome is Outcome.RETAINED
+        assert out["charitable"].outcome is Outcome.REMOVED
+        assert out["charitable"].rule_id == "remove-eukaryotic-host-evidence"
+        assert out["strict"].outcome is Outcome.REMOVED
+
+    def test_esm3_threshold_range_across_readings(self):
+        """Literal is undecidable; the other two bound the sweep A7.1 needs."""
+        policies = load_policy_dir(SPECS)
+        assert not policies["esm3-open-literal"].is_determined
+        assert policies["esm3-open-charitable"].is_determined
+        assert policies["esm3-open-strict"].is_determined
+
+        # a weak hit: below the charitable threshold, above the strict one
+        weak = Record(
+            id="weak-hit",
+            component="UniRef",
+            similarity_hits={"viral-denylist": 0.42, "viral-annotated-all": 0.42},
+        )
+        assert evaluate(policies["esm3-open-literal"], [weak])[0].outcome is Outcome.UNDETERMINED
+        assert evaluate(policies["esm3-open-charitable"], [weak])[0].outcome is Outcome.RETAINED
+        assert evaluate(policies["esm3-open-strict"], [weak])[0].outcome is Outcome.REMOVED
+
+    def test_esm3_broader_readings_reach_unnamed_components(self):
+        policies = load_policy_dir(SPECS)
+        rec = Record(
+            id="in-an-unnamed-database",
+            component="some-other-training-database",
+            similarity_hits={"viral-denylist": 0.95, "viral-annotated-all": 0.95},
+        )
+        assert evaluate(policies["esm3-open-literal"], [rec])[0].outcome is Outcome.OUT_OF_SCOPE
+        assert evaluate(policies["esm3-open-charitable"], [rec])[0].outcome is Outcome.REMOVED
+        assert evaluate(policies["esm3-open-strict"], [rec])[0].outcome is Outcome.REMOVED
