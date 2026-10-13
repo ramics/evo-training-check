@@ -23,7 +23,9 @@ including the positive controls.
 ## Steps
 
 - Confirm from primary sources which checkpoints are exclusion-condition and which are
-  controls.
+  controls. The v0.3 model list (ESM3-open as protein-level test condition, ESM-C as a
+  second viruses-included comparison) comes from A0.1; re-verify it rather than
+  inheriting it.
 - Record checkpoint identifiers, versions, licences and access routes.
 - Decide and record which Tier 2 models are in scope given available compute.
 - Flag any model whose training composition is too under-documented to classify.

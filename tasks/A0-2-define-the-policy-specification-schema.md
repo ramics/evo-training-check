@@ -22,8 +22,11 @@ over corpus records.
 
 ## Steps
 
-- Enumerate the predicate primitives the policies actually require (taxonomic clade membership,
-  host association, database tier, version pin, and negations/combinations of these).
+- Enumerate the predicate primitives the policies actually require. Both filter mechanisms must
+  be expressible (DECISIONS.md D-006): label-based needs clade membership, named family and
+  order denylists, host-occurrence counts and taxonomic-rank specificity; similarity-based
+  needs a seed set, an alignment tool and an identity threshold. Also database tier, version
+  pin, the corpus components a policy applies to, and negations/combinations of these.
 - Specify the schema, its validation rules, and how an unresolvable term is represented
   explicitly rather than guessed.
 - Write worked examples covering at least one policy from A0.1.

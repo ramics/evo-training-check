@@ -24,7 +24,9 @@ happens.
 
 - Define family-level survival, surviving-count-per-family, and diversity-coverage precisely
   enough to reimplement.
-- Define the route taxonomy used to break down every count.
+- Define the route taxonomy used to break down every count. It must carry **outside filter
+  scope** as a first-class route, per DECISIONS.md D-007, kept separate from routes the
+  filter covered but could not detect, and from sequence it retained by design.
 - State explicitly why raw sequence volume is not the headline metric.
 - Freeze the definitions and record them in DECISIONS.md.
 

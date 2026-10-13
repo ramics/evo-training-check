@@ -2,11 +2,30 @@
 
 **An independent audit of exclusion-based safeguards in open-weight biological models**
 
-Design specification, v0.2 — 13 October 2026
+Design specification, v0.3 — 13 October 2026
 
 ---
 
-## 0. What changed from v0.1
+## 0. What changed from v0.2
+
+Three changes, all forced by primary-source verification in A0.1. See `tasks/DECISIONS.md`
+D-005 to D-007 for the evidence behind each.
+
+- **The protein-level test model changes from ESM-C to ESM3-open.** ESM-C's own preprint lists
+  IMG/VR viral genomes among its training sources and states no exclusion. ESM3-open is the
+  model that filtered. ESM-C stays in as a second viruses-included comparison, where its
+  largely bacteriophage-derived viral content is a useful contrast.
+- **The subject broadens from taxonomic filtering to hazard-driven data filtering generally.**
+  Evo filters by taxonomic label; ESM3-open filters by sequence similarity outwards from a
+  taxonomy-seeded denylist. These are different mechanisms with different failure modes, and
+  comparing them is stronger than auditing one.
+- **Phase A now leads with the scope gap rather than with leakage magnitude.** The Evo
+  exclusion is a curation step applied to the IMG/VR viral component. Evo 2 inherited it
+  unchanged while adding ~10.7T nucleotides of eukaryotic reference genomes that received only
+  assembly-quality and redundancy curation. The gap between what was filtered and what was
+  trained on is visible in the published methods, before any measurement.
+
+## 0.1. What changed from v0.1
 
 v0.1 measured the *effect* of viral exclusion on model capability. v0.2 adds the prior
 question — whether the exclusion was ever achieved — and the posterior one — whether leakage
@@ -19,17 +38,26 @@ can be predicted before training. Three phases now:
 - **Phase C — Leakage score.** A calibrated, pre-computable predictor of how much capability
   a given filter will fail to remove, shipped as a tool.
 
-The framing is also broadened: the subject is **taxonomic filtering as a class of safeguard**.
-Viral exclusion is the test case because it is the one with public models, public policies and
-public ground truth.
+The framing is also broadened: the subject is **hazard-driven data filtering as a class of
+safeguard**, covering both label-based and similarity-based mechanisms. Viral exclusion is the
+test case because it is the one with public models, public policies and public ground truth.
 
 ---
 
 ## 1. The question
 
-Taxonomic data filtering is becoming the default pre-training safeguard for biological AI
-models, and is being written into pre-development review frameworks, Biosecurity Data Level
-schemes and if-then commitments.
+Pre-training data filtering is becoming the default safeguard for biological AI models, and is
+being written into pre-development review frameworks, Biosecurity Data Level schemes and
+if-then commitments. Two mechanisms are in use, and they fail differently:
+
+- **Label-based** — remove records whose taxonomic annotation falls in a denylist. Evo 1 and
+  Evo 2 do this.
+- **Similarity-based** — seed a denylist from annotation, then remove everything that aligns to
+  it above a threshold. ESM3-open does this.
+
+A label-based filter can only act on records that carry the label, and only within the files it
+is pointed at. A similarity-based filter reaches further but, by construction, retains anything
+that also resembles non-hazardous sequence.
 
 Two open-weight models state viral exclusion as an explicit safety measure:
 
@@ -45,7 +73,8 @@ unproven and call for rigorous efficacy studies.
 
 **Three questions, in order:**
 
-- **A.** Does the filter remove what it says it removes?
+- **A.** Was the filter applied to all of the data it would need to cover, and does it remove
+  what it says it removes within that scope?
 - **B.** Where it doesn't, does the surviving capability track homology to non-excluded space?
 - **C.** Can leakage be predicted from the filter specification alone, before training?
 
@@ -53,11 +82,19 @@ unproven and call for rigorous efficacy studies.
 
 ## 2. Hypotheses
 
-**HA (filter leakage).** Stated taxonomic exclusions leave substantial viral-derived sequence
-in the surviving corpus, via routes that taxonomy labels do not capture: endogenous viral
-elements in host genomes, prophage in bacterial genomes, unclassified metagenomic content,
-host-derived genes captured by viruses, and misassignment by the taxonomy tools the filter
-depends on.
+**HA (filter leakage).** Stated exclusions leave substantial viral-derived sequence in the
+surviving corpus. The routes, in the order they are expected to matter:
+
+- **Outside the filter's scope.** The filter was applied to some corpus components and not
+  others. Sequence in the unfiltered components was never a candidate for removal, regardless
+  of what it is. This is first because it is the largest and because it is established from
+  the published methods rather than measured.
+- **Invisible to the filter's labels.** Within the components the filter did cover: endogenous
+  viral elements in host genomes, prophage in bacterial genomes, unclassified metagenomic
+  content, host-derived genes captured by viruses.
+- **Mis-labelled.** Misassignment by the taxonomy tools the filter depends on.
+- **Deliberately retained.** For similarity-based filters, sequence that also resembles
+  non-hazardous sequence falls below the denylist threshold by design.
 
 **HB (capability tracks homology).** For virus-excluded models, per-assay performance on viral
 DMS is predicted by homology to non-excluded sequence space, not by viral taxonomy. Residual
@@ -89,6 +126,12 @@ running anything. It is the difference between an audit and an advocacy exercise
 
 No GPU required. This phase is the headline result and the part only a real bioinformatician
 can do properly.
+
+**Lead with scope.** The first question is not how much a filter leaked but what it was pointed
+at. A filter applied to one component of a corpus cannot act on the others, however well it
+works internally. Establish the scope gap from the published methods first (A0, A4.3), then
+measure what survived through it (A2, A3). Sizing a gap that is already visible is a stronger
+result than hunting for one.
 
 ## A0. Formalise each policy as an executable predicate
 
@@ -171,8 +214,14 @@ this). Do not trust secondary sources, including this document.
 | Model | Exclusion status | Role |
 |---|---|---|
 | ESM-2 650M and 3B | UniRef50, viral **included** | Positive control |
-| ESM-C (open release) | viral **excluded** | Test condition, protein level |
-| Evo 2 7B | eukaryotic viruses **excluded** | Test condition, nucleotide level |
+| ESM-C (open release) | viral **included** — IMG/VR, largely bacteriophage | Second positive control |
+| **ESM3-open** (`esm3-sm-open-v1`) | similarity-based removal of sequences **unique to viruses** | **Test condition, protein level** |
+| Evo 2 7B | eukaryote-infecting viruses **excluded** by label; phage included | Test condition, nucleotide level |
+
+ESM-C was listed as the protein-level test condition in v0.2. Its own preprint contradicts
+that: IMG/VR release 7 appears in its training sources and no exclusion is stated. It is kept
+as a second viruses-included comparison, which is worth having because its viral content is
+largely bacteriophage — the same contrast Evo 2 provides at the nucleotide level.
 
 Tier 2 if compute allows: Evo 2 40B, Nucleotide Transformer, ProGen2.
 
@@ -284,10 +333,10 @@ reproducible method — which is what turns a recommendation into a reviewable s
 
 ## 3. Generalisation beyond viruses
 
-The subject is taxonomic filtering as a mechanism. The same structure applies to select-agent
-lists, toxin lists and specific pathogen lists: a label-based filter over a corpus whose
-labels are incomplete, whose biology is homologous across the label boundary, and whose
-unclassified fraction is unfilterable.
+The subject is hazard-driven data filtering as a mechanism. The same structure applies to
+select-agent lists, toxin lists and specific pathogen lists, under either mechanism: a filter
+pointed at part of a corpus, over labels that are incomplete, across a boundary the biology is
+homologous over, with an unclassified fraction that is unfilterable in principle.
 
 Include a short section mapping the method onto those cases and stating clearly that it is
 **untested** there. Claiming the transfer without testing it would undercut the rest.
@@ -331,7 +380,7 @@ developers to filter better, which is defensive-dominant.
 |---|---|
 | 1 | A0 policy formalisation (three readings); A1 corpus reconstruction; verify released-vs-actual training data |
 | 2 | A2 detection; A3 quantification; A4 taxonomy dependency; **Phase A results written up** |
-| 3 | B1–B3: ESM-2 vs ESM-C; viral DMS curation; homology axis against surviving corpora; MSA baseline |
+| 3 | B1–B3: ESM-2 vs ESM3-open vs ESM-C; viral DMS curation; homology axis against surviving corpora; MSA baseline |
 | 4 | Evo 2 7B; B5 analysis; C1–C2 fit and validation |
 | 5 | C3 tool; writeup; figures; repo polish; disclosure emails |
 
@@ -347,7 +396,7 @@ Four weekends is optimistic; five is realistic. Phase A alone is publishable if 
 | Released training data ≠ actual training corpus | Verify first; if it differs, say so and treat the discrepancy as a finding |
 | Policy prose too vague to implement | The three-readings design turns this from blocker into result |
 | Small viral n in Phase B | Curate beyond ProteinGym; hierarchical model; per-assay reporting; phage internal control |
-| ESM-C training composition under-documented | State proxy assumption explicitly; ambiguity is a finding |
+| ESM3-open filter threshold unpublished ("a given sequence identity threshold") | Report under all three readings; the unstated threshold is itself a finding |
 | Leakage score overfits | Family-level holdout; hold out a model; report calibration with intervals; call it a heuristic |
 | Scope creep | Phase A ships alone if needed. Resist adding models and assays for their own sake. |
 
