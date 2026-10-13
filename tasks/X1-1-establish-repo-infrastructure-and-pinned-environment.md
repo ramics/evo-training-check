@@ -2,13 +2,13 @@
 id: X1.1
 title: Establish repo infrastructure and pinned environment
 phase: X
-status: ready
+status: in-progress
 gate: false
 depends_on: []
 blocks: [X1.2]
 design_ref: "§5 deliverable 7"
 deliverable: 7
-owner: unassigned
+owner: claude
 ---
 
 # X1.1 — Establish repo infrastructure and pinned environment
