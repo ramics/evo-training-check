@@ -2,13 +2,13 @@
 id: A0.2
 title: Define the policy specification schema
 phase: A
-status: blocked
+status: in-progress
 gate: false
 depends_on: [A0.1]
 blocks: [A0.3, A3.1]
 design_ref: "§A0, §5 deliverable 1"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A0.2 — Define the policy specification schema

@@ -2,7 +2,7 @@
 id: B1.1
 title: Verify model inventory and exclusion status
 phase: B
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.1]
 blocks: [B1.2]
