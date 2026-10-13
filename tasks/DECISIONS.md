@@ -171,3 +171,33 @@ decision has a threshold or parameter in it, the number goes in the entry.
   A3.1's route taxonomy must carry "outside filter scope" as a first-class route. This is the
   strongest Phase A result and it is also the most sensitive, so A3.3's independent
   verification applies to the scope claim too, not only to the counts.
+
+### D-008 — Quotes are machine-verified against their sources
+- **Date:** 2026-10-13
+- **Task:** A0.1
+- **Context:** A0.1's value is entirely in verbatim accuracy about what named laboratories
+  published. The failure mode that would do most damage is a plausible paraphrase acquiring
+  quote marks — a risk that applies with particular force to an agent working from training
+  knowledge, since a model's recollection of a paper is exactly the secondary source §B1 step 0
+  forbids relying on. Two concrete near-misses occurred while building the store: WebFetch's
+  summarising model silently truncated a quote to fit a character limit, and a manual
+  transcription rendered `≤` as `<=`.
+- **Decision:** Quotes live in `policies/*.md` as blockquotes preceded by a `[source: ID]`
+  marker. `tools/policies.py` extracts the cited source — PDFs included — normalises PDF
+  typography (soft hyphenation, ligatures, curly punctuation, whitespace) and fails if the
+  quoted wording does not literally appear, if a stored source's checksum has changed, or if a
+  quote cites a source that was never retrieved. It runs in CI and via
+  `pixi run -e dev policies-check`. `pypdf` is pinned in `pixi.toml` for it. Normalisation is
+  unit-tested against near-miss pairs to confirm it does not fold away differences in wording.
+  Source retrieval used raw `curl` rather than WebFetch, for the reason above.
+- **Rejected:** Trusting care alone — the two near-misses above both happened under care.
+  Committing extracted PDF text instead of the PDFs — adds a derived artefact that can drift
+  from its source, and the extraction is cheap to redo. Normalising `≤` to `<=` to make the
+  failing quote pass — that difference is wording, not typography, and folding it away would
+  defeat the check.
+- **Consequence:** `policies/captures/MANIFEST.json` is superseded by `policies/sources.json`,
+  which carries stable citable ids, checksums and retrieval status in one place rather than
+  duplicating provenance across two files. Three sources remain unretrieved and are recorded
+  with the reason: the Evo 2 Nature Methods section, the ESM3 Science version of record, and
+  the Biohub Platform Resources page (referenced in prose but never linked — itself an
+  under-specification finding). A quote may not cite any of them, and the checker enforces it.

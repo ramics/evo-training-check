@@ -32,5 +32,10 @@ jobs:
       - name: Task graph
         run: pixi run -e dev board-check
 
+      # Verifies every quote in policies/ literally appears in the source it cites, and
+      # that no stored source has changed since its checksum was recorded. See policies/README.md.
+      - name: Policy evidence
+        run: pixi run -e dev policies-check
+
       - name: Tests
         run: pixi run -e dev test

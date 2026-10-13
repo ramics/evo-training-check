@@ -19,6 +19,9 @@ platforms = ["linux-64", "osx-arm64"]
 
 [dependencies]
 python = "3.12.*"
+# Needed by tools/policies.py to verify that every quote in policies/ literally
+# appears in the source PDF it cites. CI runs that check, so it is not dev-only.
+pypdf = ">=5,<7"
 
 # Make `import amazebio` work in every pixi task and shell without a build step
 # or an editable pip install, so a pipeline script and a test see the same package.
@@ -41,8 +44,10 @@ board = "python3 tools/board.py"
 # Validate the task graph and board freshness. CI runs this.
 board-check = "python3 tools/board.py --check"
 test = "pytest -q"
+# Verify every quote in policies/ literally appears in the source it cites.
+policies-check = "python3 tools/policies.py"
 lint = "ruff check ."
 fmt = "ruff format ."
 fmt-check = "ruff format --check ."
 # Everything CI runs, in one command.
-check = { depends-on = ["lint", "fmt-check", "board-check", "test"] }
+check = { depends-on = ["lint", "fmt-check", "board-check", "policies-check", "test"] }
