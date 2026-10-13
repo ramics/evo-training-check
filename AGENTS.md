@@ -22,14 +22,25 @@ Three phases, strictly ordered by dependency rather than preference:
 ## Repo map
 
 ```
-DESIGN.md           the specification — authoritative, read it before planning anything
-AGENTS.md           this file: process, conventions, non-negotiables
-tools/board.py      regenerates tasks/BOARD.md from task frontmatter
-tasks/README.md     the task protocol in detail
-tasks/BOARD.md      GENERATED — never hand-edit
-tasks/DECISIONS.md  append-only log of resolved ambiguities
-tasks/*.md          one file per unit of work
+DESIGN.md             the specification — authoritative, read it before planning anything
+AGENTS.md             this file: process, conventions, non-negotiables
+README.md             setup and everyday commands
+pixi.toml / pixi.lock the pinned environment (conda-forge + bioconda + python)
+pyproject.toml        package metadata, lint and test config
+src/amazebio/         library code
+  repro.py            seeding, input pinning, run provenance
+tools/board.py        regenerates tasks/BOARD.md from task frontmatter
+tasks/README.md       the task protocol in detail
+tasks/BOARD.md        GENERATED — never hand-edit
+tasks/DECISIONS.md    append-only log of resolved ambiguities
+tasks/*.md            one file per unit of work
+tests/                tests
+data/                 pinned inputs (git-ignored)
+artifacts/            pipeline outputs and run manifests (git-ignored)
 ```
+
+Run `pixi run -e dev check` before every commit — it is exactly what CI runs (lint, format,
+task graph, tests), so a green local run means a green CI run.
 
 ## How to pick up work
 
@@ -112,7 +123,10 @@ negotiable by a task that finds them inconvenient.
 ## Working conventions
 
 - **Pin everything.** Database versions, tool versions, model checkpoints, seeds. A result
-  that cannot be regenerated from pinned inputs is not a result yet. Where a stated version is
+  that cannot be regenerated from pinned inputs is not a result yet. Wrap every pipeline in
+  `amazebio.repro.run`: it seeds the RNGs, writes a `run.json` recording inputs, outputs,
+  parameters and tool versions, refuses a dirty git tree, and refuses a parameter declared
+  after an output exists. Where a stated version is
   unrecoverable, record stated-vs-used explicitly; the gap is a finding, not an embarrassment.
 - **Under-specification is data.** When a policy, dataset or model card is vague, log it and
   measure the consequence. Do not paper over it with a plausible guess — `DESIGN.md` §A0 turns

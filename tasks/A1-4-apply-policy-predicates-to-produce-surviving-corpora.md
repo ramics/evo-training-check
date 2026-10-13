@@ -26,12 +26,16 @@ record sets that Phase A measures and Phase B scores against.
 - Produce, per model × reading, a surviving-record manifest with stable IDs.
 - Verify counts are internally consistent and reproducible from pinned inputs.
 - Expose the manifests as the single shared input for A2.* and B3.*.
+- Wrap the run in `amazebio.repro.run`, declaring every parameter before results
+  exist, so this pipeline is the first to enforce the X1.1 seed and provenance
+  convention end to end (see DECISIONS.md D-003).
 
 ## Done when
 
 - Nine-ish (model × reading) manifests exist, reproducible from pinned inputs and seeds.
 - Manifest format is documented and consumed by at least one A2 task.
 - Record counts reconcile against A1.2/A1.3 composition tables.
+- A `run.json` manifest is produced, pinning inputs, outputs, parameters and seed.
 
 ## Notes
 

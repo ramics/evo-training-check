@@ -1,0 +1,25 @@
+# Pinned inputs and pipeline outputs are reproduced from manifests, never committed.
+# Their provenance lives in the run.json each pipeline writes; see src/amazebio/repro.py.
+/data/*
+/artifacts/*
+
+# pixi
+.pixi/
+
+# keep the directory READMEs, ignore the contents
+!/data/README.md
+!/artifacts/README.md
+
+# python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# editors / os
+.DS_Store
+.vscode/
+.idea/

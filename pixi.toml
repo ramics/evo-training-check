@@ -1,0 +1,48 @@
+[workspace]
+name = "amazebio"
+description = "Independent audit of exclusion-based data filtering as a safeguard in open-weight biological models"
+version = "0.1.0"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64", "osx-arm64"]
+
+# bioconda is declared from the start because most of the Phase A toolchain
+# (profile search, structural search, element detection, taxonomy assignment) is
+# distributed there rather than on PyPI. Keeping it in the same lockfile as the
+# Python dependencies is the whole reason this project uses pixi: AGENTS.md
+# requires that a result regenerate from pinned inputs, and a compiled binary
+# installed by side-channel instructions is not pinned.
+#
+# Tools are added by the task that needs them, with a DECISIONS.md entry
+# recording the version choice. Do not pre-populate this file with the Phase A
+# toolchain — DESIGN.md §7 names scope creep as a live risk, and an unused
+# pinned tool is a maintenance cost with no result attached.
+
+[dependencies]
+python = "3.12.*"
+
+# Make `import amazebio` work in every pixi task and shell without a build step
+# or an editable pip install, so a pipeline script and a test see the same package.
+[activation.env]
+PYTHONPATH = "$PIXI_PROJECT_ROOT/src"
+
+[feature.dev.dependencies]
+pytest = ">=8.3,<9"
+ruff = ">=0.8,<0.9"
+
+[environments]
+default = { features = [], solve-group = "main" }
+dev = { features = ["dev"], solve-group = "main" }
+
+[tasks]
+# Regenerate the task board from task frontmatter.
+board = "python3 tools/board.py"
+
+[feature.dev.tasks]
+# Validate the task graph and board freshness. CI runs this.
+board-check = "python3 tools/board.py --check"
+test = "pytest -q"
+lint = "ruff check ."
+fmt = "ruff format ."
+fmt-check = "ruff format --check ."
+# Everything CI runs, in one command.
+check = { depends-on = ["lint", "fmt-check", "board-check", "test"] }

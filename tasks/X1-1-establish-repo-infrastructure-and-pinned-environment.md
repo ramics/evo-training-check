@@ -2,7 +2,7 @@
 id: X1.1
 title: Establish repo infrastructure and pinned environment
 phase: X
-status: in-progress
+status: review
 gate: false
 depends_on: []
 blocks: [X1.2]
@@ -30,7 +30,9 @@ discipline, layout, CI.
 ## Done when
 
 - A clean checkout reaches a working environment by documented steps.
-- Seed convention is documented and enforced in at least one pipeline.
+- Seed and provenance convention is documented, importable and covered by tests.
+  (Enforcement in a real pipeline is verified by A1.4 — no pipeline exists at X1.1.
+  See DECISIONS.md D-003.)
 - CI green on an empty-but-valid repo state.
 
 ## Notes

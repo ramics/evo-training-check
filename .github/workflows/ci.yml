@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# Runs everything `pixi run check` runs locally, from the committed pixi.lock, so
+# CI and a contributor's machine resolve the same packages. See AGENTS.md.
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          environments: dev
+          # Fail if pixi.lock does not match pixi.toml. A stale lock means CI and
+          # local runs can diverge, which breaks the pinning guarantee AGENTS.md
+          # relies on.
+          locked: true
+
+      - name: Lint
+        run: pixi run -e dev lint
+
+      - name: Format check
+        run: pixi run -e dev fmt-check
+
+      # Validates the task dependency graph (unknown IDs, cycles, stale `blocks`
+      # lists, status/dependency inconsistencies) and that tasks/BOARD.md is not
+      # stale. This is the mechanism that makes the gates in AGENTS.md enforceable.
+      - name: Task graph
+        run: pixi run -e dev board-check
+
+      - name: Tests
+        run: pixi run -e dev test

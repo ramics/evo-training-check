@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import pathlib
-import re
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -116,12 +115,12 @@ def validate(tasks: dict[str, dict]) -> list[str]:
         if colour.get(tid) == 2:
             return
         if colour.get(tid) == 1:
-            problems.append("dependency cycle: " + " -> ".join(trail + [tid]))
+            problems.append("dependency cycle: " + " -> ".join([*trail, tid]))
             return
         colour[tid] = 1
         for dep in tasks[tid]["depends_on"]:
             if dep in tasks:
-                visit(dep, trail + [tid])
+                visit(dep, [*trail, tid])
         colour[tid] = 2
 
     for tid in tasks:
@@ -131,15 +130,12 @@ def validate(tasks: dict[str, dict]) -> list[str]:
     for tid, t in tasks.items():
         if t["status"] == "deferred":
             continue
-        unfinished = [
-            d for d in t["depends_on"] if d in tasks and tasks[d]["status"] != "done"
-        ]
+        unfinished = [d for d in t["depends_on"] if d in tasks and tasks[d]["status"] != "done"]
         if t["status"] == "blocked" and not unfinished:
             problems.append(f"{tid}: marked blocked but all dependencies are done")
         if t["status"] != "blocked" and unfinished:
             problems.append(
-                f"{tid}: marked {t['status']} but depends on unfinished "
-                f"{', '.join(unfinished)}"
+                f"{tid}: marked {t['status']} but depends on unfinished " f"{', '.join(unfinished)}"
             )
 
     return problems
@@ -167,7 +163,7 @@ def render(tasks: dict[str, dict], problems: list[str]) -> str:
         (t for t in tasks.values() if t["status"] in ("in-progress", "review")),
         key=lambda t: t["id"],
     )
-    gates = sorted((t["id"] for t in tasks.values() if t.get("gate")))
+    gates = sorted(t["id"] for t in tasks.values() if t.get("gate"))
 
     out: list[str] = []
     out.append("# Board\n")
@@ -198,7 +194,8 @@ def render(tasks: dict[str, dict], problems: list[str]) -> str:
     out.append("## In progress\n")
     if active:
         for t in active:
-            out.append(f"- **{t['id']}** {t['title']} · `{t['status']}` · {t.get('owner', 'unassigned')}")
+            owner = t.get("owner", "unassigned")
+            out.append(f"- **{t['id']}** {t['title']} · `{t['status']}` · {owner}")
     else:
         out.append("_Nothing in progress._")
     out.append("")
@@ -214,19 +211,14 @@ def render(tasks: dict[str, dict], problems: list[str]) -> str:
 
     out.append("## All tasks\n")
     for phase, label in PHASES.items():
-        rows = sorted(
-            (t for t in tasks.values() if t["phase"] == phase), key=lambda t: t["id"]
-        )
+        rows = sorted((t for t in tasks.values() if t["phase"] == phase), key=lambda t: t["id"])
         if not rows:
             continue
         out.append(f"### {label}\n")
         out.append("| ID | Task | Status | Blocked on | Ref |")
         out.append("|---|---|---|---|---|")
         for t in rows:
-            unfinished = [
-                d for d in t["depends_on"]
-                if d in tasks and tasks[d]["status"] != "done"
-            ]
+            unfinished = [d for d in t["depends_on"] if d in tasks and tasks[d]["status"] != "done"]
             title = t["title"] + (" **(gate)**" if t.get("gate") else "")
             out.append(
                 f"| [{t['id']}]({t['_file']}) | {title} | `{t['status']}` | "
@@ -235,9 +227,7 @@ def render(tasks: dict[str, dict], problems: list[str]) -> str:
         out.append("")
 
     out.append("## Critical path\n")
-    out.append(
-        "Longest dependency chain to each deliverable-bearing endpoint, by task count:\n"
-    )
+    out.append("Longest dependency chain to each deliverable-bearing endpoint, by task count:\n")
     depth_cache: dict[str, tuple[int, list[str]]] = {}
 
     def chain(tid: str) -> tuple[int, list[str]]:
@@ -250,7 +240,7 @@ def render(tasks: dict[str, dict], problems: list[str]) -> str:
                 _, path = chain(dep)
                 if len(path) > len(best):
                     best = path
-        result = (len(best) + 1, best + [tid])
+        result = (len(best) + 1, [*best, tid])
         depth_cache[tid] = result
         return result
 
