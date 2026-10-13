@@ -206,11 +206,29 @@
       "retrieved_at": "2026-10-13T14:13:41Z",
       "licence": "publisher content \u2014 NOT redistributed; checksum only",
       "committed": false
+    },
+    {
+      "capture": "pdfs/2024.02.27.582234v1.full.pdf",
+      "url": "https://www.biorxiv.org/content/10.1101/2024.02.27.582234v1.full.pdf",
+      "doi": "10.1101/2024.02.27.582234",
+      "title": "Nguyen et al. \u2014 Sequence modeling and design from molecular to genome scale with Evo (Evo 1 preprint)",
+      "models": [
+        "Evo 1",
+        "OpenGenome"
+      ],
+      "sha256": "793f60c0bc7d06a97f2b24404e61af6ac700bb615abb3b2ee48882d350170241",
+      "bytes": 20023302,
+      "pages": 47,
+      "retrieved_at": "2026-10-13T14:47:02Z",
+      "licence": "CC-BY 4.0 International (bioRxiv page-1 stamp)",
+      "committed": true,
+      "note": "KEYSTONE SOURCE for A0.2/A0.3: Appendix B.2 carries the only operational definition of the Evo eukaryotic-virus exclusion. Evo 2 defers to this paper ('As previously described') and states no procedure of its own."
     }
   ],
   "observations": [
     "policies/captures/hf-ESMC-6B-README.md and hf-ESMC-600M-README.md are byte-identical (sha256 64096baa2f73...): HuggingFace serves one shared ESMC card across variants, so it does not distinguish training-data policy per variant.",
     "policies/captures/esm-README.md was served identically from both the evolutionaryscale/esm and Biohub/esm paths (same sha256), confirming the repository redirect rather than assuming it.",
-    "pdfs/* are preprints supplied by the project owner. Licences differ: the ESM3 preprint is CC-BY-NC-ND, the Evo 2 preprint CC-BY-ND, the ESMC preprint CC-BY. All permit verbatim redistribution with attribution; the ND terms restrict derivative works, which matters for any figure redrawn from them rather than for quotation."
+    "pdfs/* are preprints supplied by the project owner. Licences differ: the ESM3 preprint is CC-BY-NC-ND, the Evo 2 preprint CC-BY-ND, the ESMC preprint CC-BY. All permit verbatim redistribution with attribution; the ND terms restrict derivative works, which matters for any figure redrawn from them rather than for quotation.",
+    "The Evo exclusion procedure (Evo 1 Appendix B.2) is scoped to the IMG/VR viral component of the corpus only. Evo 1 contains no mention of prophage, endogenous viral elements or proviruses (0 hits across 47pp). Evo 2 inherited the procedure unchanged while adding 15,148 deduplicated eukaryotic reference genomes (~10.7T nt), whose curation is purely assembly-quality and redundancy based (Mash dedup, centromere and short-contig removal) with no viral screening. Verify against the version of record before publication."
   ]
 }
