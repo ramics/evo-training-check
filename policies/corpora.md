@@ -83,7 +83,17 @@ the location:
 
 It sits under `LongSafari`, not under an `arcinstitute` namespace, which is worth recording
 because the obvious guess returns HTTP 401 and a guess that returns an error looks like an absent
-artefact. The same README describes its scope:
+artefact. Checked rather than assumed, on 2026-10-13: the HuggingFace API lists 22 public datasets
+under `arcinstitute`, and `opengenome` is not among them — only `opengenome2` — while `LongSafari`
+publicly lists exactly one dataset, `open-genome`. So the 401 was not a gate on an existing
+dataset. HuggingFace answers 401 identically for gated, renamed and never-existent repositories,
+so a non-200 from that host supports no claim about an artefact on its own.
+
+This is also the smallest concrete instance of what §10 is about. One model family's corpus is
+"OpenGenome" in the papers, `LongSafari/open-genome` for v1 and `arcinstitute/opengenome2` for v2,
+with nothing linking the three but a line in a GitHub README. A downstream developer asking what a
+model was trained on has one reliable route — the paper's own pointer — and guessing returns an
+error that reads as absence. The same README describes its scope:
 
 [source: S-EVO1-REPO]
 > Evo has 7 billion parameters and is trained on [OpenGenome](https://huggingface.co/datasets/LongSafari/open-genome), a prokaryotic whole-genome dataset containing ~300 billion tokens.
