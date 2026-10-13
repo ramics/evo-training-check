@@ -3,15 +3,6 @@
   "note": "Retrieval provenance for A0.1. `committed: false` entries are publisher content recorded by checksum only and kept out of git; re-fetch from `url` to verify.",
   "captures": [
     {
-      "capture": "data/a0-1-restricted/evo2-nature-s41586-026-10176-5.html",
-      "url": "https://www.nature.com/articles/s41586-026-10176-5",
-      "sha256": "741756e084b7c607413cae2a5e7dadc28a36a78b66190a6fc1bf784fd9dbfda0",
-      "bytes": 657736,
-      "retrieved_at": "2026-10-13T14:13:41Z",
-      "licence": "publisher content \u2014 NOT redistributed; checksum only",
-      "committed": false
-    },
-    {
       "capture": "policies/captures/esm-ESM3_README.md",
       "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/_assets/ESM3_README.md",
       "sha256": "2f564153712e32ad668f1586b6e78599d1a7fd6a3b3b7049718d85f9b33f79a6",
@@ -145,6 +136,25 @@
       "retrieved_at": "2026-10-13T14:13:41Z",
       "licence": "apache-2.0 (card frontmatter)",
       "committed": true
+    },
+    {
+      "capture": "(not stored \u2014 publisher content)",
+      "url": "https://www.nature.com/articles/s41586-026-10176-5.pdf",
+      "sha256": "40080c41982adf84d15dcabbeaa101900bc17d3c92808c96f93de5138c9f820a",
+      "bytes": 70339648,
+      "retrieved_at": "2026-10-13T14:16:01Z",
+      "licence": "publisher content \u2014 NOT redistributed; checksum only",
+      "committed": false,
+      "note": "33pp: main article + extended data. Contains the policy statements but NOT the Methods section (21 occurrences of 'Methods' are all cross-references). The operational definition of the exclusion is therefore still unretrieved."
+    },
+    {
+      "capture": "data/a0-1-restricted/evo2-nature-s41586-026-10176-5.html",
+      "url": "https://www.nature.com/articles/s41586-026-10176-5",
+      "sha256": "741756e084b7c607413cae2a5e7dadc28a36a78b66190a6fc1bf784fd9dbfda0",
+      "bytes": 657736,
+      "retrieved_at": "2026-10-13T14:13:41Z",
+      "licence": "publisher content \u2014 NOT redistributed; checksum only",
+      "committed": false
     }
   ],
   "observations": [
