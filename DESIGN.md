@@ -2,11 +2,34 @@
 
 **An independent audit of exclusion-based safeguards in open-weight biological models**
 
-Design specification, v0.4 — 13 October 2026
+Design specification, v0.5 — 13 October 2026
 
 ---
 
-## 0. What changed from v0.3
+## 0. What changed from v0.4
+
+Four additions to Phase A, all of which exploit the same asset: the filter predicates are now
+formalised (A0), and nobody else has them. None needs a GPU, a hazard list, or any capability
+measurement. See `tasks/DECISIONS.md` D-011.
+
+- **§A7 Conformance re-execution.** Run each published predicate against the developer's own
+  released corpus and diff. A record that survives a rule its own authors stated is a
+  conformance failure — binary, and not an inference about homology.
+- **§A8 Filter agreement.** Apply both filters' predicates to one corpus and measure overlap.
+  If two labs' "remove viruses" safeguards disagree about what counts as viral, this class of
+  safeguard is not reproducible, which is what governance currently assumes it is.
+- **§A9 Safeguard decay.** Evo's denylist is 19 families and 12 orders fixed in 2024, against a
+  taxonomy that keeps changing. Quantify what newly-named diversity the frozen list no longer
+  names. The output is a re-validation schedule: a filter has a shelf life.
+- **§10 A disclosure standard for data filters.** The deepest finding in A0 is not leakage but
+  that these filters are unauditable as published. Define the minimum a developer must publish
+  for a filter to be auditable, and retro-fit it to all four models.
+
+**Phase A is now a paper on its own**, and the schedule in §6 reflects that: Phase A ships as
+the first paper, Phase B and C as the second. This replaces "Phase A alone is publishable if
+Phase B slips" with a deliberate split.
+
+## 0.1. What changed from v0.3
 
 Two changes, both from the prior-art check. See `tasks/DECISIONS.md` D-009 and D-010.
 
@@ -214,8 +237,68 @@ A taxonomy-based filter can only act on sequence that taxonomy has labelled.
 - Benchmark the misassignment rate of the taxonomy assignment tools the filter relies on, on
   viral sequence specifically.
 
+## A7. Conformance re-execution — did the filter do what its authors said?
+
+The cheapest airtight question available, and it only became askable once A0 turned the prose
+into an executable predicate.
+
+Each developer published a procedure and, in Evo's case, the corpus it was applied to. So run
+the procedure against the released corpus and diff:
+
+- Execute each reading's predicate over the released dataset.
+- Identify **conformance failures**: records that survive which the developer's own stated rule
+  should have removed.
+- Classify each failure by cause — the predicate is ambiguous, the annotation the predicate
+  relies on is absent or wrong, the record postdates the filter, or the rule was simply not
+  applied to that component.
+- Report the count and the rate, per model and per reading.
+
+This claims nothing about homology, capability or hazard. It compares a stated rule against
+delivered data. **A clean result is as valuable as a dirty one** and must be published either
+way (§2): it would be the first external confirmation that a stated filter was actually applied
+as described.
+
+A failure here is a stronger finding than any leakage estimate, and a more sensitive one. It
+gets the §7 treatment: independent re-execution by a second implementation before publication,
+and the disclosure window honoured as substance.
+
+## A8. Filter agreement — do two labs mean the same thing by "viral"?
+
+Both filters claim to remove viral sequence. They are different mechanisms (§A0), so apply both
+to a single common corpus and measure where they disagree.
+
+- Run Evo's label-based predicate and ESM3-open's similarity-based predicate over the same
+  records.
+- Report agreement: records both remove, records neither removes, and records exactly one
+  removes — with the last broken down by which and why.
+- Where they disagree, characterise what kind of sequence falls in the gap.
+
+If agreement is high, the safeguard class is at least consistently defined and that strengthens
+it. If agreement is low, then "we filtered viral data" does not denote a definite operation,
+and any framework that mandates it is mandating something underdetermined. Either way this is
+measurable now, and it needs no hazard list.
+
+Note the confound to handle honestly: the two filters were applied to different corpora in
+their original use (nucleotide genomes versus protein databases). Running both on one corpus
+measures the predicates, not the deployments, and the write-up must say so.
+
+## A9. Safeguard decay — does a filter have a shelf life?
+
+Evo's denylist names 19 families and 12 orders, fixed against the taxonomy of 2024. Viral
+taxonomy is revised continuously, and corpora are rebuilt from newer database releases.
+
+- Take the frozen denylist and replay it against successive taxonomy releases.
+- Count taxa that are in scope by the policy's intent but not named by the frozen list: newly
+  erected families, renamed or split taxa, and reassignments across the list's boundary.
+- Express the result as decay over time, and derive the implied re-validation interval.
+
+The governance consequence is concrete and absent from current frameworks: a filter approved
+once does not stay approved, and a review regime with no re-validation requirement is approving
+a decaying control. This is cheap, needs no hazard list, and applies to every label-based
+filter rather than only these two.
+
 **Phase A deliverable:** a filter-audit tool that takes a policy specification plus a corpus
-and reports what survives, by route.
+and reports what survives, by route; plus the conformance, agreement and decay results.
 
 ---
 
@@ -431,20 +514,37 @@ developers to filter better, which is defensive-dominant.
 5. Results notebooks and figures.
 6. Preprint.
 7. Public repo: pinned environment, seeds, one-command reproduction.
+8. A filter disclosure standard, with all four models scored against it.
 
 ---
 
 ## 6. Schedule
 
+**Two papers, not one.** Phase A now carries conformance, agreement, decay, scope and the
+disclosure standard — enough for a complete paper that needs no GPU. Phase B and C follow as a
+second paper. Trying to ship all of it at once is how both end up late.
+
+**Paper 1 — Phase A.**
+
 | Weekend | Work |
 |---|---|
 | 1 | A0 policy formalisation (three readings); A1 corpus reconstruction; verify released-vs-actual training data |
-| 2 | A2 detection; A3 quantification; A4 taxonomy dependency; **Phase A results written up** |
-| 3 | B1–B3: assay register; homology axis against surviving corpora; MSA baseline |
-| 4 | B5 homology regression; C5–C6 cost curves and regime classification |
-| 5 | C7 tool; writeup; figures; repo polish; disclosure emails |
+| 2 | **A7 conformance re-execution**; **A9 decay** — both pure predicate work, both cheap |
+| 3 | A2 detection; A3 quantification; A4 taxonomy dependency and scope |
+| 4 | **A8 filter agreement**; A3.3 independent reimplementation; **§10 disclosure standard** |
+| 5 | Phase A write-up; figures; repo polish; disclosure emails; window opens |
 
-Four weekends is optimistic; five is realistic. Phase A alone is publishable if Phase B slips.
+**Paper 2 — Phases B and C**, after the Paper 1 disclosure window closes.
+
+| Weekend | Work |
+|---|---|
+| 6 | B1–B3: assay register; homology axis against surviving corpora; MSA baseline |
+| 7 | B5 homology regression; the C6.2 premise check |
+| 8 | C5–C6 cost curves and regime classification |
+| 9 | C7 tool; write-up; figures |
+
+Five weekends for Paper 1 is realistic; it was optimistic for less work before. The split is
+also a hedge: if the premise check in C6.2 undermines the cost curve, Paper 1 is already out.
 
 ---
 
@@ -459,7 +559,36 @@ Four weekends is optimistic; five is realistic. Phase A alone is publishable if 
 | ESM3-open filter threshold unpublished ("a given sequence identity threshold") | Report under all three readings; the unstated threshold is itself a finding |
 | Cost curve misleads where database coverage of a family is thin | Report coverage per family alongside every curve; never publish a curve without it; treat thin coverage as an abstention, not a cheap verdict |
 | **Cost curve reads as a map of least-protected hazards** | Aggregate by homology class; per-family curves stay in the disclosure package; limit set in §4 before the work runs |
-| Scope creep | Phase A ships alone if needed. Resist adding models and assays for their own sake. |
+| **Scope creep — five work streams against a weekend schedule** | The §6 two-paper split is the mitigation: Phase A ships first and alone. Resist adding models and assays for their own sake. If Paper 1 slips, cut A8 before A7 or A9. |
+| Conformance re-execution depends on the released corpus being the training corpus | A1.1 gates it. A conformance claim against a proxy corpus is not a conformance claim; say so or do not make it. |
+
+---
+
+## 10. A disclosure standard for data filters
+
+The hardest problem in A0 was not that the filters leak. It was that they cannot be audited
+from what was published:
+
+- Evo 2 states the policy and defers the procedure to Evo 1, so the operative specification is
+  in a different paper about a different corpus.
+- ESM3-open's filter turns on a sequence-identity threshold that is never stated, and its
+  keyword list is available on request rather than published.
+- ESM-C's model card is shared byte-for-byte across model variants, so it cannot evidence any
+  variant's training data.
+- ESM3-open's card says "data related to viruses"; its paper says "sequences unique to
+  viruses". These denote materially different sets.
+
+None of that is misconduct; there is simply no standard for what a filter disclosure must
+contain. Propose one, in the form of a minimum checklist — scope, predicate, thresholds,
+annotation sources and versions, tool versions, validation performed, and which released
+artefacts it applied to — then retro-fit it to all four models and report what is missing
+against each.
+
+This is the most durable output in the project. A leakage number ages; a disclosure standard
+changes what the next model publishes, and it is derived from evidence rather than asserted.
+
+Pair it with the obvious reciprocal obligation: publish our own filter specifications in the
+same format, so the standard is demonstrated and not merely proposed.
 
 ---
 

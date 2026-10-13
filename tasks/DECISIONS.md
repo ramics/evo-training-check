@@ -256,3 +256,60 @@ decision has a threshold or parameter in it, the number goes in the entry.
   published collections where licensing allows. A side effect worth noting: the ESMC paper is
   now both prior art and a comparison point, so any Phase B result has a published number it
   should be consistent with — and a discrepancy would itself be a finding.
+
+### D-011 — Four additions to Phase A, all built on the formalised predicates
+- **Date:** 2026-10-13
+- **Task:** design review (adds A7.1, A8.1, A9.1, X5.1)
+- **Context:** A brainstorm after the prior-art check asked what would make a meaningful novel
+  contribution. The answer turned on an asset the project had not been exploiting: A0 converts
+  published filter prose into executable predicates, and nobody else has them. Four questions
+  follow directly, none needing a GPU, a hazard list, or any capability measurement.
+- **Decision:** Added to Phase A —
+  **A7 conformance re-execution:** run each published predicate against the developer's own
+  released corpus and diff. A surviving record that the authors' own rule should have removed is
+  a conformance failure: a comparison of stated rule against delivered data, with no homology
+  inference in it. A clean result is equally publishable and would be the first external
+  confirmation that a stated filter was applied as described.
+  **A8 filter agreement:** apply both predicates to one corpus and measure overlap. Low
+  agreement would mean "we filtered viral data" does not denote a definite operation, which
+  matters to any framework mandating it.
+  **A9 safeguard decay:** replay the frozen 2024 denylist against successive taxonomy releases
+  to derive a re-validation interval. A filter approved once does not stay approved.
+  **§10 disclosure standard:** the minimum a developer must publish for a filter to be
+  auditable, derived from what actually blocked this audit, retro-fitted to all four models, and
+  applied to this project's own specifications.
+- **Rejected:** A reference audit corpus with ground-truth route annotations — durable
+  infrastructure, but more work than the others and its value depends on adoption; revisit after
+  Paper 1. Training small controlled models for a causal result — the only way to get causation,
+  but outside the compute and the §4 scope limits as written.
+- **Consequence:** **Phase A becomes a paper on its own** and §6 now schedules two papers rather
+  than one, which replaces "Phase A alone is publishable if Phase B slips" with a deliberate
+  split. A new §7 risk row names the scope creep this creates and says what to cut first (A8
+  before A7 or A9). A7 is gated on A1.1: a conformance claim against a proxy corpus is not a
+  conformance claim. A3.3's independent reimplementation now covers the conformance numbers too,
+  since a conformance failure is a stronger and more sensitive claim than a survival count.
+
+### D-012 — Cost curve retained over the recommendation to park it
+- **Date:** 2026-10-13
+- **Task:** design review (C5.1–C7.1)
+- **Context:** Having proposed the cost curve in D-009, I argued against it a day later in the
+  same session. The objection: "collateral removed" counts sequences deleted, but the quantity
+  that matters is useful capability lost, and the two are only connected by an untested
+  assumption. Measuring the latter needs trained models, which the project does not have. So the
+  curve's headline quantity is a proxy whose relationship to the real cost is unestablished, and
+  a reviewer can reasonably say that deleting some fraction of a database may cost the model
+  nothing. It also requires a hazard-family list, which is the one input that carries dual-use
+  sensitivity in an otherwise low-exposure project. My recommendation was to park C5.1–C7.1
+  until the C6.2 premise check came back strong enough to license them.
+- **Decision:** The project owner elected to keep Phase C as specified in v0.4. Recorded here
+  rather than re-argued. `DESIGN.md` is authoritative and this is a scope call that belongs to
+  the owner.
+- **Rejected:** Parking or dropping the cost curve, per the above — not adopted.
+- **Consequence:** No change to the v0.4 Phase C specification or its tasks. Two things follow
+  for whoever runs C6.2. First, the premise check is now load-bearing in a way it was not when
+  the curve was uncontested: if capability does not track homology at usable strength, the
+  curve's collateral metric has no established link to cost and the write-up must say so rather
+  than presenting the curve as a criterion. Second, the proxy limitation belongs in the tool's
+  own output and in the paper's limitations, stated as plainly as the coverage limitation in §C7:
+  the curve bounds how much *data* a filter must remove, not how much *capability* that costs.
+  The two-paper split in §6 means Paper 1 does not depend on any of this resolving.

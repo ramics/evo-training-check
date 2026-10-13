@@ -25,6 +25,8 @@ published. §7 makes this a precondition, not a nice-to-have.
 - Choose a second method that does not share A2/A3's tooling or assumptions; justify the
   choice.
 - Reimplement the headline counts from the A3.1 definitions alone, not from the A3.2 code.
+- Cover the A7.1 conformance numbers too, not only the survival counts: a conformance
+  failure is a stronger and more sensitive claim, so it gets the same second method.
 - Compare results; investigate and explain every material divergence.
 - Record the comparison as a published-alongside artefact.
 

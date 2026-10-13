@@ -5,7 +5,7 @@ phase: A
 status: blocked
 gate: false
 depends_on: [A1.1]
-blocks: [A1.4, A4.3]
+blocks: [A1.4, A4.3, A7.1]
 design_ref: "§A1"
 deliverable: null
 owner: unassigned
