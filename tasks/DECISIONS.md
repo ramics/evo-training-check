@@ -473,3 +473,88 @@ decision has a threshold or parameter in it, the number goes in the entry.
   "It was not" overstated what the text supports, since the paper also says all hits were removed,
   and the charitable 0.70 is now framed as an upper bound the text licenses rather than a point
   estimate. D-015 stands as amended by that framing.
+
+### D-017 — Released-vs-actual verdicts, and why they differ by model
+- **Date:** 2026-10-13
+- **Task:** A1.1 (gate)
+- **Context:** §A1 and §7 make this the gate on corpus reconstruction: whether Phase A audits the
+  real training corpus or a proxy sets how strongly every downstream claim may be worded.
+  Evidence is in `policies/corpora.md`, every quote machine-checked against its source.
+- **Decision:** Four verdicts. **Evo 2 — verified as published.** The data availability statement
+  and the dataset card both state the released OpenGenome2 is the corpus used to train Evo 2, and
+  the card distinguishes the FASTA sequences from the preprocessed form the model consumed.
+  Nothing retrieved contradicts it. Byte-level identity between release and dataloader input is
+  not established and is not establishable from published sources for any model in this audit, so
+  the write-up states what was checked rather than implying more. **Evo 1 — procedure source, with
+  a gap.** Evo 1 is where the only published exclusion procedure lives; its own availability
+  section names source databases rather than a released artefact, while Evo 2 calls that corpus
+  "previously published". The release artefact is not in `sources.json` and has not been
+  retrieved, so this is recorded as an open item rather than resolved by assumption, and it should
+  be closed before A7.1 runs. **ESM3-open — proxy only.** Its availability statement covers
+  weights and code and says nothing about training data, so A1.3 must reconstruct from the stated
+  databases and every ESM3 result carries that qualifier. **ESM-2 — reconstructible proxy**, and
+  the best pinned of the four: no corpus release, but a pinned UniRef release plus published
+  held-out cluster IDs, which makes it the cheapest first target for the A1.3 pipeline. ESM-C
+  needs no verdict: no stated exclusion and no corpus release, so it enters only as a comparison.
+- **Rejected:** Treating Evo 2's released dataset as unverified because byte-identity cannot be
+  shown — that standard would fail every open model ever released and would discard the strongest
+  auditable artefact in the field. Treating Evo 1's corpus as released on the strength of Evo 2's
+  "previously published" — the artefact itself is unretrieved, and a dataset card nobody in this
+  project has read is a secondary source. Recording one verdict for "Evo" — the procedure and the
+  auditable corpus belong to different papers, and collapsing them would hide exactly that.
+- **Consequence:** A7.1 is runnable for Evo, and better than expected: the released viral
+  component is post-filter output while the filter's input, IMG/VR v4, is independently available
+  at its pinned version, so the conformance check is a diff rather than an inference. Two things
+  follow and are recorded in `policies/corpora.md` §2: the vOTU representative is not reproducible
+  because no input order is published, so the diff must be computed at vOTU level or it measures
+  our sort order; and whichever reading best reproduces the released component is the developers'
+  de facto reading, which turns A0.4's spread into an estimate for Evo and is an argument against
+  freezing any single reading as canonical before that number exists. For ESM3 no conformance
+  re-execution is possible at all; the reported 10.6M removal count is the only published quantity
+  a reconstruction can be checked against. **This gate stays closed.** AGENTS.md reserves opening
+  a gate to the project owner; the verdicts are recorded here for that decision.
+
+### D-018 — Corrections from re-reviewing the rewrites, and three errors of our own
+- **Date:** 2026-10-13
+- **Task:** A0.3
+- **Context:** D-016 withdrew two strict-reading rules. The rewrites were put back through the
+  same two-pass primary-source review, which refused both: not the withdrawals, which it upheld,
+  but the prose arguing for them. Four errors, three of them ours rather than the sources'.
+- **Decision:** All four corrected in place. **The formulation count was wrong.** The withdrawal
+  block claimed the exclusion is stated five ways across the two papers; there are ten, and the
+  typology was wrong too — only one formulation predicates on whole viral genomes, four on genomic
+  sequences of or from viruses, two on a database subset or the dataset, one on IMG/VR host
+  metadata, and two on a capacity or likelihood to infect. The ten are now enumerated with
+  verified quotes in `policies/evo.md`, where the quote checker covers them, and A0.4 enumerates
+  from there rather than restating a count. **An external premise was passed off as a reading.**
+  "An endogenous element is in the ordinary case a defective relic that cannot infect anything" is
+  true and appears in neither paper. It is now marked as an external biological premise, and the
+  withdrawal's weight moved onto the leg that needs no such premise: the corpus contains
+  eukaryotic genomes including the human reference, which carry endogenous viral sequence, so the
+  withdrawn reading would make the authors' own published claim false of their own released
+  corpus. **A claim about the denylists was false.** The rank note said requiring family would
+  have made the published 12-order denylist dead code. It would not: Lefavirales and Piccovirales
+  are denylisted orders contributing no family to the 19, and Ortervirales contributes only one of
+  several, so the order list removes fully family-resolved records the family list alone would
+  miss. Narrowed to the true claim — it would have made the order list redundant for the records
+  it is best placed to catch. **A denominator came from an unretrieved source.** "Only two of the
+  recognised virus realms appear, so the list cannot be read as anything at or above class" counts
+  realms from ICTV, which this project has not retrieved. The claim is now that the text
+  underdetermines the generalisation its own "including" invites, which is both weaker and sound.
+  Two attributions were also softened: the purpose of the order denylist and the deliberateness of
+  the family/order pairs are our inferences, not stated in Appendix B.2.
+- **Rejected:** Letting the count stand as "approximately five" — the enumeration is cheap, it is
+  the finding, and a count nobody checked is how the next error gets in. Keeping the dead-code
+  claim in hedged form — it is false on the published lists, not merely unsupported, and hedging a
+  false claim is worse than deleting it. Adding an ICTV release to `sources.json` to rescue the
+  realm count — defensible later, but the argument does not need the number, and fetching a source
+  to support a sentence already written is the wrong order of operations.
+- **Consequence:** Both withdrawals stand; the arguments for them are now narrower and, in the
+  element case, rest on the corpus rather than on a modal verb in a caption. The review also
+  caught the eukaryotic genome count being used as corpus contents when 16,704 is the NCBI
+  download and 15,032 is what survived dereplication — the same slip A1.1 found independently
+  within the hour, from the same Methods paragraph, which is some evidence the two checks are
+  genuinely independent. Standing lesson, worth more than the four fixes: every error here was in
+  prose arguing for a correct decision. The decisions survived two adversarial passes; the
+  reasoning did not. Write-ups should expect their supporting arguments to be the weakest part,
+  and X1.4's quote checker will not catch any of this class, since none of it is a misquotation.
