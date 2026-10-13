@@ -187,7 +187,9 @@ def render(tasks: dict[str, dict], problems: list[str]) -> str:
         (t for t in tasks.values() if t["status"] in ("in-progress", "review")),
         key=lambda t: t["id"],
     )
-    gates = sorted(t["id"] for t in tasks.values() if t.get("gate"))
+    # A deferred gate guards work that is no longer planned, so it is not holding
+    # anything and listing it as HOLDING is misleading.
+    gates = sorted(t["id"] for t in tasks.values() if t.get("gate") and t["status"] != "deferred")
 
     out: list[str] = []
     out.append("# Board\n")

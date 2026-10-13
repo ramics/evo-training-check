@@ -11,7 +11,6 @@ Gates block their downstream tasks regardless of how convenient that is. Do not 
 - **A1.1** Verify released-vs-actual training data · `HOLDING` — holds A1.2, A1.3
 - **A3.3** Independent second-method reimplementation of headline counts · `HOLDING` — holds A6.1, X4.1
 - **B5.1** Write and freeze the pre-registration · `HOLDING` — holds B5.2, X4.1
-- **C2.2** Validate by whole-family holdout · `HOLDING`
 - **C6.3** Independent reimplementation of the headline curves · `HOLDING` — holds C7.1, X4.1
 - **X3.1** Run the responsible-disclosure process · `HOLDING` — holds X4.1
 
