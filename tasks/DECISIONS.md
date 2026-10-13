@@ -313,3 +313,40 @@ decision has a threshold or parameter in it, the number goes in the entry.
   own output and in the paper's limitations, stated as plainly as the coverage limitation in §C7:
   the curve bounds how much *data* a filter must remove, not how much *capability* that costs.
   The two-paper split in §6 means Paper 1 does not depend on any of this resolving.
+
+### D-013 — Policy specs are YAML with declared scope and representable gaps
+- **Date:** 2026-10-13
+- **Task:** A0.2
+- **Context:** The schema has to express two different machines (D-006): Evo's label-based
+  pipeline over named families and orders, and ESM3-open's similarity-based removal against a
+  seed set. It also has to survive the two things A0.1 found hardest — that the Evo filter was
+  applied to one corpus component while the corpus grew around it, and that ESM3-open's
+  threshold is never published.
+- **Decision:** `src/amazebio/policyspec.py` defines the language; specs live in
+  `policies/specs/*.yaml`. Three properties are structural rather than conventional:
+  **scope is declared**, as a list of corpus components, so a record in an unfiltered component
+  evaluates to `out_of_scope` rather than `retained` — the distinction A4.3 measures;
+  **an unstated value is representable** via an `unspecified:` mapping carrying its reason, and
+  any rule holding one evaluates to `undetermined`, so no guessed number can enter a result;
+  **every rule cites a source id and locator** from `policies/sources.json`, and
+  `tools/specs.py` fails if a rule cites a source that was never retrieved.
+  Rules are an ordered pipeline, matching how the published procedures read. A reference
+  evaluator over an in-memory record model pins the semantics and is covered by tests; the
+  corpus-scale evaluator is A1.4 and the conformance diff is A7.1, and both consume these specs
+  rather than reimplementing the semantics. Similarity rules consume precomputed alignment
+  results, so this module never pretends to run an aligner.
+- **Rejected:** JSON, to avoid a new dependency — these files are read by reviewers checking a
+  predicate against quoted prose, and nested JSON with embedded multi-line quotes is not
+  readable; `pyyaml` is pinned instead. Defaulting the unpublished threshold to a plausible
+  value — it would convert an under-specification finding into a fabricated parameter, and the
+  fabrication would propagate into every downstream number. Inferring scope from which rules
+  mention which components — scope is the headline finding and deserves to be stated, not
+  derived. Allowing a rule kind's meaning to change later — specs and results are version-pinned
+  against these semantics, so A0.3 may add kinds but not redefine them.
+- **Consequence:** Two worked examples are committed: `evo1-literal` (fully determined, scope
+  `[IMG/VR]`) and `esm3-open-literal` (scope across all four training databases, and **not
+  fully determined** — both rules depend on the unpublished threshold). The ESM3 spec is
+  therefore unusable for a conformance diff until A0.3's readings supply a threshold range to
+  sweep, which is itself the finding rather than a blocker. One test asserts the Phase A finding
+  directly: the same Filoviridae record is `removed` in the viral component and `out_of_scope`
+  in a host-genome component — what decides its fate is which file it was in, not what it is.

@@ -22,6 +22,10 @@ python = "3.12.*"
 # Needed by tools/policies.py to verify that every quote in policies/ literally
 # appears in the source PDF it cites. CI runs that check, so it is not dev-only.
 pypdf = ">=5,<7"
+# Filter policy specs in policies/specs/ are YAML: a reviewer has to be able to read a
+# policy and check it against the quoted source text, and nested JSON with embedded
+# multi-line quotes is not readable. See DECISIONS.md D-013.
+pyyaml = ">=6,<7"
 
 # Make `import amazebio` work in every pixi task and shell without a build step
 # or an editable pip install, so a pipeline script and a test see the same package.
@@ -46,8 +50,12 @@ board-check = "python3 tools/board.py --check"
 test = "pytest -q"
 # Verify every quote in policies/ literally appears in the source it cites.
 policies-check = "python3 tools/policies.py"
+# Validate the filter policy specs: schema, and that every rule cites a retrieved source.
+specs-check = "python3 tools/specs.py"
+# Render each policy as prose, for eyeballing a spec against its quoted source.
+specs = "python3 tools/specs.py --describe"
 lint = "ruff check ."
 fmt = "ruff format ."
 fmt-check = "ruff format --check ."
 # Everything CI runs, in one command.
-check = { depends-on = ["lint", "fmt-check", "board-check", "policies-check", "test"] }
+check = { depends-on = ["lint", "fmt-check", "board-check", "policies-check", "specs-check", "test"] }

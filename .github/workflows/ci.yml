@@ -37,5 +37,10 @@ jobs:
       - name: Policy evidence
         run: pixi run -e dev policies-check
 
+      # Validates the filter policy specs: schema conformance, and that every rule cites a
+      # source that was actually retrieved. See policies/specs/ and src/amazebio/policyspec.py.
+      - name: Policy specs
+        run: pixi run -e dev specs-check
+
       - name: Tests
         run: pixi run -e dev test
