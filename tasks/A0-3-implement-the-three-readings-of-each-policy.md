@@ -5,7 +5,7 @@ phase: A
 status: review
 gate: false
 depends_on: [A0.2]
-blocks: [A0.4, A1.4, A4.3, A7.1, A8.1, A9.1, C5.1]
+blocks: [A0.4, A1.4, A4.3, A7.1, A8.1, A9.1, C5.1, X1.4]
 design_ref: "§A0"
 deliverable: 1
 owner: claude
