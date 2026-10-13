@@ -631,3 +631,17 @@ decision has a threshold or parameter in it, the number goes in the entry.
   listing answers questions about paths and not about contents, and in this session both an HTTP
   401 against a repository that does not exist and an HTTP 200 serving a bot challenge would have
   produced a wrong entry in this store if the status code had been trusted over the content.
+
+### D-021 — The A1.1 gate is opened
+- **Date:** 2026-10-13
+- **Task:** A1.1 (gate)
+- **Decision:** The project owner opened the gate. A1.1 is `done`; A1.2 and A1.3 are `ready`, and
+  A7.1 follows A1.2. Evidence and verdicts are in `policies/corpora.md` with D-017, D-019 and
+  D-020.
+- **Qualifiers carried, not resolved:** the Evo 2 verdict rests on the developers' own statement,
+  with no independent evidence of byte-level correspondence available for any model here; and
+  Evo 1's version of record (S-EVO1-SCIENCE) is unretrieved, so revisit that entry if it names a
+  deposit the preprint does not. Both were put to the owner before opening.
+- **Consequence:** A1.2, A1.3 and A7.1 each carry a "Strength of claim" section stating the verdict
+  that governs them, which is what A1.1's Done-when requires — so a downstream task cannot consume
+  a corpus without the qualifier in front of whoever runs it.
