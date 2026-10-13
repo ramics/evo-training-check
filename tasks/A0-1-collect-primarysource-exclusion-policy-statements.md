@@ -2,13 +2,13 @@
 id: A0.1
 title: Collect primary-source exclusion policy statements
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: []
 blocks: [A0.2, A1.1, B1.1]
 design_ref: "§A0, §B1 step 0"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # A0.1 — Collect primary-source exclusion policy statements
