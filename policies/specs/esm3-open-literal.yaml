@@ -1,0 +1,63 @@
+# ESM3-open similarity-based removal — LITERAL reading.
+#
+# A different machine from the Evo policy: no clade membership anywhere. A seed set is built
+# from taxonomic annotation, then everything in the corpus that aligns to it above a threshold
+# is removed. A schema expressing only clade membership could not represent this at all, which
+# is why DESIGN.md v0.3 broadened the subject (DECISIONS.md D-006).
+#
+# This policy is NOT FULLY DETERMINED, deliberately. The threshold that sets the filter's
+# entire reach is never published. The spec records that rather than guessing, so evaluation
+# returns `undetermined` instead of a number nobody stated. See policies/esm3-open.md.
+
+policy:
+  id: esm3-open-literal
+  model: ESM3-open (esm3-sm-open-v1)
+  reading: literal
+  source: S-ESM3-PREPRINT
+  note: >-
+    Two denylists, both applied across the whole training corpus. Note what the literal reading
+    does NOT cover: the paper's function-decoder keyword filter acts on the prompt vocabulary
+    rather than on training records, so it is not expressible as a corpus predicate and is
+    recorded in policies/esm3-open.md instead of here.
+
+  scope:
+    components: [PDB, UniRef, MGnify, JGI]
+    note: >-
+      "MMseqs was used to query against the full set of training databases, (including PDB,
+      UniRef, MGnify, and JGI) and all hits were removed from the training set." Unlike the Evo
+      policy, this one is scoped to the whole corpus. The word "including" leaves open whether
+      the list is exhaustive — an ambiguity for A0.3 to read three ways, not to resolve here.
+
+  rules:
+    - id: remove-viral-denylist-hits
+      kind: remove_if_similar_to
+      source: S-ESM3-PREPRINT
+      locator: Appendix A.6.1, p67
+      params:
+        seed_set: viral-denylist
+        identity_threshold:
+          unspecified: >-
+            Stated only as "at or above a given sequence identity threshold". The value is
+            never published, and it alone determines how far the filter reaches.
+      note: >-
+        The seed set is "sequences that are annotated as viral in UniProt and align almost
+        exclusively to other viral sequences in UniProt" — roughly 4M sequences. "Almost
+        exclusively" is itself unquantified. The construction is why virus-associated sequence
+        with cellular homologs was retained by design: such sequence does not align almost
+        exclusively to viral sequence, so it never entered the seed set.
+
+    - id: remove-select-agent-denylist-hits
+      kind: remove_if_similar_to
+      source: S-ESM3-PREPRINT
+      locator: Appendix A.6.1, p67
+      params:
+        seed_set: select-agent-denylist
+        identity_threshold:
+          unspecified: >-
+            Same single unpublished threshold as the viral denylist; the source describes one
+            matching step applied to both denylists.
+      note: >-
+        Seed set is "all sequences in UniProt belonging to organisms on the Select Agents and
+        Toxins List", reported as 147K non-viral and 40K additional viral sequences. The two
+        denylists together are reported to remove 10.6M sequences across all training sets —
+        an outcome claim, recorded in policies/esm3-open.md rather than as a rule here.

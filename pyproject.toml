@@ -1,0 +1,38 @@
+[project]
+name = "amazebio"
+version = "0.1.0"
+description = "Independent audit of exclusion-based data filtering as a safeguard in open-weight biological models"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/amazebio"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--strict-markers --strict-config"
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["data", "artifacts"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # import sorting
+    "B",    # bugbear
+    "UP",   # pyupgrade
+    "SIM",  # simplify
+    "RUF",  # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]

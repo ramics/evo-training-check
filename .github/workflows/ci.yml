@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# Runs everything `pixi run check` runs locally, from the committed pixi.lock, so
+# CI and a contributor's machine resolve the same packages. See AGENTS.md.
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          environments: dev
+          # Fail if pixi.lock does not match pixi.toml. A stale lock means CI and
+          # local runs can diverge, which breaks the pinning guarantee AGENTS.md
+          # relies on.
+          locked: true
+
+      - name: Lint
+        run: pixi run -e dev lint
+
+      - name: Format check
+        run: pixi run -e dev fmt-check
+
+      # Validates the task dependency graph (unknown IDs, cycles, stale `blocks`
+      # lists, status/dependency inconsistencies) and that tasks/BOARD.md is not
+      # stale. This is the mechanism that makes the gates in AGENTS.md enforceable.
+      - name: Task graph
+        run: pixi run -e dev board-check
+
+      # Verifies every quote in policies/ literally appears in the source it cites, and
+      # that no stored source has changed since its checksum was recorded. See policies/README.md.
+      - name: Policy evidence
+        run: pixi run -e dev policies-check
+
+      # Validates the filter policy specs: schema conformance, and that every rule cites a
+      # source that was actually retrieved. See policies/specs/ and src/amazebio/policyspec.py.
+      - name: Policy specs
+        run: pixi run -e dev specs-check
+
+      - name: Tests
+        run: pixi run -e dev test

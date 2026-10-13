@@ -1,0 +1,136 @@
+# Evo 1 / OpenGenome eukaryote-infecting virus exclusion — LITERAL reading.
+#
+# The narrowest defensible reading of the published words: exactly the pipeline described in
+# Evo 1 Appendix B.2, applied to exactly the component it is described as applied to.
+#
+# Evo 2 inherits this procedure without restating it ("As previously described"), so this spec
+# is the operative specification for Evo 2 as well. See policies/evo.md.
+#
+# The charitable and strict readings are A0.3's work, not this file's. The interesting
+# difference will be scope: a charitable reading may hold that the policy intends to exclude
+# eukaryote-infecting viral sequence wherever it occurs, which is a different spec with the
+# same words behind it.
+
+policy:
+  id: evo1-literal
+  model: Evo 1 (inherited unchanged by Evo 2)
+  reading: literal
+  source: S-EVO1-PREPRINT
+
+  scope:
+    components: [IMG/VR]
+    note: >-
+      Appendix B.2 compiles OpenGenome from three sources — GTDB v214.1 prokaryotic genomes,
+      IMG/VR v4 viruses, and IMG/PR plasmids — and the exclusion steps below are described
+      only for IMG/VR. GTDB and IMG/PR are in the corpus and out of this policy's scope.
+      Evo 2 later added eukaryotic reference genomes, also out of scope. That gap is the
+      finding A4.3 quantifies; it is declared here rather than inferred later.
+
+  rules:
+    - id: keep-high-confidence
+      kind: keep_if_attribute_in
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        attribute: confidence
+        values: ["High-confidence"]
+      note: >-
+        "sequences were retained only if they were labeled as 'High-confidence' according to
+        the database metadata" — a quality gate, not a hazard filter, but it runs first and
+        changes what the later rules see.
+
+    - id: keep-one-per-votu
+      kind: keep_one_per
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        attribute: vOTU
+      note: >-
+        "only one representative per viral operational taxonomic unit (vOTU) was kept".
+        Order-dependent: which record survives depends on input order, so the audit must sort
+        deterministically before evaluating.
+
+    - id: keep-prokaryotic-host-twice
+      kind: keep_if_host_occurrence_at_least
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        host_class: prokaryotic
+        count: 2
+      note: >-
+        "keeping only sequences whose assigned taxonomic classification was found within a
+        prokaryotic host at least twice". The threshold of two is stated but not justified;
+        A4.2 can measure its error rate on real viral records.
+
+    - id: remove-denylisted-families
+      kind: remove_if_taxon_in
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        rank: family
+        names:
+          - Adenoviridae
+          - Caliciviridae
+          - Coronaviridae
+          - Filoviridae
+          - Flaviviridae
+          - Hantaviridae
+          - Hepadnaviridae
+          - Herpesviridae
+          - Orthomyxoviridae
+          - Papillomaviridae
+          - Paramyxoviridae
+          - Picornaviridae
+          - Poxviridae
+          - Reoviridae
+          - Retroviridae
+          - Rhabdoviridae
+          - Circoviridae
+          - Geminiviridae
+          - Picobirnaviridae
+      note: >-
+        The 19 families named in the source. Filoviridae and Retroviridae are the two families
+        behind the motivating cases in DESIGN.md §2 — excluded here as IMG/VR records, while
+        the host genomes carrying their endogenous elements are out of scope entirely.
+
+    - id: remove-denylisted-orders
+      kind: remove_if_taxon_in
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        rank: order
+        names:
+          - Amarillovirales
+          - Durnavirales
+          - Geplafuvirales
+          - Herpesvirales
+          - Lefavirales
+          - Ortervirales
+          - Orthopolintovirales
+          - Piccovirales
+          - Picornavirales
+          - Priklausovirales
+          - Cirlivirales
+          - Mulpavirales
+
+    - id: remove-taxonomically-unspecific
+      kind: remove_if_unspecific
+      source: S-EVO1-PREPRINT
+      locator: Appendix B.2, p32
+      params:
+        require_rank: realm
+        ranks: [realm, kingdom, phylum, class, order, family, genus, species]
+        stop_taxa:
+          - Riboviria
+          - Monodnaviria
+          - Heunggongvirae
+          - Bamfordvirae
+          - Preplasmiviricota
+          - Cressdnaviricota
+          - Pisuviricota
+          - Tectiliviricetes
+      note: >-
+        "viruses with poor taxonomic specificity were excluded, including those with no
+        assigned realm at all, and those only assigned up to the level of" the eight taxa
+        listed. This rule is the one that decays: it is a static enumeration against a
+        taxonomy that keeps changing, which is what A9.1 measures.
