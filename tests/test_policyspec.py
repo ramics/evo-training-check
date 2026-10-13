@@ -466,7 +466,13 @@ class TestReadingKinds:
         assert out["unknown"].outcome is Outcome.RETAINED
 
     def test_host_evidence_exclusive_requires_positive_evidence(self, tmp_path):
-        """The strict reading's point: absence of host evidence is not prokaryotic evidence."""
+        """The strict reading's point: absence of host evidence is not prokaryotic evidence.
+
+        The rule carries the published count as well as the exclusivity requirement. Review
+        caught a draft that dropped the count, which made the strict reading *less* strict than
+        the literal one for a record with a single prokaryotic observation (DECISIONS.md D-016),
+        so the one-observation case is asserted here.
+        """
         policy = self._policy(
             tmp_path,
             """
@@ -475,6 +481,7 @@ class TestReadingKinds:
                       source: S-EVO1-PREPRINT
                       params:
                         host_class: prokaryotic
+                        count: 2
             """,
         )
         out = {
@@ -488,43 +495,17 @@ class TestReadingKinds:
                         component="IMG/VR",
                         host_occurrences={"prokaryotic": 9, "eukaryotic": 1},
                     ),
+                    Record(id="one", component="IMG/VR", host_occurrences={"prokaryotic": 1}),
                     Record(id="none", component="IMG/VR"),
                 ],
             )
         }
         assert out["prok"].outcome is Outcome.RETAINED
         assert out["mixed"].outcome is Outcome.REMOVED
+        assert "also has host evidence in eukaryotic" in out["mixed"].why
+        # never retained where the published count would have removed it
+        assert out["one"].outcome is Outcome.REMOVED
         assert out["none"].outcome is Outcome.REMOVED
-        assert "no host evidence at all" in out["none"].why
-
-    def test_remove_if_element_detected(self, tmp_path):
-        policy = self._policy(
-            tmp_path,
-            """
-                    - id: elements
-                      kind: remove_if_element_detected
-                      source: S-EVO2-PREPRINT
-                      params:
-                        element_classes: [endogenous-viral-element, provirus]
-            """,
-        )
-        out = {
-            d.record_id: d
-            for d in evaluate(
-                policy,
-                [
-                    Record(
-                        id="eve", component="IMG/VR", detected_elements=["endogenous-viral-element"]
-                    ),
-                    # prophage is not in the listed classes: phage retention is deliberate
-                    Record(id="prophage", component="IMG/VR", detected_elements=["prophage"]),
-                    Record(id="clean", component="IMG/VR"),
-                ],
-            )
-        }
-        assert out["eve"].outcome is Outcome.REMOVED
-        assert out["prophage"].outcome is Outcome.RETAINED
-        assert out["clean"].outcome is Outcome.RETAINED
 
 
 class TestWildcardScopeAndRuleComponents:
@@ -541,18 +522,20 @@ class TestWildcardScopeAndRuleComponents:
                   scope:
                     components: ["*"]
                   rules:
-                    - id: elements
-                      kind: remove_if_element_detected
-                      source: S-EVO2-PREPRINT
+                    - id: denylist
+                      kind: remove_if_taxon_in
+                      source: S-EVO1-PREPRINT
                       params:
-                        element_classes: [provirus]
+                        rank: family
+                        names: [Filoviridae]
                 """,
             )
         )
         assert policy.scope.is_corpus_wide
         assert policy.scope.covers("a-component-nobody-enumerated")
         out = evaluate(
-            policy, [Record(id="x", component="whatever", detected_elements=["provirus"])]
+            policy,
+            [Record(id="x", component="whatever", taxonomy={"family": "Filoviridae"})],
         )
         assert out[0].outcome is Outcome.REMOVED
 
@@ -648,9 +631,17 @@ class TestThreeReadings:
     def test_the_spread_on_one_record_in_a_host_genome(self):
         """The headline Phase A contrast, as a test.
 
-        One endogenous filoviral element in a vertebrate reference genome — the motivating case
-        in DESIGN.md §2. The literal and charitable readings never look at the component it sits
-        in; the strict reading removes it on the published predicate.
+        An endogenous filoviral element in a vertebrate reference genome — the motivating case in
+        DESIGN.md §2. No reading removes it, and that is the finding. The literal and charitable
+        readings never look at the component it sits in; the strict reading does look, and has no
+        published predicate that reaches sequence carrying no viral label of its own. Examined and
+        survived is a different claim from never examined, and the distinction is what A4.3
+        quantifies.
+
+        An earlier draft of the strict reading did remove it, via a rule review defeated on the
+        authors' own words — Evo 2's Figure S2 caption predicates on sequence that "can infect"
+        eukaryotic hosts, which a defective integrated relic cannot (DECISIONS.md D-016). If this
+        assertion ever flips back to REMOVED, that rule has returned and needs the same scrutiny.
         """
         policies = load_policy_dir(SPECS)
         record = Record(
@@ -658,7 +649,6 @@ class TestThreeReadings:
             component="NCBI-eukaryotic-genomes",
             attributes={"confidence": "High-confidence", "vOTU": "v1"},
             taxonomy={"realm": "Riboviria", "family": "Filoviridae"},
-            detected_elements=["endogenous-viral-element"],
         )
         outcomes = {
             reading: evaluate(policies[f"evo1-{reading}"], [record])[0]
@@ -666,8 +656,8 @@ class TestThreeReadings:
         }
         assert outcomes["literal"].outcome is Outcome.OUT_OF_SCOPE
         assert outcomes["charitable"].outcome is Outcome.OUT_OF_SCOPE
-        assert outcomes["strict"].outcome is Outcome.REMOVED
-        assert outcomes["strict"].rule_id == "remove-eukaryote-infecting-elements"
+        assert outcomes["strict"].outcome is Outcome.RETAINED
+        assert outcomes["strict"].rule_id is None
 
     def test_the_spread_on_one_viral_record_with_mixed_host_evidence(self):
         """A record the published proxy retains and both broader readings do not."""

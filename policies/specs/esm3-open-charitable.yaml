@@ -25,9 +25,19 @@
 # That is the only published figure anywhere in the source tying sequence identity to the Viral
 # Denylist, and 0.70 is a conventional MMseqs2 working value. It is still an inference, and the
 # weakest link in these four readings: the 70% cut defines an evaluation set, not the filter.
-# So it is labelled as a reading, not as the authors' parameter, and A7.1 should sweep the range
-# the three readings bound — undetermined (literal), 0.70 (here), any detected hit (strict) —
-# rather than report any one of them as the filter's reach. See DECISIONS.md D-015.
+#
+# So read it as an UPPER BOUND that the text licenses, with 0.70 taken as the single evaluable
+# point on it, rather than as a point estimate of the authors' parameter. The authors built that
+# evaluation set from chains above 70% identity to the denylist and then reported the filtered
+# model still scoring on them, which only makes sense if the filter's own threshold was at or
+# below 70% — a filter set higher would have left those chains in the training data. The bound is
+# what the text supports; the point is what an executable predicate needs. Review accepted the
+# number on this framing and asked for the framing to be stated (DECISIONS.md D-016).
+#
+# Either way it is labelled as a reading, never as the authors' parameter, and A7.1 sweeps the
+# range the three readings bound — undetermined (literal), 0.70 (here), any detected hit
+# (strict) — rather than reporting any one of them as the filter's reach. See DECISIONS.md
+# D-015.
 
 policy:
   id: esm3-open-charitable

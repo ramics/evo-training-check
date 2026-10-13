@@ -421,3 +421,55 @@ decision has a threshold or parameter in it, the number goes in the entry.
   reported per reading rather than pooled. If the published version of record (S-ESM3-SCIENCE,
   still unretrieved) states the threshold, this decision is superseded and the literal reading
   becomes decidable — which is worth re-checking before publication.
+
+### D-016 — Two strict-reading rules withdrawn after independent review against the PDFs
+- **Date:** 2026-10-13
+- **Task:** A0.3
+- **Context:** A0.3's own Steps require each reading reviewed against the A0.1 verbatim text
+  before downstream use. Rather than a single read-through, the seven interpretive claims behind
+  the four new readings were each put to two independent agents working from the preprint PDFs —
+  one ruling on whether the published wording bears the reading, one attempting to refute that
+  ruling, with instructions that this project's own evidence store and the specs' own notes are
+  not authority for a verdict. Five claims survived. Two did not, and one survivor carried an
+  encoding defect both passes found independently.
+- **Decision:** Both failed rules are withdrawn from `evo1-strict`, and the defect is fixed.
+  **The endogenous-element rule is gone.** It removed records carrying a detected endogenous
+  viral element, retrovirus or provirus, on the argument that "genomic sequences from viruses that
+  infect eukaryotic hosts" predicates on the sequence rather than the record carrying it. Evo 2's
+  Figure S2 caption — the figure the p4 sentence cites as its own verification — says safety
+  filtering removed "viral sequences that can infect eukaryotic hosts". The predicate is a
+  capacity to infect, which a defective integrated relic does not have. And 16,704 eukaryotic
+  reference genomes, the human reference among them, unavoidably carry such elements, so on the
+  withdrawn reading the authors' own published claim would be false of the corpus they built; a
+  reading on which a published claim is true of what was built beats one on which it is false.
+  **`require_rank` returns to realm.** The raised rank was defeated twice: the authors printed the
+  rank of every stop-taxon they named (two realms, two kingdoms, three phyla, one class, ceiling
+  at class, no order and no family), and the published procedure carries a 12-order denylist
+  precisely so order-resolved records are testable without a family — with deliberate family/order
+  pairs showing they handled those records on purpose. A family requirement would have made their
+  order denylist dead code. **The strict host rule carries `count: 2`.** Dropping it left a
+  classification with a single prokaryotic observation removed by the literal reading and kept by
+  the strict one, so the strict reading was not uniformly stricter and its claim to subsume the
+  charitable host rule was false.
+- **Rejected:** Keeping either rule relabelled as the audit's own sensitivity arm — defensible,
+  and it would have kept the endogenous-element route executable for A2.3, but it costs the
+  property that makes these specs worth anything: that every reading rests on published wording.
+  An arm of our own construction belongs in a task of its own, declared as such. Also rejected:
+  encoding the printed `r:`/`k:`/`p:`/`c:` prefixes in `stop_taxa` — they are the authors' rank
+  annotations, not parts of the taxon names a corpus record carries, so putting them in the data
+  would break matching; they are recorded in the rule's note instead.
+- **Consequence:** The withdrawn element rule took its schema machinery with it —
+  `remove_if_element_detected` and `Record.detected_elements` are removed, since nothing uses them
+  and dead kinds in a contract are a liability. `keep_if_host_evidence_exclusive` now takes
+  `count`. The strict reading keeps its corpus-wide scope while no rule reaches any component but
+  the viral one, which is not a defect of the encoding: a eukaryotic genome record now evaluates
+  to `retained` under the strict reading and `out_of_scope` under the literal one, and that gap is
+  what A4.3 measures. Three findings came out of the review and belong to A0.4: the exclusion is
+  stated five ways across the two papers and none resolves integrated viral-derived sequence; the
+  published unspecificity parameter is an enumerated stop-list with an unquantified "including",
+  not a rank threshold of any kind; and the charitable host rule should report its removals in two
+  sets, those that would have failed the published count anyway and those removed despite clearing
+  it, because only the second is contested. Two wording corrections: the ESM3 strict note's flat
+  "It was not" overstated what the text supports, since the paper also says all hits were removed,
+  and the charitable 0.70 is now framed as an upper bound the text licenses rather than a point
+  estimate. D-015 stands as amended by that framing.

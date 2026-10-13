@@ -69,13 +69,26 @@ policy:
       params:
         host_classes: [eukaryotic]
       note: >-
-        The interpretive choice that defines this reading. "We excluded genomic sequences from
-        viruses that infect eukaryotic hosts" is a predicate about host range; the published
-        implementation reaches it only through a prokaryotic-host count and a clade enumeration.
-        Read charitably, a record carrying positive eukaryotic host evidence is within the stated
-        aim regardless of how it fares under those two proxies. This rule is what the literal
-        reading cannot express, and the count of records it alone removes is a direct measure of
-        the gap between the aim and its implementation.
+        The interpretive choice that defines this reading. "As in Evo 1, we excluded genomic
+        sequences from viruses that infect eukaryotic hosts from the training data" is a predicate
+        about host range; the published implementation reaches it only through a prokaryotic-host
+        count and a clade enumeration. The authors subordinate the one to the other themselves:
+        the count is introduced as the means — "to remove potential eukaryotic viruses by keeping
+        only sequences whose assigned taxonomic classification was found within a prokaryotic host
+        at least twice" — so the host-range phrase is the aim and the count is the "by". Read
+        charitably, a record carrying positive eukaryotic host evidence is within that aim
+        regardless of how it fares under the two proxies. Review upheld this reading and corrected
+        the quotation, which an earlier draft gave with a capitalised "We" and truncated before
+        "from the training data" (DECISIONS.md D-016).
+
+
+        One honest qualification from the same review, for A0.4 rather than for the predicate: the
+        published "at least twice" test is itself a deliberate numeric resolution of records
+        carrying mixed host evidence, so a one-strike eukaryotic-host rule does not merely finish
+        an aim the authors left unimplemented — for records that clear the count it reverses a
+        choice they visibly made. A0.4 should therefore report this rule's removals in two sets,
+        those that would have failed the count anyway and those removed despite clearing it. Only
+        the second is the contested increment, and it is the number worth publishing.
 
     - id: keep-prokaryotic-host-twice
       kind: keep_if_host_occurrence_at_least

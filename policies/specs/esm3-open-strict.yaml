@@ -15,8 +15,15 @@
 # academic: the paper's seed set is built from sequences that "align almost exclusively to other
 # viral sequences in UniProt", so viral sequence with cellular homologs is excluded from the
 # denylist by construction. A reader of the card would reasonably believe that sequence was
-# removed. It was not. The strict reading is the card's claim taken as the policy, and the
-# records it removes that the charitable reading retains are the measure of that gap.
+# removed. It was not removed BY THIS ROUTE — and that is the careful form of the claim, because
+# the paper also says "all hits were removed from the training set", so sequence resembling a
+# denylisted entry closely enough still went, whatever its own annotation. Whether a given viral
+# protein family with cellular homologs survived is therefore an empirical question, not a
+# textual one, and A0.4 answers it by counting what each reading removes. Review flagged the
+# earlier flat "It was not." as overstating what the text supports (DECISIONS.md D-016). The
+# strict reading is the card's claim taken as the policy, and the records it removes that the
+# charitable reading retains are the measure of the gap between the developers' two
+# descriptions.
 #
 # Two moves, both reading published words rather than adding our own judgement:
 #

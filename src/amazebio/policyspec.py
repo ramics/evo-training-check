@@ -28,8 +28,8 @@ rather than forcing a guess that would silently become a finding. See :class:`Un
 filter policy nobody can trace to its source is the problem this project exists to document;
 reproducing that failure in our own specs would be indefensible.
 
-A0.3 added what the broader readings need, without redefining anything above. Three rule kinds
-(``remove_if_host_class_in``, ``keep_if_host_evidence_exclusive``, ``remove_if_element_detected``),
+A0.3 added what the broader readings need, without redefining anything above. Two rule kinds
+(``remove_if_host_class_in`` and ``keep_if_host_evidence_exclusive``),
 a wildcard scope (:attr:`Scope.ANY`) for a reading that holds a policy to the whole corpus rather
 than to the components its methods happen to name, and an optional per-rule ``components`` list so
 such a policy can still say which rules reach which components — a viral-taxonomy predicate has
@@ -129,11 +129,6 @@ class Record:
     host_occurrences: dict[str, int] = dataclasses.field(default_factory=dict)
     # seed set name -> best fractional identity found against it
     similarity_hits: dict[str, float] = dataclasses.field(default_factory=dict)
-    # classes of viral-derived element detected inside this record, e.g. ["prophage", "eve"].
-    # Added by A0.3: the strict readings act on virus-derived sequence that carries no viral
-    # taxonomy of its own, so a record's own labels cannot express it. Detection is A2's job;
-    # like `similarity_hits`, this field consumes results produced elsewhere.
-    detected_elements: list[str] = dataclasses.field(default_factory=list)
 
     def most_specific_rank(self, ranks: Sequence[str]) -> str | None:
         """The finest rank in `ranks` this record is assigned at, or None."""
@@ -180,10 +175,8 @@ RULE_KINDS = {
     # --- added by A0.3 for the charitable and strict readings ---
     # drop records whose taxon has any recorded host occurrence in one of `host_classes`
     "remove_if_host_class_in": {"host_classes"},
-    # drop records with any host evidence outside `host_class` (or with none at all)
-    "keep_if_host_evidence_exclusive": {"host_class"},
-    # drop records carrying a detected viral-derived element of one of `element_classes`
-    "remove_if_element_detected": {"element_classes"},
+    # keep only records seen in `host_class` at least `count` times and in no other host class
+    "keep_if_host_evidence_exclusive": {"host_class", "count"},
 }
 
 
@@ -484,27 +477,18 @@ def _decide(rule: Rule, record: Record, *, kept_values: dict[str, set]) -> Decis
                     f"has host evidence in {', '.join(sorted(hit))}",
                 )
         case "keep_if_host_evidence_exclusive":
-            wanted = p["host_class"]
+            wanted, needed = p["host_class"], p["count"]
+            seen = record.host_occurrences.get(wanted, 0)
             other = sorted(
                 hc for hc, n in record.host_occurrences.items() if n > 0 and hc != wanted
             )
-            if other or record.host_occurrences.get(wanted, 0) == 0:
-                return Decision(
-                    record.id,
-                    Outcome.REMOVED,
-                    rule.id,
-                    f"host evidence is not exclusively {wanted}: "
-                    + (f"also {', '.join(other)}" if other else "no host evidence at all"),
+            if seen < needed or other:
+                why = (
+                    f"seen in {wanted} {seen} time(s), needs >= {needed}"
+                    if seen < needed
+                    else f"also has host evidence in {', '.join(other)}"
                 )
-        case "remove_if_element_detected":
-            found = sorted(set(record.detected_elements) & set(p["element_classes"]))
-            if found:
-                return Decision(
-                    record.id,
-                    Outcome.REMOVED,
-                    rule.id,
-                    f"carries detected viral-derived element(s): {', '.join(found)}",
-                )
+                return Decision(record.id, Outcome.REMOVED, rule.id, why)
         case _:  # pragma: no cover - guarded by Rule.from_dict
             raise PolicyError(f"no evaluator for rule kind {rule.kind!r}")
     return None
