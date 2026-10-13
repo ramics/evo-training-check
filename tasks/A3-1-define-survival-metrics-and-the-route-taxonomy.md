@@ -2,7 +2,7 @@
 id: A3.1
 title: Define survival metrics and the route taxonomy
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.2]
 blocks: [A3.2, C5.1]

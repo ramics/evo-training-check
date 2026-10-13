@@ -2,7 +2,7 @@
 id: A0.2
 title: Define the policy specification schema
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A0.1]
 blocks: [A0.3, A3.1]
