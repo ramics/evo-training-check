@@ -2,13 +2,13 @@
 id: A1.2
 title: Reconstruct the nucleotide-model corpus
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.1]
 blocks: [A1.4, A4.3, A7.1]
 design_ref: "§A1"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # A1.2 — Reconstruct the nucleotide-model corpus
@@ -47,6 +47,15 @@ DECISIONS.md D-017, D-019, D-020.
   gate, the vOTU representative, and the prokaryotic-host count.
 - **Evo 1's version of record (S-EVO1-SCIENCE) is unretrieved.** If it names a deposit the
   preprint does not, revisit the Evo 1 entry before publication.
+
+## In flight
+
+- **Branch:** `claude/jolly-hawking-wtgnid`
+- **Done:** nothing yet; claimed 2026-10-14.
+- **Left:** everything in Steps.
+- **Waiting on the project owner:** nothing yet. A staging-scope question is likely, because the
+  Evo 2 corpus is far larger than the UniRef release A1.3 staged; it will be asked with real
+  byte counts rather than estimates.
 
 ## Notes
 
