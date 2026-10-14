@@ -742,3 +742,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the check only stays honest if the next writer knows which quote character means what. Tests
   pin both of A0.3's hand-found errors as regressions, and a deliberately corrupted quotation is
   shown to fail.
+
+### D-024 — ESM-2's corpus is UniRef 2021_04; 2021_04 is canonical, the current release is a proxy
+- **Date:** 2026-10-14
+- **Task:** A1.3 (corrects A0.1's pin; qualifies A1.1's carried verdict)
+- **Context:** `policies/esm2.md` pinned ESM-2 to the UniRef 2018-03 release, inferred from the
+  held-out split files, and A1.1's verdict carried into A1.3 described ESM-2 as "a pinned UniRef
+  release plus published held-out cluster IDs" and "the cheapest corpus here and the right first
+  target". Verifying that from the primary source before downloading anything showed the pin is
+  attached to the wrong release.
+- **Decision:** ESM-2's corpus is the **UniRef50 2021_04** clustering with training sequences
+  sampled from UniRef90 members, per the repository's own model table: every ESM-2 checkpoint
+  reads `UR50/D 2021_04`, and the overview row reads `UR50 (sample UR90)`. 2018-03 is the release
+  the split files use, and the same table attaches it to ESM-1 and ESM-1b. `policies/esm2.md` is
+  corrected. On what to acquire, the project owner chose: **2021_04 is the canonical pin, with the
+  current per-tier release available as an explicit proxy mode** that stamps every output with the
+  stated-vs-used gap. The acquisition pipeline pins 2021_04 by its published md5
+  `444f0a7062a65a988ba1d5949d1d6419` and the release notes' composition (UniRef50: 49,874,565
+  clusters), so the pin is exact whether or not the bytes are local.
+- **Rejected:** Keeping the 2018-03 pin — it is a fact about the evaluation split, not the training
+  corpus, and ESM-2 is the positive control that every Phase B comparison rests on. Carrying the
+  published split files into an ESM-2 reconstruction — UniRef50 cluster IDs are not stable across
+  releases, so those IDs identify held-out clusters in a release ESM-2 never saw; **no held-out
+  split is published for ESM-2's own release**, and treating the 2018-03 IDs as if they transfer
+  would silently contaminate any held-out claim. Guessing what `UR50/S` and `UR50/D` mean — the
+  suffixes are never defined in the retrieved documentation, and the difference decides whether a
+  reconstruction holds one representative per cluster or a per-epoch sample from each, so it is
+  logged as under-specification per §A0 and needs the ESM-2 paper, which is not a retrieved
+  source. Pinning the current release alone — nothing in the repo would then point at the version
+  the model actually used. Streaming the stated bundle inside a cloud session — the archive serves
+  2021_04 only as a single 158 GB `uniref2021_04.tar.gz` with no per-tier files, and its first
+  member is a 93.7 GB `uniref100.tar`, so UniRef50 sits tens of gigabytes into the stream, against
+  a fixed session disk allowance of about 30 GB.
+- **Consequence:** A1.3's ESM-2 track is no longer the cheap first target A1.1 expected; the pin is
+  exact but the bytes need a machine that can hold the bundle, so the acquisition script is the
+  deliverable in this repo and the staging runs where there is disk. A1.1's ESM-2 verdict should be
+  read with this correction attached: the pinned release survives, the usable held-out split does
+  not. B1.2 and B4.2 are affected — a held-out evaluation on ESM-2 cannot cite published cluster
+  IDs at the matching release, and any such claim needs its own construction and its own
+  limitation. Nothing here changes the ESM3-open verdict: that corpus remains proxy-only.
