@@ -2,13 +2,13 @@
 id: B1.1
 title: Verify model inventory and exclusion status
 phase: B
-status: ready
+status: in-progress
 gate: false
 depends_on: [A0.1]
 blocks: [B1.2]
 design_ref: "§B1"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # B1.1 — Verify model inventory and exclusion status
@@ -35,6 +35,14 @@ including the positive controls.
 - Model table is complete with verified status, versions and licences.
 - Tier 2 scope decision recorded in DECISIONS.md.
 - Under-documented cases flagged as findings per §7.
+
+## In flight
+
+- **Branch:** `claude/kind-hopper-1rjv3q`
+- **Done:** nothing yet; claimed.
+- **Left:** re-verify each checkpoint's exclusion status from the stored sources rather than
+  from the model list in DESIGN.md §B1; record checkpoint identifiers, versions, licences and
+  access routes; flag the under-documented cases; put the Tier 2 scope question to the owner.
 
 ## Notes
 
