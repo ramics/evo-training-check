@@ -148,7 +148,15 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, key_prefix: str
     partial = args.max_compressed_bytes is not None
     out = args.outdir / ("probe.json" if args.probe else "staged-mgnify.json")
 
-    with run("A1.5", seed=None, outdir=args.outdir, allow_dirty=args.allow_dirty) as manifest:
+    with run(
+        "A1.5",
+        seed=None,
+        outdir=args.outdir,
+        allow_dirty=args.allow_dirty,
+        # Shares a directory with the UniRef pass and the composition table, so the
+        # manifests need distinct names or the last one to finish wins.
+        manifest_name="run-mgnify.json",
+    ) as manifest:
         manifest.parameter("release", RELEASE)
         manifest.parameter("mode", "probe" if args.probe else "stage")
         manifest.parameter("files", [p.name for p in PINS])

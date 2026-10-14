@@ -91,7 +91,13 @@ def main(argv: list[str] | None = None) -> int:
 
 def _execute(args: argparse.Namespace) -> int:
     out = args.outdir / "composition.json"
-    with run("A1.5", seed=None, outdir=args.outdir, allow_dirty=args.allow_dirty) as manifest:
+    with run(
+        "A1.5",
+        seed=None,
+        outdir=args.outdir,
+        allow_dirty=args.allow_dirty,
+        manifest_name="run-composition.json",
+    ) as manifest:
         # Declared before anything is written, per the repro contract. These are the
         # published quantities the arithmetic rests on; naming them here means a later
         # run that used different ones is visibly a different run.
