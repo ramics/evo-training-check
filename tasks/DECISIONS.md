@@ -1095,3 +1095,38 @@ decision has a threshold or parameter in it, the number goes in the entry.
   sequences, and 362M inverse-folded sequences that are in no database for an MMseqs query to
   match. Both are findings about the published description, not measurements; A2 would need the
   structure-side components staged to measure either, which nothing has authorised.
+
+### D-032 — eight of the twelve staged objects are verified in flight, not by readback
+- **Date:** 2026-10-14
+- **Task:** A1.2
+- **Context:** Each object is hashed as it streams and the upload completes only on a match
+  against the SHA-256 the release publishes, so all twelve are verified. But an in-flight hash
+  checks the bytes that went past, and a readback checks the bytes the bucket holds — which is
+  strictly stronger, because it would also catch a fault in our own multipart assembly rather than
+  trusting the code that is under test. Four of the twelve were small enough to re-read for
+  nothing and are readback-verified. Re-reading the other eight means 134 GiB of egress from
+  outside the region, about $12, for files whose digests already matched.
+  A related mistake happened here and is worth recording because the fix is now in code: a resumed
+  pass wrote its own weaker rows over the manifest and erased the evidence that the eight had been
+  checked at all. Manifests now merge and keep the stronger proof per file.
+- **Decision:** **Leave the eight verified in flight, and fold the readback into the first
+  in-region pass rather than launching anything for it.** D-026 already settled that analysis runs
+  in `us-east-1`, where reads of this bucket are free. A7.1 reads the IMG/VR component in full
+  anyway, so the readback costs nothing when it rides along with work that was happening regardless.
+  Until then the manifest says, per file, how its checksum was established — "stream" or
+  "readback" — rather than a bare `verified: true` that flattens the difference.
+- **Rejected:** Paying the $12 egress now — it buys a stronger check on twelve files that already
+  matched, weeks before anything depends on it, and the same check is free later.
+  Launching an EC2 instance for the readback alone — AGENTS.md says launch only when being
+  in-region is the point, and bookkeeping that can ride along with A7.1 is not that.
+  Recording all twelve as simply verified — true, but it hides which were checked the stronger way,
+  and §7 assumes a reader who wants to know exactly that.
+  Re-uploading the eight with `--no-resume` to force a fresh in-flight hash — it repeats the
+  weaker check at the cost of the whole transfer, and the bucket cannot delete, so an overwrite is
+  the one operation worth being most careful with.
+- **Consequence:** A1.2's corpus is staged and checksummed, so its Done-when is met. **A7.1
+  inherits one small obligation:** run the readback over the eight large objects as part of its
+  in-region pass and merge the result into `artifacts/a1-2/staged_*.json`, which upgrades those
+  rows from "stream" to "readback". If A7.1 is re-scoped away from reading those objects, the
+  obligation moves to whichever in-region task reads them first; it should not become a reason to
+  launch an instance on its own.
