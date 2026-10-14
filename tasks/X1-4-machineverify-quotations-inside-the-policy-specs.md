@@ -2,13 +2,13 @@
 id: X1.4
 title: Machine-verify quotations inside the policy specs
 phase: X
-status: blocked
+status: review
 gate: false
 depends_on: [A0.3]
 blocks: []
 design_ref: "§A0, §7"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # X1.4 — Machine-verify quotations inside the policy specs

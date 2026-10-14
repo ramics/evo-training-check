@@ -2,7 +2,7 @@
 id: A9.1
 title: Measure denylist decay against taxonomy updates
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.3]
 blocks: []

@@ -49,13 +49,47 @@ task graph, tests), so a green local run means a green CI run.
    If nothing is ready, the blocking dependency *is* the work — do not invent a side quest.
 3. Check the task's **Gates** column. Never work past a `HOLDING` gate (see below).
 4. Set `status: in-progress` and `owner:` in the task's frontmatter, regenerate the board,
-   commit that as its own small commit so parallel workers see the claim.
-5. Do the work. Follow the task's own Steps and Done-when sections.
-6. Set `status: review`, regenerate, commit. Move to `done` only when every Done-when
-   criterion is demonstrably met — not when the code runs.
+   and commit that **on `main`** as its own small commit — pushed immediately, so parallel
+   workers see the claim. See **Where commits go**.
+5. Do the work, on a feature branch.
+6. Set `status: review`, regenerate, commit on `main`. Move to `done` only when every
+   Done-when criterion is demonstrably met — not when the code runs.
 
 Keep one task per branch and per commit series where you can. A task that turns out to be
 two tasks should be split into two files, not quietly widened.
+
+## Where commits go
+
+**Project management lands on `main`. The work itself lands on a feature branch.**
+
+Parallel tracks are the whole reason. A claim nobody else can see is not a claim, and a board
+that exists only in your branch cannot stop two workers taking the same task.
+
+| Goes straight to `main` | Goes on your feature branch |
+|---|---|
+| task frontmatter (`status`, `owner`) | library code, tools, tests |
+| `tasks/BOARD.md` | specs, metric specifications, write-ups |
+| `tasks/DECISIONS.md` | anything else a reviewer reads as the work |
+| this file | |
+
+So one task normally produces: a claim commit on `main`, the work on a branch, a decisions
+entry on `main` when an ambiguity is resolved, and a status commit on `main` when the task
+reaches `review` or `done`.
+
+Three rules make that safe:
+
+- **Push project management as soon as you commit it.** A claim sitting unpushed while you
+  work is worse than no claim, because the board says the task is taken and nobody can see it.
+- **Pull `main` before you touch it.** `DECISIONS.md` is append-only so appends merge cleanly;
+  `BOARD.md` is generated, so regenerate it after pulling rather than resolving a conflict in
+  it by hand. Run `python3 tools/board.py --check` after every such pull.
+- **Keep project-management commits free of work.** A commit that moves a status *and* changes
+  a tool cannot land on `main` without dragging unreviewed work with it.
+
+One consequence to accept rather than work around: `DECISIONS.md` on `main` can describe code
+still sitting in a branch, so the log runs slightly ahead of the repo. That is the cost of
+every track seeing a resolved ambiguity the moment it is resolved, and it is cheaper than two
+branches resolving the same ambiguity twice.
 
 ## The frontmatter contract
 
@@ -181,6 +215,8 @@ A task is `done` when all of:
 - Do not hand-edit `tasks/BOARD.md`. Regenerate it.
 - Do not renumber or reuse task IDs. They are referenced from commits and write-ups.
 - Do not widen a task's scope to absorb an adjacent problem. New file, new ID, new entry.
+- Do not leave project management in a feature branch. A status, a board or a decision that
+  only exists in your branch is invisible to every other track until it merges.
 - Do not add models or assays for their own sake — §7 names scope creep as a live risk.
 - Do not trust secondary sources for any factual claim about a model's training data,
   `DESIGN.md` included. §B1 step 0 is explicit: verify from primary sources.
