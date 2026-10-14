@@ -571,3 +571,105 @@ def test_a_failed_part_surfaces_rather_than_completing_a_corrupt_object():
 def test_concurrency_below_one_is_rejected():
     with pytest.raises(ValueError, match="at least 1"):
         uniref.S3PartSink(FakeS3(), "bucket", "k", concurrency=0)
+
+
+# --------------------------------------------------------------------------- #
+# Counting
+# --------------------------------------------------------------------------- #
+
+SAMPLE_XML = b"""<?xml version="1.0" encoding="ISO-8859-1" ?>
+<UniRef50 xmlns="http://uniprot.org/uniref" releaseDate="2021-10-27" version="2021_04">
+<entry id="UniRef50_A" updated="2019-12-18">
+<name>Cluster: one</name>
+<property type="member count" value="2"/>
+<representativeMember>
+<dbReference type="UniProtKB ID" id="A_X"/>
+</representativeMember>
+<member>
+<dbReference type="UniProtKB ID" id="A_Y"/>
+</member>
+</entry>
+<entry id="UniRef50_B" updated="2020-01-01">
+<property type="member count" value="1"/>
+<representativeMember>
+<dbReference type="UniProtKB ID" id="B_X"/>
+</representativeMember>
+</entry>
+</UniRef50>
+"""
+
+
+def test_counts_clusters_representatives_and_members():
+    got = uniref.count_markers(io.BytesIO(SAMPLE_XML))
+    assert got == {"clusters": 2, "representatives": 2, "members": 1}
+
+
+def test_counting_is_independent_of_chunk_size():
+    """The boundary bug this guards against is silent and scales with chunk count:
+    a marker split across two reads is simply never seen."""
+    expected = {"clusters": 2, "representatives": 2, "members": 1}
+    for chunk in (1, 2, 3, 7, 13, 64, 4096):
+        assert uniref.count_markers(io.BytesIO(SAMPLE_XML), chunk=chunk) == expected
+
+
+def test_a_marker_split_across_every_boundary_is_still_counted():
+    """Walk the split point through a marker one byte at a time."""
+    marker = uniref.MARKERS["representatives"]
+    for offset in range(1, len(marker)):
+        payload = b"x" * offset + marker + b"y" * 10
+        got = uniref.count_markers(io.BytesIO(payload), chunk=offset)
+        assert got["representatives"] == 1, f"missed at split offset {offset}"
+
+
+def test_escaped_markup_in_text_is_not_counted():
+    """Why scanning bytes is sound here: a literal '<' cannot appear in XML
+    content, so anything that looks like a tag is one."""
+    payload = b'<entry id="x"><name>Cluster: &lt;entry id= not a tag</name></entry>'
+    assert uniref.count_markers(io.BytesIO(payload))["clusters"] == 1
+
+
+def test_progress_reports_cumulative_bytes():
+    seen = []
+    uniref.count_markers(io.BytesIO(SAMPLE_XML), chunk=64, progress=seen.append)
+    assert seen == sorted(seen)
+    assert seen[-1] == len(SAMPLE_XML)
+
+
+def test_root_attributes_state_the_release():
+    attrs = uniref.read_root_attributes(io.BytesIO(SAMPLE_XML))
+    assert attrs["version"] == "2021_04"
+    assert attrs["releaseDate"] == "2021-10-27"
+    assert attrs["element"] == "UniRef50"
+
+
+def test_root_attributes_absent_rather_than_invented():
+    assert uniref.read_root_attributes(io.BytesIO(b"not xml at all")) == {}
+
+
+def test_counting_a_gzipped_stream_through_the_gunzip_wrapper():
+    """The real inputs are .xml.gz, so the counter runs on a GunzipStream."""
+    stream = uniref.GunzipStream(io.BytesIO(gzip.compress(SAMPLE_XML)))
+    assert uniref.count_markers(stream)["clusters"] == 2
+
+
+def test_reading_root_attributes_does_not_consume_the_clusters():
+    """The bug this guards: peeking at the header ate the first chunk of markup,
+    so every cluster tag in it went uncounted — a silent undercount per tier."""
+    stream = uniref.GunzipStream(io.BytesIO(gzip.compress(SAMPLE_XML)))
+    attrs = uniref.read_root_attributes(stream)
+    assert attrs["version"] == "2021_04"
+    assert uniref.count_markers(stream)["clusters"] == 2
+
+
+def test_unread_restores_the_stream_exactly():
+    stream = uniref.GunzipStream(io.BytesIO(gzip.compress(SAMPLE_XML)))
+    head = stream.read(100)
+    stream.unread(head)
+    assert stream.read(len(SAMPLE_XML)) == SAMPLE_XML
+    assert stream.read_bytes == len(SAMPLE_XML)
+
+
+def test_peek_on_a_stream_without_pushback_is_still_safe():
+    """A plain file object has no unread, so the peek must not crash on it."""
+    attrs = uniref.read_root_attributes(io.BytesIO(SAMPLE_XML))
+    assert attrs["element"] == "UniRef50"

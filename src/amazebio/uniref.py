@@ -232,6 +232,19 @@ class GunzipStream:
         self.read_bytes += len(take)
         return take
 
+    def unread(self, data: bytes) -> None:
+        """Push bytes back to the front of the stream, undoing a read.
+
+        This is what lets a caller inspect the head of the stream without
+        consuming it. Without pushback, reading the XML root element would eat
+        the first chunk of markup and every cluster tag in it would go uncounted
+        — a silent undercount at the start of each tier.
+        """
+        if not data:
+            return
+        self._buffer[:0] = data
+        self.read_bytes -= len(data)
+
     def drain(self) -> int:
         """Read the stream to its end, discarding the rest. Returns bytes discarded.
 
@@ -658,3 +671,205 @@ def composition_check(counted: dict[str, int]) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+# --------------------------------------------------------------------------- #
+# Counting what was staged
+# --------------------------------------------------------------------------- #
+
+# One UniRef cluster is one <entry>; its representative and any further members
+# are <representativeMember> and <member>. Counting is done by scanning for these
+# literal byte sequences rather than by parsing the XML, for two reasons. It is
+# roughly two orders of magnitude faster, which matters across 50 GB of markup.
+# And it is safe precisely because this is XML: a literal "<" cannot appear in
+# text or in an attribute value, it must be escaped as &lt;, so an occurrence of
+# b"<entry " is necessarily a start tag and never content that happens to look
+# like one.
+MARKERS = {
+    "clusters": b"<entry id=",
+    "representatives": b"<representativeMember>",
+    "members": b"<member>",
+}
+
+
+def count_markers(
+    stream: Any,
+    markers: dict[str, bytes] | None = None,
+    *,
+    chunk: int = 1 << 22,
+    progress: Callable[[int], None] | None = None,
+) -> dict[str, int]:
+    """Count occurrences of each marker in a forward-only byte stream.
+
+    Chunk boundaries cut both ways, and both failures are silent:
+
+    * A marker split across two reads is missed by naive per-chunk counting, and
+      the shortfall grows with the number of chunks.
+    * Retaining an overlap to fix that, and then counting the whole retained
+      window, counts anything inside the overlap *twice* — which is worse, since
+      it inflates rather than deflates.
+
+    So the overlap is carried forward, but a match starting inside the region
+    that will be carried forward is deferred rather than counted: it is counted
+    when it reappears at the head of the next window. Every occurrence is
+    therefore counted exactly once, whatever the chunk size — which
+    `test_counting_is_independent_of_chunk_size` checks directly, because a count
+    that depends on buffer size is not a measurement.
+    """
+    markers = markers or MARKERS
+    counts = dict.fromkeys(markers, 0)
+    # The longest marker minus one byte: enough that any marker spanning a
+    # boundary is wholly contained in the next window.
+    overlap = max(len(m) for m in markers.values()) - 1
+    tail = b""
+    total = 0
+    while True:
+        data = stream.read(chunk)
+        if not data:
+            break
+        total += len(data)
+        window = tail + data
+        # Start positions at or past `limit` live in the carried-forward tail.
+        limit = max(len(window) - overlap, 0)
+        for name, marker in markers.items():
+            counts[name] += _count_starting_before(window, marker, limit)
+        tail = window[limit:]
+        if progress is not None:
+            progress(total)
+    # At the end nothing is carried forward, so the tail is counted in full.
+    for name, marker in markers.items():
+        counts[name] += _count_starting_before(tail, marker, len(tail))
+    return counts
+
+
+def _count_starting_before(buf: bytes, marker: bytes, limit: int) -> int:
+    """Occurrences of `marker` in `buf` whose first byte lies before `limit`."""
+    found = 0
+    at = buf.find(marker)
+    while at != -1 and at < limit:
+        found += 1
+        at = buf.find(marker, at + 1)
+    return found
+
+
+def read_root_attributes(stream: Any, *, limit: int = 1 << 16) -> dict[str, str]:
+    """Pull the attributes of the XML root element from the head of a stream.
+
+    UniRef's root element carries `version` and `releaseDate`, which is a
+    first-party statement of which release these bytes are — independent of the
+    filename and of the directory they were downloaded from. Worth capturing: it
+    is the difference between trusting a path and reading the data.
+
+    This is a peek, not a read: whatever it consumes is pushed back when the
+    stream supports it, so a caller can count markers afterwards without losing
+    the head of the file.
+    """
+    head = b""
+    attrs: dict[str, str] = {}
+    try:
+        while len(head) < limit:
+            data = stream.read(min(1 << 16, limit - len(head)))
+            if not data:
+                break
+            head += data
+            # The root element is the first tag that is not a processing
+            # instruction; find its closing bracket.
+            start = head.find(b"<UniRef")
+            if start != -1 and b">" in head[start:]:
+                tag = head[start : head.index(b">", start)]
+                for key in (b"version", b"releaseDate"):
+                    marker = key + b'="'
+                    at = tag.find(marker)
+                    if at != -1:
+                        value = tag[at + len(marker) : tag.index(b'"', at + len(marker))]
+                        attrs[key.decode()] = value.decode()
+                attrs["element"] = tag[1:].split(b" ")[0].decode()
+                break
+    finally:
+        unread = getattr(stream, "unread", None)
+        if unread is not None:
+            unread(head)
+    return attrs
+
+
+class S3RangeRead:
+    """Forward-only reader over an S3 object, re-opened on failure.
+
+    The same contract as :class:`ResumableRead` and for the same reason: these
+    objects are tens of gigabytes, a read that long will meet a dropped
+    connection, and restarting it costs the whole transfer. S3 always honours
+    ranges, so resuming is a `Range` header on a fresh `get_object`.
+    """
+
+    def __init__(
+        self,
+        client: Any,
+        bucket: str,
+        key: str,
+        *,
+        max_attempts: int = 8,
+        sleep: Callable[[float], None] = time.sleep,
+        on_reconnect: Callable[[int, int, BaseException], None] | None = None,
+    ) -> None:
+        self._client = client
+        self.bucket = bucket
+        self.key = key
+        self._max_attempts = max_attempts
+        self._sleep = sleep
+        self._on_reconnect = on_reconnect
+        self._body: Any = None
+        self.pos = 0
+        self.reconnects = 0
+        self.size: int | None = None
+
+    def _open(self) -> Any:
+        response = self._client.get_object(
+            Bucket=self.bucket,
+            Key=self.key,
+            **({"Range": f"bytes={self.pos}-"} if self.pos else {}),
+        )
+        if self.size is None:
+            self.size = response["ContentLength"] + self.pos
+        return response["Body"]
+
+    def read(self, size: int) -> bytes:
+        attempt = 0
+        while True:
+            if self._body is None:
+                self._body = self._open()
+            try:
+                chunk = self._body.read(size)
+            except Exception as exc:  # Any transport failure is a retry, not a result.
+                attempt += 1
+                if attempt >= self._max_attempts:
+                    raise
+                self._drop(attempt, exc)
+                continue
+            if chunk:
+                self.pos += len(chunk)
+                return chunk
+            if self.size is not None and self.pos < self.size:
+                attempt += 1
+                if attempt >= self._max_attempts:
+                    raise VerificationError(
+                        f"s3://{self.bucket}/{self.key} ended at {self.pos} of {self.size}"
+                    )
+                self._drop(attempt, EOFError("object stream closed early"))
+                continue
+            return b""
+
+    def _drop(self, attempt: int, exc: BaseException) -> None:
+        if self._body is not None:
+            with contextlib.suppress(Exception):
+                self._body.close()
+            self._body = None
+        self.reconnects += 1
+        if self._on_reconnect is not None:
+            self._on_reconnect(attempt, self.pos, exc)
+        self._sleep(min(2.0 * attempt, 30.0))
+
+    def close(self) -> None:
+        if self._body is not None:
+            with contextlib.suppress(Exception):
+                self._body.close()
+            self._body = None
