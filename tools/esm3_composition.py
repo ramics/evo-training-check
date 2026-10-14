@@ -100,7 +100,48 @@ def load_staged(staging_dir: Path) -> dict[str, dict[str, Any]]:
     return staged
 
 
-def build(staged: dict[str, dict[str, Any]] | None = None) -> dict[str, object]:
+def load_counts(counts_dir: Path) -> list[dict[str, Any]]:
+    """Per-tier cluster counts from the in-region counting runs, if they are here.
+
+    The archive md5 shows the released bytes arrived; it cannot show the tar walk split
+    them into the right tiers, because a mis-walked archive still hashes correctly. So
+    each staged tier is counted against the cluster total its own release note states,
+    and that is the check this reads. Rows are per tier, carrying whether the count
+    agreed, because a verification nobody can see is not one.
+    """
+    rows: list[dict[str, Any]] = []
+    for path in sorted(counts_dir.glob("composition-*.json")):
+        try:
+            report = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        # `tiers_counted` was added after A1.3's runs and after A1.5's own counting pass,
+        # so fall back to the rows that carry a verdict. Older reports stay readable.
+        composition_rows = report.get("composition", [])
+        counted = report.get("tiers_counted")
+        if counted is None:
+            counted = [r["tier"] for r in composition_rows if r.get("agrees") is not None]
+        for tier in counted:
+            row = next((r for r in composition_rows if r.get("tier") == tier), None)
+            if row is None:
+                continue
+            rows.append(
+                {
+                    "tier": tier,
+                    "counted_clusters": row.get("counted_clusters"),
+                    "stated_clusters": row.get("stated_clusters"),
+                    "agrees": row.get("agrees"),
+                    "delta": row.get("delta"),
+                    "source": str(path),
+                }
+            )
+    return sorted(rows, key=lambda r: r["tier"])
+
+
+def build(
+    staged: dict[str, dict[str, Any]] | None = None,
+    counts: list[dict[str, Any]] | None = None,
+) -> dict[str, object]:
     components = esm3.scope_table()
     reconciliation = esm3.reconcile()
     return {
@@ -123,6 +164,7 @@ def build(staged: dict[str, dict[str, Any]] | None = None) -> dict[str, object]:
         ],
         "reconciliation": reconciliation,
         "stated_vs_used": esm3.stated_vs_used(staged),
+        "staged_tier_counts": counts or [],
         "under_specification": esm3.unstated(),
         "summary": {
             "components_stated": len(components),
@@ -139,6 +181,9 @@ def build(staged: dict[str, dict[str, Any]] | None = None) -> dict[str, object]:
                 1 for r in reconciliation if r["exceeds_stated_removal"] is True
             ),
             "components_staged": sorted(staged or {}),
+            "staged_tiers_counted_and_agreeing": sorted(
+                c["tier"] for c in (counts or []) if c["agrees"]
+            ),
         },
     }
 
@@ -197,7 +242,10 @@ def _execute(args: argparse.Namespace) -> int:
         staged = load_staged(staging_dir) if staging_dir.exists() else {}
         for name, used in sorted(staged.items()):
             manifest.input_file(used["manifest"], role=f"staging manifest: {name}")
-        report = build(staged)
+        counts = load_counts(staging_dir / "counts")
+        for row in counts:
+            manifest.input_file(row["source"], role=f"cluster count: {row['tier']}")
+        report = build(staged, counts)
         out.write_text(json.dumps(report, indent=2, sort_keys=False) + "\n")
         manifest.output_file(out, role="composition table")
 

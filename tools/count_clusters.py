@@ -230,12 +230,18 @@ def _execute(
                     "the gap between stated and observed is a finding."
                 )
 
+        # One run counts the tiers it was asked for, and this report is written per run,
+        # so a field named for *all* tiers was true whenever the one tier counted agreed
+        # — which reads, wrongly, as the whole release verified. A1.5 counts three tiers
+        # in three processes and would have published three such reports.
+        counted = [r for r in composition if r["agrees"] is not None]
         report = {
             "release": rel.release,
             "tiers": per_tier,
             "composition": composition,
-            "all_tiers_agree": all(r["agrees"] for r in composition if r["agrees"] is not None)
-            and any(r["agrees"] is not None for r in composition),
+            "tiers_counted": [r["tier"] for r in counted],
+            "tiers_not_counted": [r["tier"] for r in composition if r["agrees"] is None],
+            "counted_tiers_agree": bool(counted) and all(r["agrees"] for r in counted),
         }
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
@@ -257,7 +263,7 @@ def _execute(
             client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
             print(f"uploaded s3://{bucket}/{key}")
 
-    return 0 if report["all_tiers_agree"] else 1
+    return 0 if report["counted_tiers_agree"] else 1
 
 
 if __name__ == "__main__":

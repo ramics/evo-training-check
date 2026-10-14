@@ -125,3 +125,67 @@ def test_no_row_carries_a_coverage_share(tmp_path):
     report = composition.build(composition.load_staged(tmp_path))
     for row in report["stated_vs_used"]:
         assert not [k for k in row if "share" in k or "percent" in k or "fraction" in k]
+
+
+def count_report(path, *, tier="uniref90", counted=170_669_877, stated=170_669_877, modern=True):
+    rows = [
+        {
+            "tier": tier,
+            "counted_clusters": counted,
+            "stated_clusters": stated,
+            "agrees": counted == stated,
+            "delta": counted - stated,
+        },
+        # A tier this run did not count, which is the shape every per-tier report has.
+        {
+            "tier": "uniref50",
+            "counted_clusters": None,
+            "stated_clusters": 60_479_070,
+            "agrees": None,
+            "delta": None,
+        },
+    ]
+    report = {"release": "2023_02", "composition": rows}
+    if modern:
+        report["tiers_counted"] = [tier]
+        report["tiers_not_counted"] = ["uniref50"]
+    path.write_text(json.dumps(report))
+    return path
+
+
+def test_counts_are_read_per_tier_with_their_verdict(tmp_path):
+    count_report(tmp_path / "composition-uniref90.json")
+    rows = composition.load_counts(tmp_path)
+
+    assert [r["tier"] for r in rows] == ["uniref90"]
+    assert rows[0]["agrees"] is True
+    assert rows[0]["delta"] == 0
+
+
+def test_a_tier_a_run_did_not_count_is_not_reported_as_verified(tmp_path):
+    """Every per-tier report lists the tiers it did not count. Reading those as verified
+    is exactly the misreading the `counted_tiers_agree` rename was for."""
+    count_report(tmp_path / "composition-uniref90.json")
+    assert {r["tier"] for r in composition.load_counts(tmp_path)} == {"uniref90"}
+
+
+def test_reports_written_before_tiers_counted_existed_are_still_read(tmp_path):
+    count_report(tmp_path / "composition-uniref90.json", modern=False)
+    assert [r["tier"] for r in composition.load_counts(tmp_path)] == ["uniref90"]
+
+
+def test_a_disagreeing_count_is_reported_rather_than_dropped(tmp_path):
+    count_report(tmp_path / "composition-uniref90.json", counted=170_000_000)
+    rows = composition.load_counts(tmp_path)
+    assert rows[0]["agrees"] is False
+    assert rows[0]["delta"] == 170_000_000 - 170_669_877
+
+    report = composition.build(None, rows)
+    # A tier that disagrees must not appear in the agreeing summary.
+    assert report["summary"]["staged_tiers_counted_and_agreeing"] == []
+
+
+def test_counts_are_absent_rather_than_assumed_when_nothing_was_counted(tmp_path):
+    report = composition.build(None, composition.load_counts(tmp_path))
+    assert report["staged_tier_counts"] == []
+    assert report["summary"]["staged_tiers_counted_and_agreeing"] == []

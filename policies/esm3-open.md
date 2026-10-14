@@ -314,6 +314,13 @@ bytes that look like them. MGnify 2023_02's 90%-clustered product staged as one
 83,473,342,442-byte object, matching the md5 the release's own `md5sum.txt` publishes for it.
 295.3 GB in total.
 
+Each staged tier was then counted in region against the cluster total its own release note
+states, because the archive md5 cannot show the tar walk split the archive into the right tiers
+— a mis-walked archive still hashes correctly. All three agree exactly: UniRef100 350,950,053,
+UniRef90 170,669,877, UniRef50 60,479,070, each with a delta of zero, and each tier's XML root
+element states version 2023_02 independently of the filename it arrived under. That is the same
+standard A1.3 reached for ESM-2's release, and it is as far as verification of this proxy can go.
+
 Two things about the acquisition are worth recording, because the next worker will hit them.
 The 2023_02 archive's members are ordered UniRef100 first, so a run wanting only UniRef50 reads
 past 110.5 GiB to reach it. And the two publishers throttle very differently: UniProt served
