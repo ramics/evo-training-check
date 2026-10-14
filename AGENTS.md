@@ -32,6 +32,9 @@ src/amazebio/         library code
   survival.py         the frozen route taxonomy and headline metrics
 metrics/survival.md   FROZEN — the headline metric spec; changing it is a DECISIONS entry
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
+tools/stage_uniref.py stages a pinned UniRef release into object storage, streaming
+tools/count_clusters.py counts clusters in a staged tier and checks the composition
+tools/ec2_count.py    runs the count in-region on EC2; see "Running work on EC2"
 tasks/README.md       the task protocol in detail
 tasks/BOARD.md        GENERATED — never hand-edit
 tasks/DECISIONS.md    append-only log of resolved ambiguities
@@ -180,6 +183,66 @@ negotiable by a task that finds them inconvenient.
   in papers, in figures, and in the shipped tool's own output.
 - **Write for the adversarial reader.** §7 notes Phase A names real labs and must be airtight.
   Assume a motivated, well-informed reviewer who wants the result to be wrong.
+
+## Running work on EC2
+
+**Launch an instance sparingly, and only when being in-region is the point.** The test is whether
+the work is bound by data movement that is free inside `us-east-1` and metered outside it — reading
+the staged corpora is the case that qualifies, because a full pass over them is tens of gigabytes.
+Compute that would run acceptably in the session container does not qualify, and neither does
+convenience. An instance costs money, leaves a resource that can be forgotten, and cannot be
+inspected once running: assume you get one shot at `UserData` and nothing else.
+
+A1.3 learned the following the hard way. `tools/ec2_count.py` is the worked example.
+
+**What the account's policy allows, and what it does not.** `ec2:RunInstances` is permitted, but
+only with a `Project=ClaudeSpike` tag and a non-empty `Owner` tag, from an allowlisted instance
+type, with volumes of 200 GB or less in `gp3`/`gp2`. Omit the tags and the refusal is a bare
+`UnauthorizedOperation`, which reads exactly like not having permission at all — that misreading
+cost a round trip. `iam:*` is denied, so you cannot create, inspect or list roles and instance
+profiles; the `AmazebioStager` instance profile and the matching `iam:PassRole` grant already exist
+and are the only way an instance gets AWS credentials. Do not try to supply credentials another
+way: the session's own are injected by a proxy and never exposed to it, so they cannot be copied
+onto a machine, and a presigned URL cannot be generated for the same reason.
+
+**You cannot talk to the instance.** `ssm:SendCommand` is denied, no key pair exists, and
+`ec2:AuthorizeSecurityGroupIngress` is denied, so there is no shell, no SSH and no inbound
+connection. Everything the instance will do must be decided before launch and written into
+`UserData`. Results come back by the instance writing them to S3. Progress comes back through
+`ec2:GetConsoleOutput`, which is allowed, best-effort, and empty for the first minute or so.
+
+**Make it terminate itself, and terminate it anyway.** Pass
+`InstanceInitiatedShutdownBehavior="terminate"` at launch — `ec2:ModifyInstanceAttribute` is denied,
+so it cannot be set afterwards, and without it a self-shutdown merely stops the instance and keeps
+billing its volume. Then also call `ec2:TerminateInstances` from the launcher in a `finally`, because
+a `UserData` that fails before its own `shutdown` would otherwise leave the instance running
+indefinitely. Both, not either.
+
+**Pick the interpreter explicitly.** Amazon Linux 2023 ships Python 3.9 as `python3`, and this
+project needs 3.12; `datetime.UTC` alone is 3.11+. Install `python3.12` and invoke it by name. A
+run that trusts `python3` dies on an `ImportError` about half a minute in, having read nothing.
+
+**A dry run authorizes; it does not execute.** `DryRun=True` checks permissions and parameters and
+returns `DryRunOperation` on success, which is worth doing. It runs no `UserData`, so it cannot
+catch a missing dependency, a wrong interpreter or a broken script. Those checks belong inside the
+script.
+
+**Carry provenance in, because the instance has none.** There is no git checkout on the instance, so
+`amazebio.repro` cannot discover the commit and a manifest produced there is untraceable. The
+launcher refuses to run from a dirty tree and passes the commit in explicitly; keep that. A result
+that cannot be traced to the code that produced it is not citable, which is the whole point of
+`repro`.
+
+**Know the parallelism before choosing a size.** A gzip stream cannot be decompressed in parallel,
+so one `.gz` file is one thread however many cores are present. For the UniRef tiers that caps
+useful parallelism at one process per tier, and the largest tier sets the wall clock; a bigger
+instance buys nothing. Work out the real ceiling first — the honest answer is often that a small
+instance is the right one.
+
+**The corpus bucket has no `s3:DeleteObject`.** Anything written there is permanent. That is
+deliberate — it is what makes a staged corpus un-rewritable — but it means a bug that writes junk
+writes it forever. Before a run that uploads, be sure about the keys it will produce; A1.3 left four
+0-byte objects behind that cannot be removed.
 
 ## Reporting to the project owner
 
