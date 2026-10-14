@@ -342,6 +342,53 @@
       "status": "unretrieved",
       "blocker": "science.org returns HTTP 403; Europe PMC holds the record as PMC12057570 but fullTextXML returns HTTP 500 and the article is marked not open access; the PMC article page returns HTTP 200 but serves a reCAPTCHA challenge rather than content.",
       "note": "Identified while closing the A1.1 gap. The version of record may carry a fuller data availability statement than the preprint; quotes must come from S-EVO1-PREPRINT until this is retrieved. Note that one of the three attempts returned HTTP 200 without returning the document, so status here rests on the content received, not the code."
+    },
+    {
+      "id": "S-ESM1B-PNAS",
+      "kind": "paper",
+      "title": "Rives et al. 2021 \u2014 Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences (PNAS, version of record)",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8053943/fullTextXML",
+      "licence": "CC-BY-NC-ND 4.0",
+      "models": [
+        "ESM-1",
+        "ESM-1b"
+      ],
+      "doi": "10.1073/pnas.2016239118",
+      "status": "retrieved",
+      "capture": "policies/captures/esm1b-pnas-fulltext.xml",
+      "sha256": "371ba324fb6c86b69e6777377c4656e0332745aec5a7bf4240a11af31dd06d2c",
+      "bytes": 171069,
+      "note": "The paper that defines the UR100, UR50/S and UR50/D dataset notation the ESM repository's model table uses; retrieved for A1.3 (DECISIONS.md D-025). Captured as JATS XML from the Europe PMC REST endpoint because pnas.org returns HTTP 403 and the PMC article page serves an interstitial rather than the PDF. The capture is the publisher's own full text, not a mirror's rendering, but quotes are matched against XML bytes, so a quotation must not span inline markup (an <xref> citation marker, a formula) \u2014 pick a sentence that reads clean in the source."
+    },
+    {
+      "id": "S-ESM2-PREPRINT",
+      "kind": "paper",
+      "title": "Lin et al. 2022 \u2014 Evolutionary-scale prediction of atomic level protein structure with a language model (preprint)",
+      "url": "https://www.biorxiv.org/content/10.1101/2022.07.20.500902v3.full.pdf",
+      "doi": "10.1101/2022.07.20.500902",
+      "models": [
+        "ESM-2",
+        "ESMFold"
+      ],
+      "status": "retrieved",
+      "note": "ESM-2's own paper, and the first-party statement of what ESM-2 was trained on. Retrieved 2026-10-14 after the earlier HTTP 429 lifted; the host rate-limits bursts rather than sustaining a block, so one request every few minutes succeeds where repeated attempts do not. NOTE ON THE CHECKSUM: biorxiv.org stamps the download time into the PDF's XMP ModifyDate and MetadataDate, so the bytes differ on every fetch and this sha256 will NOT reproduce. Verified by comparing this capture against an independently downloaded copy: 30 bytes differ, all of them in those two timestamps, and the extracted text is identical. So the hash fixes this capture, not the document.",
+      "capture": "pdfs/2022.07.20.500902v3.full.pdf",
+      "sha256": "87476bce2bd3b8c54420c58d9d797ae88b72501dec54c03c36b4f9448f499ca0",
+      "bytes": 4637380
+    },
+    {
+      "id": "S-ESM2-SCIENCE",
+      "kind": "paper",
+      "title": "Lin et al. 2023 \u2014 Evolutionary-scale prediction of atomic-level protein structure with a language model (Science, version of record)",
+      "url": "https://www.science.org/doi/10.1126/science.ade2574",
+      "doi": "10.1126/science.ade2574",
+      "models": [
+        "ESM-2",
+        "ESMFold"
+      ],
+      "status": "unretrieved",
+      "blocker": "science.org is paywalled and returns HTTP 403, as it does for S-EVO1-SCIENCE.",
+      "note": "The version of record for ESM-2. Same standing as S-ESM3-SCIENCE and S-EVO1-SCIENCE: quotes come from the preprint once that is retrieved, and anything load-bearing should be checked against this version before publication."
     }
   ]
 }

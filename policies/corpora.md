@@ -221,6 +221,12 @@ inherits the proxy's error and must ship with an interval.
 held-out cluster IDs are published, which makes ESM-2 the cheapest corpus to reconstruct and the
 right first target for the A1.3 pipeline. As the positive control it needs no exclusion predicate.
 
+**Two corrections from A1.3, which this section predates.** The verdict stands; two of its clauses
+do not. The pinned release is 2021_04, not the 2018-03 release the split files use, and no held-out
+split is published for 2021_04 (`esm2.md` §2–3; DECISIONS.md D-024). And the pinned corpus is
+`UR50/D` — cluster members, not the UniRef50 representatives — so it is the most expensive of the
+four to stage rather than the cheapest (`esm2.md` §4; D-025).
+
 ## 7. ESM-C — not applicable
 
 No stated exclusion (`esm-c.md`) and no corpus release. It enters the audit only as a
