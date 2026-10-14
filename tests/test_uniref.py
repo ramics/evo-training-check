@@ -14,6 +14,8 @@ import hashlib
 import io
 import os
 import tarfile
+import threading
+import time
 
 import pytest
 
@@ -481,3 +483,91 @@ def test_an_aborted_archive_upload_leaves_no_object():
     assert client.aborted
     assert client.completed is None
     assert not sink.completed
+
+
+# --------------------------------------------------------------------------- #
+# Concurrent part uploads
+# --------------------------------------------------------------------------- #
+
+
+class ThreadSafeS3(FakeS3):
+    """FakeS3 with a lock, since parts now arrive from several threads."""
+
+    def __init__(self, delay: float = 0.0, fail_on: int | None = None):
+        super().__init__()
+        self._lock = threading.Lock()
+        self._delay = delay
+        self._fail_on = fail_on
+        self.max_concurrent = 0
+        self._active = 0
+
+    def upload_part(self, **kw):
+        with self._lock:
+            self._active += 1
+            self.max_concurrent = max(self.max_concurrent, self._active)
+        try:
+            if self._delay:
+                time.sleep(self._delay)
+            if self._fail_on is not None and kw["PartNumber"] == self._fail_on:
+                raise RuntimeError(f"part {self._fail_on} rejected")
+            with self._lock:
+                self.parts[kw["PartNumber"]] = kw["Body"]
+            return {"ETag": f'"etag-{kw["PartNumber"]}"'}
+        finally:
+            with self._lock:
+                self._active -= 1
+
+
+def test_parts_are_reassembled_in_order_despite_finishing_out_of_order():
+    """The correctness risk of concurrency: S3 needs ascending part numbers, and
+    a reversed or shuffled list yields a corrupt object that still uploads."""
+    client = ThreadSafeS3(delay=0.01)
+    body = noise(40 << 20)
+    with uniref.S3PartSink(
+        client, "bucket", "k", part_bytes=uniref.S3PartSink.MIN_PART, concurrency=8
+    ) as sink:
+        for i in range(0, len(body), 1 << 16):
+            sink.write(body[i : i + (1 << 16)])
+    numbers = [p["PartNumber"] for p in client.completed["Parts"]]
+    assert numbers == sorted(numbers)
+    assert client.assembled() == body
+    assert sink.sha256 == hashlib.sha256(body).hexdigest()
+
+
+def test_uploads_actually_overlap():
+    client = ThreadSafeS3(delay=0.05)
+    with uniref.S3PartSink(
+        client, "bucket", "k", part_bytes=uniref.S3PartSink.MIN_PART, concurrency=6
+    ) as sink:
+        sink.write(noise(30 << 20))
+    assert client.max_concurrent > 1
+
+
+def test_in_flight_parts_are_capped():
+    """An unbounded queue would buffer the whole 169 GB archive in memory."""
+    client = ThreadSafeS3(delay=0.02)
+    concurrency = 2
+    with uniref.S3PartSink(
+        client, "bucket", "k", part_bytes=uniref.S3PartSink.MIN_PART, concurrency=concurrency
+    ) as sink:
+        sink.write(noise(60 << 20))
+    assert client.max_concurrent <= concurrency
+
+
+def test_a_failed_part_surfaces_rather_than_completing_a_corrupt_object():
+    client = ThreadSafeS3(fail_on=2)
+    with (
+        pytest.raises(RuntimeError, match="part 2 rejected"),
+        uniref.S3PartSink(
+            client, "bucket", "k", part_bytes=uniref.S3PartSink.MIN_PART, concurrency=4
+        ) as sink,
+    ):
+        for _ in range(8):
+            sink.write(noise(uniref.S3PartSink.MIN_PART))
+    assert client.completed is None
+    assert client.aborted
+
+
+def test_concurrency_below_one_is_rejected():
+    with pytest.raises(ValueError, match="at least 1"):
+        uniref.S3PartSink(FakeS3(), "bucket", "k", concurrency=0)

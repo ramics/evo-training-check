@@ -110,6 +110,12 @@ def main(argv: list[str] | None = None) -> int:
     # size the whole job is ~1,820 uploads, which fits the account's free monthly
     # allowance of 2,000. Smaller parts would double it for no benefit.
     ap.add_argument("--part-bytes", type=int, default=128 << 20, help="multipart part size")
+    ap.add_argument(
+        "--concurrency",
+        type=int,
+        default=8,
+        help="parts uploaded at once per sink (measured: 1 gives ~52 MB/s, 8 gives ~123)",
+    )
     ap.add_argument("--outdir", type=Path, default=OUTDIR)
     ap.add_argument(
         "--allow-dirty", action="store_true", help="iteration only, never for a cited run"
@@ -129,7 +135,20 @@ def main(argv: list[str] | None = None) -> int:
             import boto3
         except ImportError as exc:  # pragma: no cover - environment problem, not logic.
             raise SystemExit("--stage needs boto3 installed") from exc
-        client = boto3.client("s3", region_name=S3_REGION, endpoint_url=S3_ENDPOINT)
+        from botocore.config import Config
+
+        client = boto3.client(
+            "s3",
+            region_name=S3_REGION,
+            endpoint_url=S3_ENDPOINT,
+            # The pool has to cover every uploader across both sinks at once —
+            # the retained archive and the member being extracted — or threads
+            # queue on connections and the concurrency buys nothing.
+            config=Config(
+                max_pool_connections=4 * args.concurrency,
+                retries={"max_attempts": 10, "mode": "standard"},
+            ),
+        )
 
     try:
         return _execute(args, tiers, client, bucket, key_prefix)
@@ -160,6 +179,7 @@ def _execute(
         manifest.parameter("tiers", list(tiers))
         manifest.parameter("max_compressed_bytes", args.max_compressed_bytes)
         manifest.parameter("part_bytes", args.part_bytes)
+        manifest.parameter("upload_concurrency", args.concurrency)
         manifest.parameter("retain_raw_archive", bool(args.raw))
         manifest.parameter("destination", f"s3://{bucket}/{key_prefix}" if args.stage else None)
         manifest.note(
@@ -179,7 +199,11 @@ def _execute(
         if args.raw and args.stage:
             raw_key = f"{key_prefix}/uniref/{uniref.RELEASE}/uniref{uniref.RELEASE}.tar.gz"
             raw_sink = uniref.S3PartSink(
-                client, bucket, raw_key.replace("//", "/"), part_bytes=args.part_bytes
+                client,
+                bucket,
+                raw_key.replace("//", "/"),
+                part_bytes=args.part_bytes,
+                concurrency=args.concurrency,
             ).open()
             print(f"retaining the archive verbatim -> s3://{bucket}/{raw_sink.key}", flush=True)
 
@@ -220,7 +244,13 @@ def _execute(
 
             if wanted(member):
                 key = f"{key_prefix}/uniref/{uniref.RELEASE}/{member.qualified}".replace("//", "/")
-                with uniref.S3PartSink(client, bucket, key, part_bytes=args.part_bytes) as sink:
+                with uniref.S3PartSink(
+                    client,
+                    bucket,
+                    key,
+                    part_bytes=args.part_bytes,
+                    concurrency=args.concurrency,
+                ) as sink:
                     for chunk in payload:
                         sink.write(chunk)
                         now = time.monotonic()
