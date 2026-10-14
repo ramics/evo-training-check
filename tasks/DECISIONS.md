@@ -820,3 +820,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
   §A0 findings about ESM-2's documentation, not obstacles: the suffix a model card leads with is
   defined only in a different paper about different models. `policies/corpora.md` §6 carries a
   pointer to both corrections, since A1.1's verdict predates them.
+
+### D-026 — the 2021_04 bundle is staged by streaming, and the archive is kept verbatim
+- **Date:** 2026-10-14
+- **Task:** A1.3
+- **Context:** D-024 recorded that staging UniRef 2021_04 needs a machine with roughly 300 GB of
+  disk, and that the pipeline could only run in proxy mode until that and credentials existed. The
+  project owner provided an S3 bucket in the project account instead, on free tier. 300 GB of local
+  disk turns out not to be needed: the archive's HTTP endpoint advertises `Accept-Ranges: bytes`, so
+  the compressed stream is resumable, and measured pull rate is 86.7 MB/s.
+- **Decision:** **Stage by streaming in one forward pass, with nothing buffered to local disk**, and
+  **keep the released archive verbatim alongside the extracted tiers.** The pass pulls the 169 GB
+  `.tar.gz`, forks the compressed chunks to one upload while gunzipping the same chunks to extract
+  `uniref50` and `uniref90`, and verifies the whole stream against the published md5
+  `444f0a7062a65a988ba1d5949d1d6419`. UniRef100 — 87.3 GiB of the archive, and nothing Phase A uses —
+  is pulled past and discarded rather than stored. Destination is
+  `s3://amazebio-corpora-897641797669/corpora/uniref/2021_04/`.
+  Three consequences worth stating, since each is a commitment rather than an implementation detail:
+  **the retained archive is abandoned unless the md5 matches**, including when a run ends early and
+  so cannot distinguish "unverified" from "wrong" — the bucket withholds `s3:DeleteObject`, so a
+  completed upload is irreversible, and an object claiming to be a release it has not been shown to
+  be is worse than no object. **Analysis runs on EC2 in us-east-1**, decided together with this, so
+  reads of the staged corpus are same-region and free; a full pass from outside AWS would cost about
+  $6.80 in egress each time, which argues for reducing in-region and shipping only the result out.
+  **Storage runs past the free allowance by design**: ~245 GB against 5 GB free, about $5.50/month,
+  accepted with those figures stated.
+- **Rejected:** Waiting for a 300 GB machine — unnecessary once the stream proved resumable, and it
+  was the stated blocker holding A1.4, A4.3, A8.1 and C5.2. Staging the extracted tiers only, at
+  about $1.60/month — cheaper, but the extracted tiers have no published checksum of their own, so
+  the pin would rest on a URL that may not outlive the project; the archive is the only artefact
+  whose md5 the release publishes. Storing UniRef100 as well — it triples the bill to retain the one
+  tier D-025 establishes is not the corpus. Downloading the archive twice, once to keep and once to
+  extract — the fork costs nothing and the second pull costs 169 GB.
+- **Consequence:** D-024's "proxy mode only" condition is lifted for ESM-2: the corpus is staged at
+  the stated version, verified against the release's own checksum, so ESM-2 results no longer carry
+  the acquisition proxy qualifier. A1.1's "cheapest corpus" expectation stays withdrawn — the pin is
+  exact and the bytes are still the most expensive of the four. One finding came out of the pass
+  itself and is recorded in the task file: **the release bundles XML, not FASTA**, which happens to
+  suit D-025, since UniRef XML states cluster membership explicitly rather than leaving it to be
+  reconstructed.
