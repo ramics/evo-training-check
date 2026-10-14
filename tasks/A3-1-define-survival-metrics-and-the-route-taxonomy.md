@@ -36,6 +36,23 @@ happens.
 - Route taxonomy is fixed and used by all A2 outputs.
 - Frozen before A3.2 runs.
 
+## State — 2026-10-14
+
+`review`, on branch `ccr-2956d088-s25hlk` — pushed and green, **not merged into `main`**, so the files named
+here are absent from a `main` checkout.
+
+- `metrics/survival.md` is the frozen specification, written to be reimplementable from that file
+  alone, so A3.3's independent second implementation never has to read the first.
+- `src/amazebio/survival.py` carries the route taxonomy every A2 detector tags its output with,
+  plus a reference implementation of the metric definitions. `tests/test_survival.py` pins the
+  specification's worked examples.
+- The four substantive calls are in DECISIONS.md D-022, including the project owner's choice to
+  report both family registries separately and never pool them.
+
+**Why this is not `done`:** the Done-when criterion "route taxonomy is fixed and used by all A2
+outputs" cannot be demonstrated while no A2 detector exists. Move it to `done` when the first A2
+task emits `amazebio.survival.Detection`.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
