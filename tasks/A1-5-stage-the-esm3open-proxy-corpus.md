@@ -71,24 +71,27 @@ side by side as though it could.
   - The reconciliation: ESM3's stated corpus sizes are 14.7M and 108.2M short of the releases
     they name, each gap alone larger than the 10.6M the filter reports removing everywhere.
     `corpora.md` §5's proposal to validate a reconstruction against that figure is withdrawn.
-  - Component table and arithmetic in `src/amazebio/esm3.py`, written out by
-    `tools/esm3_composition.py` to `artifacts/a1-5/composition.json` with a `run.json`. Tests
-    parse the stored release notes and check the transcribed integers against them.
-  - Pins verified: UniRef 2023_02 (211,819,312,677 bytes, md5 from the release metalink) and
-    MGnify 2023_02 (published md5 per file). Six captures registered as sources.
-  - `amazebio.uniref` carries a `Release` registry, so 2023_02 stages through A1.3's verified
-    path; `--release` is threaded through the staging, counting and EC2 tools.
+  - **Both components staged and verified.** UniRef 2023_02's three tiers (211.8 GB) and
+    MGnify 2023_02's 90%-clustered product (83.5 GB), 295.3 GB in all, each matching the md5
+    its publisher publishes. Scope was the project owner's call, logged as D-033.
+  - Stated-versus-used recorded for all eight components in
+    `artifacts/a1-5/composition.json`, joined from the staging manifests rather than retyped.
+  - Code: `src/amazebio/esm3.py` (component table, reconciliation, stated-versus-used),
+    `src/amazebio/mgnify.py` and `tools/stage_mgnify.py` (verify-then-complete transfer),
+    `tools/esm3_composition.py`, and a `Release` registry plus `ParallelRangeRead` in
+    `amazebio.uniref`. 216 tests pass.
 - **Left:**
-  - The staging pass. Nothing is staged yet.
-  - Then the stated-versus-used record per staged component, and status to `review`.
-- **Waiting on the project owner:** **the staging scope.** The bucket withholds
-  `s3:DeleteObject`, so this is permanent spend, and the span is $0 to ~$15/month depending on
-  which components are staged. Options and costs are with the owner; D-031 is the precedent for
-  treating this as the owner's call rather than a worker's.
-- **For whoever picks up A2.2 or A4.3:** A4.3's ESM3 scope table needs no staging — the
-  composition is documentary and the artefact is already there. The two re-entry routes in
-  `esm3-open.md` §8 cannot be measured without the structure-side components (AlphaFoldDB,
-  ESMAtlas), which nothing has authorised staging; expect to ask the cost question for those.
+  - The in-region cluster count is running on EC2, checking each staged tier against its
+    release note. The archive md5 proves the bytes; the counts prove the extraction.
+  - Then status to `review`.
+- **Waiting on the project owner:** nothing.
+- **For whoever picks up A1.4 or A4.3:** A4.3's ESM3 scope table needs no staging — the
+  composition is documentary and the artefact is there now. Do not write any figure of the
+  form "x% of ESM3's corpus": JGI is about a third of its unique training tokens and cannot
+  be reconstructed at all, so coverage is over the components that could be staged.
+- **For whoever picks up A2.2:** the two re-entry routes in `esm3-open.md` §8 cannot be
+  measured without the structure-side components (AlphaFoldDB v4, ESMAtlas), which D-033
+  deliberately did not buy. Re-ask the cost question rather than assuming it.
 
 ## Notes
 
