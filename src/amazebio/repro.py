@@ -177,6 +177,56 @@ class RunManifest:
         )
         return p
 
+    def input_url(
+        self,
+        url: str,
+        *,
+        role: str | None = None,
+        bytes: int | None = None,
+        checksum: str | None = None,
+        checksum_type: str | None = None,
+        verified: bool | None = None,
+    ) -> str:
+        """Record a remote input that is too large to hold locally.
+
+        A corpus can exceed the disk it is processed on — the UniRef release A1.3
+        stages is 169 GB against a 30 GB working disk — so some pinned inputs are
+        never files here. The pin then rests on the publisher's own verification:
+        pass the published checksum and whether this run actually matched it.
+        `verified=False` is the honest record of a stream that was read but not
+        checked, and it is what stops such a run being cited as a verified one.
+        """
+        self.inputs.append(
+            {
+                "url": url,
+                "bytes": bytes,
+                "checksum": checksum,
+                "checksum_type": checksum_type,
+                "verified": verified,
+                "role": role,
+            }
+        )
+        return url
+
+    def output_object(
+        self,
+        uri: str,
+        *,
+        role: str | None = None,
+        bytes: int | None = None,
+        sha256: str | None = None,
+        **extra: Any,
+    ) -> str:
+        """Record an artefact that landed in object storage rather than on disk.
+
+        Same contract as :meth:`output_file` — it counts as an output, so it
+        closes the window for declaring parameters — but the checksum is supplied
+        by the writer, since re-reading the object to hash it would mean pulling
+        the bytes back down.
+        """
+        self.outputs.append({"uri": uri, "bytes": bytes, "sha256": sha256, "role": role, **extra})
+        return uri
+
     def tool(self, name: str, command: list[str]) -> None:
         """Record the version of an external tool actually invoked by this run."""
         self.tools[name] = tool_version(command)
