@@ -99,9 +99,40 @@ def test_the_size_check_runs_before_the_md5_check():
         mgnify.stream_verified(Reader(short), sink, expected_bytes=200, expected_md5="0" * 32)
 
 
-def test_a_smoke_test_run_is_recorded_as_unverified_rather_than_staged():
-    """`--max-compressed-bytes` must not be able to produce a manifest that reads as a
-    verified corpus — that is the one way a partial run could do lasting damage."""
+def test_a_smoke_test_aborts_the_upload_rather_than_completing_a_prefix():
+    """The hazard `--max-compressed-bytes` creates, and the one A1.3 fell into.
+
+    A truncated upload completed into a bucket with no delete is a corpus object that
+    is permanently wrong and looks staged. So a partial run must abort, not complete.
+    """
+    client = FakeS3()
+    with (
+        pytest.raises(mgnify.PartialRun) as caught,
+        uniref.S3PartSink(client, "bucket", "k") as sink,
+    ):
+        mgnify.stream_verified(
+            Reader(BODY),
+            sink,
+            expected_bytes=len(BODY),
+            expected_md5=md5(BODY),
+            max_bytes=1 << 20,
+        )
+
+    assert client.completed is None
+    assert client.aborted is True
+    # A PartialRun is a VerificationError, because the sink has to treat it like one.
+    assert isinstance(caught.value, uniref.VerificationError)
+
+    staged = caught.value.staged
+    assert staged.partial is True
+    assert staged.verified is False
+    assert staged.bytes_read == 1 << 20
+    assert staged.as_manifest()["verified"] is False
+
+
+def test_a_partial_run_can_be_tolerated_where_nothing_is_written():
+    """`abort_on_partial=False` exists for a read-only pass, and still records the
+    run as unverified so no manifest of one can read as a staged corpus."""
     client = FakeS3()
     with uniref.S3PartSink(client, "bucket", "k") as sink:
         staged = mgnify.stream_verified(
@@ -110,12 +141,9 @@ def test_a_smoke_test_run_is_recorded_as_unverified_rather_than_staged():
             expected_bytes=len(BODY),
             expected_md5=md5(BODY),
             max_bytes=1 << 20,
+            abort_on_partial=False,
         )
-
-    assert staged.partial is True
-    assert staged.verified is False
-    assert staged.bytes_read == 1 << 20
-    assert staged.as_manifest()["verified"] is False
+    assert (staged.partial, staged.verified) == (True, False)
 
 
 def test_progress_is_reported_in_bytes_read_so_far():

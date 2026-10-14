@@ -218,24 +218,41 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, key_prefix: str
                     flush=True,
                 )
 
-            with uniref.S3PartSink(
-                client,
-                bucket,
-                key,
-                part_bytes=args.part_bytes,
-                concurrency=args.concurrency,
-            ) as sink:
-                # Inside the sink's `with`: a verification failure raises here, the
-                # sink aborts, and nothing becomes permanent in a bucket with no delete.
-                staged = mgnify.stream_verified(
-                    reader,
-                    sink,
-                    expected_bytes=pin.bytes,
-                    expected_md5=pin.md5,
-                    url=pin.url,
-                    progress=progress,
-                    max_bytes=args.max_compressed_bytes,
+            try:
+                with uniref.S3PartSink(
+                    client,
+                    bucket,
+                    key,
+                    part_bytes=args.part_bytes,
+                    concurrency=args.concurrency,
+                ) as sink:
+                    # Inside the sink's `with`: a verification failure raises here, the
+                    # sink aborts, and nothing becomes permanent in a bucket with no
+                    # delete.
+                    staged = mgnify.stream_verified(
+                        reader,
+                        sink,
+                        expected_bytes=pin.bytes,
+                        expected_md5=pin.md5,
+                        url=pin.url,
+                        progress=progress,
+                        max_bytes=args.max_compressed_bytes,
+                    )
+            except mgnify.PartialRun as stopped:
+                # A smoke test. The upload has already been aborted by the sink, which
+                # is the point: it exercised the network, the resume, the credentials
+                # and multipart without writing an object that could never be removed.
+                staged = stopped.staged
+                print(f"smoke test: {stopped}")
+                row.update(staged.as_manifest())
+                row["uri"] = None
+                row["aborted"] = True
+                report["files"].append(row)
+                manifest.note(
+                    f"{pin.name}: smoke test read {staged.bytes_read:,} bytes and the "
+                    "upload was aborted; nothing was written"
                 )
+                continue
 
             elapsed = time.monotonic() - started
             print(

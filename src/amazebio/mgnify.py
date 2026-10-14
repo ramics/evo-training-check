@@ -35,6 +35,24 @@ from amazebio.uniref import VerificationError
 _READ_CHUNK = 1 << 22  # 4 MiB, matching uniref's socket read size.
 
 
+class PartialRun(VerificationError):
+    """A transfer stopped before the end, so nothing about it is verified.
+
+    A subclass of `VerificationError` because it must abort the upload exactly as a
+    failed check does: the bytes read are a prefix, and a prefix completed into this
+    bucket could never be removed. It carries the `Staged` record so the caller can
+    report what the smoke test exercised.
+    """
+
+    def __init__(self, staged: Staged) -> None:
+        self.staged = staged
+        super().__init__(
+            f"{staged.url}: stopped after {staged.bytes_read:,} of "
+            f"{staged.expected_bytes:,} bytes. Aborting the upload: a prefix is not a "
+            "staged corpus, and this bucket has no delete."
+        )
+
+
 @dataclass(frozen=True)
 class Staged:
     """What one verified transfer produced. Goes straight into a run manifest."""
@@ -73,6 +91,7 @@ def stream_verified(
     chunk: int = _READ_CHUNK,
     progress: Callable[[int], None] | None = None,
     max_bytes: int | None = None,
+    abort_on_partial: bool = True,
 ) -> Staged:
     """Copy `reader` into `sink`, and refuse to let a wrong transfer be completed.
 
@@ -81,9 +100,13 @@ def stream_verified(
     the only way to not write bytes to a bucket that cannot delete them.
 
     `max_bytes` stops early, for a smoke test of the whole path — network, resume,
-    credentials, multipart — for a minute of transfer rather than an hour. A run
-    stopped that way cannot be verified and says so: `verified` is False and
-    `partial` is True, so no manifest can later be read as a verified transfer.
+    credentials, multipart — for a minute of transfer rather than an hour. Such a run
+    raises `PartialRun`, carrying what it managed, which means the sink aborts and the
+    smoke test writes nothing. That is not a nicety. Completing a truncated upload into
+    a bucket with no delete would leave a corpus object that is permanently wrong and
+    looks staged, and `--max-compressed-bytes` is exactly the flag someone reaches for
+    first — A1.3's four unremovable 0-byte objects came from this class of mistake.
+    Pass `abort_on_partial=False` only where nothing is being written.
     """
     # MGnify publishes md5 per file; the algorithm is the publisher's choice, not ours.
     digest = hashlib.md5()
@@ -114,6 +137,8 @@ def stream_verified(
         partial=partial,
     )
     if partial:
+        if abort_on_partial:
+            raise PartialRun(result)
         return result
 
     if read != expected_bytes:
