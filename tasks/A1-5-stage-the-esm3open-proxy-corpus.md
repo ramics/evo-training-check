@@ -2,13 +2,13 @@
 id: A1.5
 title: Stage the ESM3-open proxy corpus
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.1]
 blocks: [A1.4, A4.3]
 design_ref: "§A1"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # A1.5 — Stage the ESM3-open proxy corpus
@@ -59,6 +59,14 @@ side by side as though it could.
   version logged as a §A0 finding rather than guessed.
 - A proxy corpus is staged and checksummed, with stated-versus-used recorded per component.
 - Every proxy substitution is documented as a limitation, per §7.
+
+## In flight
+
+- **Branch:** `claude/awesome-archimedes-4yxn9p`
+- **Done:** nothing yet; claimed.
+- **Left:** everything in Steps.
+- **Waiting on the project owner:** nothing yet. Expect a staging-scope question, as A1.2 had:
+  the corpus bucket withholds `s3:DeleteObject`, so what gets staged is permanent spend.
 
 ## Notes
 
