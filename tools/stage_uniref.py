@@ -42,7 +42,10 @@ from amazebio import uniref
 from amazebio.repro import ReproError, run
 
 DEFAULT_TIERS = ("uniref50", "uniref90")
-OUTDIR = Path("artifacts/a1-3")
+# Which task a release's staging belongs to. A manifest is only provenance if it names
+# the right task: A1.3 staged ESM-2's release, A1.5 stages ESM3-open's, and a run.json
+# claiming the wrong one would misattribute the artefact.
+TASK_BY_RELEASE = {"2021_04": "A1.3", "2023_02": "A1.5"}
 # The endpoint has to be the regional one: this session's AWS credentials are
 # injected by a proxy scoped to *.us-east-1.amazonaws.com, and the global
 # s3.amazonaws.com host does not match it.
@@ -136,7 +139,12 @@ def main(argv: list[str] | None = None) -> int:
         default=8,
         help="parts uploaded at once per sink (measured: 1 gives ~52 MB/s, 8 gives ~123)",
     )
-    ap.add_argument("--outdir", type=Path, default=OUTDIR)
+    ap.add_argument(
+        "--outdir",
+        type=Path,
+        default=None,
+        help="default: artifacts/<task owning this release>",
+    )
     ap.add_argument(
         "--allow-dirty", action="store_true", help="iteration only, never for a cited run"
     )
@@ -186,8 +194,11 @@ def _execute(
 ) -> int:
     partial = args.max_compressed_bytes is not None
     rel = uniref.RELEASES[args.release]
+    task = TASK_BY_RELEASE[rel.release]
+    if args.outdir is None:
+        args.outdir = Path("artifacts") / task.lower().replace(".", "-")
     with run(
-        "A1.3",
+        task,
         seed=None,  # Nothing here is random: a byte-for-byte transfer or a bug.
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,

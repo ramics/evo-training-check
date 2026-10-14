@@ -39,6 +39,8 @@ from amazebio.repro import ReproError, run
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 S3_REGION = "us-east-1"
 DEFAULT_TIERS = ("uniref50", "uniref90")
+# See tools/stage_uniref.py: a manifest has to name the task the release belongs to.
+TASK_BY_RELEASE = {"2021_04": "A1.3", "2023_02": "A1.5"}
 
 
 def human(n: float) -> str:
@@ -65,7 +67,12 @@ def main(argv: list[str] | None = None) -> int:
         "--source",
         help="local .xml.gz to count instead of S3 — for testing the path end to end",
     )
-    ap.add_argument("--outdir", type=Path, default=Path("artifacts/a1-3"))
+    ap.add_argument(
+        "--outdir",
+        type=Path,
+        default=None,
+        help="default: artifacts/<task owning this release>",
+    )
     ap.add_argument(
         "--upload-results",
         action="store_true",
@@ -129,8 +136,11 @@ def _execute(
 ) -> int:
     report: dict[str, Any] = {}
     rel = uniref.RELEASES[args.release]
+    task = TASK_BY_RELEASE[rel.release]
+    if args.outdir is None:
+        args.outdir = Path("artifacts") / task.lower().replace(".", "-")
     out = args.outdir / "composition.json"
-    with run("A1.3", seed=None, outdir=args.outdir, allow_dirty=args.allow_dirty) as manifest:
+    with run(task, seed=None, outdir=args.outdir, allow_dirty=args.allow_dirty) as manifest:
         manifest.parameter("release", rel.release)
         manifest.parameter("tiers", list(tiers))
         manifest.parameter("markers", {k: v.decode() for k, v in uniref.MARKERS.items()})
