@@ -63,10 +63,32 @@ side by side as though it could.
 ## In flight
 
 - **Branch:** `claude/awesome-archimedes-4yxn9p`
-- **Done:** nothing yet; claimed.
-- **Left:** everything in Steps.
-- **Waiting on the project owner:** nothing yet. Expect a staging-scope question, as A1.2 had:
-  the corpus bucket withholds `s3:DeleteObject`, so what gets staged is permanent spend.
+- **Done:**
+  - What ESM3 states is established from the preprint, per component, with locators and
+    machine-verified quotations. The task's own premise was wrong — versions *are* stated — and
+    the correction plus the four places the under-specification actually sits are D-032 and
+    `policies/esm3-open.md` §6-8.
+  - The reconciliation: ESM3's stated corpus sizes are 14.7M and 108.2M short of the releases
+    they name, each gap alone larger than the 10.6M the filter reports removing everywhere.
+    `corpora.md` §5's proposal to validate a reconstruction against that figure is withdrawn.
+  - Component table and arithmetic in `src/amazebio/esm3.py`, written out by
+    `tools/esm3_composition.py` to `artifacts/a1-5/composition.json` with a `run.json`. Tests
+    parse the stored release notes and check the transcribed integers against them.
+  - Pins verified: UniRef 2023_02 (211,819,312,677 bytes, md5 from the release metalink) and
+    MGnify 2023_02 (published md5 per file). Six captures registered as sources.
+  - `amazebio.uniref` carries a `Release` registry, so 2023_02 stages through A1.3's verified
+    path; `--release` is threaded through the staging, counting and EC2 tools.
+- **Left:**
+  - The staging pass. Nothing is staged yet.
+  - Then the stated-versus-used record per staged component, and status to `review`.
+- **Waiting on the project owner:** **the staging scope.** The bucket withholds
+  `s3:DeleteObject`, so this is permanent spend, and the span is $0 to ~$15/month depending on
+  which components are staged. Options and costs are with the owner; D-031 is the precedent for
+  treating this as the owner's call rather than a worker's.
+- **For whoever picks up A2.2 or A4.3:** A4.3's ESM3 scope table needs no staging — the
+  composition is documentary and the artefact is already there. The two re-entry routes in
+  `esm3-open.md` §8 cannot be measured without the structure-side components (AlphaFoldDB,
+  ESMAtlas), which nothing has authorised staging; expect to ask the cost question for those.
 
 ## Notes
 
