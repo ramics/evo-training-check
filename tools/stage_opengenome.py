@@ -58,7 +58,7 @@ OUTDIR = Path("artifacts/a1-2")
 # s3.amazonaws.com host does not match it.
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 S3_REGION = "us-east-1"
-DEFAULT_PREFIX = "corpora/evo"
+DEFAULT_PREFIX = "corpora"
 
 
 def human(n: float) -> str:
