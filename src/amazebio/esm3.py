@@ -579,3 +579,67 @@ def scope_table() -> list[dict[str, Any]]:
         }
         for c in COMPONENTS
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Stated versus used
+# --------------------------------------------------------------------------- #
+
+# Why each component's staged state differs from what ESM3 states. `AGENTS.md` requires
+# the gap recorded rather than assumed away, and these are the only kinds there are.
+GAP_KINDS = {
+    "release-exact": (
+        "The stated release was obtained as stated and verified against the publisher's "
+        "own checksum. Any remaining gap is granularity, recorded per row."
+    ),
+    "no-proxy-exists": (
+        "The stated pin corresponds to no snapshot anybody serves, so there is nothing "
+        "to obtain and no substitute that would be this component."
+    ),
+    "obtainable-not-staged": (
+        "The stated release is obtainable and was deliberately not staged, for cost "
+        "under DECISIONS.md D-033. Unstaged is not the same as not corpus."
+    ),
+}
+
+
+def stated_vs_used(staged: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """One row per component: what ESM3 states, what this audit used, and the gap.
+
+    `staged` maps a component name to what a staging run produced — release,
+    granularity, and the objects with the checksum each was verified against. Pass
+    nothing and every row reads as unstaged, which is the honest state before a
+    transfer rather than an error.
+
+    The rows carry no share or percentage. A coverage figure over these components
+    would be a fraction of what could be staged rather than of ESM3's corpus — JGI
+    alone is about a third of its unique training tokens — and stating it as coverage
+    is exactly the overclaim `policies/corpora.md` section 5 now warns against.
+    """
+    staged = staged or {}
+    rows: list[dict[str, Any]] = []
+    for c in COMPONENTS:
+        used = staged.get(c.name)
+        if used:
+            kind = "release-exact"
+        elif c.retrievability == "not-reproducible":
+            kind = "no-proxy-exists"
+        else:
+            kind = "obtainable-not-staged"
+        rows.append(
+            {
+                "component": c.name,
+                "stated_release": c.stated_release,
+                "stated_locator": c.locator,
+                "retrievability": c.retrievability,
+                "staged": bool(used),
+                "used_release": (used or {}).get("release"),
+                "used_granularity": (used or {}).get("granularity"),
+                "objects": (used or {}).get("objects", []),
+                "manifest": (used or {}).get("manifest"),
+                "gap_kind": kind,
+                "gap": GAP_KINDS[kind],
+                "note": c.note,
+            }
+        )
+    return rows

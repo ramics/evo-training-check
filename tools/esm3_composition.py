@@ -21,6 +21,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -30,7 +31,76 @@ from amazebio.repro import ReproError, run
 OUTDIR = Path("artifacts/a1-5")
 
 
-def build() -> dict[str, object]:
+def _manifests(staging_dir: Path) -> list[dict[str, Any]]:
+    """Every run manifest in a staging directory, newest last."""
+    found = []
+    for name in sorted(staging_dir.glob("run*.json")):
+        try:
+            found.append(json.loads(name.read_text()) | {"_path": str(name)})
+        except (OSError, json.JSONDecodeError):
+            continue
+    return found
+
+
+def load_staged(staging_dir: Path) -> dict[str, dict[str, Any]]:
+    """Read what the staging passes actually produced, from their own manifests.
+
+    Deliberately reads the manifests rather than the bucket. A manifest records the
+    checksum each object was verified against and the commit that produced it; a
+    listing would show only that something is there, which is not the claim.
+
+    A component appears only if a manifest shows at least one verified object for it.
+    A run that was stopped early, or whose checksum did not match, leaves the component
+    unstaged here — which is the honest reading, and is why `--staging-dir` cannot turn
+    a smoke test into a staged corpus.
+    """
+    staged: dict[str, dict[str, Any]] = {}
+    for manifest in _manifests(staging_dir):
+        if manifest.get("task") != "A1.5":
+            continue
+        params = manifest.get("parameters", {})
+        release = params.get("release")
+        md5_verified = any(
+            entry.get("checksum_type") == "md5" and entry.get("verified")
+            for entry in manifest.get("inputs", [])
+        )
+        objects = [
+            {
+                "uri": out.get("uri"),
+                "bytes": out.get("bytes"),
+                "sha256": out.get("sha256"),
+                "role": out.get("role"),
+                "member": out.get("member"),
+            }
+            for out in manifest.get("outputs", [])
+            if str(out.get("role", "")).startswith(("corpus:", "staged corpus"))
+            and out.get("uri")
+            and not out.get("partial")
+        ]
+        if not objects or not md5_verified:
+            continue
+
+        if any(str(o["role"]).startswith("corpus:") for o in objects):
+            tiers = sorted({str(o["role"]).split(":", 1)[1] for o in objects})
+            staged["UniRef"] = {
+                "release": release,
+                "granularity": ", ".join(tiers)
+                + " — all three, because the stated release does not name a tier",
+                "objects": objects,
+                "manifest": manifest["_path"],
+            }
+        else:
+            staged["MGnify"] = {
+                "release": release,
+                "granularity": "the 90%-clustered product, which is what MGnify90 names; "
+                "the full protein set behind it is not staged (D-033)",
+                "objects": objects,
+                "manifest": manifest["_path"],
+            }
+    return staged
+
+
+def build(staged: dict[str, dict[str, Any]] | None = None) -> dict[str, object]:
     components = esm3.scope_table()
     reconciliation = esm3.reconcile()
     return {
@@ -52,6 +122,7 @@ def build() -> dict[str, object]:
             for p in esm3.PUBLISHER_COUNTS
         ],
         "reconciliation": reconciliation,
+        "stated_vs_used": esm3.stated_vs_used(staged),
         "under_specification": esm3.unstated(),
         "summary": {
             "components_stated": len(components),
@@ -67,6 +138,7 @@ def build() -> dict[str, object]:
             "reconciliation_rows_exceeding_stated_removal": sum(
                 1 for r in reconciliation if r["exceeds_stated_removal"] is True
             ),
+            "components_staged": sorted(staged or {}),
         },
     }
 
@@ -77,6 +149,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--outdir", type=Path, default=OUTDIR)
     ap.add_argument("--print", action="store_true", help="also write the table to stdout")
+    ap.add_argument(
+        "--staging-dir",
+        type=Path,
+        default=None,
+        help="read the staging manifests here and record stated-versus-used per "
+        "component (default: --outdir)",
+    )
     ap.add_argument(
         "--allow-dirty", action="store_true", help="iteration only, never for a cited run"
     )
@@ -114,7 +193,11 @@ def _execute(args: argparse.Namespace) -> int:
             manifest.input_file(capture, role="publisher release note")
         manifest.input_file("pdfs/2024.07.01.600583v2.full.pdf", role="S-ESM3-PREPRINT")
 
-        report = build()
+        staging_dir = args.staging_dir or args.outdir
+        staged = load_staged(staging_dir) if staging_dir.exists() else {}
+        for name, used in sorted(staged.items()):
+            manifest.input_file(used["manifest"], role=f"staging manifest: {name}")
+        report = build(staged)
         out.write_text(json.dumps(report, indent=2, sort_keys=False) + "\n")
         manifest.output_file(out, role="composition table")
 
