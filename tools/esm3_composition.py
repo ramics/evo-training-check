@@ -116,7 +116,7 @@ def _execute(args: argparse.Namespace) -> int:
             if row["exceeds_stated_removal"] is True:
                 manifest.note(
                     f"{row['component']}: stated {row['stated_level']} count is "
-                    f"{-row['gap']:,} short of the publisher's {row['publisher_level']} "
+                    f"{row['gap']:,} short of the publisher's {row['publisher_level']} "
                     f"count, against a stated total removal of "
                     f"{esm3.STATED_TOTAL_REMOVED:,} across every component"
                 )
