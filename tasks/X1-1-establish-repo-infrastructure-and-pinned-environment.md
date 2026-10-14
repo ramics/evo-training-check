@@ -2,7 +2,7 @@
 id: X1.1
 title: Establish repo infrastructure and pinned environment
 phase: X
-status: review
+status: done
 gate: false
 depends_on: []
 blocks: [X1.2]

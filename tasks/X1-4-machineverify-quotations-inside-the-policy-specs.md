@@ -2,7 +2,7 @@
 id: X1.4
 title: Machine-verify quotations inside the policy specs
 phase: X
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.3]
 blocks: []
