@@ -1274,3 +1274,114 @@ decision has a threshold or parameter in it, the number goes in the entry.
   or the config from the weights themselves. For B1.2 this is nearly free to close: the config is
   read anyway when the model loads, and recording what it says would convert a §A0 finding into a
   verified field.
+
+### D-037 — Spearman is implemented in the standard library rather than adding scipy
+- **Date:** 2026-10-14
+- **Task:** B2.1
+- **Context:** `DESIGN.md` §B2 requires the benchmark's standard rank-correlation metric so
+  results stay comparable to the published leaderboard, and `AGENTS.md` says a tool is added by
+  the task that needs it, with the version choice recorded. The metric is Spearman's rho with
+  ties averaged, which the maintainers compute with `scipy.stats.spearmanr`. The project has no
+  numeric dependency at all: `pixi.toml` carries `pypdf` and `pyyaml` and nothing else.
+- **Decision:** Implement it in `amazebio.proteingym.spearman` — Pearson's correlation of
+  average ranks, about twenty lines — and add no dependency. This is not inventing a metric,
+  which §B2 forbids; it is the same definition, and the evidence for that is empirical rather
+  than asserted: `tools/proteingym_check.py` recomputes the published per-assay value for all
+  217 assays and every one agrees at the three decimals the maintainers publish, with a maximum
+  deviation of 0.0005 and a mean of 0.000246 — which is what rounding alone produces. A unit
+  test against hand-computed values could not establish that; agreement with the published
+  numbers on 2.47 million variants does.
+- **Rejected:** Adding scipy (and numpy beneath it) now — it is a large pinned dependency for
+  one function, at a point where nothing else needs it, and `pixi.toml` explicitly warns against
+  pre-populating the environment with tools no result depends on yet. Deferring the metric to
+  B5 and shipping the ingest without one — then nothing validates the ingest, and the join and
+  the variant list would go unchecked until the analysis, which is the worst time to find a
+  mismatch. Using the maintainers' own scripts — they pull in the full benchmark toolchain, and
+  an independent implementation that agrees with their published output is better evidence than
+  running their code and finding it agrees with itself.
+- **Consequence:** Phase B will almost certainly need numpy when B5 fits regressions and
+  bootstraps intervals, and that is the task to add it, with its own entry. Until then the
+  metric has no dependency and one pure-Python implementation that a reviewer can read in full.
+  Note the incidental benefit for §7: the published leaderboard is now an independent check on
+  our metric code, which is the same kind of second-method agreement A3.3 requires of the
+  headline counts.
+
+### D-038 — "standard splits" in the zero-shot setting means the published variant list, whole
+- **Date:** 2026-10-14
+- **Task:** B2.1
+- **Context:** §B2 says to use the benchmark's standard splits and not to invent either the
+  splits or the metric. The release ships CV fold files — `cv_folds_singles_substitutions.zip`
+  and `cv_folds_multiples_substitutions.zip` — so a reader could reasonably expect B2.1 to load
+  them. Those folds belong to the benchmark's *supervised* track, where a model is trained on
+  some variants and tested on others. `DESIGN.md` §4 restricts this project to zero-shot
+  scoring, which has nothing to train and therefore nothing to split.
+- **Decision:** No fold file is used. "Standard split" here means the published variant list
+  per assay, taken exactly as shipped: every variant the maintainers include is scored, none is
+  filtered, and the assay is the unit of analysis. This is recorded in the module docstring as
+  well as here, because it is the kind of thing a later reader would otherwise assume had been
+  overlooked rather than decided.
+- **Rejected:** Loading the CV folds anyway for "comparability" — it would make this project's
+  numbers comparable to a benchmark track it does not run and is forbidden from running.
+  Restricting to single substitutions and dropping multi-mutants — plausible-looking, since most
+  assays are singles-only, and wrong: it would silently redefine the benchmark and break the
+  comparability §B2 asks for. 24 of the 217 assays carry multi-mutants.
+- **Consequence:** Per-assay variant counts match the reference file's own counts exactly, which
+  `tests/test_proteingym.py` checks for a sample and the reproduction check confirms for all 217
+  assays by agreeing with the published numbers. If a later task needs a subset — B2.3's
+  within-study positive controls, say — it must subset explicitly and say so, rather than
+  changing what the ingest returns.
+
+### D-039 — the leaderboard's headline average is not reproduced, and is not the mean of the per-assay values
+- **Date:** 2026-10-14
+- **Task:** B2.1
+- **Context:** §B2's ingest check is "reproduce one published leaderboard number". The obvious
+  candidate is a model's headline average Spearman, and that number cannot be reproduced by
+  averaging the per-assay values. The maintainers state that their performance scripts correct
+  for biases — assays per protein family, functional groupings — so the published average is a
+  weighted quantity whose weighting is theirs, and the arithmetic mean of 217 per-assay values
+  is a different number.
+- **Decision:** Reproduce the published *per-assay* values instead, and do it for every assay
+  rather than the one §B2 asks for. The aggregate is deliberately not reproduced and no
+  aggregate of ours is reported in this task's artefact. Any pooled figure this project
+  publishes later must be computed by us, specified before results are seen, and reported
+  after the per-assay breakdown — which `AGENTS.md` requires anyway, and which §B5 states is
+  the default presentation because pooled correlations are fragile at this sample size.
+- **Rejected:** Reimplementing their bias correction to match the headline number — it is their
+  weighting, reimplementing it would be a second place for it to be wrong, and nothing in this
+  project needs the aggregate to agree. Comparing our arithmetic mean to their corrected
+  average and calling a small gap agreement — that is the failure mode this entry exists to
+  prevent: the two are different quantities, and a close-looking match would be a coincidence
+  presented as a check.
+- **Consequence:** The ingest check is per-assay and exact. One number that follows, and should
+  not be misread: the mean of our per-assay values for ESM-2 650M is not the leaderboard's
+  0.414, and any write-up that cites a leaderboard rank must cite their aggregate as theirs.
+
+### D-040 — the benchmark release is pinned by our own checksums, and two of its files carry no version at all
+- **Date:** 2026-10-14
+- **Task:** B2.1
+- **Context:** `AGENTS.md` requires every input pinned, and A1.3 set the standard: UniRef was
+  verified against the publisher's own md5, so the pin was the publisher's and a re-cut release
+  would have been caught. The benchmark publishes no checksums for its archives. Worse for
+  pinning, two files this task depends on — the assay reference file, which carries the taxon
+  labels, and the published per-assay leaderboard, which the reproduction check compares against
+  — are not in the versioned data release at all. They live in the maintainers' git repository,
+  which carries no tag for v1.3, so their URLs name `main` rather than a version.
+- **Decision:** Record a SHA-256 of all five staged files in `amazebio.proteingym.RELEASE` and
+  check them with `verify_release`, while keeping the two unversioned files in a separate
+  `unversioned` mapping rather than folding them in with the versioned archives. The separation
+  is the point: a hash in `files` sits behind a URL that names v1.3, and a hash in `unversioned`
+  is the entire pin. State plainly, here and in the artefact, that these hashes attest the bytes
+  have not changed since *this* acquisition and not that they are the bytes released.
+- **Rejected:** Treating all five as equivalently pinned — it would hide that two of them track
+  a moving branch. Pinning the repository files by commit SHA, which would be better — the
+  GitHub API is not reachable from this environment to resolve `main` to a commit, and the raw
+  endpoint does not return one; a later task with API access should upgrade this. Declining to
+  use the unversioned files — not an option: the reference file is the only source of the taxon
+  labels §B5 reports by, and the leaderboard file is what makes the ingest checkable.
+- **Consequence:** Two things for whoever comes next. The per-assay numbers this project
+  reproduces are a moving target upstream, so a future re-run that disagrees should first check
+  whether the leaderboard file changed rather than assuming the ingest broke — the recorded hash
+  makes that a one-command question. And the documented archive sizes are wrong, one by more
+  than an order of magnitude (1.0GB documented against 43MB served, 4.4GB against 1.91GB); the
+  stated-versus-actual record is in `artifacts/b2-1/release/release.json`, and the lesson for
+  B2.2 is to size downloads from `content-length` rather than from documentation.
