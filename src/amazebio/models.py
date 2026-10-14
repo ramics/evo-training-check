@@ -41,13 +41,13 @@ from collections.abc import Iterable, Mapping
 from enum import Enum
 
 __all__ = [
+    "TIER_1",
+    "TIER_2",
     "Checkpoint",
     "Exclusion",
     "InventoryError",
     "Modality",
     "Role",
-    "TIER_1",
-    "TIER_2",
     "checkpoint",
     "feasibility",
     "inventory",

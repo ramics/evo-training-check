@@ -160,8 +160,12 @@ def main() -> int:
 
     import boto3
 
-    ec2 = boto3.client("ec2", region_name=REGION, endpoint_url=f"https://ec2.{REGION}.amazonaws.com")
-    ssm = boto3.client("ssm", region_name=REGION, endpoint_url=f"https://ssm.{REGION}.amazonaws.com")
+    ec2 = boto3.client(
+        "ec2", region_name=REGION, endpoint_url=f"https://ec2.{REGION}.amazonaws.com"
+    )
+    ssm = boto3.client(
+        "ssm", region_name=REGION, endpoint_url=f"https://ssm.{REGION}.amazonaws.com"
+    )
     ami = ssm.get_parameter(Name=AMI_PARAMETER)["Parameter"]["Value"]
     print(f"region {REGION}  ami {ami}  profile {PROFILE}")
     print(f"dry-running {len(PROBE_TYPES)} instance types (nothing is launched)")
@@ -187,10 +191,8 @@ def main() -> int:
         summary = summarise(results)
 
         path = outdir / "ec2-allowlist.json"
-        path.write_text(
-            json.dumps({"region": REGION, "ami": ami, "summary": summary, "results": results}, indent=1)
-            + "\n"
-        )
+        payload = {"region": REGION, "ami": ami, "summary": summary, "results": results}
+        path.write_text(json.dumps(payload, indent=1) + "\n")
         m.output_file(path, role="ec2 launch allowlist as measured by dry run")
 
     print(f"\nallowed: {', '.join(summary['allowed']) or '(none)'}")

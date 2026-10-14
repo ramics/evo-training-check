@@ -389,6 +389,68 @@
       "status": "unretrieved",
       "blocker": "science.org is paywalled and returns HTTP 403, as it does for S-EVO1-SCIENCE.",
       "note": "The version of record for ESM-2. Same standing as S-ESM3-SCIENCE and S-EVO1-SCIENCE: quotes come from the preprint once that is retrieved, and anything load-bearing should be checked against this version before publication."
+    },
+    {
+      "id": "S-ESM2-HF-650M",
+      "kind": "model_card",
+      "title": "HuggingFace model card: facebook/esm2_t33_650M_UR50D",
+      "url": "https://huggingface.co/facebook/esm2_t33_650M_UR50D/raw/main/README.md",
+      "licence": "mit",
+      "models": [
+        "ESM-2 650M"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-esm2_t33_650M_UR50D-README.md",
+      "sha256": "462a2f24724e19c6be0efab926315c294a863c9a9770e2c8b3d859b2d81a07de",
+      "bytes": 1705,
+      "note": "Retrieved 2026-10-14 for B1.1, to pin the HuggingFace access route. Byte-identical to the 3B card: one shared card serves every ESM-2 variant, so neither evidences anything checkpoint-specific beyond the licence and the family's checkpoint list. Same situation as the ESMC cards."
+    },
+    {
+      "id": "S-ESM2-HF-3B",
+      "kind": "model_card",
+      "title": "HuggingFace model card: facebook/esm2_t36_3B_UR50D",
+      "url": "https://huggingface.co/facebook/esm2_t36_3B_UR50D/raw/main/README.md",
+      "licence": "mit",
+      "models": [
+        "ESM-2 3B"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-esm2_t36_3B_UR50D-README.md",
+      "sha256": "462a2f24724e19c6be0efab926315c294a863c9a9770e2c8b3d859b2d81a07de",
+      "bytes": 1705,
+      "note": "Retrieved 2026-10-14 for B1.1. Byte-identical to the 650M card; see that entry."
+    },
+    {
+      "id": "S-ESM2-LICENSE",
+      "kind": "license",
+      "title": "facebookresearch/esm LICENSE (MIT, Meta Platforms)",
+      "url": "https://raw.githubusercontent.com/facebookresearch/esm/main/LICENSE",
+      "licence": "MIT",
+      "models": [
+        "ESM-1",
+        "ESM-1b",
+        "ESM-2"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/esm2-LICENSE",
+      "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+      "bytes": 1088,
+      "note": "Capture was stored by A0.1 but left unregistered, so it was not quotable; registered here for B1.1, which owes a verified licence per checkpoint."
+    },
+    {
+      "id": "S-EVO2-LICENSE",
+      "kind": "license",
+      "title": "ArcInstitute/evo2 LICENSE (Apache-2.0)",
+      "url": "https://raw.githubusercontent.com/ArcInstitute/evo2/main/LICENSE",
+      "licence": "Apache-2.0",
+      "models": [
+        "Evo 2"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/evo2-LICENSE",
+      "sha256": "5bb5812fc2bfb2d777fe5621767172f8ef30be62ad719c87e0f10832336a99e0",
+      "bytes": 25780,
+      "note": "As for S-ESM2-LICENSE: stored by A0.1, unregistered until B1.1."
     }
   ]
 }
