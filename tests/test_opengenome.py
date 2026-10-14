@@ -58,11 +58,17 @@ def _entry(path: str, size: int, *, oid: str | None = "ab" * 32, date: str = "20
 
 
 class FakeS3:
-    def __init__(self, listing: dict[str, int] | None = None):
+    def __init__(
+        self,
+        listing: dict[str, int] | None = None,
+        objects: dict[str, bytes] | None = None,
+    ):
         self.parts: dict[int, bytes] = {}
         self.completed = None
         self.aborted = False
-        self.listing = listing or {}
+        self.objects = objects or {}
+        self.listing = listing or {k: len(v) for k, v in self.objects.items()}
+        self.listing.update(listing or {})
 
     def create_multipart_upload(self, **kw):
         self.key = kw["Key"]
@@ -79,6 +85,9 @@ class FakeS3:
     def abort_multipart_upload(self, **kw):
         self.aborted = True
         return {}
+
+    def get_object(self, **kw):
+        return {"Body": io.BytesIO(self.objects[kw["Key"]])}
 
     def list_objects_v2(self, **kw):
         prefix = kw["Prefix"]
@@ -442,24 +451,6 @@ def _pinned_to(blobs: list[og.Blob]) -> og.Release:
     )
 
 
-def test_an_already_staged_file_is_skipped_so_a_pass_resumes():
-    """144 GB is long enough that a container reclaim partway through is real."""
-    payload = b"ACGT" * 4096
-    blobs = [
-        og.Blob("fasta/ncrna/a.fasta.gz", len(payload), hashlib.sha256(payload).hexdigest(), None)
-    ]
-    release = _pinned_to(blobs)
-    key = og.stage_key(release, blobs[0].path, prefix="corpora/evo")
-    client = FakeS3(listing={key: len(payload)})
-    rows: list[dict] = []
-    staged = list(
-        og.stage(release, blobs, client, bucket="b", prefix="corpora/evo", manifest_rows=rows)
-    )
-    assert [s.skipped for s in staged] == [True]
-    assert client.completed is None, "a skipped file must not re-upload"
-    assert rows and rows[0]["skipped"] is True
-
-
 def test_a_pass_stages_what_is_missing_and_records_each_file():
     payload = b"ACGT" * 4096
     blobs = [
@@ -503,3 +494,81 @@ def test_existing_keys_are_scoped_to_the_release_and_revision():
     assert list(og.existing_keys(client, bucket="b", prefix="corpora/evo", release=og.OG1)) == [
         theirs
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Readback verification of what is already in the bucket
+# --------------------------------------------------------------------------- #
+
+
+def test_a_skipped_file_is_verified_by_reading_it_back():
+    """This is also the resume test: 144 GB is long enough that a container
+    reclaim partway through is real, and an interrupted pass must skip rather
+    than re-upload. A resumed pass must not leave a row saying `verified: false`
+    with no reason either. Re-reading is also better evidence than the in-flight hash: it
+    checks the bytes the bucket holds, not the bytes that went past."""
+    payload = b"ACGT" * 4096
+    digest = hashlib.sha256(payload).hexdigest()
+    blobs = [og.Blob("fasta/ncrna/a.fasta.gz", len(payload), digest, None)]
+    release = _pinned_to(blobs)
+    key = og.stage_key(release, blobs[0].path, prefix="corpora/evo")
+    client = FakeS3(objects={key: payload})
+    rows: list[dict] = []
+    staged = list(
+        og.stage(release, blobs, client, bucket="b", prefix="corpora/evo", manifest_rows=rows)
+    )
+    assert staged[0].skipped and staged[0].verified
+    assert staged[0].verified_by == "readback"
+    assert rows[0]["sha256"] == digest
+    assert client.completed is None, "verifying must not re-upload"
+
+
+def test_a_staged_object_that_is_not_the_released_bytes_is_an_error():
+    """The case worth catching: right size, wrong contents. Skipping on size
+    alone would carry a corrupt object into every downstream result."""
+    payload = b"ACGT" * 4096
+    wrong = b"TGCA" * 4096
+    blobs = [
+        og.Blob("fasta/ncrna/a.fasta.gz", len(payload), hashlib.sha256(payload).hexdigest(), None)
+    ]
+    release = _pinned_to(blobs)
+    key = og.stage_key(release, blobs[0].path, prefix="corpora/evo")
+    client = FakeS3(objects={key: wrong})
+    with pytest.raises(VerificationError, match="not the released bytes"):
+        list(og.stage(release, blobs, client, bucket="b", prefix="corpora/evo"))
+
+
+def test_a_large_skipped_file_records_why_it_was_not_re_read():
+    """Re-reading 27 GB to confirm what was just uploaded costs egress per byte,
+    so the row says so rather than claiming a check that did not happen."""
+    payload = b"ACGT" * 4096
+    blobs = [
+        og.Blob("fasta/ncrna/a.fasta.gz", len(payload), hashlib.sha256(payload).hexdigest(), None)
+    ]
+    release = _pinned_to(blobs)
+    key = og.stage_key(release, blobs[0].path, prefix="corpora/evo")
+    client = FakeS3(objects={key: payload})
+    rows: list[dict] = []
+    staged = list(
+        og.stage(
+            release,
+            blobs,
+            client,
+            bucket="b",
+            prefix="corpora/evo",
+            manifest_rows=rows,
+            readback_limit=16,
+        )
+    )
+    assert staged[0].skipped and not staged[0].verified
+    assert staged[0].verified_by.startswith("none: already staged at the released size")
+
+
+def test_readback_reports_the_digest_it_found():
+    payload = b"ACGT" * 16
+    blob = og.Blob(
+        "fasta/ncrna/a.fasta.gz", len(payload), hashlib.sha256(payload).hexdigest(), None
+    )
+    client = FakeS3(objects={"k": payload})
+    ok, found = og.verify_staged_object(client, bucket="b", key="k", blob=blob)
+    assert ok and found == blob.sha256

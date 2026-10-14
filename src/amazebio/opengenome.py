@@ -44,6 +44,7 @@ multipart upload that aborts rather than half-finishes.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 import urllib.request
@@ -552,6 +553,11 @@ class StagedFile:
     verified: bool
     reconnects: int
     skipped: bool = False
+    #: How the checksum was established: "stream" (hashed on the way up),
+    #: "readback" (re-read from the bucket and hashed), or "none: <reason>".
+    #: A bare `verified: false` invites exactly the question §7 says to expect,
+    #: so the reason travels with it.
+    verified_by: str = "stream"
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -561,9 +567,42 @@ class StagedFile:
             "sha256": self.sha256,
             "expected_sha256": self.expected_sha256,
             "verified": self.verified,
+            "verified_by": self.verified_by,
             "reconnects": self.reconnects,
             "skipped": self.skipped,
         }
+
+
+#: Below this size, an object already in the bucket is re-read and hashed rather
+#: than taken on trust. Above it, the egress is charged per byte and a resumed
+#: pass over the large files would pay to re-download what it just uploaded, so
+#: the row records that it was not re-verified instead of quietly claiming it was.
+READBACK_LIMIT = 1 << 30
+
+
+def verify_staged_object(
+    client: Any, *, bucket: str, key: str, blob: Blob, chunk: int = _READ_CHUNK
+) -> tuple[bool, str]:
+    """Re-read a staged object and hash it against the release's published SHA-256.
+
+    Stronger evidence than the in-flight hash: it checks the bytes the bucket
+    actually holds, rather than the bytes that went past on the way there.
+    """
+    if blob.sha256 is None:
+        return False, "none: the release publishes no checksum for this file"
+    digest = hashlib.sha256()
+    body = client.get_object(Bucket=bucket, Key=key)["Body"]
+    try:
+        while True:
+            piece = body.read(chunk)
+            if not piece:
+                break
+            digest.update(piece)
+    finally:
+        close = getattr(body, "close", None)
+        if close is not None:
+            close()
+    return digest.hexdigest() == blob.sha256, digest.hexdigest()
 
 
 def stage_blob(
@@ -711,6 +750,7 @@ def stage(
     prefix: str,
     manifest_rows: list[dict[str, Any]] | None = None,
     resume: bool = True,
+    readback_limit: int = READBACK_LIMIT,
     on_file: Callable[[Blob, str], None] | None = None,
     **blob_kwargs: Any,
 ) -> Iterator[StagedFile]:
@@ -742,15 +782,36 @@ def stage(
     for blob in selection(release, blobs):
         key = stage_key(release, blob.path, prefix=prefix)
         if already.get(key) == blob.size:
+            if blob.size <= readback_limit:
+                ok, found = verify_staged_object(client, bucket=bucket, key=key, blob=blob)
+                if not ok and found.startswith("none: "):
+                    sha, verified, how = "", False, found
+                elif not ok:
+                    raise VerificationError(
+                        f"{blob.path} is already staged at {key}, but re-reading it gives "
+                        f"SHA-256 {found}, not the published {blob.sha256}. The object in the "
+                        "bucket is not the released bytes."
+                    )
+                else:
+                    sha, verified, how = found, True, "readback"
+            else:
+                sha, verified, how = (
+                    "",
+                    False,
+                    f"none: already staged at the released size; re-reading {blob.size:,} "
+                    "bytes to confirm it costs egress, so run a readback pass in-region "
+                    "instead of trusting this row",
+                )
             staged = StagedFile(
                 path=blob.path,
                 uri=f"s3://{bucket}/{key}",
                 bytes=blob.size,
-                sha256="",
+                sha256=sha,
                 expected_sha256=blob.sha256,
-                verified=False,
+                verified=verified,
                 reconnects=0,
                 skipped=True,
+                verified_by=how,
             )
         else:
             if on_file is not None:
