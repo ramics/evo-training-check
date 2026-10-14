@@ -334,6 +334,182 @@ class GunzipStream:
         return self._digest.hexdigest()
 
 
+def fetch_range(
+    url: str,
+    start: int,
+    end: int,
+    *,
+    attempts: int = 8,
+    opener: Callable[[urllib.request.Request], Any] = urllib.request.urlopen,
+    sleep: Callable[[float], None] = time.sleep,
+    on_retry: Callable[[int, BaseException], None] | None = None,
+) -> bytes:
+    """Fetch the inclusive byte range `start..end`, retrying, and return all of it.
+
+    A ranged GET can come back short without failing, so the loop continues from
+    wherever it got to until the window is whole. A server that answers 200 instead
+    of 206 is ignoring the Range header and would hand back the entire file: that is
+    refused rather than truncated, because silently taking the first N bytes of the
+    whole body would corrupt every window but the first.
+    """
+    want = end - start + 1
+    chunks: list[bytes] = []
+    got = 0
+    attempt = 0
+    while got < want:
+        request = urllib.request.Request(url)
+        request.add_header("Range", f"bytes={start + got}-{end}")
+        try:
+            with opener(request) as response:
+                if getattr(response, "status", 206) != 206:
+                    raise VerificationError(
+                        f"{url}: asked for bytes {start + got}-{end} and the server "
+                        f"answered {getattr(response, 'status', 'unknown')} rather than "
+                        "206, so it is not honouring ranges; a parallel read of it "
+                        "would assemble the wrong bytes"
+                    )
+                while got < want:
+                    chunk = response.read(min(_READ_CHUNK, want - got))
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    got += len(chunk)
+        except (OSError, urllib.error.URLError) as exc:
+            attempt += 1
+            if attempt >= attempts:
+                raise
+            if on_retry is not None:
+                on_retry(attempt, exc)
+            sleep(min(2.0**attempt, 30.0))
+    return b"".join(chunks)
+
+
+@dataclass
+class ParallelRangeRead:
+    """Forward-only reader that fetches windows concurrently but serves bytes in order.
+
+    Why this exists, measured rather than assumed. Both releases A1.5 stages are
+    served by publishers that throttle a single connection hard: UniProt gives this
+    container about 20 MB/s on one stream and about 155 MB/s across four, and EBI
+    gives about 1 MB/s on one and about 16 MB/s across eight. On one connection
+    MGnify's 83 GB is a 23-hour transfer, which is not a run a session container
+    survives; across eight it is under two hours.
+
+    Parallelism is available because both files are fetched verbatim and both servers
+    honour ranges. What is *not* available is out-of-order consumption: the published
+    md5 is over the whole file in order, and UniRef's gzip stream cannot be decoded
+    out of order either. So the ordering is the invariant this class keeps. Windows
+    are fetched ahead concurrently and buffered, and `read` serves them strictly in
+    sequence — which is why `stream_verified` and `iter_tar_members` work over it
+    unchanged, and why the md5 it feeds is still a verification.
+
+    Memory is bounded by `window` times `ahead`, not by the file: the submission
+    window is capped, so a fast network cannot buffer 83 GB while the reader works.
+    """
+
+    url: str
+    total_bytes: int
+    window: int = 32 << 20
+    concurrency: int = 8
+    ahead: int | None = None  # windows in flight; defaults to concurrency + 2
+    attempts: int = 8
+    opener: Callable[[urllib.request.Request], Any] = urllib.request.urlopen
+    sleep: Callable[[float], None] = time.sleep
+    on_reconnect: Callable[[int, int, BaseException], None] | None = None
+
+    pos: int = 0
+    _pool: futures.ThreadPoolExecutor | None = field(default=None, repr=False)
+    _pending: dict[int, futures.Future[bytes]] = field(default_factory=dict, repr=False)
+    _buffer: bytes = b""
+    _offset: int = 0
+    _next_window: int = 0  # the next window to serve
+    _submitted: int = 0  # windows submitted so far
+    _reconnects: int = 0
+    _closed: bool = False
+
+    def __post_init__(self) -> None:
+        if self.window <= 0:
+            raise ValueError("window must be positive")
+        if self.concurrency < 1:
+            raise ValueError("concurrency must be at least 1")
+
+    @property
+    def reconnects(self) -> int:
+        return self._reconnects
+
+    @property
+    def windows(self) -> int:
+        return -(-self.total_bytes // self.window)  # ceil
+
+    def _note_retry(self, attempt: int, exc: BaseException) -> None:
+        self._reconnects += 1
+        if self.on_reconnect is not None:
+            self.on_reconnect(attempt, self.pos, exc)
+
+    def _submit(self) -> None:
+        if self._pool is None:
+            self._pool = futures.ThreadPoolExecutor(
+                max_workers=self.concurrency, thread_name_prefix="range"
+            )
+        limit = self.ahead if self.ahead is not None else self.concurrency + 2
+        while self._submitted < self.windows and len(self._pending) < limit:
+            index = self._submitted
+            start = index * self.window
+            end = min(start + self.window, self.total_bytes) - 1
+            self._pending[index] = self._pool.submit(
+                fetch_range,
+                self.url,
+                start,
+                end,
+                attempts=self.attempts,
+                opener=self.opener,
+                sleep=self.sleep,
+                on_retry=self._note_retry,
+            )
+            self._submitted += 1
+
+    def _advance(self) -> bool:
+        """Load the next window into the buffer. False at the end of the file."""
+        if self._next_window >= self.windows:
+            return False
+        self._submit()
+        future = self._pending.pop(self._next_window)
+        self._buffer = future.result()
+        self._offset = 0
+        self._next_window += 1
+        self._submit()
+        return True
+
+    def read(self, size: int) -> bytes:
+        if self._closed:
+            raise ValueError("read from a closed ParallelRangeRead")
+        out: list[bytes] = []
+        want = size
+        while want > 0:
+            if self._offset >= len(self._buffer) and not self._advance():
+                break
+            take = self._buffer[self._offset : self._offset + want]
+            if not take:
+                # A window that came back empty would otherwise spin forever.
+                if not self._advance():
+                    break
+                continue
+            out.append(take)
+            self._offset += len(take)
+            self.pos += len(take)
+            want -= len(take)
+        return b"".join(out)
+
+    def close(self) -> None:
+        self._closed = True
+        for future in self._pending.values():
+            future.cancel()
+        self._pending.clear()
+        if self._pool is not None:
+            self._pool.shutdown(wait=False, cancel_futures=True)
+            self._pool = None
+
+
 # --------------------------------------------------------------------------- #
 # Sequential tar scan
 # --------------------------------------------------------------------------- #

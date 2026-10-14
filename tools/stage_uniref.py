@@ -118,6 +118,19 @@ def main(argv: list[str] | None = None) -> int:
     # allowance of 2,000. Smaller parts would double it for no benefit.
     ap.add_argument("--part-bytes", type=int, default=128 << 20, help="multipart part size")
     ap.add_argument(
+        "--fetch-concurrency",
+        type=int,
+        default=8,
+        help="ranged connections to the publisher. 1 falls back to a single resumable "
+        "stream, which is what A1.3 used and about four times slower (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--window-bytes",
+        type=int,
+        default=32 << 20,
+        help="bytes per ranged fetch; memory is this times the connections in flight",
+    )
+    ap.add_argument(
         "--concurrency",
         type=int,
         default=8,
@@ -188,6 +201,8 @@ def _execute(
         manifest.parameter("max_compressed_bytes", args.max_compressed_bytes)
         manifest.parameter("part_bytes", args.part_bytes)
         manifest.parameter("upload_concurrency", args.concurrency)
+        manifest.parameter("fetch_concurrency", args.fetch_concurrency)
+        manifest.parameter("window_bytes", args.window_bytes)
         manifest.parameter("retain_raw_archive", bool(args.raw))
         manifest.parameter("destination", f"s3://{bucket}/{key_prefix}" if args.stage else None)
         manifest.note(
@@ -195,14 +210,31 @@ def _execute(
             "members, so staging UniRef50 alone would reconstruct a different dataset."
         )
 
-        reader = uniref.ResumableRead(
-            rel.archive_url,
-            expected_bytes=rel.archive_bytes,
-            on_reconnect=lambda attempt, pos, exc: print(
+        def note_reconnect(attempt: int, pos: int, exc: BaseException) -> None:
+            print(
                 f"  reconnect #{attempt} at {human(pos)}: {type(exc).__name__}: {exc}",
                 flush=True,
-            ),
-        )
+            )
+
+        reader: Any
+        if args.fetch_concurrency > 1:
+            # UniProt throttles one connection to about 20 MB/s and serves about
+            # 155 MB/s across four, measured from this container by A1.5. The windows
+            # are served strictly in order, so the gzip stream decodes and the
+            # compressed md5 is still a verification of the whole release.
+            reader = uniref.ParallelRangeRead(
+                rel.archive_url,
+                total_bytes=rel.archive_bytes,
+                window=args.window_bytes,
+                concurrency=args.fetch_concurrency,
+                on_reconnect=note_reconnect,
+            )
+        else:
+            reader = uniref.ResumableRead(
+                rel.archive_url,
+                expected_bytes=rel.archive_bytes,
+                on_reconnect=note_reconnect,
+            )
         raw_sink = None
         if args.raw and args.stage:
             raw_key = f"{key_prefix}/uniref/{rel.release}/{rel.archive_name}"

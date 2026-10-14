@@ -94,6 +94,19 @@ def main(argv: list[str] | None = None) -> int:
         help="stop after this many bytes — for a smoke test",
     )
     ap.add_argument("--part-bytes", type=int, default=128 << 20, help="multipart part size")
+    ap.add_argument(
+        "--fetch-concurrency",
+        type=int,
+        default=8,
+        help="ranged connections to the publisher (measured: EBI gives ~1 MB/s on one "
+        "and ~16 MB/s on eight). 1 falls back to a single resumable stream.",
+    )
+    ap.add_argument(
+        "--window-bytes",
+        type=int,
+        default=32 << 20,
+        help="bytes per ranged fetch; memory is this times the connections in flight",
+    )
     ap.add_argument("--concurrency", type=int, default=8, help="parts uploaded at once")
     ap.add_argument("--outdir", type=Path, default=OUTDIR)
     ap.add_argument(
@@ -143,6 +156,8 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, key_prefix: str
         manifest.parameter("published_bytes", {p.name: p.bytes for p in PINS})
         manifest.parameter("manifest_capture", esm3.MGNIFY_2023_02_MANIFEST)
         manifest.parameter("max_compressed_bytes", args.max_compressed_bytes)
+        manifest.parameter("fetch_concurrency", args.fetch_concurrency)
+        manifest.parameter("window_bytes", args.window_bytes)
         manifest.parameter("destination", f"s3://{bucket}/{key_prefix}" if args.stage else None)
         manifest.input_file(esm3.MGNIFY_2023_02_MANIFEST, role="published md5 per file")
 
@@ -186,14 +201,28 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, key_prefix: str
                 report["files"].append(row)
                 continue
 
-            reader = uniref.ResumableRead(
+            # EBI throttles a single connection to about 1 MB/s, which makes this an
+            # overnight transfer in one stream and under two hours in eight. The reader
+            # still serves bytes in order, so the md5 remains a verification.
+            reader: Any = uniref.ParallelRangeRead(
                 pin.url,
-                expected_bytes=pin.bytes,
+                total_bytes=pin.bytes,
+                window=args.window_bytes,
+                concurrency=args.fetch_concurrency,
                 on_reconnect=lambda attempt, pos, exc: print(
-                    f"    reconnect #{attempt} at {human(pos)}: {type(exc).__name__}",
+                    f"    refetch #{attempt} at {human(pos)}: {type(exc).__name__}",
                     flush=True,
                 ),
             )
+            if args.fetch_concurrency == 1:
+                reader = uniref.ResumableRead(
+                    pin.url,
+                    expected_bytes=pin.bytes,
+                    on_reconnect=lambda attempt, pos, exc: print(
+                        f"    reconnect #{attempt} at {human(pos)}: {type(exc).__name__}",
+                        flush=True,
+                    ),
+                )
             key = f"{key_prefix}/mgnify/{RELEASE}/{pin.name}".replace("//", "/")
             print(f"staging to s3://{bucket}/{key}")
 
@@ -253,6 +282,11 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, key_prefix: str
                     "upload was aborted; nothing was written"
                 )
                 continue
+            finally:
+                # The parallel reader holds a thread pool and windows in flight; a run
+                # that ends either way must not leave them running.
+                if hasattr(reader, "close"):
+                    reader.close()
 
             elapsed = time.monotonic() - started
             print(
