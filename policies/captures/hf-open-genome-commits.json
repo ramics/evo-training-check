@@ -1,0 +1,76 @@
+{
+ "retrieved": "2026-10-14",
+ "dataset": "LongSafari/open-genome",
+ "head_revision": "84369c058d192dcb607086d71679b877421e3250",
+ "commits": [
+  {
+   "id": "84369c058d192dcb607086d71679b877421e3250",
+   "date": "2024-07-10T05:59:55.000Z",
+   "title": "update readme"
+  },
+  {
+   "id": "3b7bb45c398397e90f0096e047d62e696bd9a9aa",
+   "date": "2024-07-06T21:58:07.000Z",
+   "title": "add config for a small sample"
+  },
+  {
+   "id": "2732b532bbb1af5f4226be2ca30a13b264e2a690",
+   "date": "2024-07-06T21:40:21.000Z",
+   "title": "Update README.md"
+  },
+  {
+   "id": "f8726afddcf5fbf00a3752a206243bf463ecd435",
+   "date": "2024-07-06T21:40:01.000Z",
+   "title": "Update README.md"
+  },
+  {
+   "id": "98b72a50ae736fc56c518f4622a7d11e1004b81e",
+   "date": "2024-07-06T21:39:16.000Z",
+   "title": "Update README.md"
+  },
+  {
+   "id": "ab57dd7e0f251b1567c19f04e3cd651bc034a5ae",
+   "date": "2024-07-06T21:38:38.000Z",
+   "title": "Update README.md"
+  },
+  {
+   "id": "544d346a7b2ac78c6ecf4f71fb15fa612c5f1ed3",
+   "date": "2024-07-06T21:38:07.000Z",
+   "title": "Update README.md"
+  },
+  {
+   "id": "1d6c89064fb11465119dad71d6eff9cde85a6284",
+   "date": "2024-07-06T21:37:22.000Z",
+   "title": "Update README.md"
+  },
+  {
+   "id": "4297d30c8efcd72ba1ee133fa0a54937184686a5",
+   "date": "2024-07-06T21:35:02.000Z",
+   "title": "Update README.md"
+  },
+  {
+   "id": "e9126c9e87aa4ce2ba744998807489c2e227a37f",
+   "date": "2024-07-06T21:30:55.000Z",
+   "title": "Rename README.yml to README.md"
+  },
+  {
+   "id": "3a0d61409e145f0d8efd28fdfa1c31e8240de3d0",
+   "date": "2024-07-06T21:30:05.000Z",
+   "title": "Update README.yml (#1)"
+  },
+  {
+   "id": "69c78060981eb9bb01fc909ee873e376a6d67548",
+   "date": "2024-07-06T20:02:02.000Z",
+   "title": "add all data files"
+  },
+  {
+   "id": "3f50f722cd8752565815e80c15e322c86b01bf07",
+   "date": "2024-07-06T15:54:59.000Z",
+   "title": "initial commit"
+  }
+ ],
+ "sequence_files_by_commit_month": {
+  "2024-07": 20
+ },
+ "note": "Commit history at `main`, plus the month each sequence file was last touched. Evidence for whether the release changed after publication."
+}

@@ -5,7 +5,7 @@
     {
       "id": "S-EVO1-PREPRINT",
       "kind": "paper",
-      "title": "Nguyen et al. 2024 \u2014 Sequence modeling and design from molecular to genome scale with Evo (preprint)",
+      "title": "Nguyen et al. 2024 — Sequence modeling and design from molecular to genome scale with Evo (preprint)",
       "url": "https://www.biorxiv.org/content/10.1101/2024.02.27.582234v1.full.pdf",
       "licence": "CC-BY 4.0",
       "models": [
@@ -22,7 +22,7 @@
     {
       "id": "S-EVO2-PREPRINT",
       "kind": "paper",
-      "title": "Brixi et al. 2025 \u2014 Genome modeling and design across all domains of life with Evo 2 (preprint)",
+      "title": "Brixi et al. 2025 — Genome modeling and design across all domains of life with Evo 2 (preprint)",
       "url": "https://www.biorxiv.org/content/10.1101/2025.02.18.638918v1.full.pdf",
       "licence": "CC-BY-ND 4.0",
       "models": [
@@ -38,7 +38,7 @@
     {
       "id": "S-ESM3-PREPRINT",
       "kind": "paper",
-      "title": "Hayes et al. 2024 \u2014 Simulating 500 million years of evolution with a language model (preprint)",
+      "title": "Hayes et al. 2024 — Simulating 500 million years of evolution with a language model (preprint)",
       "url": "https://www.biorxiv.org/content/10.1101/2024.07.01.600583v2.full.pdf",
       "licence": "CC-BY-NC-ND 4.0",
       "models": [
@@ -54,7 +54,7 @@
     {
       "id": "S-ESMC-PREPRINT",
       "kind": "paper",
-      "title": "Candido et al. 2026 \u2014 Language Modeling Materializes a World Model of Protein Biology (preprint)",
+      "title": "Candido et al. 2026 — Language Modeling Materializes a World Model of Protein Biology (preprint)",
       "url": "https://www.biorxiv.org/content/10.64898/2026.06.03.729735v1.full.pdf",
       "licence": "CC-BY 4.0",
       "models": [
@@ -140,7 +140,7 @@
     {
       "id": "S-ESM3-REPO",
       "kind": "repo_doc",
-      "title": "evolutionaryscale/esm \u2014 ESM3 README",
+      "title": "evolutionaryscale/esm — ESM3 README",
       "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/_assets/ESM3_README.md",
       "licence": "MIT",
       "models": [
@@ -226,9 +226,9 @@
     {
       "id": "S-EVO2-NATURE",
       "kind": "paper",
-      "title": "Brixi et al. 2026 \u2014 Genome modelling and design across all domains of life with Evo 2 (Nature; version of record)",
+      "title": "Brixi et al. 2026 — Genome modelling and design across all domains of life with Evo 2 (Nature; version of record)",
       "url": "https://www.nature.com/articles/s41586-026-10176-5",
-      "licence": "publisher content \u2014 not redistributed",
+      "licence": "publisher content — not redistributed",
       "models": [
         "Evo 2"
       ],
@@ -250,7 +250,7 @@
     {
       "id": "S-ESM3-SCIENCE",
       "kind": "paper",
-      "title": "Hayes et al. 2025 \u2014 Simulating 500 million years of evolution with a language model (Science; version of record)",
+      "title": "Hayes et al. 2025 — Simulating 500 million years of evolution with a language model (Science; version of record)",
       "url": "https://doi.org/10.1126/science.ads0018",
       "models": [
         "ESM3"
@@ -328,12 +328,12 @@
       "capture": "policies/captures/hf-open-genome-stage2-lineage-sample.json",
       "sha256": "0768885be15229573158207389aa4a6f0c407b8f3466dc63b9f24b3223534622",
       "bytes": 2981,
-      "note": "A sample, not a document, and the weakest kind of entry in this store: 800 of 2,652,947 rows, drawn as eight contiguous blocks of 100 rather than at random, so it supports qualitative statements about what the split contains and no published proportion. Stores lineage tags and counts only \u2014 no genomic sequence enters this repo. Dated, and a later revision of the dataset may differ."
+      "note": "A sample, not a document, and the weakest kind of entry in this store: 800 of 2,652,947 rows, drawn as eight contiguous blocks of 100 rather than at random, so it supports qualitative statements about what the split contains and no published proportion. Stores lineage tags and counts only — no genomic sequence enters this repo. Dated, and a later revision of the dataset may differ."
     },
     {
       "id": "S-EVO1-SCIENCE",
       "kind": "paper",
-      "title": "Nguyen et al. 2024 \u2014 Sequence modeling and design from molecular to genome scale (Science, version of record)",
+      "title": "Nguyen et al. 2024 — Sequence modeling and design from molecular to genome scale (Science, version of record)",
       "url": "https://www.science.org/doi/10.1126/science.ado9336",
       "doi": "10.1126/science.ado9336",
       "models": [
@@ -346,7 +346,7 @@
     {
       "id": "S-ESM1B-PNAS",
       "kind": "paper",
-      "title": "Rives et al. 2021 \u2014 Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences (PNAS, version of record)",
+      "title": "Rives et al. 2021 — Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences (PNAS, version of record)",
       "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8053943/fullTextXML",
       "licence": "CC-BY-NC-ND 4.0",
       "models": [
@@ -358,12 +358,12 @@
       "capture": "policies/captures/esm1b-pnas-fulltext.xml",
       "sha256": "371ba324fb6c86b69e6777377c4656e0332745aec5a7bf4240a11af31dd06d2c",
       "bytes": 171069,
-      "note": "The paper that defines the UR100, UR50/S and UR50/D dataset notation the ESM repository's model table uses; retrieved for A1.3 (DECISIONS.md D-025). Captured as JATS XML from the Europe PMC REST endpoint because pnas.org returns HTTP 403 and the PMC article page serves an interstitial rather than the PDF. The capture is the publisher's own full text, not a mirror's rendering, but quotes are matched against XML bytes, so a quotation must not span inline markup (an <xref> citation marker, a formula) \u2014 pick a sentence that reads clean in the source."
+      "note": "The paper that defines the UR100, UR50/S and UR50/D dataset notation the ESM repository's model table uses; retrieved for A1.3 (DECISIONS.md D-025). Captured as JATS XML from the Europe PMC REST endpoint because pnas.org returns HTTP 403 and the PMC article page serves an interstitial rather than the PDF. The capture is the publisher's own full text, not a mirror's rendering, but quotes are matched against XML bytes, so a quotation must not span inline markup (an <xref> citation marker, a formula) — pick a sentence that reads clean in the source."
     },
     {
       "id": "S-ESM2-PREPRINT",
       "kind": "paper",
-      "title": "Lin et al. 2022 \u2014 Evolutionary-scale prediction of atomic level protein structure with a language model (preprint)",
+      "title": "Lin et al. 2022 — Evolutionary-scale prediction of atomic level protein structure with a language model (preprint)",
       "url": "https://www.biorxiv.org/content/10.1101/2022.07.20.500902v3.full.pdf",
       "doi": "10.1101/2022.07.20.500902",
       "models": [
@@ -379,7 +379,7 @@
     {
       "id": "S-ESM2-SCIENCE",
       "kind": "paper",
-      "title": "Lin et al. 2023 \u2014 Evolutionary-scale prediction of atomic-level protein structure with a language model (Science, version of record)",
+      "title": "Lin et al. 2023 — Evolutionary-scale prediction of atomic-level protein structure with a language model (Science, version of record)",
       "url": "https://www.science.org/doi/10.1126/science.ade2574",
       "doi": "10.1126/science.ade2574",
       "models": [
@@ -389,6 +389,81 @@
       "status": "unretrieved",
       "blocker": "science.org is paywalled and returns HTTP 403, as it does for S-EVO1-SCIENCE.",
       "note": "The version of record for ESM-2. Same standing as S-ESM3-SCIENCE and S-EVO1-SCIENCE: quotes come from the preprint once that is retrieved, and anything load-bearing should be checked against this version before publication."
+    },
+    {
+      "id": "S-OPENGENOME2-MANIFEST",
+      "kind": "file_listing",
+      "title": "Per-file manifest of arcinstitute/opengenome2 at the pinned revision",
+      "url": "https://huggingface.co/api/datasets/arcinstitute/opengenome2/tree/84d2a7e690c8bb395d1f4868822dfa031ea561c6?recursive=true&expand=true",
+      "licence": "apache-2.0",
+      "models": [
+        "Evo 2"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-opengenome2-manifest.json",
+      "sha256": "58aa66b7cc0ab3a66fd19630f025abf745d0ab4e73b8f1b82cd5c62ee72bebf2",
+      "bytes": 310792,
+      "note": "A listing, not a document. 1,126 files totalling 5,523,240,795,932 bytes, each with the Git LFS oid HuggingFace publishes for it — a SHA-256 over the file contents, and what every staged object is verified against before its upload completes. Paths, sizes and checksums only; no sequence. Pinned to a commit rather than `main`, which has moved."
+    },
+    {
+      "id": "S-OPENGENOME1-MANIFEST",
+      "kind": "file_listing",
+      "title": "Per-file manifest of LongSafari/open-genome at the pinned revision",
+      "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/tree/84369c058d192dcb607086d71679b877421e3250?recursive=true&expand=true",
+      "licence": "apache-2.0",
+      "models": [
+        "OpenGenome"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-open-genome-manifest.json",
+      "sha256": "a726c1e902cbb47ed58b22795df9fb02ff28a5d1994c27532c96d121a98f96c9",
+      "bytes": 4787,
+      "note": "As S-OPENGENOME2-MANIFEST, for Evo 1's release: 22 files, 146,886,935,899 bytes. Supersedes S-OPENGENOME1-TREE, which lists paths at `main` without checksums."
+    },
+    {
+      "id": "S-OPENGENOME2-COMMITS",
+      "kind": "file_listing",
+      "title": "Commit history of arcinstitute/opengenome2, with the month each sequence file last changed",
+      "url": "https://huggingface.co/api/datasets/arcinstitute/opengenome2/commits/main",
+      "licence": "apache-2.0",
+      "models": [
+        "Evo 2"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-opengenome2-commits.json",
+      "sha256": "2fdb0e59086c5b771cd24420c14802a33f6e7e3baedff651be99fe4eb65ffda6",
+      "bytes": 5497,
+      "note": "Evidence for whether the release changed after publication. All 1,123 sequence files were last touched in February 2025; the three later-dated files are the README, `.gitattributes` and `species_metadata.csv`. Deletions would not appear in a listing of what is present, so this supports 'unchanged since' and not 'nothing was removed'."
+    },
+    {
+      "id": "S-OPENGENOME1-COMMITS",
+      "kind": "file_listing",
+      "title": "Commit history of LongSafari/open-genome",
+      "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/commits/main",
+      "licence": "apache-2.0",
+      "models": [
+        "OpenGenome"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-open-genome-commits.json",
+      "sha256": "97a3359bc95a6c763fa062f267605441ae9937444d4f2ef38fbe3eb1a23c0483",
+      "bytes": 2100,
+      "note": "All 20 data files landed in one commit on 2024-07-06; the 11 commits since are README edits. Same caveat as S-OPENGENOME2-COMMITS about deletions."
+    },
+    {
+      "id": "S-OPENGENOME2-RECORD-FIELDS",
+      "kind": "data_sample",
+      "title": "Identifying fields per representation in arcinstitute/opengenome2 (4 components)",
+      "url": "https://huggingface.co/datasets/arcinstitute/opengenome2/resolve/84d2a7e690c8bb395d1f4868822dfa031ea561c6/",
+      "licence": "apache-2.0",
+      "models": [
+        "Evo 2"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/hf-opengenome2-record-fields.json",
+      "sha256": "0c81c2afcea8f4da364782365ab464ecfc73e86f863225e46f07b2e7babc4b38",
+      "bytes": 1709,
+      "note": "A sample, and the weakest kind of entry in this store: the leading ~3 MB of four files out of 1,123, read to establish which representation carries a traceable identifier. Field names, record counts and accession prefixes only — no sequence enters this repo. Supports qualitative statements about record structure and no proportion. Dated."
     }
   ]
 }

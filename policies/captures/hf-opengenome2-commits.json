@@ -1,0 +1,181 @@
+{
+ "retrieved": "2026-10-14",
+ "dataset": "arcinstitute/opengenome2",
+ "head_revision": "84d2a7e690c8bb395d1f4868822dfa031ea561c6",
+ "commits": [
+  {
+   "id": "84d2a7e690c8bb395d1f4868822dfa031ea561c6",
+   "date": "2026-09-02T19:11:46.000Z",
+   "title": "Mention species_metadata.csv in README"
+  },
+  {
+   "id": "136ebc6777bbf709abf6e89936cb64f197a15c79",
+   "date": "2026-09-02T19:11:45.000Z",
+   "title": "Add species metadata CSV (GTDB, NCBI eukaryotic genomes, Ensembl, organelles)"
+  },
+  {
+   "id": "9a24315bdc54a9949f2d8e0eca6c718134815a11",
+   "date": "2025-09-20T04:53:50.000Z",
+   "title": "Update README.md"
+  },
+  {
+   "id": "dffb01a7fe9f6d1df1d83627d9e97241d72a8b20",
+   "date": "2025-02-18T04:03:24.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "69df469c730d4a73978e66921860b28478abf5e3",
+   "date": "2025-02-17T22:24:53.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "9980a3515ddcd4127b3818aa7b569ea65560cbf7",
+   "date": "2025-02-17T22:02:18.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "f6049a7e3281bbce30fa691b516ff82d8c690975",
+   "date": "2025-02-17T21:40:14.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "a51d42273af19bf9ab9da869303a777fce7f9d1d",
+   "date": "2025-02-17T21:17:53.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "bc63a86b9c7135684964ee6ac9ebe4cf9f5b37ca",
+   "date": "2025-02-17T21:00:51.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "29e083859f88be3254029d15e4f32326e8a2e7ae",
+   "date": "2025-02-17T20:55:16.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "b1af7b5798b8b0fd44a6c3ba02053a2a399d7205",
+   "date": "2025-02-17T20:54:19.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "4a6987c39aca7e9683998fbd3bdb309a601b8c12",
+   "date": "2025-02-17T20:52:57.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "0ba74885e114d3dbbb8a3cf50786ca2bed87cc76",
+   "date": "2025-02-17T20:17:15.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "731226d5fab2959d2601e176fec4947534022b49",
+   "date": "2025-02-17T20:15:24.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "c614890f133b061bb99162059c432b987a165923",
+   "date": "2025-02-17T20:13:19.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "181dfbfc6c0c79a359c5e3bcaaadddf4eb357f9d",
+   "date": "2025-02-17T20:03:00.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "f840c81c7c9e32522b4b5d3312671c64aed7f1a1",
+   "date": "2025-02-17T19:54:56.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "f2bc2e124bd8249a2df1c545dede3d9bdc4a96dd",
+   "date": "2025-02-17T19:53:56.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "6494c23bddaeffb8dca4e52f19f736c5d5503089",
+   "date": "2025-02-17T19:45:13.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "619c535ef8771682f796875f3787ab3040e58685",
+   "date": "2025-02-17T19:26:46.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "726b9dd9339cbbd64e6223d1c656cf45b04dc442",
+   "date": "2025-02-17T19:17:23.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "ffdfed943d13bb261aef540e7950996876b2afcb",
+   "date": "2025-02-17T19:08:58.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "9b4f806b1bf3a3c1828103e14d87c1850ff83199",
+   "date": "2025-02-17T18:42:00.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "17cee96950f5e1094e37d0d4b424e09a7f56955e",
+   "date": "2025-02-17T18:32:26.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "1115966389a7a896241bff7a4a7e4237dc6e795b",
+   "date": "2025-02-17T18:22:49.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "c227700b0f9215ed9773a1f44b7943abe2d3fc2f",
+   "date": "2025-02-17T18:19:19.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "0bb01302d87a46b8cd9d1f071e99730d520962ab",
+   "date": "2025-02-17T18:18:40.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "36dc946b67424a5c30daf870158a9c174fc768bd",
+   "date": "2025-02-17T18:17:45.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "7425268eba27e20cc12433a37926bc1483b9073f",
+   "date": "2025-02-17T18:15:03.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "2bfd766b51bf2ff0e44fccc67d1f437a57fc17e3",
+   "date": "2025-02-17T18:12:16.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "19440660fedb5f058cd4433635715e72045f11ba",
+   "date": "2025-02-17T18:11:05.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "8cd8cc1b37bc3857b3bb8d37939d5d0e38483b5a",
+   "date": "2025-02-17T18:08:28.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "cde91e5d4ce3a55de148d9cc7761fcaa173d2905",
+   "date": "2025-02-17T17:55:07.000Z",
+   "title": "Upload folder using huggingface_hub"
+  },
+  {
+   "id": "0c14c13e6b659dc862dc6781af83c56b8717e28d",
+   "date": "2025-02-17T17:44:08.000Z",
+   "title": "initial commit"
+  }
+ ],
+ "sequence_files_by_commit_month": {
+  "2025-02": 1123
+ },
+ "note": "Commit history at `main`, plus the month each sequence file was last touched. Evidence for whether the release changed after publication."
+}

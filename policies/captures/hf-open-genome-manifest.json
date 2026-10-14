@@ -1,0 +1,142 @@
+{
+ "retrieved": "2026-10-14",
+ "dataset": "LongSafari/open-genome",
+ "revision": "84369c058d192dcb607086d71679b877421e3250",
+ "files": 22,
+ "bytes": 146886935899,
+ "note": "Per-file manifest. sha256 is the Git LFS oid, which is a SHA-256 over the file contents, and is what each staged object is verified against. Paths, sizes and checksums only; no sequence.",
+ "blobs": [
+  {
+   "path": ".gitattributes",
+   "bytes": 2307,
+   "sha256": null,
+   "last_commit": "2024-07-06T15:54:59.000Z"
+  },
+  {
+   "path": "README.md",
+   "bytes": 1806,
+   "sha256": null,
+   "last_commit": "2024-07-10T05:59:55.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_test.parquet",
+   "bytes": 176799,
+   "sha256": "435d2c4524697bfc8cfc6271ed4e8737c77cd82cd3892ce6fd34cb894bdd6b5e",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_0.parquet",
+   "bytes": 10623825063,
+   "sha256": "702326c9f618dc4372d8e2b03fa55ba65d3222760ba6ee1e92c1b6614bbae7f4",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_1.parquet",
+   "bytes": 10570828617,
+   "sha256": "62e236c8daa7925453db185f74d959b64209d950534a03e89f1b089fc6e35aa2",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_10.parquet",
+   "bytes": 10495755751,
+   "sha256": "efbf7c68a70d873601db75d20123bd9799dc791793d813590eec8e84423d2b5b",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_11.parquet",
+   "bytes": 10483115147,
+   "sha256": "2c0662df2b4dec4abb81cf62fde2c763ebbbda6e0516d9e0b878175a6502dcef",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_2.parquet",
+   "bytes": 10911642265,
+   "sha256": "7b2170108e600b493987156313b38d53285f902326ae1416fcd9f7ebc0ad258e",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_3.parquet",
+   "bytes": 10626822728,
+   "sha256": "1233d8a3d47a7548a1d2f1e54bbfd0536836e5e06986082bff5eff8dbcbd61b1",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_4.parquet",
+   "bytes": 10537297690,
+   "sha256": "403dd12247485188547150ee773be21f1745624d5227de2af433400f5a26d837",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_5.parquet",
+   "bytes": 10636150454,
+   "sha256": "6d18bd69d98ca6c1af98b2d9da3ce4c312a415eef9db1e647fa08b5325d376ec",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_6.parquet",
+   "bytes": 10487199952,
+   "sha256": "2f38ff40afab4f17d8dbf144cfa2c12d68018a9ddd175798b53fa6b3649b1223",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_7.parquet",
+   "bytes": 10499772005,
+   "sha256": "e688080daa081b2242f7d86e2d781d9e74e019bd5f1671bd97d9abc06973efa3",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_8.parquet",
+   "bytes": 10819271922,
+   "sha256": "79a9d72f24f938830a5b6e99af50608908f3df56e73eb85d342afd740dc002c9",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_train_shard_9.parquet",
+   "bytes": 10569191702,
+   "sha256": "43aefd2cd0e3e8c91618c46e3a91de4cff56c982ac6127534466b8162a72193b",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/gtdb/gtdb_valid_small.parquet",
+   "bytes": 24664,
+   "sha256": "89e3a95dbc1a77063baedb0d87e921e0164d34b2ab6867096881929c457cbd58",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/imgpr/imgpr_test.parquet",
+   "bytes": 12740804,
+   "sha256": "7a1cd7ca8f01729e3ca7a8b946a10f2f466c158408762a5646a2fcf7d71b62c5",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/imgpr/imgpr_train.parquet",
+   "bytes": 2690460278,
+   "sha256": "a32563edf6690b679e0cda22429bc020ee97841ebb1a5fb647146fec42f92291",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage1/imgpr/imgpr_valid_small.parquet",
+   "bytes": 1060156,
+   "sha256": "f977f6d4a2fbdc010281bc3329d719e9333d0ecce403e58bd3812e63280c637f",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage2/test_stage2.parquet",
+   "bytes": 584279,
+   "sha256": "c8199e9cbc1541c8ef7c16e1c2fa2cc28261acd74f959f6ee24318de6cddb793",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage2/train_stage2.parquet",
+   "bytes": 16920332545,
+   "sha256": "26954cf54ac3158d673268c44c1bb3a99406a2b75801487d44813e47e7e4bdd5",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  },
+  {
+   "path": "stage2/valid_stage2.parquet",
+   "bytes": 678965,
+   "sha256": "2f0b01c94242507b2d1d5d6f960e9fc9adac39cd1713239d25bedefd0952a315",
+   "last_commit": "2024-07-06T20:02:02.000Z"
+  }
+ ]
+}
