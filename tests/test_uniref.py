@@ -386,3 +386,46 @@ def test_the_pinned_release_constants_are_the_ones_decisions_recorded():
     assert uniref.ARCHIVE_MD5 == "444f0a7062a65a988ba1d5949d1d6419"
     assert uniref.STATED_CLUSTERS["uniref50"] == 49_874_565
     assert uniref.STATED_CLUSTERS["uniref90"] == 138_515_945
+
+
+# --------------------------------------------------------------------------- #
+# Header numeric fields
+# --------------------------------------------------------------------------- #
+
+
+def test_gnu_base256_sizes_are_read():
+    """The real archive needs this: its UniRef100 member overflows the octal field.
+
+    A 12-byte octal size tops out just under 8 GiB and that member is 93.7 GB, so
+    GNU's high-bit form is not an edge case here — it is the first header in the
+    archive. The literal field below is the one the release actually serves.
+    """
+    field = b"\x80\x00\x00\x00\x00\x00\x00\x15\xd2\x178\x00"
+    assert uniref._numeric(field) == 93_719_050_240
+
+
+def test_octal_fields_still_read():
+    assert uniref._numeric(b"00000004000\x00") == 2048
+    assert uniref._numeric(b"\x00" * 12) == 0
+
+
+def test_a_field_that_is_neither_is_refused():
+    with pytest.raises(uniref.TarFormatError, match="bad numeric field"):
+        uniref._numeric(b"not-a-number")
+
+
+def test_a_large_member_is_walked_without_reading_it():
+    """A 93 GB member cannot be materialised in a test, so assert on the header.
+
+    This builds a header claiming a base-256 size and checks the walk reports it
+    and then stops cleanly when the payload is absent, rather than misparsing the
+    size as something small and resuming mid-payload.
+    """
+    header = bytearray(make_tar({"big.tar": b""})[:512])
+    header[124:136] = b"\x80\x00\x00\x00\x00\x00\x00\x15\xd2\x178\x00"
+    header[148:156] = b" " * 8
+    checksum = sum(header)
+    header[148:156] = f"{checksum:06o}\x00 ".encode()
+    stream = uniref.GunzipStream(io.BytesIO(gzip.compress(bytes(header))))
+    members = [m for m, _ in uniref.iter_tar_members(stream)]
+    assert [(m.name, m.size) for m in members] == [("big.tar", 93_719_050_240)]

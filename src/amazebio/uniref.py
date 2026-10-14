@@ -269,14 +269,28 @@ class Member:
         return "/".join((*self.path, self.name))
 
 
-def _octal(raw: bytes) -> int:
+def _numeric(raw: bytes) -> int:
+    """Read a tar header numeric field, octal or GNU base-256.
+
+    This release needs the second form. A tar size field is 12 bytes of octal
+    digits, which tops out just under 8 GiB, and the archive's UniRef100 member
+    is 93.8 GB. GNU's extension for that case sets the high bit of the first byte
+    and stores the value as a big-endian two's-complement integer in the rest of
+    the field. A reader that only knows octal does not misread such a member —
+    it fails outright on the first header, which is how this was found.
+    """
+    if raw and raw[0] in (0o200, 0o377):
+        value = int.from_bytes(raw[1:], "big")
+        if raw[0] == 0o377:  # Negative, which no field this code reads should be.
+            value -= 1 << (8 * (len(raw) - 1))
+        return value
     text = raw.split(b"\0")[0].strip()
     if not text:
         return 0
     try:
         return int(text, 8)
     except ValueError as exc:
-        raise TarFormatError(f"bad octal field {raw!r}") from exc
+        raise TarFormatError(f"bad numeric field {raw!r}") from exc
 
 
 def _checksum_ok(header: bytes) -> bool:
@@ -288,7 +302,7 @@ def _checksum_ok(header: bytes) -> bool:
     `TarFormatError` about an unparseable octal field would describe the symptom.
     """
     try:
-        stated = _octal(header[148:156])
+        stated = _numeric(header[148:156])
     except TarFormatError:
         return False
     blanked = header[:148] + b" " * 8 + header[156:]
@@ -338,7 +352,7 @@ def iter_tar_members(
 
         raw_name = header[0:100].split(b"\0")[0].decode("utf-8", "surrogateescape")
         prefix = header[345:500].split(b"\0")[0].decode("utf-8", "surrogateescape")
-        size = _octal(header[124:136])
+        size = _numeric(header[124:136])
         typeflag = chr(header[156]) if header[156] else "0"
         name = pending_longname or (f"{prefix}/{raw_name}" if prefix else raw_name)
         pending_longname = None
