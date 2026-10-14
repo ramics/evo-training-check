@@ -119,10 +119,15 @@ the 6B model, that is a compute decision, not a re-verification.
 **Licence:** MIT plus a third-party notice (`license: mit, other`, with the notice linked from
 the card). The repository licence is stored and is MIT, Chan Zuckerberg Biohub (S-ESM-LICENSE).
 
-**Access:** HuggingFace `biohub/ESMC-600M`, and in `transformers` from v5.16.0:
+**Access:** HuggingFace `biohub/ESMC-600M`:
 
 [source: S-ESM-REPO]
 > Codebase, model weights, and model variants for ESMC are available through [Hugging Face](https://huggingface.co/collections/biohub/esmc-model-family).
+
+and, which is the route B1.2 will take, through `transformers`:
+
+[source: S-ESM-REPO]
+> ESMC and ESMFold2 are now available in Hugging Face Transformers starting with
 
 There is also a hosted platform route with API tokens. B1.2 should not use it: §4 permits
 zero-shot scoring only, and sending assay sequences to a developer's own API both leaves the

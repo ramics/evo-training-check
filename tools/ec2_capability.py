@@ -85,7 +85,9 @@ PROBE_TYPES: tuple[str, ...] = (
 # the per-type verdicts below are the measurement.
 GPU_FAMILIES = ("g4dn", "g5", "g6", "g6e", "p3", "p4d", "p5")
 
+# The two codes that are measurements. Everything else is a failed probe, not a verdict.
 ALLOWED = "DryRunOperation"
+DENIED = "UnauthorizedOperation"
 
 
 def _family(instance_type: str) -> str:
@@ -129,16 +131,29 @@ def probe(ec2: Any, ami: str, instance_types: tuple[str, ...], owner: str) -> di
             }
         except ClientError as exc:
             code = exc.response["Error"]["Code"]
+            # Three outcomes, not two. DryRunOperation is permitted and
+            # UnauthorizedOperation is refused by policy; anything else — a type absent from
+            # the region, an AMI architecture mismatch, a throttle — measures nothing about
+            # the allowlist. Folding those into "denied" would report a broken probe as a
+            # policy refusal and quietly understate what this account can launch.
             results[itype] = {
-                "allowed": code == ALLOWED,
+                "allowed": True if code == ALLOWED else (False if code == DENIED else None),
                 "code": code,
                 "message": exc.response["Error"]["Message"][:200],
+            }
+        # Broad on purpose: one bad type must not lose the verdicts already collected.
+        except Exception as exc:
+            results[itype] = {
+                "allowed": None,
+                "code": type(exc).__name__,
+                "message": str(exc)[:200],
             }
         print(f"  {itype:16} {results[itype]['code']}")
     return results
 
 
 def summarise(results: dict[str, Any]) -> dict[str, Any]:
+    """Fold the per-type verdicts up. `unmeasured` is reported, never silently dropped."""
     allowed = sorted(t for t, r in results.items() if r["allowed"])
     gpu_allowed = sorted(t for t in allowed if _family(t) in GPU_FAMILIES)
     return {

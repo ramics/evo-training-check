@@ -55,8 +55,12 @@ def compute_envelope() -> dict:
     summary = data["summary"]
     return {
         "measured": True,
-        "gpu_available": summary["gpu_available"],
+        # The accelerated types themselves, not a boolean: what a checkpoint needs is a
+        # property of the accelerator, and "a GPU is available" cannot distinguish one 24 GB
+        # card from eight H100s. See amazebio.models.GpuNeed.
+        "gpu_types": summary["gpu_allowed"],
         "allowed_instance_types": summary["allowed"],
+        "unmeasured_instance_types": summary["unmeasured"],
         "source": str(ALLOWLIST.relative_to(REPO)),
     }
 
@@ -109,7 +113,7 @@ def main() -> int:
         m.input_file(SOURCES, role="source inventory each checkpoint's claims cite")
         if envelope["measured"]:
             m.input_file(ALLOWLIST, role="measured EC2 launch allowlist")
-            feasible = feasibility(checkpoints, gpu_available=envelope["gpu_available"])
+            feasible = feasibility(checkpoints, gpu_types=envelope["gpu_types"])
         else:
             feasible = {c.id: "unknown: compute envelope not measured" for c in checkpoints}
         m.note(

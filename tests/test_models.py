@@ -19,6 +19,7 @@ from amazebio.models import (
     TIER_2,
     Checkpoint,
     Exclusion,
+    GpuNeed,
     InventoryError,
     Modality,
     Role,
@@ -163,24 +164,84 @@ def test_validate_rejects_duplicate_ids():
         validate([c, c])
 
 
-def test_feasibility_separates_the_gpu_requirement_from_availability():
+def test_feasibility_separates_the_requirement_from_what_is_allowed():
     """Model requirements are published; what this account can launch is measured."""
-    without = feasibility(inventory(), gpu_available=False)
-    assert without["evo2_7b"].startswith("blocked")
-    assert without["esm2_t33_650M_UR50D"] == "runnable"
+    cpu_only = feasibility(inventory(), gpu_types=())
+    assert cpu_only["evo2_7b"].startswith("blocked")
+    assert cpu_only["esm2_t33_650M_UR50D"] == "runnable"
 
-    with_gpu = feasibility(inventory(tiers=(1,)), gpu_available=True)
-    assert set(with_gpu.values()) == {"runnable"}
+    measured = feasibility(inventory(tiers=(1,)), gpu_types=("g5.xlarge", "g6.xlarge"))
+    assert set(measured.values()) == {"runnable"}
 
 
-def test_evo2_40b_needs_a_gpu_this_account_does_not_have():
-    """Tier 2's exclusion is a measurement, so it must not be hard-coded as a verdict.
+def test_a_single_card_does_not_make_evo2_40b_runnable():
+    """The regression this file exists for.
 
-    `needs_gpu` records the developers' stated requirement. That a 24 GB card is not enough
-    for 40B is argued in policies/models.md §4 from their own text, and the allowlist that
-    decides it lives in the artefact, not here.
+    `needs_gpu` was a boolean, so the measured allowlist — one 24 GB card, no Hopper — made
+    the inventory report evo2_40b as runnable, contradicting policies/models.md §4 and
+    DECISIONS.md D-034. The requirement is not "a GPU": it is FP8 on Hopper across several of
+    them.
     """
-    c = checkpoint("evo2_40b")
-    assert c.tier == 2
-    assert c.needs_gpu
-    assert "H100" in c.access
+    verdicts = feasibility(inventory(), gpu_types=("g5.xlarge", "g6.xlarge"))
+    assert verdicts["evo2_40b"].startswith("blocked")
+    assert "Hopper" in verdicts["evo2_40b"]
+
+    with_hopper = feasibility(inventory(), gpu_types=("p5.48xlarge",))
+    assert with_hopper["evo2_40b"] == "runnable"
+
+
+def test_p4d_is_not_hopper():
+    """Eight A100s are eight GPUs and no FP8, so they do not satisfy the 40B requirement."""
+    assert feasibility([checkpoint("evo2_40b")], gpu_types=("p4d.24xlarge",))[
+        "evo2_40b"
+    ].startswith("blocked")
+
+
+def test_evo2_sizes_have_different_requirements():
+    """One lineage, two requirements. Collapsing them is what caused the regression above."""
+    assert checkpoint("evo2_7b").gpu_need is GpuNeed.SINGLE_ANY
+    assert checkpoint("evo2_40b").gpu_need is GpuNeed.MULTI_HOPPER
+    assert checkpoint("esm2_t33_650M_UR50D").gpu_need is GpuNeed.NONE
+    assert "H100" in checkpoint("evo2_40b").access
+
+
+def test_tuple_fields_are_tuples_not_strings():
+    """A missing trailing comma makes a 1-tuple a string that iterates as characters.
+
+    It happened: ESMC-600M's single finding was written into an artefact as 255 separate
+    one-character entries. The fields are checked here and rejected in validate().
+    """
+    for c in inventory():
+        assert isinstance(c.sources, tuple), f"{c.id}: sources is {type(c.sources).__name__}"
+        assert isinstance(c.unverified, tuple), f"{c.id}: unverified is a string"
+        for entry in c.unverified:
+            assert len(entry) > 1, f"{c.id}: a one-character finding means a string slipped in"
+
+
+def test_validate_rejects_a_string_where_a_tuple_belongs():
+    bad = Checkpoint(
+        id="x",
+        model="X",
+        params=None,
+        modality=Modality.PROTEIN,
+        role=Role.POSITIVE_CONTROL,
+        exclusion=Exclusion.NONE,
+        corpus_pin=None,
+        licence="MIT",
+        access="somewhere",
+        sources=("S-ESM2-REPO",),
+        unverified="one finding, no comma",
+    )
+    with pytest.raises(InventoryError, match="not a tuple"):
+        validate([bad])
+
+
+def test_licence_claims_cite_a_licence_source(sources):
+    """A licence is quoted from a licence file, so that file has to be cited.
+
+    Without this the CI check validated every source a checkpoint listed while the licence
+    evidence sat outside the list, unverifiable.
+    """
+    licence_ids = {sid for sid, s in sources.items() if s["kind"] == "license"}
+    for c in inventory():
+        assert licence_ids & set(c.sources), f"{c.id}: licence {c.licence!r} cites no licence file"

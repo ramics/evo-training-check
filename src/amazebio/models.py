@@ -87,6 +87,29 @@ class Exclusion(Enum):
     SIMILARITY_BASED = "similarity_based"
 
 
+class GpuNeed(Enum):
+    """What a checkpoint's own run instructions demand of an accelerator.
+
+    A boolean was not enough and the gap was not academic: `evo2_7b` runs in bfloat16 on any
+    supported GPU while `evo2_40b` needs FP8 via Transformer Engine on Hopper *and* several
+    H100s for the weights. Collapsing both to "needs a GPU" made the inventory report 40B as
+    runnable the moment a single 24 GB card appeared, contradicting `policies/models.md` §4,
+    which argues it from the developers' own text, and DECISIONS.md D-034, which settles Tier 2
+    on it.
+    """
+
+    NONE = "none"
+    SINGLE_ANY = "single_any"
+    MULTI_HOPPER = "multi_hopper"
+
+
+# Instance families whose accelerators are Hopper and whose sizes carry several of them. Kept
+# deliberately short and named: p4d is Ampere, so it has no FP8 and does not qualify however
+# many GPUs it has. If a family is added here, check both properties — a Hopper family with a
+# single-GPU size would satisfy MULTI_HOPPER spuriously.
+HOPPER_MULTI_FAMILIES: tuple[str, ...] = ("p5", "p5e", "p5en")
+
+
 @dataclasses.dataclass(frozen=True)
 class Checkpoint:
     """One checkpoint, as its own developers' retrieved sources describe it.
@@ -109,7 +132,9 @@ class Checkpoint:
         tier: 1 for the core list, 2 for `DESIGN.md` §B1's "if compute allows" set.
         unverified: fields no retrieved first-party source states, named. Non-empty means the
             checkpoint carries a §A0 finding, and `tools/model_inventory.py` reports it.
-        needs_gpu: whether the published run instructions require an accelerator. Stated by
+            A tuple, always — a bare string here is 1-tuple-shaped to every consumer and
+            iterates as characters, so :func:`validate` rejects one.
+        gpu_need: what the published run instructions require of an accelerator. Stated by
             the developers, so it belongs here; whether one is available does not.
     """
 
@@ -126,11 +151,11 @@ class Checkpoint:
     tier: int = 1
     exclusion_note: str | None = None
     unverified: tuple[str, ...] = ()
-    needs_gpu: bool = False
+    gpu_need: GpuNeed = GpuNeed.NONE
 
     def to_dict(self) -> dict[str, object]:
         d = dataclasses.asdict(self)
-        for key in ("modality", "role", "exclusion"):
+        for key in ("modality", "role", "exclusion", "gpu_need"):
             d[key] = getattr(self, key).value
         d["sources"] = list(self.sources)
         d["unverified"] = list(self.unverified)
@@ -160,7 +185,7 @@ TIER_1: tuple[Checkpoint, ...] = (
             "direct download from dl.fbaipublicfiles.com, or torch.hub / the fair-esm package; "
             "mirrored on HuggingFace at facebook/esm2_t33_650M_UR50D"
         ),
-        sources=("S-ESM2-REPO", "S-ESM2-PREPRINT", "S-ESM2-HF-650M"),
+        sources=("S-ESM2-REPO", "S-ESM2-PREPRINT", "S-ESM2-HF-650M", "S-ESM2-LICENSE"),
     ),
     Checkpoint(
         id="esm2_t36_3B_UR50D",
@@ -179,7 +204,7 @@ TIER_1: tuple[Checkpoint, ...] = (
             "direct download from dl.fbaipublicfiles.com, or torch.hub / the fair-esm package; "
             "mirrored on HuggingFace at facebook/esm2_t36_3B_UR50D"
         ),
-        sources=("S-ESM2-REPO", "S-ESM2-PREPRINT", "S-ESM2-HF-3B"),
+        sources=("S-ESM2-REPO", "S-ESM2-PREPRINT", "S-ESM2-HF-3B", "S-ESM2-LICENSE"),
     ),
     Checkpoint(
         id="esm3-sm-open-v1",
@@ -224,12 +249,14 @@ TIER_1: tuple[Checkpoint, ...] = (
         corpus_pin="UniRef, MGnify and JGI; viral content from IMG/VR release 7 (Dec 19, 2022)",
         licence="MIT, with a third-party notice",
         access="HuggingFace biohub/ESMC-600M; also in transformers from v5.16.0",
-        sources=("S-ESMC-HF-600M", "S-ESMC-PREPRINT", "S-ESM-REPO"),
+        sources=("S-ESMC-HF-600M", "S-ESMC-PREPRINT", "S-ESM-REPO", "S-ESM-LICENSE"),
         unverified=(
-            "exclusion status at variant level: the ESMC-600M and ESMC-6B cards are "
-            "byte-identical, so neither evidences anything about a specific variant. The "
-            "corpus claim rests on the preprint, which describes the training data for the "
-            "family (policies/esm-c.md §5)."
+            (
+                "exclusion status at variant level: the ESMC-600M and ESMC-6B cards are "
+                "byte-identical, so neither evidences anything about a specific variant. The "
+                "corpus claim rests on the preprint, which describes the training data for "
+                "the family (policies/esm-c.md §5)."
+            ),
         ),
     ),
     Checkpoint(
@@ -252,8 +279,14 @@ TIER_1: tuple[Checkpoint, ...] = (
             "HuggingFace arcinstitute/evo2_7b via the evo2 package; runs in bfloat16 without "
             "Transformer Engine on any supported GPU"
         ),
-        sources=("S-EVO2-HF-7B", "S-EVO2-PREPRINT", "S-EVO2-REPO", "S-EVO1-PREPRINT"),
-        needs_gpu=True,
+        sources=(
+            "S-EVO2-HF-7B",
+            "S-EVO2-PREPRINT",
+            "S-EVO2-REPO",
+            "S-EVO1-PREPRINT",
+            "S-EVO2-LICENSE",
+        ),
+        gpu_need=GpuNeed.SINGLE_ANY,
     ),
 )
 
@@ -277,9 +310,9 @@ TIER_2: tuple[Checkpoint, ...] = (
             "HuggingFace arcinstitute/evo2_40b via the evo2 package; requires FP8 via "
             "Transformer Engine on a Hopper GPU, and multiple H100s for the 40B weights"
         ),
-        sources=("S-EVO2-HF-40B", "S-EVO2-PREPRINT", "S-EVO2-REPO"),
+        sources=("S-EVO2-HF-40B", "S-EVO2-PREPRINT", "S-EVO2-REPO", "S-EVO2-LICENSE"),
         tier=2,
-        needs_gpu=True,
+        gpu_need=GpuNeed.MULTI_HOPPER,
     ),
 )
 
@@ -333,6 +366,15 @@ def validate(
         for field in ("model", "licence", "access"):
             if not getattr(c, field):
                 raise InventoryError(f"{c.id}: {field} is empty")
+        # A bare string in either field is 1-tuple-shaped to every consumer and then iterates
+        # as characters. That is exactly what a missing trailing comma produces, and it wrote
+        # 255 single-character "findings" into an inventory artefact before this check existed.
+        for field in ("sources", "unverified"):
+            if isinstance(getattr(c, field), str):
+                raise InventoryError(
+                    f"{c.id}: {field} is a string, not a tuple — a missing trailing comma. "
+                    f"It would iterate as characters."
+                )
         if not c.sources:
             raise InventoryError(f"{c.id}: cites no source")
         if c.tier not in (1, 2):
@@ -361,27 +403,52 @@ def validate(
 def feasibility(
     checkpoints: Iterable[Checkpoint] | None = None,
     *,
-    gpu_available: bool,
+    gpu_types: Iterable[str],
 ) -> dict[str, str]:
-    """Classify each checkpoint as runnable or not, given whether a GPU can be had.
+    """Classify each checkpoint as runnable or not, against the accelerators actually allowed.
 
     Kept separate from :class:`Checkpoint` on purpose. What a model needs is published by its
     developers; what this project can launch is measured by `tools/ec2_capability.py`, changes
     when the account's policy changes, and must not be frozen into the inventory.
 
-    This answers the hard requirement only — whether the published instructions demand an
-    accelerator at all. It says nothing about throughput, and `"runnable"` here does not mean
-    a 200-assay zero-shot pass finishes in useful time on 8 CPU cores. Measuring that is
-    B1.2's first job, not a claim to make from an inventory.
+    Args:
+        checkpoints: defaults to the full inventory.
+        gpu_types: the accelerated instance types this account may launch, as measured —
+            `summary.gpu_allowed` in `artifacts/b1-1/ec2-capability/allowlist.json`. An empty
+            iterable means CPU only. Instance *types*, not a boolean: a single 24 GB card and
+            eight H100s are both "a GPU" and they do not run the same models.
+
+    This answers the hard requirement only — whether the allowed accelerators satisfy what the
+    published instructions demand. It says nothing about throughput, and `"runnable"` here does
+    not mean a 200-assay zero-shot pass finishes in useful time. Measuring that is B1.2's first
+    job, not a claim to make from an inventory.
 
     Returns:
         checkpoint id -> `"runnable"`, or a one-line reason it is not.
     """
     checkpoints = tuple(inventory() if checkpoints is None else checkpoints)
+    types = tuple(gpu_types)
+    hopper_multi = tuple(t for t in types if t.split(".", 1)[0] in HOPPER_MULTI_FAMILIES)
+
     out: dict[str, str] = {}
     for c in checkpoints:
-        if c.needs_gpu and not gpu_available:
-            out[c.id] = "blocked: published run instructions require a GPU, and none is available"
-        else:
+        if c.gpu_need is GpuNeed.NONE:
             out[c.id] = "runnable"
+        elif c.gpu_need is GpuNeed.SINGLE_ANY:
+            out[c.id] = (
+                "runnable"
+                if types
+                else "blocked: needs an accelerator, and no accelerated instance type is allowed"
+            )
+        elif c.gpu_need is GpuNeed.MULTI_HOPPER:
+            out[c.id] = (
+                "runnable"
+                if hopper_multi
+                else (
+                    "blocked: needs FP8 on Hopper across several GPUs; allowed accelerators "
+                    f"are {', '.join(types) or '(none)'}"
+                )
+            )
+        else:  # pragma: no cover — an unhandled member must not read as runnable
+            raise InventoryError(f"{c.id}: unhandled gpu_need {c.gpu_need!r}")
     return out
