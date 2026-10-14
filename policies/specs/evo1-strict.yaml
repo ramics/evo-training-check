@@ -33,7 +33,7 @@
 # likely to infect eukaryotic hosts (Methods)". A capacity and a likelihood, not a property of
 # origin. Two caveats, because this is the weaker of the two reasons: these are two formulations
 # out of ten, the rest using the bare indicative "infect"; and the step from "can infect" to
-# "excludes an integrated element" needs the premise that such an element is in the ordinary
+# 'excludes an integrated element' needs the premise that such an element is in the ordinary
 # case a defective relic that cannot infect anything, which is true but appears in NEITHER PDF.
 # It is an external biological premise, flagged as such here rather than passed off as a reading.
 #
@@ -68,7 +68,7 @@
 #     source as "curated prokaryotic viruses" and phage retention is explicit and deliberate, so
 #     removing them would contradict a published decision rather than read it strictly. Phage
 #     retention is also what gives Phase A its within-corpus contrast (policies/evo.md §5).
-#     "Strict" means the broadest defensible reading of the stated aim, not the largest filter
+#     'Strict' means the broadest defensible reading of the stated aim, not the largest filter
 #     expressible.
 
 policy:
@@ -242,8 +242,8 @@ policy:
         rank threshold of any kind. The enumeration is also plainly partial — only two realms are
         named among the stops — but that does not by itself close off a threshold reading, since a
         loosely written threshold would look much the same; what the text does is underdetermine
-        the generalisation its own "including" invites. (An earlier draft put this as "cannot be
-        read as anything at or above class", resting on a count of recognised realms that comes
+        the generalisation its own "including" invites. (An earlier draft put this as 'cannot be
+        read as anything at or above class', resting on a count of recognised realms that comes
         from ICTV rather than from either paper: a denominator from a source this project has not
         retrieved, which the primary-source rule forbids as much for denominators as for
         quotations.) `require_rank: realm` is a

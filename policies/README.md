@@ -52,9 +52,14 @@ Mentioning a source id in prose without a blockquote is not a quote and is not c
 that for pointing at a source you are describing rather than quoting.
 
 Normalisation folds away PDF artefacts only: soft hyphenation across line breaks, ligatures,
-curly quotes and dashes, and runs of whitespace. It does not fold away differences in wording.
-Quotes cannot span a page break in a PDF, because publisher boilerplate sits between the pages
-in extracted text — quote each page separately.
+curly quotes and dashes, and spacing — extraction from justified type runs words together, so a
+quote may be written as the page reads. It does not fold away differences in wording, and it does
+not fold case: a changed capital fails, which is how X1.4 found the one in `corpora.md`
+(DECISIONS.md D-023). Quotes cannot span a page break in a PDF, because publisher boilerplate
+sits between the pages in extracted text — quote each page separately.
+
+The same checks cover `policies/specs/*.yaml`, under the convention in `policies/specs/README.md`:
+there, a double-quoted span is a verbatim quotation and our own phrasing goes in single quotes.
 
 ## Source status
 

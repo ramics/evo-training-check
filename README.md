@@ -46,6 +46,8 @@ pixi.toml / pixi.lock the pinned environment
 pyproject.toml        package metadata, lint and test config
 src/amazebio/         library code
   repro.py            seeding, input pinning, run provenance
+  survival.py         the frozen route taxonomy and headline metrics
+metrics/survival.md   the frozen survival metric specification (A3.1)
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tasks/                one file per unit of work; BOARD.md is generated
 tests/                tests

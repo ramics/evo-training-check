@@ -28,22 +28,23 @@ class TestNormalise:
     def test_collapses_whitespace(self):
         assert policies.normalise("a   b\n\tc") == "a b c"
 
-    def test_is_case_insensitive(self):
-        assert policies.normalise("Viral Denylist") == policies.normalise("viral denylist")
+    def test_is_case_sensitive(self):
+        """X1.4 removed the case fold: the errors this store has actually had were capitals."""
+        assert policies.normalise("Viral Denylist") != policies.normalise("viral denylist")
 
     def test_joins_words_hyphenated_across_a_line_break(self):
         assert policies.normalise("classifi-\ncation") == "classification"
-        assert policies.normalise("Vi- ral Denylist") == "viral denylist"
+        assert policies.normalise("Vi- ral Denylist") == "Viral Denylist"
 
     def test_keeps_genuine_hyphens(self):
-        assert policies.normalise("High-confidence") == "high-confidence"
+        assert policies.normalise("High-confidence") == "High-confidence"
 
     def test_folds_ligatures(self):
         assert policies.normalise("ﬁlter") == "filter"
         assert policies.normalise("ﬂavour") == "flavour"
 
     def test_folds_curly_quotes_and_dashes(self):
-        assert policies.normalise("\u201cHigh-confidence\u201d") == '"high-confidence"'
+        assert policies.normalise("\u201cHigh-confidence\u201d") == '"High-confidence"'
         assert policies.normalise("a \u2013 b") == "a - b"  # en dash
 
     @pytest.mark.parametrize(

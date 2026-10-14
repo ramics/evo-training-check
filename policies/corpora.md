@@ -37,13 +37,16 @@ The structural fact that matters is not the release itself but which side of the
 Evo 2's curation section states that Evo 1's corpus was carried over whole, already filtered:
 
 [source: S-EVO2-PREPRINT, p22]
-> Our previously published OpenGenome dataset was used in its entirety as part of the trainingdataforthisstudy(nguyenetal., 2024a). thisincludedrepresentativeprokaryoticgenomesavailable through GTDB release v214.1, and curated phage and plasmid sequences retrieved through IMG/VR and IMG/PR.
+> Our previously published OpenGenome dataset was used in its entirety as part of the trainingdataforthisstudy(Nguyenetal., 2024a). Thisincludedrepresentativeprokaryoticgenomesavailable through GTDB release v214.1, and curated phage and plasmid sequences retrieved through IMG/VR and IMG/PR.
 
-(The run-together words and lost capitals are artefacts of PDF text extraction from justified
-type, not the source. Rendered: "...as part of the training data for this study (Nguyen et al.,
-2024a). This included representative prokaryotic genomes available through GTDB release v214.1,
-...". Quoted as extracted, so the stored source and this file agree character for character; the
-same artefact appears in `evo.md` and is noted there too.)
+(The run-together words are an artefact of PDF text extraction from justified type, not the
+source. Rendered: "...as part of the training data for this study (Nguyen et al., 2024a). This
+included representative prokaryotic genomes available through GTDB release v214.1, ...". Quoted
+as extracted, so the stored source and this file agree character for character; the same
+artefact appears in `evo.md` and is noted there too. The capitals in `Nguyenetal.` and
+`Thisincluded` were lowercased here when the quote was first stored, and this file's own note
+previously blamed PDF extraction for losing them — extraction preserves them. X1.4's
+case-sensitive check caught it; see DECISIONS.md D-023.)
 
 [source: S-EVO2-PREPRINT, p22]
 > As previously described, the OpenGenome dataset was curated to exclude genomic sequences of viruses which infect eukaryotic hosts.
