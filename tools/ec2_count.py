@@ -60,8 +60,24 @@ set -xeuo pipefail
 exec > >(tee /dev/console) 2>&1
 echo "=== amazebio count starting $(date -Is) ==="
 
-dnf install -y python3-pip tar gzip >/dev/null
-pip3 install --quiet boto3
+dnf install -y tar gzip >/dev/null
+
+# Amazon Linux 2023 ships python3.9 as `python3`, and this project needs 3.12
+# (pyproject requires-python) — `datetime.UTC` alone is 3.11+. Picking the
+# interpreter explicitly rather than trusting `python3` is the difference between
+# running and an ImportError 27 seconds in.
+PYBIN=""
+for cand in python3.12 python3.11; do
+  dnf install -y "$cand" "$cand-pip" >/dev/null 2>&1 || true
+  if command -v "$cand" >/dev/null 2>&1; then PYBIN="$cand"; break; fi
+done
+if [ -z "$PYBIN" ]; then
+  echo "FATAL: no python 3.11+ available; nothing to run"
+  shutdown -h now
+  exit 1
+fi
+echo "=== interpreter: $PYBIN ($($PYBIN -V)) ==="
+"$PYBIN" -m pip install --quiet boto3
 
 mkdir -p /opt/amazebio && cd /opt/amazebio
 aws s3 cp "s3://{bucket}/{code_key}" code.tar.gz --region {region}
@@ -71,7 +87,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
 # One process per tier. A gzip stream cannot be split, so this is the whole of
 # the available parallelism; the tiers differ in size so they finish apart.
 for tier in {tiers}; do
-  ( python3 tools/count_clusters.py --tier "$tier" \
+  ( "$PYBIN" tools/count_clusters.py --tier "$tier" \
       --outdir "/opt/amazebio/out-$tier" --upload-results --allow-dirty \
       --code-commit {commit} \
       --progress-seconds 60 ; echo "=== $tier exited $? ===" ) &
