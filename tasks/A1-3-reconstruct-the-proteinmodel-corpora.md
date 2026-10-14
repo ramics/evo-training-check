@@ -2,13 +2,13 @@
 id: A1.3
 title: Reconstruct the protein-model corpora
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.1]
 blocks: [A1.4, A4.3, A8.1, C5.2]
 design_ref: "§A1"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # A1.3 — Reconstruct the protein-model corpora
