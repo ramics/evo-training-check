@@ -2,7 +2,7 @@
 id: B1.2
 title: Build the zero-shot scoring harness
 phase: B
-status: blocked
+status: ready
 gate: false
 depends_on: [B1.1]
 blocks: [B5.2]
