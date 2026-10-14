@@ -995,3 +995,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   ESM3-open is itself a reportable asymmetry and A1.5's file carries the warning: ESM-2's corpus
   carries no acquisition qualifier, nothing in A1.5 can reach that standard, and a write-up must
   not place the two side by side as though it could.
+
+### D-031 — A1.2 stages the filter-relevant components only, from the FASTA representation
+- **Date:** 2026-10-14
+- **Task:** A1.2
+- **Context:** Both Evo corpora are released and A1.1 verified them as published, so there was no
+  acquisition question — only a scope one. OpenGenome2 is 5.52 TB across 1,126 files, published
+  twice over: a `fasta/` tree and a `json/` tree holding the same sequences. The corpus bucket
+  withholds `s3:DeleteObject`, so anything staged is permanent spend, which makes the scope call
+  irreversible and therefore the project owner's rather than a worker's. Four options were costed
+  from the pinned manifests and put to the owner: the filter-relevant components (144 GB,
+  ~$3/month), those plus the metagenomic component (396 GB, ~$9), all of one representation
+  (2.88 TB, ~$66), or both representations of everything (5.67 TB, ~$130).
+- **Decision:** **The filter-relevant tier, in the FASTA representation, pinned to commit SHAs.**
+  Twelve files, 134.2 GiB, about $3.32/month: Evo 2's IMG/VR viral component, IMG/PR plasmids, GTDB
+  prokaryotic genomes, promoters, ncRNA and organelles, plus Evo 1's `stage2` viral component.
+  Three parts of this are commitments rather than implementation detail.
+  **The representation choice is evidence-driven, not a preference.** The FASTA viral records carry
+  `IMGVR_UViG_*` source accessions; the JSON viral records carry a bare `text` field with no
+  accession and no lineage tag — the component is literally named `imgvr_untagged`. A7.1 diffs
+  released viral records against IMG/VR v4, and a record with no accession cannot be diffed, so the
+  JSON could not do the job at any price. Staging both would have doubled a permanent cost to hold
+  a copy that cannot support the claim. Both representations still appear in the composition table:
+  unstaged is not the same as not corpus.
+  **The pin is a commit, not `main`.** Both releases have moved since publication. All 1,123 of
+  OpenGenome2's sequence files were last touched on 2025-02-17/18 alongside the preprint and none
+  has changed since, so the pinned revision carries publication-time sequence content — but that is
+  a fact established from the commit history, not something `main` guarantees.
+  **Verification gates the upload, not the other way round.** Each file is hashed as it streams and
+  `complete_multipart_upload` is called only once the digest matches the SHA-256 the release
+  publishes for that file; a mismatch aborts and writes nothing. With no delete, that ordering is
+  the only chance to not write the wrong bytes — the same commitment D-026 made for UniRef.
+- **Rejected:** Staging all of one representation (2.88 TB, ~$66/month) — it would cover A2.3's
+  eukaryotic component, but A2.3 is not started and deferring costs only a second resumable pass
+  over one named component, against a twentyfold standing bill from now until the project ends.
+  Both representations (5.67 TB, ~$130/month) — the extra copy is the untraceable one.
+  Pinning `main` — it has moved twice since publication and would move again.
+  Staging the eukaryotic and metagenomic components "while we are here" — that is scope creep with
+  a monthly invoice, and AGENTS.md names scope creep as a live risk.
+  Deciding the cost unilaterally the way D-026 did at ~$5.50/month — the span here was $3 to $130
+  and the write cannot be undone, so it was not a worker's call.
+- **Consequence:** A1.4, A4.3 and A7.1 have the nucleotide corpora they need, and A7.1 in
+  particular can now run as a real diff: pinned input (IMG/VR v4 at its own publisher) against
+  pinned, accession-bearing output. **A2.3 and A4.1 must each stage their own component before
+  they can run** — 2.17 TB of eukaryotic genomes and 252 GB of metagenomes respectively. That is a
+  known, named, resumable pass with the tier flag already in the code, not a redesign, and whoever
+  picks those tasks up should expect to re-ask the cost question for their component.
+  Two things found along the way are recorded in `policies/evo.md` §7–8 rather than here, because
+  they are observations about the releases and not decisions: the published procedure's subject is
+  0.2% of OpenGenome2 against 82% eukaryotic genomes the filter never saw, which is DESIGN.md
+  §A1's scope gap measured; and Evo 1's inline lineage tags appear not to have survived into Evo
+  2's release, on a four-file sample that A7.1 will settle properly.
