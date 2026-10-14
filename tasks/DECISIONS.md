@@ -859,3 +859,32 @@ decision has a threshold or parameter in it, the number goes in the entry.
   itself and is recorded in the task file: **the release bundles XML, not FASTA**, which happens to
   suit D-025, since UniRef XML states cluster membership explicitly rather than leaving it to be
   reconstructed.
+
+### D-027 — ESM-2's corpus is staged and verified against the release's own md5
+- **Date:** 2026-10-14
+- **Task:** A1.3
+- **Context:** D-024 pinned ESM-2 to UniRef 2021_04 but could only do so from the release notes,
+  with the bytes out of reach; D-026 settled how to acquire them. Until a run actually matched the
+  published checksum, every ESM-2 result had to carry an acquisition proxy qualifier.
+- **Decision:** **The qualifier is dropped for ESM-2.** One streaming pass read all
+  169,188,630,923 bytes of `uniref2021_04.tar.gz` with zero reconnects, and the md5 over the whole
+  stream is `444f0a7062a65a988ba1d5949d1d6419` — the value UniProt publishes for that release. The
+  staged corpus is therefore the released bytes, not a reconstruction resembling them, and
+  `artifacts/a1-3/run.json` records `verified: true` as the evidence. Staged at
+  `s3://amazebio-corpora-897641797669/corpora/uniref/2021_04/`: `uniref50.xml.gz` (25,107,210,941
+  bytes), `uniref90.xml.gz` (50,350,462,472 bytes), and the archive verbatim (169,188,630,923
+  bytes). 244.6 GB in total, about $5.63/month.
+- **Rejected:** Nothing was rejected here — this entry records a verification outcome rather than a
+  judgement call. It is logged because the distinction it settles, between a corpus that matches
+  the release and one that merely claims the same version, is exactly what §7 requires an
+  adversarial reader to be able to check, and because the wording of every downstream ESM-2 claim
+  depends on it.
+- **Consequence:** A1.3's remaining work is no longer acquisition. The composition check is the open
+  piece: `amazebio.uniref.composition_check` compares counted clusters against 49,874,565 for
+  UniRef50 and 138,515,945 for UniRef90, and nothing counts them yet. Counting means parsing the
+  staged XML, which D-026 says should run in us-east-1. Note the release ships **XML only, no
+  FASTA**, which suits D-025: UniRef XML states cluster membership explicitly.
+  One caveat for whoever reads the bucket: it also holds four 0-byte objects — the two nested
+  container tars, which matched their own tier filter and uploaded empty before the filter was
+  fixed, and a `.probe` from verifying bucket access. The bucket withholds `s3:DeleteObject`, so
+  they are permanent. They are not part of the corpus.
