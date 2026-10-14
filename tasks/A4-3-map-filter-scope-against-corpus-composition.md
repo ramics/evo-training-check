@@ -4,7 +4,7 @@ title: Map filter scope against corpus composition
 phase: A
 status: blocked
 gate: false
-depends_on: [A0.3, A1.2, A1.3]
+depends_on: [A0.3, A1.2, A1.3, A1.5]
 blocks: [A6.1]
 design_ref: "§A4, §2 HA, §6 weekend 2"
 deliverable: 1

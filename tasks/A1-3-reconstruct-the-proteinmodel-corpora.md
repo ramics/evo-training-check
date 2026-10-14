@@ -2,7 +2,7 @@
 id: A1.3
 title: Reconstruct the protein-model corpora
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.1]
 blocks: [A1.4, A4.3, A8.1, C5.2]
@@ -46,7 +46,7 @@ DECISIONS.md D-017.
   published held-out cluster IDs. Cheapest corpus here and the right first target.
 - **ESM-C — not applicable.** No stated exclusion and no corpus release; comparison only.
 
-## State — 2026-10-14 (third pass) — complete, ready for review
+## State — 2026-10-14 — DONE (ESM-2); ESM3-open split out as A1.5
 
 **Merged into `main`.** Branch `claude/blissful-goldberg-a91zwz` is merged; nothing is left in
 flight. The acquisition and counting pipelines are `src/amazebio/uniref.py` with

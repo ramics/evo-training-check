@@ -2,7 +2,7 @@
 id: A8.1
 title: Measure agreement between the two filters
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.3, A1.3]
 blocks: []

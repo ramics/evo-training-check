@@ -4,7 +4,7 @@ title: Apply policy predicates to produce surviving corpora
 phase: A
 status: blocked
 gate: false
-depends_on: [A0.3, A1.2, A1.3]
+depends_on: [A0.3, A1.2, A1.3, A1.5]
 blocks: [A2.1, A2.2, A2.3, A2.4, A2.5, A4.1, A4.2, A5.1, B3.1, B3.2, B3.3]
 design_ref: "§A1, §A2"
 deliverable: 1

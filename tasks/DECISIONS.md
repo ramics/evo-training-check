@@ -961,3 +961,37 @@ decision has a threshold or parameter in it, the number goes in the entry.
   release and the model saw roughly 86% of it, with the missing portion selected by similarity to an
   unpublished validation split rather than at random. That last point matters more than the
   percentage — the excluded clusters are not a uniform sample, so the gap is not simply noise.
+
+### D-030 — A1.3 closes on ESM-2; ESM3-open's corpus becomes A1.5
+- **Date:** 2026-10-14
+- **Task:** A1.3 → A1.5
+- **Context:** A1.3 was scoped to "the protein-model corpora", plural, and its Done-when requires
+  the stated-versus-used gap recorded *per model*. ESM-2 is finished to a standard nothing else in
+  the project has yet reached: the archive verified against UniProt's published md5 across all
+  169,188,630,923 bytes, and both tiers counted exactly to the release notes' 49,874,565 and
+  138,515,945. ESM3-open's proxy corpus is not started. Leaving A1.3 open would block A1.4 on work
+  that is a different problem, and marking it done silently would leave four downstream tasks
+  depending on a corpus nobody staged.
+- **Decision:** **Split rather than widen or shrink.** A1.3 is `done` for ESM-2. ESM3-open's corpus
+  is now **A1.5**, `ready`, depending on A1.1 and blocking A1.4 and A4.3. The split follows
+  AGENTS.md: a task that turns out to be two tasks becomes two files, not a quietly redefined one.
+  It is a split rather than a scope reduction because ESM3-open is a different kind of problem —
+  there are no pinned bytes to acquire, so the work is establishing what ESM3 states at all, and
+  A1.1 already fixes the answer as proxy-only.
+  **Which downstream tasks A1.5 blocks was a judgement call and should be challenged if wrong.**
+  A1.4 runs the three readings "against each staged corpus", so it needs every corpus including the
+  ESM3 proxy. A4.3 needs per-model corpus composition to state what fraction was never a candidate
+  for removal. A8.1 applies both filters to "one common corpus", which the staged UniRef satisfies,
+  so it is not blocked and is now `ready`. C5.2 indexes homology neighbourhoods across sequence
+  space and is not model-specific. The board's reverse edges were corrected to match, and
+  `tools/board.py --check` passes on 62 tasks.
+- **Rejected:** Holding A1.3 open until ESM3-open is staged — it would block A1.4 and A4.3 on
+  finished work, and a task that stays open because part of its title is unaddressed teaches the
+  board to be ignored. Marking A1.3 done and leaving ESM3-open unrecorded — the §A0 finding about
+  ESM3's unstated versions is a result the project wants, not an oversight to drop; it would simply
+  have vanished. Renumbering A1.3 or editing its title to say "ESM-2" — IDs and titles are cited
+  from commits and write-ups.
+- **Consequence:** Six tasks are now ready, including A1.5 and A8.1. The contrast between ESM-2 and
+  ESM3-open is itself a reportable asymmetry and A1.5's file carries the warning: ESM-2's corpus
+  carries no acquisition qualifier, nothing in A1.5 can reach that standard, and a write-up must
+  not place the two side by side as though it could.
