@@ -429,3 +429,55 @@ def test_a_large_member_is_walked_without_reading_it():
     stream = uniref.GunzipStream(io.BytesIO(gzip.compress(bytes(header))))
     members = [m for m, _ in uniref.iter_tar_members(stream)]
     assert [(m.name, m.size) for m in members] == [("big.tar", 93_719_050_240)]
+
+
+# --------------------------------------------------------------------------- #
+# Retaining the archive verbatim in the same pass
+# --------------------------------------------------------------------------- #
+
+
+def test_tap_sees_the_compressed_bytes_not_the_decompressed_ones():
+    """The retained copy must be the released bytes, since only those match the
+    published md5. A tap that received decompressed bytes would silently retain
+    something that can never be verified against the release."""
+    raw = nested_release()
+    captured = bytearray()
+    stream = uniref.GunzipStream(io.BytesIO(raw), tap=captured.extend)
+    for _member, payload in uniref.iter_tar_members(
+        stream, want=lambda m: True, recurse_into=lambda m: m.name.endswith(".tar")
+    ):
+        b"".join(payload)
+    stream.drain()
+    assert bytes(captured) == raw
+    assert stream.compressed_md5() == hashlib.md5(raw).hexdigest()
+
+
+def test_one_pass_both_retains_and_extracts():
+    """The whole point of the tap: 169 GB is pulled once, not twice."""
+    fifty = b">c1\n" + noise(30_000)
+    raw = nested_release(fifty=fifty)
+    client = FakeS3()
+    archive = uniref.S3PartSink(client, "bucket", "archive.tar.gz").open()
+    stream = uniref.GunzipStream(io.BytesIO(raw), tap=archive.write)
+    extracted = {}
+    for member, payload in uniref.iter_tar_members(
+        stream,
+        want=lambda m: m.name == "uniref50.fasta",
+        recurse_into=lambda m: m.name.endswith(".tar"),
+    ):
+        if member.name == "uniref50.fasta":
+            extracted[member.name] = b"".join(payload)
+    stream.drain()
+    archive.complete()
+    assert extracted["uniref50.fasta"] == fifty
+    assert client.assembled() == raw
+
+
+def test_an_aborted_archive_upload_leaves_no_object():
+    client = FakeS3()
+    sink = uniref.S3PartSink(client, "bucket", "archive.tar.gz").open()
+    sink.write(b"partial")
+    sink.abort()
+    assert client.aborted
+    assert client.completed is None
+    assert not sink.completed

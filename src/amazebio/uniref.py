@@ -176,10 +176,25 @@ class GunzipStream:
     rather than returning a hash of a prefix that looks like a verification.
     """
 
-    def __init__(self, source: Any, *, digest: str = "md5") -> None:
+    def __init__(
+        self,
+        source: Any,
+        *,
+        digest: str = "md5",
+        tap: Callable[[bytes], None] | None = None,
+    ) -> None:
+        """
+        Args:
+            tap: receives every compressed chunk as it arrives, before
+                decompression. This is how the release archive is retained
+                verbatim in the same pass that extracts from it: the raw bytes
+                are the only form whose md5 matches the published one, and
+                pulling 169 GB twice to get both would be the alternative.
+        """
         self._source = source
         self._decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
         self._digest = hashlib.new(digest)
+        self._tap = tap
         self._buffer = bytearray()
         self._source_exhausted = False
         self.compressed_bytes = 0
@@ -195,6 +210,8 @@ class GunzipStream:
                 return False
             self._digest.update(raw)
             self.compressed_bytes += len(raw)
+            if self._tap is not None:
+                self._tap(raw)
             out = self._decompressor.decompress(raw)
             if self._decompressor.eof and self._decompressor.unused_data:
                 # Concatenated gzip members: start the next one where this ended.
@@ -467,11 +484,17 @@ class S3PartSink:
         self.bytes_written = 0
         self.completed = False
 
-    def __enter__(self) -> S3PartSink:
+    def open(self) -> S3PartSink:
+        """Begin the upload. Separate from `__enter__` so a sink whose lifetime
+        does not match a `with` block — the archive retained across the whole
+        pass, rather than one member of it — can still be driven explicitly."""
         self._upload_id = self._client.create_multipart_upload(Bucket=self.bucket, Key=self.key)[
             "UploadId"
         ]
         return self
+
+    def __enter__(self) -> S3PartSink:
+        return self.open()
 
     def write(self, chunk: bytes) -> None:
         self._digest.update(chunk)
@@ -493,10 +516,8 @@ class S3PartSink:
         )["ETag"]
         self._parts.append({"ETag": etag, "PartNumber": number})
 
-    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
-        if exc_type is not None:
-            self._abort()
-            return
+    def complete(self) -> None:
+        """Finish the upload, making the object permanent."""
         if self._buffer or not self._parts:
             self._flush(len(self._buffer))
         self._client.complete_multipart_upload(
@@ -507,7 +528,13 @@ class S3PartSink:
         )
         self.completed = True
 
-    def _abort(self) -> None:
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        if exc_type is not None:
+            self.abort()
+            return
+        self.complete()
+
+    def abort(self) -> None:
         if self._upload_id is None:
             return
         # Called while an exception is already propagating, so a failure to abort

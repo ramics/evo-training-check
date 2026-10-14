@@ -101,7 +101,15 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="stop after this many compressed bytes — for a smoke test",
     )
-    ap.add_argument("--part-bytes", type=int, default=64 << 20, help="multipart part size")
+    ap.add_argument(
+        "--raw",
+        action="store_true",
+        help="also retain the release archive verbatim, in the same pass",
+    )
+    # 128 MiB rather than the 5 MiB floor for a reason beyond efficiency: at this
+    # size the whole job is ~1,820 uploads, which fits the account's free monthly
+    # allowance of 2,000. Smaller parts would double it for no benefit.
+    ap.add_argument("--part-bytes", type=int, default=128 << 20, help="multipart part size")
     ap.add_argument("--outdir", type=Path, default=OUTDIR)
     ap.add_argument(
         "--allow-dirty", action="store_true", help="iteration only, never for a cited run"
@@ -152,6 +160,7 @@ def _execute(
         manifest.parameter("tiers", list(tiers))
         manifest.parameter("max_compressed_bytes", args.max_compressed_bytes)
         manifest.parameter("part_bytes", args.part_bytes)
+        manifest.parameter("retain_raw_archive", bool(args.raw))
         manifest.parameter("destination", f"s3://{bucket}/{key_prefix}" if args.stage else None)
         manifest.note(
             "DECISIONS.md D-025: the ESM-2 corpus is UniRef50 clusters with their UniRef90 "
@@ -166,7 +175,15 @@ def _execute(
                 flush=True,
             ),
         )
-        stream = uniref.GunzipStream(reader)
+        raw_sink = None
+        if args.raw and args.stage:
+            raw_key = f"{key_prefix}/uniref/{uniref.RELEASE}/uniref{uniref.RELEASE}.tar.gz"
+            raw_sink = uniref.S3PartSink(
+                client, bucket, raw_key.replace("//", "/"), part_bytes=args.part_bytes
+            ).open()
+            print(f"retaining the archive verbatim -> s3://{bucket}/{raw_sink.key}", flush=True)
+
+        stream = uniref.GunzipStream(reader, tap=None if raw_sink is None else raw_sink.write)
 
         started = time.monotonic()
         last_report = started
@@ -259,6 +276,31 @@ def _execute(
                 manifest.note(
                     f"published md5 {uniref.ARCHIVE_MD5} but read {actual} — the staged bytes "
                     "are not the released bytes and nothing downstream may treat them as such"
+                )
+
+        if raw_sink is not None:
+            if md5_verified is not True:
+                # The retained copy is only worth anything as a verifiable stand-in
+                # for the release. Completing it without a matching md5 would put an
+                # object into a bucket that withholds s3:DeleteObject, permanently,
+                # claiming to be a release it has not been shown to be.
+                raw_sink.abort()
+                reason = "md5 did not match" if md5_verified is False else "md5 unverified"
+                manifest.note(f"retained archive abandoned: {reason}")
+                print(f"archive upload aborted: {reason}", flush=True)
+            else:
+                raw_sink.complete()
+                described = raw_sink.describe()
+                manifest.output_object(
+                    described["uri"],
+                    role="release-archive-verbatim",
+                    bytes=described["bytes"],
+                    sha256=described["sha256"],
+                    md5_verified=md5_verified,
+                )
+                print(
+                    f"archive retained -> {described['uri']} ({human(described['bytes'])})",
+                    flush=True,
                 )
 
         manifest.input_url(
