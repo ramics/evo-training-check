@@ -332,7 +332,11 @@ def _stage_release(
 
     path = args.outdir / f"staged_{release.key}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(staged_rows, indent=2, sort_keys=True) + "\n")
+    previous: list[dict[str, Any]] = []
+    if path.exists():
+        previous = json.loads(path.read_text())
+    merged = og.merge_staged_rows(previous, staged_rows)
+    path.write_text(json.dumps(merged, indent=2, sort_keys=True) + "\n")
     manifest.output_file(path, role=f"{release.key}:staged")
 
 

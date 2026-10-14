@@ -599,3 +599,32 @@ def test_a_manifest_that_never_reads_refuses_rather_than_staging_a_partial_one()
 
     with pytest.raises(VerificationError, match="could not read"):
         og.fetch_tree(og.OG2, opener=opener, sleep=lambda _: None)
+
+
+# --------------------------------------------------------------------------- #
+# The manifest only ever improves
+# --------------------------------------------------------------------------- #
+
+
+def test_a_resumed_pass_does_not_discard_the_proof_an_earlier_pass_recorded():
+    """The provenance bug this guards, which happened once for real: a resumed
+    pass skips the large files, so its rows are weaker than the rows written when
+    those files were uploaded and hashed. Overwriting the manifest with them
+    erased the evidence that the corpus had ever been checked."""
+    first = [{"path": "a", "verified": True, "verified_by": "stream", "sha256": "ab"}]
+    second = [{"path": "a", "verified": False, "verified_by": "none: skipped", "sha256": ""}]
+    merged = og.merge_staged_rows(first, second)
+    assert merged == first
+
+
+def test_a_stronger_check_replaces_a_weaker_one():
+    stream = [{"path": "a", "verified": True, "verified_by": "stream", "sha256": "ab"}]
+    readback = [{"path": "a", "verified": True, "verified_by": "readback", "sha256": "ab"}]
+    assert og.merge_staged_rows(stream, readback) == readback
+
+
+def test_merging_keeps_files_only_one_pass_saw():
+    merged = og.merge_staged_rows(
+        [{"path": "a", "verified_by": "stream"}], [{"path": "b", "verified_by": "readback"}]
+    )
+    assert [r["path"] for r in merged] == ["a", "b"]

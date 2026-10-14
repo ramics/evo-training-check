@@ -638,6 +638,36 @@ def verify_staged_object(
     return digest.hexdigest() == blob.sha256, digest.hexdigest()
 
 
+#: How much a given kind of verification is worth, for merging manifests across
+#: passes. Readback beats an in-flight hash because it checks the bytes the
+#: bucket holds; both beat no check at all.
+VERIFICATION_STRENGTH = {"readback": 3, "stream": 2}
+
+
+def verification_strength(row: dict[str, Any]) -> int:
+    return VERIFICATION_STRENGTH.get(row.get("verified_by", ""), 0)
+
+
+def merge_staged_rows(
+    existing: Iterable[dict[str, Any]], fresh: Iterable[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Combine a previous pass's record with this one's, keeping the stronger proof.
+
+    A resumed pass skips what is already staged, so its rows are *weaker* than the
+    rows written when those files were first uploaded and hashed. Overwriting the
+    manifest with them destroys the evidence that the corpus was ever checked —
+    which is what happened here once, and is a provenance bug rather than an
+    untidy file: the manifest is what a reader cites, and §7 expects them to be
+    able to check it. So the record only ever improves.
+    """
+    merged: dict[str, dict[str, Any]] = {row["path"]: row for row in existing}
+    for row in fresh:
+        prior = merged.get(row["path"])
+        if prior is None or verification_strength(row) >= verification_strength(prior):
+            merged[row["path"]] = row
+    return [merged[path] for path in sorted(merged)]
+
+
 def stage_blob(
     release: Release,
     blob: Blob,
