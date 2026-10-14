@@ -32,7 +32,6 @@ pyyaml = ">=6,<7"
 # does not record. AGENTS.md requires a result to regenerate from pinned inputs, and a
 # transfer is only as reproducible as the thing that performed it. Added by A1.5.
 boto3 = ">=1.43.111,<2"
-boto3 = ">=1.43.111,<2"
 
 # Make `import amazebio` work in every pixi task and shell without a build step
 # or an editable pip install, so a pipeline script and a test see the same package.
