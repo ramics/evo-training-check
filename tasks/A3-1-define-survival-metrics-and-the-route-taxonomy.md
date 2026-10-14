@@ -2,13 +2,13 @@
 id: A3.1
 title: Define survival metrics and the route taxonomy
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A0.2]
 blocks: [A3.2, C5.1]
 design_ref: "§A3"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A3.1 — Define survival metrics and the route taxonomy
