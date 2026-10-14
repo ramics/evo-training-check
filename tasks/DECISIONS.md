@@ -1130,3 +1130,51 @@ decision has a threshold or parameter in it, the number goes in the entry.
   rows from "stream" to "readback". If A7.1 is re-scoped away from reading those objects, the
   obligation moves to whichever in-region task reads them first; it should not become a reason to
   launch an instance on its own.
+
+### D-033 — A1.5 stages the two components ESM3 states exactly, at their published granularity
+- **Date:** 2026-10-14
+- **Task:** A1.5
+- **Context:** D-032 established that all eight of ESM3's components carry a stated release but
+  only two can be obtained as stated: UniRef 2023_02 and MGnify 2023_02, both still served with a
+  publisher checksum. JGI and OAS have no dated snapshot at all. AlphaFoldDB v4 and ESMAtlas are
+  stated exactly but are large and fall outside the filter's named scope. That left a scope question
+  A1.5 could not settle itself, for the same reason D-031 could not: the corpus bucket withholds
+  `s3:DeleteObject`, so anything staged is permanent spend. Four options were costed and put to the
+  project owner, spanning $0 to about $15 a month.
+- **Decision:** **UniRef 2023_02's three tiers plus MGnify 2023_02's 90%-clustered product.** About
+  294 GB, roughly $6.80 a month. Three parts of this are commitments rather than implementation
+  detail.
+  **All three UniRef tiers, because the tier is unstated.** ESM3 says "UniRef release 2023 02" and
+  the release holds UniRef50, UniRef90 and UniRef100 — 60,479,070, 170,669,877 and 350,950,053
+  clusters. Staging one would be choosing on the reader's behalf and would have to be defended in
+  the write-up; staging all three makes the proxy independent of a question nobody can answer.
+  **MGnify at the granularity its name states, not both readings.** "MGnify90" is the release's
+  90%-clustered product, served as one 83,473,342,442-byte file with a published md5. The full
+  2.97-billion-sequence protein set behind it is 362 GB more, and D-032 established that the
+  published counts cannot settle which was parsed. The clustered product is what the name says, and
+  the other reading is deferred rather than bought at four times the price.
+  **The raw UniRef archive is not retained, which is where this departs from A1.3.** A1.3 kept its
+  169 GB archive verbatim alongside the extracted tiers. Retention buys re-read speed and nothing
+  else: the md5 is verified in the same streaming pass either way, and both publishers serve
+  previous releases indefinitely — UniProt still serves 2021_04 and EBI still serves MGnify
+  releases from 2017. Not retaining it saves about $4.90 a month, permanently.
+- **Rejected:** UniRef only (~210 GB, ~$4.80/month) — it would leave the audit silent on MGnify,
+  which is 105.5B of ESM3's stated tokens and, carrying no taxonomic annotation at all, the clearest
+  case in the project of a component an alignment-based filter can reach and a taxonomy-based one
+  cannot. Both MGnify readings (~656 GB, ~$15/month) — the extra copy answers an ambiguity that the
+  published counts cannot resolve anyway, so it buys coverage of a question rather than an answer.
+  Staging nothing — the composition table and the findings need no bytes and are already committed,
+  but A1.4 would then run ESM3's predicates against ESM-2's UniRef 2021_04, which is a different
+  release as well as a different tier, and that substitution is worse than the storage bill.
+  Staging AlphaFoldDB or ESMAtlas "while we are here" — they are the two re-entry routes in
+  `policies/esm3-open.md` §8 and they matter, but measuring either is A2.2's work and A2.2 is not
+  started; this is the scope creep AGENTS.md names.
+- **Consequence:** A1.4 and A4.3 get the ESM3 proxy they depend on, at a standard that carries the
+  proxy qualifier A1.1 requires but no acquisition qualifier: both components are verified against
+  their publishers' own checksums. **Three things the next worker should expect.** JGI remains
+  unstageable, so every ESM3 coverage figure is a fraction of the components staged and must say so
+  — that is not fixable by spending more. The MGnify protein set and the two structure-side
+  components are deliberately unstaged, with the figures here; whoever needs one should re-ask the
+  cost question rather than assume it. And the stated-versus-used record for ESM3 is not a byte
+  comparison like ESM-2's: it is the component table in `src/amazebio/esm3.py`, because what ESM3
+  states and what is obtainable differ by release granularity rather than by content.
