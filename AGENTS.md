@@ -87,6 +87,11 @@ Three rules make that safe:
   it by hand. Run `python3 tools/board.py --check` after every such pull.
 - **Keep project-management commits free of work.** A commit that moves a status *and* changes
   a tool cannot land on `main` without dragging unreviewed work with it.
+- **A task in flight names its branch.** While a task is `in-progress` or `review`, its file
+  records — on `main` — the branch its work sits on, what is finished, what is left, and what is
+  waiting on the project owner. Without that, the split loses the pointer: `main` says `review`
+  while the code sits somewhere only the last worker knows, and whoever picks the task up next
+  cannot find it.
 
 One consequence to accept rather than work around: `DECISIONS.md` on `main` can describe code
 still sitting in a branch, so the log runs slightly ahead of the repo. That is the cost of
