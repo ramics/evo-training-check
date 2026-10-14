@@ -85,33 +85,42 @@ rather than complicating it: D-025 requires cluster membership preserved, and Un
 membership explicitly, where a FASTA reconstruction would have to infer it. Expect the same shape
 for the other two tiers; the run in flight will confirm it.
 
-**In flight right now.** The full pass is running: retaining the archive verbatim and extracting
-`uniref50` and `uniref90`. Whoever picks this up should check `artifacts/a1-3/run.json` and
-`artifacts/a1-3/members.json` for whether it completed and whether the md5 matched. Both are
-git-ignored, so if the container is gone, re-run
-`python3 tools/stage_uniref.py --stage --raw --tier uniref50 --tier uniref90` — the recipe is the
-deliverable and the bytes regenerate wherever it runs. The destination objects are listable under
-`s3://amazebio-corpora-897641797669/corpora/uniref/2021_04/`.
+**Done: the corpus is staged and verified.** One pass read all 169,188,630,923 bytes with zero
+reconnects, and the md5 over the whole stream matches the published
+`444f0a7062a65a988ba1d5949d1d6419`. So this is the released bytes, not a reconstruction resembling
+them, and ESM-2 results no longer carry an acquisition proxy qualifier — see DECISIONS.md D-027.
+Staged under `s3://amazebio-corpora-897641797669/corpora/uniref/2021_04/`: `uniref50.xml.gz`
+(25,107,210,941 bytes), `uniref90.xml.gz` (50,350,462,472 bytes), and the archive verbatim
+(169,188,630,923 bytes). The evidence is `artifacts/a1-3/run.json`, which records `verified: true`,
+and `artifacts/a1-3/members.json`, which records the archive's 15-member layout. Both are
+git-ignored, so re-run `python3 tools/stage_uniref.py --stage --raw --tier uniref50 --tier uniref90`
+to regenerate them; the recipe is the deliverable. Took 54 minutes at ~50 MB/s, upload-bound.
 
 **Not done.**
 
-- The composition table. `amazebio.uniref.composition_check` compares counted clusters against the
-  release notes' 49,874,565 for UniRef50 and 138,515,945 for UniRef90, but nothing counts them yet:
-  counting means parsing the staged XML, which is the obvious next step now that the tiers are
-  reachable and should be done in-region per D-026.
-- The ESM3-open proxy corpus, unchanged from the last pass and still the right second target.
-  A1.1's verdict already fixes the wording: proxy only, no corpus release. Step one is resolving
-  which tiers and versions ESM3 states at all — the paper names PDB, UniRef, MGnify and JGI without
-  versions, so expect the §A0 finding to be most of the result.
+- **The composition check — the one piece left before this task can go to review.**
+  `amazebio.uniref.composition_check` already compares counted clusters against the release notes'
+  49,874,565 for UniRef50 and 138,515,945 for UniRef90, but nothing counts them yet: it is called
+  with an empty mapping, so every row reads "unknown" rather than agreeing or disagreeing. Counting
+  means parsing the staged XML. D-026 says that should run in us-east-1, where reads are free.
+- The ESM3-open proxy corpus, unchanged and still the right next target. A1.1's verdict fixes the
+  wording: proxy only, no corpus release. Step one is resolving which tiers and versions ESM3 states
+  at all — the paper names PDB, UniRef, MGnify and JGI without versions, so expect the §A0 finding
+  to be most of the result.
 - Retry `S-ESM2-PREPRINT`. Still the first-party statement of ESM-2's training data that the pin
   lacks; the blocker was host rate limiting, which lifts.
 
-**Waiting on the project owner.** Nothing. The previous pass's request — a machine with ~300 GB of
-disk and AWS credentials — is resolved by the bucket plus streaming.
+**Waiting on the project owner.** Nothing blocking. Acquisition is done without it. An EC2 route
+was explored to make the staging and the coming counting pass run in-region: `ec2:RunInstances` is
+permitted with `Project=ClaudeSpike` and an `Owner` tag, but no instance profile resolves, and
+`iam:*` is denied so it cannot be created or inspected from here. It would need a role with the
+bucket's write permissions, an instance profile holding it, and `iam:PassRole` scoped to that role.
+Worth having for the counting pass, which re-reads 75 GB; not worth blocking on.
 
-**One housekeeping note.** A one-byte `corpora/.probe` object from verifying bucket access is still
-in the bucket; the IAM user has no `s3:DeleteObject`, so it cannot be removed from here. Harmless,
-but it is not part of the corpus.
+**Housekeeping.** The bucket holds four 0-byte objects that are not part of the corpus: the two
+nested container tars, which matched their own tier filter and uploaded empty before that was
+fixed, and a `.probe` from verifying bucket access. The bucket withholds `s3:DeleteObject`, so they
+are permanent.
 
 ## Notes
 
