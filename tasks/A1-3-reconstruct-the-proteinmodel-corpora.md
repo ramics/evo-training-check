@@ -46,54 +46,81 @@ DECISIONS.md D-017.
   published held-out cluster IDs. Cheapest corpus here and the right first target.
 - **ESM-C — not applicable.** No stated exclusion and no corpus release; comparison only.
 
-## State — 2026-10-14 (second pass)
+## State — 2026-10-14 (third pass)
 
-Branch `ccr-2956d088-s25hlk` is merged (PR #3), so everything the first pass produced is on `main`.
-Work continues on branch `claude/modest-davinci-mb4svs`, pushed and green, not yet merged.
+Work continues on branch `claude/blissful-goldberg-a91zwz`, pushed and green, not yet merged. It
+carries the second pass's branch (`claude/modest-davinci-mb4svs`, D-025) merged into it, so that
+branch needs no separate review.
 
-**Done this pass.** `UR50/S` versus `UR50/D` is resolved — it was the open blocker below. The
-suffixes are defined in the lab's earlier ESM-1b paper, not in the ESM-2 paper: `/S` is one UniRef50
-representative per cluster, `/D` is cluster members drawn evenly across clusters. ESM-2 is `/D`, so
-**the pipeline stages UniRef50 clusters with their UniRef90 members and membership preserved, not
-the 49,874,565 representatives** — staging representatives would reconstruct a different dataset.
-Reasoning, the cross-check that licenses applying an earlier paper's notation, and the two residual
-gaps are in DECISIONS.md D-025. The PNAS version of record is stored as `S-ESM1B-PNAS`; ESM-2's own
-paper is now recorded as unretrieved with its blocker (bioRxiv rate-limits every path, Science is
-paywalled), so the corpus pin still rests on the repository's model table. `policies/corpora.md` §6
-carries a pointer to the two clauses of A1.1's verdict that D-024 and D-025 invalidate.
+**The staging blocker is lifted.** The project owner provided an S3 bucket in the project account,
+and the 300 GB machine the last pass asked for turns out not to be needed: the archive's endpoint
+supports ranged reads, so the compressed stream is resumable, and it can be pulled, verified, split
+and uploaded in one forward pass with nothing buffered to local disk. Measured pull rate 86.7 MB/s,
+so the transfer is tens of minutes rather than a day. The acquisition decision, the cost figures it
+was made on, and the commitments that came with it are in DECISIONS.md D-026.
 
-**Done, first pass.** ESM-2's version pin is corrected from UniRef 2018-03 to **UniRef50 2021_04, with
-training sequences sampled from UniRef90**, verified from the repository's own model table rather
-than inferred. `policies/esm2.md` is rewritten; the reasoning and the knock-on
-effects are in DECISIONS.md D-024. Retrievability of that release is established: the archive
-serves 2021_04 only as a single 158 GB `uniref2021_04.tar.gz`, published md5
-`444f0a7062a65a988ba1d5949d1d6419`, whose first member is a 93.7 GB `uniref100.tar` — so UniRef50
-sits tens of gigabytes into the stream. The release notes give UniRef50 at 49,874,565 clusters, so
-the pin is exact even where the bytes are not local. The project owner's acquisition decision is
-recorded in D-024: 2021_04 is canonical, and the current per-tier release is an explicit proxy
-mode that stamps the stated-vs-used gap onto every output.
+**Done this pass.** The acquisition pipeline the last pass listed as missing now exists:
+`src/amazebio/uniref.py` (streaming, resume, tar walk, object-storage sink) and
+`tools/stage_uniref.py` (`--probe` to report the layout, `--stage` to upload), with 29 tests.
+`amazebio.repro` gains `input_url` and `output_object`, because a 169 GB input is never a local file
+here and the pin rests on the publisher's published md5 instead — `input_url` records whether the
+run actually matched it, so a partial run cannot be cited as a verified one.
+
+Two things the pipeline had to learn from the real archive rather than from its fixtures, both now
+covered by tests:
+
+- **Sizes use GNU base-256, not octal.** A tar size field is 12 bytes of octal and tops out just
+  under 8 GiB; the archive's first member is a 93,719,050,240-byte `uniref100.tar`. The octal-only
+  reader failed on the very first header. The 93.7 GB it decodes to matches what this file already
+  recorded for that member, which is the cross-check that it is read correctly.
+- **A nested tar's walk ends before its last byte.** The tiers are tars inside the outer archive,
+  and a tar ends at a two-block marker followed by padding to its record size. Those bytes must be
+  measured and skipped or the next outer header is read from inside the padding. The same fact makes
+  the whole-archive md5 need an explicit drain: hashing only the bytes a walk happened to read
+  verifies nothing.
+
+**New finding: the release bundles XML, not FASTA.** `uniref100.tar` contains `README`,
+`uniref100.release_note` and `uniref100.xml.gz` (87.3 GiB) — no FASTA anywhere. This suits D-025
+rather than complicating it: D-025 requires cluster membership preserved, and UniRef XML states
+membership explicitly, where a FASTA reconstruction would have to infer it. Expect the same shape
+for the other two tiers; the run in flight will confirm it.
+
+**Done: the corpus is staged and verified.** One pass read all 169,188,630,923 bytes with zero
+reconnects, and the md5 over the whole stream matches the published
+`444f0a7062a65a988ba1d5949d1d6419`. So this is the released bytes, not a reconstruction resembling
+them, and ESM-2 results no longer carry an acquisition proxy qualifier — see DECISIONS.md D-027.
+Staged under `s3://amazebio-corpora-897641797669/corpora/uniref/2021_04/`: `uniref50.xml.gz`
+(25,107,210,941 bytes), `uniref90.xml.gz` (50,350,462,472 bytes), and the archive verbatim
+(169,188,630,923 bytes). The evidence is `artifacts/a1-3/run.json`, which records `verified: true`,
+and `artifacts/a1-3/members.json`, which records the archive's 15-member layout. Both are
+git-ignored, so re-run `python3 tools/stage_uniref.py --stage --raw --tier uniref50 --tier uniref90`
+to regenerate them; the recipe is the deliverable. Took 54 minutes at ~50 MB/s, upload-bound.
 
 **Not done.**
 
-- The acquisition pipeline itself, which is the artefact this repo keeps: `data/` is git-ignored
-  and a cloud session's disk is ephemeral, so the recipe and the provenance are the deliverable
-  and the bytes are regenerated wherever it runs. It should pin the release, verify the published
-  md5, extract the UniRef50 clusters **and their UniRef90 members** — D-025 settles that members
-  are the corpus — and write the composition table and `run.json` through `amazebio.repro.run`.
-  The composition table reports members as well as clusters, against the release notes' 49,874,565.
-- The ESM3-open proxy corpus. This is the better next step while the ESM-2 bytes are out of
-  reach, and A1.1's verdict already fixes how it must be worded: proxy only, no corpus release.
-  Step one is resolving which tiers and versions ESM3 states at all: the paper names PDB, UniRef,
-  MGnify and JGI without versions, so expect the §A0 finding to be most of the result.
-- Retry `S-ESM2-PREPRINT`. The blocker is host rate limiting, which lifts, and the paper is the
-  first-party statement of ESM-2's training data that the pin currently lacks.
+- **The composition check — the one piece left before this task can go to review.**
+  `amazebio.uniref.composition_check` already compares counted clusters against the release notes'
+  49,874,565 for UniRef50 and 138,515,945 for UniRef90, but nothing counts them yet: it is called
+  with an empty mapping, so every row reads "unknown" rather than agreeing or disagreeing. Counting
+  means parsing the staged XML. D-026 says that should run in us-east-1, where reads are free.
+- The ESM3-open proxy corpus, unchanged and still the right next target. A1.1's verdict fixes the
+  wording: proxy only, no corpus release. Step one is resolving which tiers and versions ESM3 states
+  at all — the paper names PDB, UniRef, MGnify and JGI without versions, so expect the §A0 finding
+  to be most of the result.
+- Retry `S-ESM2-PREPRINT`. Still the first-party statement of ESM-2's training data that the pin
+  lacks; the blocker was host rate limiting, which lifts.
 
-**Waiting on the project owner.** Staging the 2021_04 bundle needs a machine with roughly 300 GB
-of disk — download, verify the md5, then extract, in that order. AWS credentials were to arrive as
-an environment secret under names of the owner's choosing; until they do, the pipeline can only
-run in proxy mode. Note that A1.1 expected ESM-2 to be the cheapest corpus here and the right
-first target. D-024 withdraws that: the pin is exact, but the bytes are the most expensive of the
-four.
+**Waiting on the project owner.** Nothing blocking. Acquisition is done without it. An EC2 route
+was explored to make the staging and the coming counting pass run in-region: `ec2:RunInstances` is
+permitted with `Project=ClaudeSpike` and an `Owner` tag, but no instance profile resolves, and
+`iam:*` is denied so it cannot be created or inspected from here. It would need a role with the
+bucket's write permissions, an instance profile holding it, and `iam:PassRole` scoped to that role.
+Worth having for the counting pass, which re-reads 75 GB; not worth blocking on.
+
+**Housekeeping.** The bucket holds four 0-byte objects that are not part of the corpus: the two
+nested container tars, which matched their own tier filter and uploaded empty before that was
+fixed, and a `.probe` from verifying bucket access. The bucket withholds `s3:DeleteObject`, so they
+are permanent.
 
 ## Notes
 

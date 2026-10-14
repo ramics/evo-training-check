@@ -820,3 +820,144 @@ decision has a threshold or parameter in it, the number goes in the entry.
   §A0 findings about ESM-2's documentation, not obstacles: the suffix a model card leads with is
   defined only in a different paper about different models. `policies/corpora.md` §6 carries a
   pointer to both corrections, since A1.1's verdict predates them.
+
+### D-026 — the 2021_04 bundle is staged by streaming, and the archive is kept verbatim
+- **Date:** 2026-10-14
+- **Task:** A1.3
+- **Context:** D-024 recorded that staging UniRef 2021_04 needs a machine with roughly 300 GB of
+  disk, and that the pipeline could only run in proxy mode until that and credentials existed. The
+  project owner provided an S3 bucket in the project account instead, on free tier. 300 GB of local
+  disk turns out not to be needed: the archive's HTTP endpoint advertises `Accept-Ranges: bytes`, so
+  the compressed stream is resumable, and measured pull rate is 86.7 MB/s.
+- **Decision:** **Stage by streaming in one forward pass, with nothing buffered to local disk**, and
+  **keep the released archive verbatim alongside the extracted tiers.** The pass pulls the 169 GB
+  `.tar.gz`, forks the compressed chunks to one upload while gunzipping the same chunks to extract
+  `uniref50` and `uniref90`, and verifies the whole stream against the published md5
+  `444f0a7062a65a988ba1d5949d1d6419`. UniRef100 — 87.3 GiB of the archive, and nothing Phase A uses —
+  is pulled past and discarded rather than stored. Destination is
+  `s3://amazebio-corpora-897641797669/corpora/uniref/2021_04/`.
+  Three consequences worth stating, since each is a commitment rather than an implementation detail:
+  **the retained archive is abandoned unless the md5 matches**, including when a run ends early and
+  so cannot distinguish "unverified" from "wrong" — the bucket withholds `s3:DeleteObject`, so a
+  completed upload is irreversible, and an object claiming to be a release it has not been shown to
+  be is worse than no object. **Analysis runs on EC2 in us-east-1**, decided together with this, so
+  reads of the staged corpus are same-region and free; a full pass from outside AWS would cost about
+  $6.80 in egress each time, which argues for reducing in-region and shipping only the result out.
+  **Storage runs past the free allowance by design**: ~245 GB against 5 GB free, about $5.50/month,
+  accepted with those figures stated.
+- **Rejected:** Waiting for a 300 GB machine — unnecessary once the stream proved resumable, and it
+  was the stated blocker holding A1.4, A4.3, A8.1 and C5.2. Staging the extracted tiers only, at
+  about $1.60/month — cheaper, but the extracted tiers have no published checksum of their own, so
+  the pin would rest on a URL that may not outlive the project; the archive is the only artefact
+  whose md5 the release publishes. Storing UniRef100 as well — it triples the bill to retain the one
+  tier D-025 establishes is not the corpus. Downloading the archive twice, once to keep and once to
+  extract — the fork costs nothing and the second pull costs 169 GB.
+- **Consequence:** D-024's "proxy mode only" condition is lifted for ESM-2: the corpus is staged at
+  the stated version, verified against the release's own checksum, so ESM-2 results no longer carry
+  the acquisition proxy qualifier. A1.1's "cheapest corpus" expectation stays withdrawn — the pin is
+  exact and the bytes are still the most expensive of the four. One finding came out of the pass
+  itself and is recorded in the task file: **the release bundles XML, not FASTA**, which happens to
+  suit D-025, since UniRef XML states cluster membership explicitly rather than leaving it to be
+  reconstructed.
+
+### D-027 — ESM-2's corpus is staged and verified against the release's own md5
+- **Date:** 2026-10-14
+- **Task:** A1.3
+- **Context:** D-024 pinned ESM-2 to UniRef 2021_04 but could only do so from the release notes,
+  with the bytes out of reach; D-026 settled how to acquire them. Until a run actually matched the
+  published checksum, every ESM-2 result had to carry an acquisition proxy qualifier.
+- **Decision:** **The qualifier is dropped for ESM-2.** One streaming pass read all
+  169,188,630,923 bytes of `uniref2021_04.tar.gz` with zero reconnects, and the md5 over the whole
+  stream is `444f0a7062a65a988ba1d5949d1d6419` — the value UniProt publishes for that release. The
+  staged corpus is therefore the released bytes, not a reconstruction resembling them, and
+  `artifacts/a1-3/run.json` records `verified: true` as the evidence. Staged at
+  `s3://amazebio-corpora-897641797669/corpora/uniref/2021_04/`: `uniref50.xml.gz` (25,107,210,941
+  bytes), `uniref90.xml.gz` (50,350,462,472 bytes), and the archive verbatim (169,188,630,923
+  bytes). 244.6 GB in total, about $5.63/month.
+- **Rejected:** Nothing was rejected here — this entry records a verification outcome rather than a
+  judgement call. It is logged because the distinction it settles, between a corpus that matches
+  the release and one that merely claims the same version, is exactly what §7 requires an
+  adversarial reader to be able to check, and because the wording of every downstream ESM-2 claim
+  depends on it.
+- **Consequence:** A1.3's remaining work is no longer acquisition. The composition check is the open
+  piece: `amazebio.uniref.composition_check` compares counted clusters against 49,874,565 for
+  UniRef50 and 138,515,945 for UniRef90, and nothing counts them yet. Counting means parsing the
+  staged XML, which D-026 says should run in us-east-1. Note the release ships **XML only, no
+  FASTA**, which suits D-025: UniRef XML states cluster membership explicitly.
+  One caveat for whoever reads the bucket: it also holds four 0-byte objects — the two nested
+  container tars, which matched their own tier filter and uploaded empty before the filter was
+  fixed, and a `.probe` from verifying bucket access. The bucket withholds `s3:DeleteObject`, so
+  they are permanent. They are not part of the corpus.
+
+### D-028 — ESM-2's paper confirms the 2021_04 pin, contradicts itself on the date, and shows the training set is a filtered subset
+- **Date:** 2026-10-14
+- **Task:** A1.3
+- **Context:** D-024 pinned ESM-2 to UniRef 2021_04 from the repository's model table, and D-025
+  read `UR50/D` from an earlier paper about different models, both because ESM-2's own paper was
+  unretrievable (bioRxiv HTTP 429). It is now retrieved (S-ESM2-PREPRINT): the host rate-limits
+  bursts rather than sustaining a block, so one request every few minutes succeeds.
+- **Decision:** **The pin stays at 2021_04, and the paper's own date statement is recorded as a
+  contradiction rather than resolved.** The dataset appendix says "UniRef50, September 2021
+  version", and no UniProt release is dated September 2021 — 2021_01 is 10-Feb, 2021_02 07-Apr,
+  2021_03 09-Jun, 2021_04 27-Oct — so a September download would have been 2021_03. Against that
+  single bare date stand three first-party statements: the model table's `UR50/D 2021_04`, the
+  paper's own "when 2021 04 was the most recent release" describing its filtering, and its
+  "138 million UniRef90 sequences", which is 2021_04's 138,515,945 and not 2021_03's 135,301,051.
+  The weight of evidence is 2021_04 and the staged corpus is correct.
+  **D-025's two residual gaps are closed.** The paper states the mechanism directly: a minibatch of
+  UniRef50 sequences is sampled per training update, and each is replaced by a sequence drawn
+  uniformly from the corresponding UniRef90 cluster. So members come from UniRef90 — confirming the
+  model table's `sample UR90` over the ESM-1b paper's UniRef100, which is how D-025 called it — and
+  "evenly" means per-update uniform resampling, not one draw. Only the seed is unstated.
+  **ESM-2's training set is not the release.** 2021_04 holds 49,874,565 UniRef50 clusters; the paper
+  trains on "43 million UniRef50 training clusters". Of that ~6.9 million difference the paper
+  itemises roughly 310,000 — a 0.5% validation split (≈250,000), 1,027 sequences annotated
+  "artificial sequence", and 58,462 proteins returned by a jackhmmer search around 81 curated
+  de-novo proteins. The remainder falls to one unquantified step: removing training sequences
+  matching a validation sequence at 50% identity under a stated MMseqs search. Method and
+  parameters are published; magnitude is not, and the inputs — the validation split and the 81
+  de-novo queries — are not published at all.
+- **Rejected:** Repinning to 2021_03 on the strength of "September 2021" — it is one unsupported
+  date against three corroborating statements, one of which is a release-size figure that matches
+  2021_04 to within rounding and misses 2021_03 by over three million. Treating the contradiction
+  as a typo and not recording it — §A0 makes under-specification a result, and a reader checking
+  the paper will hit the same sentence and needs to find it already addressed. Attempting to
+  reconstruct the training subset now — not possible from published material, and a scope question
+  for the project owner rather than a judgement to make mid-task.
+- **Consequence:** A1.3's staged corpus is the **release**, and ESM-2's **training set** is a
+  filtered subset of it that cannot be reproduced exactly. Every downstream claim must say which of
+  the two it is about; they differ by about 14% of clusters. Phase B comparisons that assume ESM-2
+  saw the whole release are wrong by that margin. One further point worth stating plainly, because a
+  write-up could easily get it backwards: that de-novo filter *is* exclusion-based data filtering,
+  with reproducible parameters and a stated purpose, though the purpose given is enabling future
+  generalisation work rather than biosecurity. ESM-2 remains the positive control — it carries no
+  biosecurity exclusion — but it is not unfiltered, and describing it as unfiltered would be false.
+  Also: S-ESM2-PREPRINT's sha256 does not reproduce, because biorxiv.org stamps the download time
+  into the PDF's XMP metadata. Established by diffing the capture against an independently obtained
+  copy — 30 bytes differ, all in ModifyDate and MetadataDate, extracted text identical — so a hash
+  mismatch on re-fetch is expected and is not evidence of tampering.
+
+### D-029 — A1.3 stages the release, not ESM-2's filtered training set
+- **Date:** 2026-10-14
+- **Task:** A1.3
+- **Context:** D-028 established that ESM-2's training set is a filtered subset of UniRef50 2021_04
+  — about 43 million clusters against the release's 49,874,565 — and that the filter cannot be
+  reproduced exactly, because the validation split and the 81 curated de-novo query proteins are
+  unpublished. That left a scope question A1.3 could not settle itself: which of the two is "the
+  corpus" this audit reconstructs.
+- **Decision:** **The release.** A1.3 is complete with UniRef50 2021_04 as published, and the ~14%
+  gap to ESM-2's training set is carried as a documented limitation rather than chased. Every
+  downstream claim states which of the two it concerns.
+- **Rejected:** Reproducing the filter from what the paper specifies — the MMseqs 50%-identity
+  removal and the 1,027 "artificial sequence" entries are reproducible, but the validation split
+  that the MMseqs search runs against is not published, so the output would be an approximation
+  whose error cannot be bounded. An approximation of unknown accuracy is worse than a known 14% gap,
+  because the gap can be stated and the error cannot. Asking the authors for the filter inputs —
+  defensible, and a refusal would itself be a finding about reproducibility, but it is external
+  contact and §4's disclosure requirement plus gate X3.1 govern what may be said to whom; not a
+  call to make inside a staging task.
+- **Consequence:** Closes A1.3's scope. The limitation belongs in the Phase A write-up, not just in
+  this log: a reader comparing our corpus against ESM-2's behaviour needs to know the corpus is the
+  release and the model saw roughly 86% of it, with the missing portion selected by similarity to an
+  unpublished validation split rather than at random. That last point matters more than the
+  percentage — the excluded clusters are not a uniform sample, so the gap is not simply noise.
