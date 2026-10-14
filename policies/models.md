@@ -186,7 +186,7 @@ with its own ID, not an inventory entry.
 **Evo 2 40B turns on what this account may launch**, which is measured rather than assumed.
 `tools/ec2_capability.py` dry-runs `RunInstances` across a fixed list of instance types;
 nothing is launched, because `DryRun=True` authorizes the request and then refuses it. The
-measurement is in `artifacts/b1-1/ec2-allowlist.json`.
+measurement is in `artifacts/b1-1/ec2-capability/allowlist.json`.
 
 As measured on 2026-10-14, after the project owner added a GPU allowance in response to the
 first probe: `g5.xlarge` and `g6.xlarge` are permitted — one 24 GB accelerator — alongside

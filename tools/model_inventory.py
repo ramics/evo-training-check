@@ -28,8 +28,10 @@ from amazebio.repro import run
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 SOURCES = REPO / "policies" / "sources.json"
-OUTDIR = REPO / "artifacts" / "b1-1"
-ALLOWLIST = OUTDIR / "ec2-allowlist.json"
+# Each tool writes to its own directory: `run.json` is named by `amazebio.repro`, so two
+# tools sharing one would overwrite each other's provenance.
+OUTDIR = REPO / "artifacts" / "b1-1" / "inventory"
+ALLOWLIST = REPO / "artifacts" / "b1-1" / "ec2-capability" / "allowlist.json"
 
 
 def load_sources() -> dict[str, dict]:

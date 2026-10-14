@@ -23,7 +23,9 @@ Two details that would otherwise make the result a lie:
   measures the same thing and the artefact is comparable across dates. Extending the list is
   a code change, which is the point.
 
-The output is `artifacts/b1-1/ec2-allowlist.json` with a `run.json` beside it. It is a
+The output is `artifacts/b1-1/ec2-capability/allowlist.json` with a `run.json` beside it.
+It gets its own directory because `run.json` is named by `amazebio.repro` and two tools sharing
+an output directory would overwrite each other's provenance. It is a
 snapshot of an account policy that can change, so it carries its date and must be re-run
 rather than cited indefinitely.
 """
@@ -175,7 +177,7 @@ def main() -> int:
         print(json.dumps(summarise(results), indent=1))
         return 0
 
-    outdir = REPO / "artifacts" / "b1-1"
+    outdir = REPO / "artifacts" / "b1-1" / "ec2-capability"
     with run("B1.1", outdir=outdir, allow_dirty=args.allow_dirty, repo=REPO) as m:
         m.parameter("region", REGION)
         m.parameter("ami_parameter", AMI_PARAMETER)
@@ -190,7 +192,7 @@ def main() -> int:
         results = probe(ec2, ami, PROBE_TYPES, args.owner)
         summary = summarise(results)
 
-        path = outdir / "ec2-allowlist.json"
+        path = outdir / "allowlist.json"
         payload = {"region": REGION, "ami": ami, "summary": summary, "results": results}
         path.write_text(json.dumps(payload, indent=1) + "\n")
         m.output_file(path, role="ec2 launch allowlist as measured by dry run")
