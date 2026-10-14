@@ -23,6 +23,9 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+import specquotes
 
 from amazebio.policyspec import Policy, PolicyError, describe, load_policy_dir
 
@@ -34,6 +37,7 @@ SOURCES = REPO / "policies" / "sources.json"
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--describe", action="store_true", help="print each policy as prose")
+    ap.add_argument("--verbose", "-v", action="store_true", help="list quotations checked")
     args = ap.parse_args()
 
     try:
@@ -69,6 +73,12 @@ def main() -> int:
                 "requires all three per policy; the spread between them is the finding."
             )
 
+    # X1.4: every quotation inside a spec is verified against the source its rule cites, the
+    # same guarantee tools/policies.py gives the prose store. The specs are what downstream
+    # tasks execute, so an unchecked quotation here is worse than one in the prose.
+    quote_problems, verified = specquotes.verify(SPECS, verbose=args.verbose)
+    problems.extend(quote_problems)
+
     for p in problems:
         print(f"problem: {p}", file=sys.stderr)
 
@@ -78,7 +88,10 @@ def main() -> int:
             print(describe(policy))
 
     undetermined = {pid: p.unspecified() for pid, p in policies.items() if not p.is_determined}
-    print(f"\nspecs: {len(policies)} policies, {len(problems)} problems")
+    print(
+        f"\nspecs: {len(policies)} policies, {verified} quotations verified, "
+        f"{len(problems)} problems"
+    )
     for pid, gaps in sorted(undetermined.items()):
         detail = "; ".join(f"{rid} needs {', '.join(ps)}" for rid, ps in gaps.items())
         print(f"  not fully determined: {pid} — {detail}")

@@ -46,8 +46,8 @@ policy:
   source: S-ESM3-PREPRINT
   note: >-
     The paper's procedure, not the model card's broader claim: "sequences unique to viruses"
-    plus the Select Agents denylist. Reading the card's "data related to viruses has been
-    removed" as the policy would credit the authors with a filter their own methods do not
+    plus the Select Agents denylist. Reading the card's [source: S-ESM3-HF-OPEN] "data related to viruses has
+    been removed" as the policy would credit the authors with a filter their own methods do not
     describe; that is the strict reading's job, and the gap between the two is the finding
     (policies/esm3-open.md open question 3). The function-decoder keyword filter is still absent
     from all three readings: it acts on the prompt vocabulary rather than on training records,
@@ -89,5 +89,5 @@ policy:
         Same single threshold: the source describes one matching step applied to both denylists,
         so a reading that splits them would be inventing a distinction. Seed set is "all
         sequences in UniProt belonging to organisms on the Select Agents and Toxins List" — the
-        paper's own description, which the model card's "some proteins" understates
+        paper's own description, which the model card's [source: S-ESM3-HF-OPEN] "some proteins" understates
         (policies/esm3-open.md open question 5). The charitable reading follows the paper.

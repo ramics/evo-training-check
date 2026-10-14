@@ -20,7 +20,7 @@
 # denylisted entry closely enough still went, whatever its own annotation. Whether a given viral
 # protein family with cellular homologs survived is therefore an empirical question, not a
 # textual one, and A0.4 answers it by counting what each reading removes. Review flagged the
-# earlier flat "It was not." as overstating what the text supports (DECISIONS.md D-016). The
+# earlier flat 'It was not.' as overstating what the text supports (DECISIONS.md D-016). The
 # strict reading is the card's claim taken as the policy, and the records it removes that the
 # charitable reading retains are the measure of the gap between the developers' two
 # descriptions.
@@ -73,7 +73,7 @@ policy:
         Seed set is every UniProt sequence annotated as viral, without the paper's "align almost
         exclusively to other viral sequences" filter — the card's "data related to viruses" read
         as written. A threshold of 0.0 means any alignment MMseqs2 detects is a hit: records
-        carry only detected hits, so the floor is "a hit exists" rather than a numeric cut. The
+        carry only detected hits, so the floor is 'a hit exists' rather than a numeric cut. The
         reach of this rule relative to `esm3-open-charitable` is the quantity A0.4 reports, and
         it is the one place in this audit where a developer's own two descriptions of the same
         filter can be given numbers side by side.

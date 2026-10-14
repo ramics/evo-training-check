@@ -80,14 +80,37 @@ class PolicyError(Exception):
 
 
 def normalise(text: str) -> str:
-    """Fold away typography so a quote matches the source's wording, not its layout."""
+    """Fold away typography so a quote matches the source's wording, not its layout.
+
+    Case is significant, and used to be folded. X1.4 removed the fold: the one error
+    hand-verification caught in A0.3's quotations was a changed capital, and a check that
+    lowercases both sides cannot catch the class of error that has actually occurred here.
+    Turning it on found a second instance in `corpora.md` that nobody had noticed
+    (DECISIONS.md D-023). Layout artefacts do not change case, so nothing is lost.
+    """
     text = unicodedata.normalize("NFKC", text)
     for a, b in {**LIGATURES, **PUNCT}.items():
         text = text.replace(a, b)
     # join words hyphenated across a line break: "classifi- cation" -> "classification"
     text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
     text = re.sub(r"\s+", " ", text)
-    return text.strip().lower()
+    return text.strip()
+
+
+def match_key(text: str) -> str:
+    """`normalise`, with every space removed. Use this to compare a quote to a source.
+
+    PDF extraction from justified type drops spaces between words — Evo 1's appendix comes out
+    as `thoseonlyassigneduptothelevelof`. A quote written as the paper *renders* then fails
+    against a source that extracts run-together, which pushed `corpora.md` into quoting the
+    mangled form and apologising for it in a parenthetical. Spacing is layout, so it is folded
+    here and a quotation may be written as it reads on the page.
+
+    Case is not folded, and nor is wording: `at least twice` still differs from `at least
+    three times`, and `19 families` from `18 families`. What is lost is the ability to detect a
+    missing or added space, which is not a difference in wording.
+    """
+    return re.sub(r"\s+", "", normalise(text))
 
 
 def extract(path: pathlib.Path) -> str:
@@ -201,7 +224,7 @@ def validate(verbose: bool = False) -> list[str]:
                 )
                 continue
         try:
-            text_cache[sid] = normalise(extract(path))
+            text_cache[sid] = match_key(extract(path))
         except PolicyError as exc:
             problems.append(f"{sid}: {exc}")
 
@@ -232,7 +255,7 @@ def validate(verbose: bool = False) -> list[str]:
             if not quote:
                 problems.append(f"{where}: empty quote")
                 continue
-            if normalise(quote) not in text_cache[sid]:
+            if match_key(quote) not in text_cache[sid]:
                 problems.append(
                     f"{where}: quoted text does not appear in {sid}"
                     + (f" ({locator})" if locator else "")

@@ -699,3 +699,46 @@ decision has a threshold or parameter in it, the number goes in the entry.
   is permitted, and an interval spanning the interesting range is reported as uninformative in the
   abstract rather than as a point estimate with the interval in a footnote. C5.1 inherits this
   route taxonomy for its cost metrics rather than defining a second one.
+
+### D-023 — Spec quotations are machine-verified; case is significant, spacing is not
+- **Date:** 2026-10-14
+- **Task:** X1.4 (affects A0.3, A7.1, and every later quotation in this repo)
+- **Context:** `tools/policies.py` verified every blockquote in `policies/*.md` against its cited
+  source. The spec files quote the same published prose in rule `note:` fields and `#` headers,
+  and nothing checked those — while the specs are what downstream tasks actually execute. A0.3
+  verified its quotations by hand and found two errors that way: a changed capital and a
+  transliterated `≤`.
+- **Decision:** `tools/specquotes.py` verifies every quotation in `policies/specs/*.yaml`, wired
+  into `specs-check` so CI runs it. 60 quotations are now checked. Three calls were needed:
+  **1. Case is significant, and used to be folded.** `policies.normalise` lowercased both sides,
+  so it could not catch the one class of error that has actually occurred here. Removing the fold
+  immediately found a second instance nobody had noticed: `corpora.md` quoted Evo 2 with
+  `nguyenetal.` and `thisincluded` where the source extracts `Nguyenetal.` and `Thisincluded`,
+  and the file's own parenthetical blamed PDF extraction for losing capitals that extraction in
+  fact preserves. Quote and note both corrected.
+  **2. Spacing is not significant** (`policies.match_key`). PDF extraction from justified type
+  runs words together — Evo 1's appendix comes out as `thoseonlyassigneduptothelevelof` — which
+  had pushed `corpora.md` into quoting the mangled form and apologising for it. Spacing is layout,
+  so it is folded for matching and a quotation may be written as the page reads. The cost is that
+  a missing or added space is undetectable, which is not a difference in wording.
+  **3. In a spec, a double-quoted span is a verbatim quotation.** Five spans were our own
+  phrasing, a defined term, or words from an earlier draft wearing quote marks — among them
+  `'curated prokaryotic viruses'`, which `policies/specs/README.md` had attributed to the source
+  as a description of IMG/VR. Those are now single-quoted and excluded from checking. Quotations
+  that cross sources carry an inline `[source: S-ID]` marker, reusing the markdown store's syntax;
+  a marker is exact and does not fall back, so a wrong id fails as a wrong id rather than passing
+  because the text happens to appear elsewhere in the file's sources.
+- **Rejected:** Attributing every quotation strictly to its enclosing rule's source, as the task
+  file proposed — faithful quotations legitimately cross sources within one note, so strict
+  attribution failed on correct text. Requiring quotations to be written as extracted, matching
+  `corpora.md`'s existing workaround — it makes specs unreadable and spreads a PDF artefact
+  through the repo. Folding case to make the run-together Evo 2 quote pass — that would have
+  discarded the check that found it. A regex extractor without the odd-mark guard: a naive pairing
+  joins one quotation's closing mark to the next one's opening mark, which is the trap A0.3 hit.
+- **Consequence:** A quotation that drifts from its source now fails CI in both stores. Three
+  extraction classes are handled and tested: multi-line `#` comment blocks, folded block scalars,
+  and fragments quoted mid-sentence, where a sentence-initial capital is tolerated on the first
+  character only. `policies/specs/README.md` and `policies/README.md` carry the convention, since
+  the check only stays honest if the next writer knows which quote character means what. Tests
+  pin both of A0.3's hand-found errors as regressions, and a deliberately corrupted quotation is
+  shown to fail.

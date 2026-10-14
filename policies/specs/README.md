@@ -74,12 +74,33 @@ contradict a published decision rather than read it strictly — and phage reten
 Phase A its within-corpus contrast. "Strict" means the broadest defensible reading of the stated
 aim, not the largest filter expressible in the schema.
 
+## The quotation convention
+
+Every quotation in these files is machine-verified against its source (`tools/specquotes.py`,
+task X1.4). Three rules make that possible, and they are rules rather than style:
+
+- **A double-quoted span is a verbatim quotation.** Our own phrasing, a defined term, or words
+  from an earlier draft go in single quotes, so the checker does not hunt for them in a paper
+  they never came from. Writing `'a hit exists'` rather than `"a hit exists"` is the difference
+  between a gloss and a claim about what a laboratory published.
+- **A quotation is attributed to its rule's `source`**, falling back to the other sources the
+  file cites. Where a note quotes across sources — the charitable ESM3 reading quotes the model
+  card to say why it is *not* following it — mark it inline with the markdown store's syntax:
+  `[source: S-ESM3-HF-OPEN] "data related to viruses has been removed"`. An explicit marker is
+  exact and does not fall back, so a wrong id fails as a wrong id.
+- **Quote as the page reads.** Spacing is folded before comparison, because PDF extraction from
+  justified type runs words together. Case is not folded: the one error hand-verification caught
+  in A0.3 was a changed capital, and turning case-sensitivity on found a second in `corpora.md`
+  that nobody had noticed (DECISIONS.md D-023).
+
 ## Commands
 
 ```bash
-python3 tools/specs.py              # validate every spec; check the three-readings contract
+python3 tools/specs.py              # schema, the three-readings contract, and every quotation
+python3 tools/specs.py --verbose    # also list each quotation and the source it matched
 python3 tools/specs.py --describe   # render each reading as prose, to eyeball against the source
 ```
 
 `tools/specs.py` fails if a rule cites a source that `policies/sources.json` does not record as
-retrieved, which is the same guarantee `tools/policies.py` gives for quotes, one level up.
+retrieved, and if any quotation in a spec does not literally appear in the source it cites —
+the same guarantee `tools/policies.py` gives the prose store, one level up.
