@@ -315,7 +315,8 @@ def _stage_release(
         start=1,
     ):
         if staged.skipped:
-            print(f"  already staged, skipped: {staged.path}")
+            mark = "verified by readback" if staged.verified else staged.verified_by
+            print(f"  already staged: {staged.path} ({mark})")
         else:
             print(f"    verified {staged.sha256[:16]}… -> {staged.uri}")
             manifest.output_object(

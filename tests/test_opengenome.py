@@ -572,3 +572,30 @@ def test_readback_reports_the_digest_it_found():
     client = FakeS3(objects={"k": payload})
     ok, found = og.verify_staged_object(client, bucket="b", key="k", blob=blob)
     assert ok and found == blob.sha256
+
+
+def test_a_truncated_manifest_read_is_retried_not_accepted():
+    """What killed a real pass: an IncompleteRead partway through the tree
+    listing. A truncated body is a failure, so the JSON decode has to sit inside
+    the retry — otherwise a short read becomes a short manifest, and a short
+    manifest understates the release and fails the pin check for the wrong reason."""
+    good = json.dumps([_entry("fasta/ncrna/a.fasta.gz", 10)]).encode()
+    attempts = []
+
+    def opener(request):
+        attempts.append(request.full_url)
+        if len(attempts) < 3:
+            return _Response(good[: len(good) // 2])  # truncated JSON
+        return _Response(good)
+
+    blobs = og.fetch_tree(og.OG2, opener=opener, sleep=lambda _: None)
+    assert [b.path for b in blobs] == ["fasta/ncrna/a.fasta.gz"]
+    assert len(attempts) == 3
+
+
+def test_a_manifest_that_never_reads_refuses_rather_than_staging_a_partial_one():
+    def opener(request):
+        raise OSError("connection reset")
+
+    with pytest.raises(VerificationError, match="could not read"):
+        og.fetch_tree(og.OG2, opener=opener, sleep=lambda _: None)

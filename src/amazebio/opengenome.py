@@ -45,8 +45,10 @@ multipart upload that aborts rather than half-finishes.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import time
+import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
@@ -363,25 +365,56 @@ class Blob:
         return self.sha256 is not None
 
 
-def _get_json(url: str, opener: Callable[[urllib.request.Request], Any]) -> tuple[Any, str | None]:
-    """Fetch JSON and the `Link: rel="next"` URL, if the response paginates."""
-    request = urllib.request.Request(url, headers={"User-Agent": "amazebio/A1.2"})
-    response = opener(request)
-    payload = json.load(response)
-    link = ""
-    headers = getattr(response, "headers", None)
-    if headers is not None:
-        link = headers.get("Link", "") or ""
-    following = None
-    if 'rel="next"' in link:
-        following = link.split("<", 1)[1].split(">", 1)[0]
-    return payload, following
+def _get_json(
+    url: str,
+    opener: Callable[[urllib.request.Request], Any],
+    *,
+    attempts: int = 5,
+    sleep: Callable[[float], None] = time.sleep,
+) -> tuple[Any, str | None]:
+    """Fetch JSON and the `Link: rel="next"` URL, if the response paginates.
+
+    Retried, because this is the first step of a pass that then runs for hours
+    and the manifest read is small enough that a transient failure here is pure
+    waste. Observed in practice: an `IncompleteRead` partway through the tree
+    listing killed a staging run before it had uploaded anything.
+
+    A partial body is a failure, not a short answer — `json.load` raising on
+    truncated input is the detection, so the JSON decode has to sit inside the
+    retry rather than after it.
+    """
+    last: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": "amazebio/A1.2"})
+            response = opener(request)
+            payload = json.load(response)
+        except (OSError, urllib.error.URLError, http.client.HTTPException, ValueError) as exc:
+            last = exc
+            if attempt == attempts:
+                break
+            sleep(min(2.0 * attempt, 30.0))
+            continue
+        link = ""
+        headers = getattr(response, "headers", None)
+        if headers is not None:
+            link = headers.get("Link", "") or ""
+        following = None
+        if 'rel="next"' in link:
+            following = link.split("<", 1)[1].split(">", 1)[0]
+        return payload, following
+    raise VerificationError(
+        f"could not read {url} after {attempts} attempts: "
+        f"{type(last).__name__}: {last}. The manifest is what every later step is "
+        "checked against, so a pass that cannot read it must not proceed."
+    )
 
 
 def fetch_tree(
     release: Release,
     *,
     opener: Callable[[urllib.request.Request], Any] = urllib.request.urlopen,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> list[Blob]:
     """List every file in a pinned release, with size and published checksum.
 
@@ -392,7 +425,7 @@ def fetch_tree(
     url = f"{_API}/{release.dataset}/tree/{release.revision}?recursive=true&expand=true"
     blobs: list[Blob] = []
     while url:
-        payload, url = _get_json(url, opener)
+        payload, url = _get_json(url, opener, sleep=sleep)
         for entry in payload:
             if entry.get("type") != "file":
                 continue
