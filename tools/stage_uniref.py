@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Stage the pinned UniRef release for A1.3, streaming it into object storage.
 
-The archive is 169 GB and the working disk here is 30 GB, so nothing lands
-locally: the release is pulled, verified, split and uploaded in one forward pass.
-See `src/amazebio/uniref.py` for why that is the only shape available, and
-DECISIONS.md D-024 (the version pin) and D-025 (that the corpus is UniRef50
-clusters *with* their UniRef90 members, not the representatives).
+The archive is 169 GB for ESM-2's release and 212 GB for ESM3-open's, against a
+30 GB working disk, so nothing lands locally: the release is pulled, verified,
+split and uploaded in one forward pass. See `src/amazebio/uniref.py` for why that
+is the only shape available, and DECISIONS.md D-024 (ESM-2's version pin), D-025
+(that its corpus is UniRef50 clusters *with* their UniRef90 members, not the
+representatives) and D-033 (that ESM3-open's states no tier, so all three are
+staged).
 
 Two modes, because they answer different questions:
 
@@ -216,10 +218,20 @@ def _execute(
         manifest.parameter("window_bytes", args.window_bytes)
         manifest.parameter("retain_raw_archive", bool(args.raw))
         manifest.parameter("destination", f"s3://{bucket}/{key_prefix}" if args.stage else None)
-        manifest.note(
-            "DECISIONS.md D-025: the ESM-2 corpus is UniRef50 clusters with their UniRef90 "
-            "members, so staging UniRef50 alone would reconstruct a different dataset."
-        )
+        # Release-specific, because a manifest that carries another release's reasoning
+        # is worse than one that carries none: A1.5's first staged run recorded ESM-2's
+        # UniRef50-with-members note against ESM3-open's corpus.
+        if rel.release == uniref.UNIREF_2021_04.release:
+            manifest.note(
+                "DECISIONS.md D-025: the ESM-2 corpus is UniRef50 clusters with their "
+                "UniRef90 members, so staging UniRef50 alone would reconstruct a "
+                "different dataset."
+            )
+        else:
+            manifest.note(
+                "DECISIONS.md D-033: ESM3-open states the release and not the tier, so "
+                "all three tiers are staged rather than one chosen on the reader's behalf."
+            )
 
         def note_reconnect(attempt: int, pos: int, exc: BaseException) -> None:
             print(

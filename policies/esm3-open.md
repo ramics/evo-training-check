@@ -299,3 +299,28 @@ This is a Phase A finding about the published description, not a measurement. Wh
 hazard-related actually survives by either route is A2's work, and neither route can be
 measured without the structure-side components staged — which is a cost question for whoever
 reaches A2.2, not an assumption to make here.
+
+### What was actually staged
+
+Recorded here because §7 argues what a proxy *can* pin; this is what it did pin, and the
+numbers are the artefact's, not retyped — `artifacts/a1-5/composition.json` and the two run
+manifests beside it carry them with the commit that produced them.
+
+UniRef 2023_02, all three tiers, extracted from the release archive in one streaming pass:
+UniRef100 118,682,175,057 bytes, UniRef90 62,727,425,913, UniRef50 30,392,833,174, plus each
+tier's README, schema and release note. The md5 over the whole 211,819,312,677-byte archive
+matched the value the release metalink publishes, so these are the released bytes rather than
+bytes that look like them. MGnify 2023_02's 90%-clustered product staged as one
+83,473,342,442-byte object, matching the md5 the release's own `md5sum.txt` publishes for it.
+295.3 GB in total.
+
+Two things about the acquisition are worth recording, because the next worker will hit them.
+The 2023_02 archive's members are ordered UniRef100 first, so a run wanting only UniRef50 reads
+past 110.5 GiB to reach it. And the two publishers throttle very differently: UniProt served
+this container about 100 MiB/s across eight ranged connections, where EBI managed about 19
+MiB/s across sixteen — 38 minutes against 69 for a file 40% the size.
+
+One limit this does not remove. The staged components are the two that could be obtained as
+stated; JGI and OAS could not, and the structure-side components were not bought. So nothing
+here supports a statement of the form "x% of ESM3's corpus", and the composition artefact
+carries no such figure by design.
