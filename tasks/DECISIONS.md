@@ -936,3 +936,28 @@ decision has a threshold or parameter in it, the number goes in the entry.
   into the PDF's XMP metadata. Established by diffing the capture against an independently obtained
   copy — 30 bytes differ, all in ModifyDate and MetadataDate, extracted text identical — so a hash
   mismatch on re-fetch is expected and is not evidence of tampering.
+
+### D-029 — A1.3 stages the release, not ESM-2's filtered training set
+- **Date:** 2026-10-14
+- **Task:** A1.3
+- **Context:** D-028 established that ESM-2's training set is a filtered subset of UniRef50 2021_04
+  — about 43 million clusters against the release's 49,874,565 — and that the filter cannot be
+  reproduced exactly, because the validation split and the 81 curated de-novo query proteins are
+  unpublished. That left a scope question A1.3 could not settle itself: which of the two is "the
+  corpus" this audit reconstructs.
+- **Decision:** **The release.** A1.3 is complete with UniRef50 2021_04 as published, and the ~14%
+  gap to ESM-2's training set is carried as a documented limitation rather than chased. Every
+  downstream claim states which of the two it concerns.
+- **Rejected:** Reproducing the filter from what the paper specifies — the MMseqs 50%-identity
+  removal and the 1,027 "artificial sequence" entries are reproducible, but the validation split
+  that the MMseqs search runs against is not published, so the output would be an approximation
+  whose error cannot be bounded. An approximation of unknown accuracy is worse than a known 14% gap,
+  because the gap can be stated and the error cannot. Asking the authors for the filter inputs —
+  defensible, and a refusal would itself be a finding about reproducibility, but it is external
+  contact and §4's disclosure requirement plus gate X3.1 govern what may be said to whom; not a
+  call to make inside a staging task.
+- **Consequence:** Closes A1.3's scope. The limitation belongs in the Phase A write-up, not just in
+  this log: a reader comparing our corpus against ESM-2's behaviour needs to know the corpus is the
+  release and the model saw roughly 86% of it, with the missing portion selected by similarity to an
+  unpublished validation split rather than at random. That last point matters more than the
+  percentage — the excluded clusters are not a uniform sample, so the gap is not simply noise.
