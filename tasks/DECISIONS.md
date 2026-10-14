@@ -645,3 +645,57 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** A1.2, A1.3 and A7.1 each carry a "Strength of claim" section stating the verdict
   that governs them, which is what A1.1's Done-when requires — so a downstream task cannot consume
   a corpus without the qualifier in front of whoever runs it.
+
+### D-022 — The survival metrics and route taxonomy are frozen
+- **Date:** 2026-10-14
+- **Task:** A3.1 (affects A2.1–A2.5, A3.2, A3.3, A4.3, A7.1, C5.1)
+- **Context:** `DESIGN.md` §A3 makes family-level survival the headline number and A3.3 must
+  reimplement it by a second method before publication. `AGENTS.md` requires analysis specs fixed
+  before results are inspected. Nothing had been detected yet, so this is the moment to fix them.
+- **Decision:** `metrics/survival.md` is the authoritative, frozen specification, written to be
+  reimplementable from that file alone so A3.3's second implementation need never read the first.
+  `src/amazebio/survival.py` carries the machine-readable route taxonomy and a reference
+  implementation of the metric definitions. Four substantive calls inside it:
+  **1. Both family registries, reported separately, never pooled.** Pfam viral clans and RVDB each
+  define their own family universe and the headline is reported once per registry. The project
+  owner chose this over either registry alone. The denominator is a choice about where family
+  boundaries fall, and reporting both turns our dependence on that choice into a measurement: a
+  gap between the two registries is itself a finding, and pooling would average away the one thing
+  the pair exists to show. Pfam alone biases survival upward by an amount Pfam cannot size;
+  RVDB alone buys coverage at the cost of defending looser boundaries line by line.
+  **2. Six routes, partitioning the detections.** `out_of_scope` is first-class per D-007, and is
+  kept separate both from `retained_by_design` (a published decision, not leakage) and from
+  `undetected` / `misassigned` (taxonomy's limits). `conformance_failure` is never merged into
+  those two, because it is a claim about a named laboratory's implementation rather than about
+  what taxonomy can do, and §7 holds it to a higher evidential standard. `unresolved` exists
+  because A1.2 established that three of Evo 1's published rules cannot be checked from the
+  released corpus; it is reported as its own row so a table never claims more evidence than
+  exists. Element kind is a separate axis, cross-tabulated, never a route.
+  **3. Wilson intervals at 95%, and the confidence level is part of the spec.** Family-level
+  survival is expected near 0 or near 1, where the normal approximation strays outside [0, 1] and
+  its width collapses to zero. Distribution summaries use a bootstrap percentile interval at a
+  declared seed. M2 reports median and IQR rather than a mean, and M3 reports a per-family
+  distribution rather than a pooled coverage figure.
+  **4. Thresholds: A3.1 fixes the metrics, each A2 task fixes its own detector's threshold.** The
+  metric is parameterised by a declared threshold set; A3.2 refuses to compute while any threshold
+  is undeclared, and refuses one declared after a detection output exists — the discipline
+  `amazebio.repro.run` already applies to pipeline parameters. Sensitivity to a threshold is
+  reported as a curve over the declared value plus two bracketing values fixed at the same time,
+  labelled as sensitivity analysis and never as the headline.
+- **Rejected:** Raw sequence volume as the headline — it answers a question nobody is asking, since
+  one good homolog teaches a fold; it disagrees with family survival in the direction that matters
+  (a filter leaving one homolog per family scores 0.1% on bp and near 100% on families); and it
+  tracks corpus composition, so the same filter scores better the larger the corpus grows, which
+  inverts the actual finding. Volume ships as labelled context. Also rejected: folding
+  `unresolved` into `undetected`, which would convert absent metadata into a measured blind spot;
+  a single pooled diversity-coverage number, fragile at this sample size per §B5; and picking
+  detector thresholds here, which would mean choosing bioinformatics parameters before the tools
+  they belong to are pinned.
+- **Consequence:** Every A2 detector emits `amazebio.survival.Detection` with exactly one route,
+  so A3.2's breakdowns are a regrouping rather than a reinterpretation. Per-route survival figures
+  do not sum to the overall figure, since a family can survive by several routes, and any table
+  showing them must carry that sentence. Three properties keep a null visible and are tested:
+  counts are zero-filled across the whole pinned universe, no minimum-count filtering of families
+  is permitted, and an interval spanning the interesting range is reported as uninformative in the
+  abstract rather than as a point estimate with the interval in a footnote. C5.1 inherits this
+  route taxonomy for its cost metrics rather than defining a second one.

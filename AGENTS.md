@@ -29,6 +29,8 @@ pixi.toml / pixi.lock the pinned environment (conda-forge + bioconda + python)
 pyproject.toml        package metadata, lint and test config
 src/amazebio/         library code
   repro.py            seeding, input pinning, run provenance
+  survival.py         the frozen route taxonomy and headline metrics
+metrics/survival.md   FROZEN — the headline metric spec; changing it is a DECISIONS entry
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tasks/README.md       the task protocol in detail
 tasks/BOARD.md        GENERATED — never hand-edit
