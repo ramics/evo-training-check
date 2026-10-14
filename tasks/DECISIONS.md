@@ -1046,3 +1046,52 @@ decision has a threshold or parameter in it, the number goes in the entry.
   0.2% of OpenGenome2 against 82% eukaryotic genomes the filter never saw, which is DESIGN.md
   §A1's scope gap measured; and Evo 1's inline lineage tags appear not to have survived into Evo
   2's release, on a four-file sample that A7.1 will settle properly.
+
+### D-032 — A1.5's premise was wrong: ESM3 states its releases, and the gap is elsewhere
+- **Date:** 2026-10-14
+- **Task:** A1.5
+- **Context:** A1.5's file, written when A1.3 split (D-030), said: "The paper names PDB, UniRef,
+  MGnify and JGI without versions, so expect the §A0 under-specification finding to be most of the
+  result." That came from the filter appendix, whose scope sentence does name four databases and no
+  versions. The pretraining-data appendix two pages earlier states a release for every component,
+  and Table S3 tabulates them. Taking the task's premise on trust would have produced a finding
+  that is false and that an adversarial reader checks in one minute.
+- **Decision:** **Record the correction as the first result, and relocate the under-specification
+  finding to the four places it actually sits.** All eight components carry a stated release.
+  UniRef 2023_02 and MGnify 2023_02 are exact releases still served with a publisher checksum, so
+  two of ESM3's components are pinnable to the standard A1.3 reached for ESM-2. What is unstated
+  is: (1) which UniRef *tier* was parsed, across which the component varies 5.8-fold; (2) whether
+  "MGnify90" means the released 90% product or the full protein set behind it; (3) JGI's pin, which
+  is a date — given as July 31st in prose and July 30th in Table S3 — over a set whose membership
+  changes, with no snapshot; (4) whether the filter reached OAS, AlphaFoldDB and ESMAtlas, which its
+  scope list does not name. Written up in `policies/esm3-open.md` §6-8, with the component table and
+  the arithmetic in `src/amazebio/esm3.py` and `tools/esm3_composition.py`.
+- **A second finding falls out of the arithmetic, and it costs us something.** ESM3's stated corpus
+  sizes are 14.7M (UniRef, against UniRef90's 170,669,877) and 108.2M (MGnify, against the release's
+  729,215,663 clusters at 90%) short of the releases they name. Each gap alone exceeds the 10.6M
+  sequences the filter is reported to have removed across every component together. The cause is not
+  decidable from published text — ESM3 re-clusters with its own mmseqs flags, which is sufficient to
+  explain a different cluster count, and so is removal the filter description omits. `corpora.md` §5
+  had proposed sweeping the unpublished threshold until a reconstruction reproduced 10.6M, as the
+  nearest available substitute for a conformance re-execution. **That proposal is withdrawn.**
+  Tuning a threshold to hit a figure that cannot be reconciled with the corpus it was measured on
+  would be fitting to a number that does not mean what the sweep assumes. For ESM3 there is no
+  substitute for a conformance re-execution, and the write-up says so.
+- **Rejected:** Keeping the task file's premise and reporting "versions unstated" — false, and §7
+  requires Phase A to survive a motivated reader. Editing the premise out of the task file silently —
+  the premise was a reasonable reading of the filter appendix, and a later reader asking why A1.5
+  did not report the obvious finding deserves the answer. Resolving the UniRef tier by inference: the
+  70%/90% columns are consistent with parsing UniRef100 and re-clustering, which is suggestive, but
+  Table S3's clustering levels are ESM3's own and no arrangement of the published numbers identifies
+  the input. A proxy chooses and says it chose; it does not guess and present the guess as recovered.
+- **Consequence:** `amazebio.uniref` now carries a `Release` registry rather than four module
+  constants, so ESM3's 2023_02 stages through A1.3's verified path unchanged and the 2021_04
+  constants remain as aliases that A1.3's manifests still resolve. Because the tier is unstated, a
+  UniRef proxy stages the whole archive — all three tiers — rather than a tier chosen on the
+  reader's behalf; that is a cost, and it is the subject of the staging-scope question put to the
+  project owner separately. A4.3 gains its ESM3 scope table without waiting for any staging: the
+  composition is documentary. Two re-entry routes the filter's description does not reach are
+  recorded in `policies/esm3-open.md` §8 — predicted-structure databases over already-filtered
+  sequences, and 362M inverse-folded sequences that are in no database for an MMseqs query to
+  match. Both are findings about the published description, not measurements; A2 would need the
+  structure-side components staged to measure either, which nothing has authorised.
