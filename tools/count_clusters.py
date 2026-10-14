@@ -53,7 +53,13 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--tier", action="append", choices=list(DEFAULT_TIERS))
+    ap.add_argument(
+        "--release",
+        choices=sorted(uniref.RELEASES),
+        default=uniref.UNIREF_2021_04.release,
+        help="which staged release to count (default: %(default)s)",
+    )
+    ap.add_argument("--tier", action="append", choices=["uniref50", "uniref90", "uniref100"])
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
     ap.add_argument(
         "--source",
@@ -105,7 +111,8 @@ def _open_tier(args: argparse.Namespace, client: Any, bucket: str, prefix: str, 
     """Return (reader, label). The reader is forward-only with .read(n)."""
     if args.source:
         return open(args.source, "rb"), args.source
-    key = f"{prefix}/uniref/{uniref.RELEASE}/{tier}.tar/{tier}.xml.gz"
+    rel = uniref.RELEASES[args.release]
+    key = f"{prefix}/uniref/{rel.release}/{tier}.tar/{tier}.xml.gz"
     reader = uniref.S3RangeRead(
         client,
         bucket,
@@ -121,12 +128,13 @@ def _execute(
     args: argparse.Namespace, tiers: tuple[str, ...], client: Any, bucket: str, prefix: str
 ) -> int:
     report: dict[str, Any] = {}
+    rel = uniref.RELEASES[args.release]
     out = args.outdir / "composition.json"
     with run("A1.3", seed=None, outdir=args.outdir, allow_dirty=args.allow_dirty) as manifest:
-        manifest.parameter("release", uniref.RELEASE)
+        manifest.parameter("release", rel.release)
         manifest.parameter("tiers", list(tiers))
         manifest.parameter("markers", {k: v.decode() for k, v in uniref.MARKERS.items()})
-        manifest.parameter("stated_clusters", uniref.STATED_CLUSTERS)
+        manifest.parameter("stated_clusters", rel.stated_clusters)
         if args.code_commit:
             manifest.parameter("code_commit", args.code_commit)
         elif not manifest.git.get("available"):
@@ -185,13 +193,13 @@ def _execute(
                 f"root says version {attrs.get('version', '?')}",
                 flush=True,
             )
-            if attrs.get("version") and attrs["version"] != uniref.RELEASE:
+            if attrs.get("version") and attrs["version"] != rel.release:
                 manifest.note(
                     f"{tier} XML root declares version {attrs['version']!r}, not "
-                    f"{uniref.RELEASE!r} — the staged bytes are not the pinned release"
+                    f"{rel.release!r} — the staged bytes are not the pinned release"
                 )
 
-        composition = uniref.composition_check(counted)
+        composition = uniref.composition_check(counted, rel)
         for row in composition:
             tier = row["tier"]
             verdict = (
@@ -213,7 +221,7 @@ def _execute(
                 )
 
         report = {
-            "release": uniref.RELEASE,
+            "release": rel.release,
             "tiers": per_tier,
             "composition": composition,
             "all_tiers_agree": all(r["agrees"] for r in composition if r["agrees"] is not None)
@@ -235,7 +243,7 @@ def _execute(
             if not path.exists():
                 print(f"not uploaded (absent): {path}")
                 continue
-            key = f"{prefix}/results/{uniref.RELEASE}/{role}-{suffix}.json"
+            key = f"{prefix}/results/{rel.release}/{role}-{suffix}.json"
             client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
             print(f"uploaded s3://{bucket}/{key}")
 

@@ -87,7 +87,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
 # One process per tier. A gzip stream cannot be split, so this is the whole of
 # the available parallelism; the tiers differ in size so they finish apart.
 for tier in {tiers}; do
-  ( "$PYBIN" tools/count_clusters.py --tier "$tier" \
+  ( "$PYBIN" tools/count_clusters.py --release {release} --tier "$tier" \
       --outdir "/opt/amazebio/out-$tier" --upload-results --allow-dirty \
       --code-commit {commit} \
       --progress-seconds 60 ; echo "=== $tier exited $? ===" ) &
@@ -129,7 +129,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--profile", default="AmazebioStager", help="instance profile name")
     ap.add_argument("--owner", default=os.environ.get("AMAZEBIO_OWNER", "claude"))
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
-    ap.add_argument("--tier", action="append", choices=["uniref50", "uniref90"])
+    ap.add_argument(
+        "--release",
+        choices=sorted(uniref.RELEASES),
+        default=uniref.UNIREF_2021_04.release,
+        help="which staged release to count in region (default: %(default)s)",
+    )
+    ap.add_argument("--tier", action="append", choices=["uniref50", "uniref90", "uniref100"])
     ap.add_argument("--timeout-minutes", type=float, default=90.0)
     ap.add_argument("--poll-seconds", type=float, default=60.0)
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
@@ -175,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
         region=REGION,
         tiers=" ".join(tiers),
         commit=commit,
+        release=args.release,
     )
     if len(user_data.encode()) > 16 * 1024:
         raise SystemExit("user data exceeds the 16 KiB limit")
@@ -236,7 +243,7 @@ def _watch(
 ) -> int:
     deadline = time.monotonic() + args.timeout_minutes * 60
     # One key per tier, matching what count_clusters.py writes.
-    pending = {tier: f"{prefix}/results/{uniref.RELEASE}/composition-{tier}.json" for tier in tiers}
+    pending = {tier: f"{prefix}/results/{args.release}/composition-{tier}.json" for tier in tiers}
     collected: dict[str, Any] = {}
     seen_console = 0
 

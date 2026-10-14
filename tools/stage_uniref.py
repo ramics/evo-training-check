@@ -85,6 +85,13 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--probe", action="store_true", help="report the layout, upload nothing")
     mode.add_argument("--stage", action="store_true", help="upload the selected tiers")
     ap.add_argument(
+        "--release",
+        choices=sorted(uniref.RELEASES),
+        default=uniref.UNIREF_2021_04.release,
+        help="which pinned release to stage: 2021_04 is ESM-2's, 2023_02 is ESM3-open's "
+        "(default: %(default)s)",
+    )
+    ap.add_argument(
         "--tier",
         action="append",
         choices=["uniref50", "uniref90", "uniref100"],
@@ -165,16 +172,17 @@ def _execute(
     key_prefix: str,
 ) -> int:
     partial = args.max_compressed_bytes is not None
+    rel = uniref.RELEASES[args.release]
     with run(
         "A1.3",
         seed=None,  # Nothing here is random: a byte-for-byte transfer or a bug.
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
     ) as manifest:
-        manifest.parameter("release", uniref.RELEASE)
-        manifest.parameter("archive_url", uniref.ARCHIVE_URL)
-        manifest.parameter("published_md5", uniref.ARCHIVE_MD5)
-        manifest.parameter("published_bytes", uniref.ARCHIVE_BYTES)
+        manifest.parameter("release", rel.release)
+        manifest.parameter("archive_url", rel.archive_url)
+        manifest.parameter("published_md5", rel.archive_md5)
+        manifest.parameter("published_bytes", rel.archive_bytes)
         manifest.parameter("mode", "probe" if args.probe else "stage")
         manifest.parameter("tiers", list(tiers))
         manifest.parameter("max_compressed_bytes", args.max_compressed_bytes)
@@ -188,8 +196,8 @@ def _execute(
         )
 
         reader = uniref.ResumableRead(
-            uniref.ARCHIVE_URL,
-            expected_bytes=uniref.ARCHIVE_BYTES,
+            rel.archive_url,
+            expected_bytes=rel.archive_bytes,
             on_reconnect=lambda attempt, pos, exc: print(
                 f"  reconnect #{attempt} at {human(pos)}: {type(exc).__name__}: {exc}",
                 flush=True,
@@ -197,7 +205,7 @@ def _execute(
         )
         raw_sink = None
         if args.raw and args.stage:
-            raw_key = f"{key_prefix}/uniref/{uniref.RELEASE}/uniref{uniref.RELEASE}.tar.gz"
+            raw_key = f"{key_prefix}/uniref/{rel.release}/{rel.archive_name}"
             raw_sink = uniref.S3PartSink(
                 client,
                 bucket,
@@ -226,8 +234,8 @@ def _execute(
             # s3:DeleteObject that litter is permanent.
             return args.stage and not is_container(member) and tier_of(member) in tiers
 
-        print(f"archive: {uniref.ARCHIVE_URL}")
-        print(f"expected: {human(uniref.ARCHIVE_BYTES)}, md5 {uniref.ARCHIVE_MD5}")
+        print(f"archive: {rel.archive_url}")
+        print(f"expected: {human(rel.archive_bytes)}, md5 {rel.archive_md5}")
         print(f"mode: {'probe' if args.probe else 'stage ' + ','.join(tiers)}", flush=True)
 
         walker = uniref.iter_tar_members(
@@ -251,7 +259,7 @@ def _execute(
             )
 
             if wanted(member):
-                key = f"{key_prefix}/uniref/{uniref.RELEASE}/{member.qualified}".replace("//", "/")
+                key = f"{key_prefix}/uniref/{rel.release}/{member.qualified}".replace("//", "/")
                 with uniref.S3PartSink(
                     client,
                     bucket,
@@ -266,7 +274,7 @@ def _execute(
                             rate = reader.pos / max(now - started, 1e-9)
                             print(
                                 f"    {human(reader.pos)} read "
-                                f"({100 * reader.pos / uniref.ARCHIVE_BYTES:.1f}%), "
+                                f"({100 * reader.pos / rel.archive_bytes:.1f}%), "
                                 f"{human(sink.bytes_written)} into {member.name}, "
                                 f"{human(rate)}/s",
                                 flush=True,
@@ -308,11 +316,11 @@ def _execute(
         md5_verified: bool | None = None
         if not stopped_early and stream.exhausted:
             actual = stream.compressed_md5()
-            md5_verified = actual == uniref.ARCHIVE_MD5
+            md5_verified = actual == rel.archive_md5
             print(f"md5: {actual} ({'matches' if md5_verified else 'DOES NOT MATCH'} published)")
             if not md5_verified:
                 manifest.note(
-                    f"published md5 {uniref.ARCHIVE_MD5} but read {actual} — the staged bytes "
+                    f"published md5 {rel.archive_md5} but read {actual} — the staged bytes "
                     "are not the released bytes and nothing downstream may treat them as such"
                 )
 
@@ -342,14 +350,14 @@ def _execute(
                 )
 
         manifest.input_url(
-            uniref.ARCHIVE_URL,
+            rel.archive_url,
             role="release-archive",
             bytes=reader.pos,
-            checksum=uniref.ARCHIVE_MD5,
+            checksum=rel.archive_md5,
             checksum_type="md5",
             verified=md5_verified,
         )
-        manifest.note(f"compressed bytes read: {reader.pos} of {uniref.ARCHIVE_BYTES}")
+        manifest.note(f"compressed bytes read: {reader.pos} of {rel.archive_bytes}")
         manifest.note(f"stream reconnects: {reader.reconnects}")
         if stopped_early or partial:
             manifest.note(
@@ -362,8 +370,8 @@ def _execute(
         layout.write_text(
             json.dumps(
                 {
-                    "release": uniref.RELEASE,
-                    "archive_url": uniref.ARCHIVE_URL,
+                    "release": rel.release,
+                    "archive_url": rel.archive_url,
                     "partial": stopped_early or partial,
                     "compressed_bytes_read": reader.pos,
                     "md5_verified": md5_verified,

@@ -47,21 +47,77 @@ from typing import IO, Any, Protocol
 BLOCK = 512
 _READ_CHUNK = 1 << 22  # 4 MiB off the socket at a time.
 
-# The release this module exists to stage. Pinned here rather than passed in, so a
-# caller cannot quietly stage a different release and inherit this module's
-# verification. DECISIONS.md D-024.
-RELEASE = "2021_04"
-ARCHIVE_URL = (
-    "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/"
-    f"release-{RELEASE}/uniref/uniref{RELEASE}.tar.gz"
-)
-ARCHIVE_BYTES = 169_188_630_923
-ARCHIVE_MD5 = "444f0a7062a65a988ba1d5949d1d6419"
 
-# From the per-tier release notes of the same release, which are the authority on
-# composition. The staged corpus is checked against these, not against them being
-# plausible: see `composition_check`.
-STATED_CLUSTERS = {"uniref50": 49_874_565, "uniref90": 138_515_945}
+@dataclass(frozen=True)
+class Release:
+    """A pinned UniRef release: where it is, how big, and what it says it contains.
+
+    Releases are declared here, as a closed set, rather than passed in by a caller.
+    The original reason (DECISIONS.md D-024) was that a caller must not be able to
+    point this module's verification at a release nobody pinned, and that still holds:
+    a `Release` carries the publisher's own md5 and the publisher's own cluster counts,
+    so staging one is checkable, and inventing one at a call site would not be.
+
+    A1.5 made a second release necessary — ESM-2 states 2021_04 and ESM3 states
+    2023_02 — which is why these four values moved out of module constants
+    (DECISIONS.md D-032). The module constants remain as aliases for 2021_04, because
+    A1.3's staged corpus and its manifests cite them.
+    """
+
+    release: str
+    archive_bytes: int
+    archive_md5: str
+    stated_clusters: dict[str, int]
+
+    @property
+    def archive_url(self) -> str:
+        return (
+            "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/"
+            f"release-{self.release}/uniref/uniref{self.release}.tar.gz"
+        )
+
+    @property
+    def archive_name(self) -> str:
+        return f"uniref{self.release}.tar.gz"
+
+
+# ESM-2's release. Cluster counts from the per-tier release notes of the same release,
+# which are the authority on composition; the staged corpus is checked against these
+# rather than against them being plausible. See `composition_check`. Only the two tiers
+# A1.3 staged are listed, because a stated count for a tier nobody counted would read
+# as a check that passed.
+UNIREF_2021_04 = Release(
+    release="2021_04",
+    archive_bytes=169_188_630_923,
+    archive_md5="444f0a7062a65a988ba1d5949d1d6419",
+    stated_clusters={"uniref50": 49_874_565, "uniref90": 138_515_945},
+)
+
+# ESM3-open's release. All three tiers are listed here, unlike 2021_04, because ESM3
+# does not state which tier it parsed and a proxy therefore cannot stage just one:
+# see `amazebio.esm3` and policies/esm3-open.md section 6. Counts from the release
+# notes captured under policies/captures/, each verified against the md5 the release's
+# own metalink publishes for it.
+UNIREF_2023_02 = Release(
+    release="2023_02",
+    archive_bytes=211_819_312_677,
+    archive_md5="353681f464572bb199fa032f714d4669",
+    stated_clusters={
+        "uniref50": 60_479_070,
+        "uniref90": 170_669_877,
+        "uniref100": 350_950_053,
+    },
+)
+
+RELEASES: dict[str, Release] = {r.release: r for r in (UNIREF_2021_04, UNIREF_2023_02)}
+
+# Aliases for the release this module was written to stage. A1.3's manifests and tests
+# cite these names; new code should take a `Release`.
+RELEASE = UNIREF_2021_04.release
+ARCHIVE_URL = UNIREF_2021_04.archive_url
+ARCHIVE_BYTES = UNIREF_2021_04.archive_bytes
+ARCHIVE_MD5 = UNIREF_2021_04.archive_md5
+STATED_CLUSTERS = UNIREF_2021_04.stated_clusters
 
 
 class VerificationError(RuntimeError):
@@ -651,15 +707,21 @@ class S3PartSink:
 # --------------------------------------------------------------------------- #
 
 
-def composition_check(counted: dict[str, int]) -> list[dict[str, Any]]:
+def composition_check(
+    counted: dict[str, int], release: Release = UNIREF_2021_04
+) -> list[dict[str, Any]]:
     """Compare counted cluster totals against the release notes' stated totals.
 
     Returned as rows rather than a pass/fail, because a mismatch is a finding to
     report, not an error to raise: `AGENTS.md` is explicit that the gap between
     stated and used is itself a result.
+
+    `release` defaults to ESM-2's, which is the only one A1.3 counted. Pass the
+    release actually staged — a 2023_02 count checked against 2021_04's stated totals
+    would disagree for reasons that have nothing to do with the staging.
     """
     rows = []
-    for tier, stated in sorted(STATED_CLUSTERS.items()):
+    for tier, stated in sorted(release.stated_clusters.items()):
         got = counted.get(tier)
         rows.append(
             {

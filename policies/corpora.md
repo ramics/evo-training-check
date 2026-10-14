@@ -212,6 +212,30 @@ sequences — is the one published quantity a reconstruction can be checked agai
 threshold until a reconstruction reproduces it is the nearest available substitute. That estimate
 inherits the proxy's error and must ship with an interval.
 
+**Three corrections from A1.5, which this section predates.** The verdict stands — proxy only,
+and every ESM3 result carries that qualifier. Three of its clauses do not.
+
+The reconstruction does not have to work "at whatever versions are recoverable". ESM3 states a
+release for all eight components, and for UniRef and MGnify they are exact releases still served
+with a published checksum per file (`esm3-open.md` section 6). What is unstated is narrower and
+sharper than a missing version: which UniRef *tier* was parsed, across which the component's size
+varies 5.8-fold.
+
+The 10.6M removal count cannot be used to check a reconstruction. This section proposed sweeping
+the unpublished threshold until a reconstruction reproduced that figure, as the nearest available
+substitute for a conformance re-execution. A1.5 withdraws the proposal: the corpus sizes ESM3
+states are already 14.7M (UniRef) and 108.2M (MGnify) short of the releases they name, each on
+its own more than the 10.6M the filter is reported to have removed everywhere. Whether the
+remainder is ESM3's own re-clustering or removal the filter description omits is not decidable
+from published text, so a threshold tuned to hit 10.6M would be fitting to a number that does not
+mean what the sweep would assume. For ESM3 there is no substitute for a conformance
+re-execution, and the honest statement is that there is none.
+
+A third of the corpus cannot be reconstructed at all. JGI is 265,070M of 768,109M unique training
+tokens, pinned only by a date — stated inconsistently as July 30th and July 31st 2023 — over a
+set whose membership changes. Every ESM3 coverage figure is therefore a fraction of the
+components that could be staged, not of the corpus, and must say so in figures as well as prose.
+
 ## 6. ESM-2 — no corpus released, but precisely pinned
 
 [source: S-ESM2-REPO]
