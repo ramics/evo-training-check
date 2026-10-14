@@ -370,9 +370,11 @@
         "ESM-2",
         "ESMFold"
       ],
-      "status": "unretrieved",
-      "blocker": "biorxiv.org returned HTTP 429 with Cloudflare \"error code: 1015\" (rate limited) to every PDF path tried on 2026-10-14 \u2014 the versioned .full.pdf and the Unpaywall 'early' path alike \u2014 so the limit is on the host, not the document; Europe PMC holds the record as PPR521568 but its fullTextXML returns HTTP 500.",
-      "note": "ESM-2's own paper, and the first-party statement of what ESM-2 was trained on. Until it is retrieved, ESM-2's corpus pin rests on the repository model table (S-ESM2-REPO) and the dataset notation on S-ESM1B-PNAS. Worth a retry: the blocker is rate limiting, which lifts."
+      "status": "retrieved",
+      "note": "ESM-2's own paper, and the first-party statement of what ESM-2 was trained on. Retrieved 2026-10-14 after the earlier HTTP 429 lifted; the host rate-limits bursts rather than sustaining a block, so one request every few minutes succeeds where repeated attempts do not. NOTE ON THE CHECKSUM: biorxiv.org stamps the download time into the PDF's XMP ModifyDate and MetadataDate, so the bytes differ on every fetch and this sha256 will NOT reproduce. Verified by comparing this capture against an independently downloaded copy: 30 bytes differ, all of them in those two timestamps, and the extracted text is identical. So the hash fixes this capture, not the document.",
+      "capture": "pdfs/2022.07.20.500902v3.full.pdf",
+      "sha256": "87476bce2bd3b8c54420c58d9d797ae88b72501dec54c03c36b4f9448f499ca0",
+      "bytes": 4637380
     },
     {
       "id": "S-ESM2-SCIENCE",
