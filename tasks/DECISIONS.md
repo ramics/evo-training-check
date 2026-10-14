@@ -781,3 +781,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
   not. B1.2 and B4.2 are affected — a held-out evaluation on ESM-2 cannot cite published cluster
   IDs at the matching release, and any such claim needs its own construction and its own
   limitation. Nothing here changes the ESM3-open verdict: that corpus remains proxy-only.
+
+### D-025 — `UR50/D` means cluster members, read from the paper that defines the notation
+- **Date:** 2026-10-14
+- **Task:** A1.3 (closes the under-specification D-024 left open)
+- **Context:** D-024 pinned ESM-2 to `UR50/D 2021_04` and logged `UR50/S` versus `UR50/D` as
+  under-specification, because no retrieved source defines the suffixes and the difference decides
+  whether a reconstruction holds one representative per cluster or members of each. D-024 said that
+  needs the ESM-2 paper. It does not: the notation is defined in the lab's earlier ESM-1b paper,
+  which is open access.
+- **Decision:** **`/S` is sparse — the UniRef50 representative sequences. `/D` is dense — members
+  drawn evenly across the UniRef50 clusters.** From Rives et al. 2021 (PNAS, version of record),
+  now stored as `S-ESM1B-PNAS`: the three pretraining datasets are UR100 (UniRef100
+  representatives), UR50/S (UniRef50 representatives) and UR50/D (UniRef100 sequences sampled
+  evenly across the UniRef50 clusters). The definition is applied to ESM-2's table only because
+  that table demonstrably uses the same notation: its `esm1_t34_670M_UR100`, `_UR50S` and `_UR50D`
+  rows are the paper's three datasets one for one, and its `UR50/S 2018_03` row for
+  `esm1b_t33_650M_UR50S` matches the paper's statement that ESM-1b was trained on UR50/S. So **A1.3 stages UniRef50 clusters with their UniRef90 members and membership
+  preserved, not the 49,874,565 representatives.** Two residual gaps stay logged rather than
+  guessed: the definition samples UniRef100 members where ESM-2's own overview row reads
+  `UR50 (sample UR90)`, so the suffix carries the mechanism and the table carries the tier, and
+  the table wins; and whether "evenly" is a per-epoch redraw, with what seed, is unstated in both
+  papers.
+- **Rejected:** Waiting for the ESM-2 paper — bioRxiv rate-limits every path to it (HTTP 429,
+  Cloudflare 1015) and the Science version is paywalled, both now recorded as `S-ESM2-PREPRINT` and
+  `S-ESM2-SCIENCE` with their blockers; the notation would not be defined there anyway, since it is
+  inherited. Reading `/D` as "deduplicated" or `/S` as "sequences" — plausible expansions, and both
+  wrong, which is exactly why D-024 refused to guess. Staging representatives and noting the
+  difference as a limitation — that is a different dataset, not a qualified version of this one, and
+  ESM-2 is the positive control every Phase B comparison rests on. Treating the paper's UniRef100
+  as authoritative over ESM-2's own `sample UR90` row — a definition from an earlier paper cannot
+  override the model's own documentation on a point that documentation addresses directly.
+- **Consequence:** Changes what A1.3's acquisition pipeline must produce: cluster membership and
+  UniRef90 member sequences, so the extraction covers the `uniref50` and `uniref90` members of the
+  2021_04 bundle rather than UniRef50 alone, and the composition table reports members as well as
+  clusters. Raises the staging cost again — D-024 had already withdrawn A1.1's "cheapest corpus"
+  expectation, and this confirms ESM-2 as the most expensive of the four. The two residual gaps are
+  §A0 findings about ESM-2's documentation, not obstacles: the suffix a model card leads with is
+  defined only in a different paper about different models. `policies/corpora.md` §6 carries a
+  pointer to both corrections, since A1.1's verdict predates them.
