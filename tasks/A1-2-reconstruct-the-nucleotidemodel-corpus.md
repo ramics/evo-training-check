@@ -51,11 +51,25 @@ DECISIONS.md D-017, D-019, D-020.
 ## In flight
 
 - **Branch:** `claude/jolly-hawking-wtgnid`
-- **Done:** nothing yet; claimed 2026-10-14.
-- **Left:** everything in Steps.
-- **Waiting on the project owner:** nothing yet. A staging-scope question is likely, because the
-  Evo 2 corpus is far larger than the UniRef release A1.3 staged; it will be asked with real
-  byte counts rather than estimates.
+- **Done:**
+  - Both releases pinned to commit SHAs with a published SHA-256 per file
+    (`src/amazebio/opengenome.py`, `tools/stage_opengenome.py`, tests). Fetched manifests
+    reconcile exactly to both pins: 22 files / 146,886,935,899 bytes for Evo 1, and
+    1,126 files / 5,523,240,795,932 bytes for Evo 2.
+  - Composition table computed per component and per representation, with each component's
+    role in the audit recorded in code rather than left to the next pipeline.
+  - Write-up in `policies/evo.md` §7-8; five sources registered with captures.
+  - Staging scope settled with the project owner and logged as D-031.
+- **Left:**
+  - The staging pass itself is running (12 files, 134.2 GiB, ~22 MB/s). When it finishes,
+    `artifacts/a1-2/run.json` records each object with the checksum it was verified against;
+    that is what closes Done-when's first criterion.
+  - Then status to `review`.
+- **Waiting on the project owner:** nothing.
+- **For whoever picks up A2.3 or A4.1:** your component is deliberately not staged. D-031 has
+  the figures; the tier flag is already in the code, so it is one resumable pass, but it is
+  2.17 TB (eukaryotic) or 252 GB (metagenomic) of permanent storage and the cost question
+  should be re-asked rather than assumed.
 
 ## Notes
 

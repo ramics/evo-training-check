@@ -34,6 +34,7 @@ metrics/survival.md   FROZEN — the headline metric spec; changing it is a DECI
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tools/stage_uniref.py stages a pinned UniRef release into object storage, streaming
 tools/count_clusters.py counts clusters in a staged tier and checks the composition
+tools/stage_opengenome.py stages the pinned Evo nucleotide corpora, by component
 tools/ec2_count.py    runs the count in-region on EC2; see "Running work on EC2"
 tasks/README.md       the task protocol in detail
 tasks/BOARD.md        GENERATED — never hand-edit
