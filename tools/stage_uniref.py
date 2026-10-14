@@ -215,8 +215,16 @@ def _execute(
         staged: list[dict[str, Any]] = []
         stopped_early = False
 
+        def is_container(member: uniref.Member) -> bool:
+            """A nested per-tier archive, which is walked into rather than stored."""
+            return member.name.endswith(".tar")
+
         def wanted(member: uniref.Member) -> bool:
-            return args.stage and tier_of(member) in tiers
+            # Excluding containers matters: `uniref50.tar` matches its own tier, and
+            # the walk yields it with an empty payload before descending, so without
+            # this it uploads as a 0-byte object. In a bucket that withholds
+            # s3:DeleteObject that litter is permanent.
+            return args.stage and not is_container(member) and tier_of(member) in tiers
 
         print(f"archive: {uniref.ARCHIVE_URL}")
         print(f"expected: {human(uniref.ARCHIVE_BYTES)}, md5 {uniref.ARCHIVE_MD5}")
@@ -225,7 +233,7 @@ def _execute(
         walker = uniref.iter_tar_members(
             stream,
             want=wanted,
-            recurse_into=lambda m: m.name.endswith(".tar"),
+            recurse_into=is_container,
         )
         for member, payload in walker:
             row = {
