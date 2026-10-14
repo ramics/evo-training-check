@@ -1178,3 +1178,99 @@ decision has a threshold or parameter in it, the number goes in the entry.
   cost question rather than assume it. And the stated-versus-used record for ESM3 is not a byte
   comparison like ESM-2's: it is the component table in `src/amazebio/esm3.py`, because what ESM3
   states and what is obtainable differ by release granularity rather than by content.
+
+### D-034 — Tier 2 is out of scope, decided by measuring the launch policy rather than judging it
+- **Date:** 2026-10-14
+- **Task:** B1.1
+- **Context:** `DESIGN.md` §B1 names Evo 2 40B, Nucleotide Transformer and ProGen2 as Tier 2 "if
+  compute allows", and B1.1 owes a recorded scope decision. "If compute allows" had never been
+  measured. `AGENTS.md` describes the account's launch policy as an allowlist of instance types
+  without enumerating it, and the session container has no GPU, so neither the ceiling nor the
+  availability of an accelerator was known. `tools/ec2_capability.py` measured it by dry-running
+  `RunInstances` across a fixed list of types — `DryRun=True` authorizes the request and then
+  refuses it, so nothing is launched and nothing is billed. The request carries the `Project` and
+  `Owner` tags and the instance profile, without which every refusal is an indistinguishable
+  `UnauthorizedOperation` and the probe would have reported the whole space as denied.
+- **Decision:** **Tier 2 is out of scope, on compute.** The first probe found no accelerated type
+  permitted at any size — `g4dn`, `g5`, `g6`, `g6e`, `p3`, `p4d`, `p5` all refused — with a ceiling
+  of 8 vCPU and 64 GB. That was put to the project owner, who added `g5.xlarge` and `g6.xlarge`; the
+  second probe confirms them, so one 24 GB accelerator is available and every Tier 1 checkpoint is
+  runnable. Evo 2 40B is not: its own developers state it needs FP8 via Transformer Engine on a
+  Hopper GPU and multiple H100s for the weights, which means `p5.48xlarge` and roughly $98 an hour
+  against roughly $1 for a single-GPU box. Nucleotide Transformer and ProGen2 are out for a
+  different and stronger reason — nothing about either has been retrieved into `sources.json`, and
+  §B1 step 0 forbids inheriting a training-data claim from `DESIGN.md`, so neither can be an
+  inventory row at all until someone acquires its sources.
+- **Rejected:** Asking for Hopper access so 40B is runnable — the 40B and 7B checkpoints share one
+  policy, one corpus and one lineage (`policies/evo.md`), so the second size buys a scaling result
+  the homology regression does not need, at about a hundred times the hourly cost, on an account
+  that cannot stop an instance mid-run. Adding Nucleotide Transformer and ProGen2 as rows marked
+  unverified — it would put two checkpoints in the inventory whose exclusion status rests on nothing,
+  which is precisely the shape of claim this store exists to prevent. Recording Tier 2 as deferred
+  pending compute without measuring — that was the state of the question before this task, and it
+  would have left a scope decision resting on an assumption about an account policy that in fact
+  changed twice in one afternoon.
+- **Consequence:** Phase B's model list is the five Tier 1 checkpoints. `evo2_40b` stays in
+  `amazebio.models` as a Tier 2 row, because its requirement is a published fact worth recording and
+  the thing that excludes it is a measurement that can change; `tools/model_inventory.py` recomputes
+  feasibility from the current allowlist rather than from a frozen verdict. The allowlist snapshot
+  carries its date and must be re-run rather than cited — it changed during this task, which is the
+  argument for not hard-coding it. One consequence for B1.2: a 24 GB card fits all five, but nothing
+  here establishes that a 200-assay zero-shot pass finishes in useful time, and that measurement is
+  B1.2's first job rather than an inventory's claim.
+
+### D-035 — ESM-C enters Phase B as the 600M variant, and "open release" does not name one
+- **Date:** 2026-10-14
+- **Task:** B1.1
+- **Context:** `DESIGN.md` §B1 lists the second positive control as "ESM-C (open release)". That
+  phrase does not pick out a checkpoint: the family is 300M, 600M and 6B, and all three are openly
+  downloadable from the same HuggingFace collection, with the smaller two described by their own
+  developers as overtrained variants for local inference. B1.1 has to record a checkpoint
+  identifier, so the ambiguity had to be resolved rather than carried.
+- **Decision:** `ESMC-600M`. It is the largest variant that runs comfortably on the one 24 GB
+  accelerator this account permits (D-034), and the role §B1 gives ESM-C is a second
+  viruses-included comparison — the contrast being that its viral content is largely bacteriophage
+  — not a capability ceiling. The corpus claim behind that role rests on the preprint either way,
+  because the 600M and 6B model cards are byte-identical and neither evidences anything
+  variant-specific (`policies/esm-c.md` §5).
+- **Rejected:** ESMC-6B — the strongest model in the family, but it answers a question Phase B is
+  not asking, and §B1's own narrowing in v0.4 makes the homology regression primary and model
+  comparison supporting. The published ESM-C evaluation this design leans on compares "ESMC models"
+  as a family, so nothing downstream depends on which variant. ESMC-300M — no reason to prefer it
+  once 600M fits. All three — scope creep for a control, and `DESIGN.md` §7 names that as a live
+  risk.
+- **Consequence:** If a later task wants the 6B model, that is a compute decision and not a
+  re-verification: the exclusion status, licence and access route recorded in `policies/models.md`
+  §3 are family-level and already cover it. Note the asymmetry this creates with the ESM-2 arm,
+  which carries two sizes because §B1 names two.
+
+### D-036 — ESM3-open's parameter count is recorded as unstated, not as 1.4B
+- **Date:** 2026-10-14
+- **Task:** B1.1
+- **Context:** Phase B needs ESM3-open's size, and it is universally given as 1.4B. No first-party
+  source retrieved into this store states it. The ESM3 family table lists `esm3-large-2024-03` at
+  98B, `esm3-medium-2024-08` at 7B and `esm3-small-2024-08` at 1.4B, and does not list
+  `esm3-sm-open-v1` at all — the open checkpoint appears only in the prose above the table, as the
+  one whose weights are public. So neither its size nor which flagship checkpoint it corresponds to
+  is established by its developers' own documentation. The model card gives corpus scale and token
+  counts and no parameter count. The only size attribution in the store is the ESM-C preprint's
+  "ESM3 1.4B Open", which is one lab describing another lab's model.
+- **Decision:** `params` is recorded as `None`, with the gap named in
+  `src/amazebio/models.py`, argued from the sources in `policies/models.md` §2, and pinned by a test
+  so that filling it in requires a primary source. §B1 step 0 says to verify from primary sources
+  and trust no secondary source; a second lab's parenthetical about someone else's checkpoint is a
+  secondary source, however reliable it looks. The inference is very probably correct and that is
+  not the standard.
+- **Rejected:** Recording 1.4B cited to the ESM-C preprint — it would put a number in the inventory
+  on the authority of a source that is primary for ESM-C and secondary for ESM3, and the whole
+  reason this store checks quotations mechanically is that a plausible attribution acquiring a
+  citation is the failure mode that would most damage the project. Recording 1.4B as "widely
+  reported" — same defect, with the citation removed. Inferring it from the checkpoint's own config
+  on HuggingFace — that would actually settle it, and it is a legitimate route, but it means
+  downloading the weights, which belongs to B1.2 rather than to an inventory task.
+- **Consequence:** Two checkpoints of six now carry a §A0 under-specification finding, which
+  `tools/model_inventory.py` reports on every run. Anything in a write-up that turns on
+  ESM3-open's size needs either the Science version of record (S-ESM3-SCIENCE, still unretrieved)
+  or the config from the weights themselves. For B1.2 this is nearly free to close: the config is
+  read anyway when the model loads, and recording what it says would convert a §A0 finding into a
+  verified field.
