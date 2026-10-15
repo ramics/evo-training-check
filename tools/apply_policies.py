@@ -71,6 +71,30 @@ def _client() -> Any:
     return boto3.client("s3", region_name=corpora.S3_REGION, endpoint_url=corpora.S3_ENDPOINT)
 
 
+def check_inventory(client: Any) -> int:
+    """Refuse to run if the bucket holds a staged object `corpora.SOURCES` does not declare.
+
+    One listing, before any corpus is read. A1.4's first pass declared two of Evo 1's three
+    stage-2 splits and would have reported a short count of the filter's own output as a
+    finished result; nothing downstream could have caught it. Returns the number of objects
+    checked.
+    """
+    paginator = client.get_paginator("list_objects_v2")
+    live: list[tuple[str, int]] = []
+    for prefix in corpora.INVENTORY_PREFIXES:
+        for page in paginator.paginate(Bucket=corpora.BUCKET, Prefix=prefix):
+            live.extend((o["Key"], o["Size"]) for o in page.get("Contents", []))
+    missing = corpora.undeclared_objects(live)
+    if missing:
+        listed = "\n  ".join(f"{size:>15,}  {key}" for key, size in sorted(missing))
+        raise SystemExit(
+            f"{len(missing)} staged object(s) are not declared in corpora.SOURCES, so this run "
+            f"would silently omit them:\n  {listed}\n"
+            "Declare them with their component and evidence, or exclude them explicitly."
+        )
+    return len(live)
+
+
 def _records(
     client: Any, source: corpora.StagedSource, *, limit: int | None, on_parse_error: Any
 ) -> Iterator[Any]:
@@ -359,6 +383,8 @@ def main(argv: list[str] | None = None) -> int:
 
     outdir = Path(args.out)
     client = _client()
+    checked = check_inventory(client)
+    print(f"inventory: {checked} staged objects, all declared", file=sys.stderr)
     with run("A1.4", seed=SEED, outdir=outdir, allow_dirty=args.allow_dirty) as manifest:
         manifest.parameter("policies", sorted(wanted))
         manifest.parameter("releases", {p: list(RELEASES[p]) for p in sorted(wanted)})
@@ -368,6 +394,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         manifest.parameter("lineage_window_bytes", corpora.LINEAGE_WINDOW)
         manifest.parameter("deferred_to_a1_6", sorted(DEFERRED))
+        manifest.parameter("staged_objects_checked", checked)
         for source in corpora.SOURCES + corpora.ESM3_SOURCES:
             if source.key and source.bytes:
                 manifest.input_url(

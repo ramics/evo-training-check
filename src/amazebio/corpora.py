@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import io
 import re
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -65,6 +65,7 @@ __all__ = [
     "iter_stage2_records",
     "parse_lineage",
     "sources_for",
+    "undeclared_objects",
 ]
 
 BUCKET = "amazebio-corpora-897641797669"
@@ -431,6 +432,16 @@ SOURCES: tuple[StagedSource, ...] = (
         bytes=16_920_332_545,
     ),
     StagedSource(
+        key=f"{_OG1}/stage2/test_stage2.parquet",
+        release="opengenome",
+        component="IMG/VR",
+        corpus_component="stage2",
+        reader="stage2_parquet",
+        evidence=_STAGE2_EVIDENCE,
+        why="The same component's test split. Stage 2 is published as three splits, not two.",
+        bytes=584_279,
+    ),
+    StagedSource(
         key=f"{_OG1}/stage2/valid_stage2.parquet",
         release="opengenome",
         component="IMG/VR",
@@ -683,6 +694,34 @@ ESM3_SOURCES: tuple[StagedSource, ...] = (
         extra={"staged": False},
     ),
 )
+
+
+#: Prefixes the staged-object inventory is checked against. Everything the two Evo releases
+#: staged lives under one of these, so anything found there and not declared in :data:`SOURCES`
+#: is a component this module would silently omit.
+INVENTORY_PREFIXES = ("corpora/opengenome/", "corpora/opengenome2/")
+
+
+def undeclared_objects(objects: Iterable[tuple[str, int]]) -> list[tuple[str, int]]:
+    """Staged objects no entry in :data:`SOURCES` accounts for, as (key, bytes) pairs.
+
+    This exists because of a near miss. Evo 1 publishes stage 2 as *three* splits — train,
+    valid and test — and the first version of `SOURCES` declared two. The run completed, every
+    count reconciled against itself, and the manifests would have under-counted the filter's own
+    output with nothing anywhere to show it. An inventory this project writes by hand against a
+    bucket it cannot list for free is exactly the place to check rather than trust, so the
+    pipeline refuses to start on a mismatch.
+
+    Zero-byte objects are ignored: A1.3 left four behind that are not corpus data, and the
+    bucket withholds `s3:DeleteObject`, so they are permanent and must not fail a run.
+    """
+    declared = {s.key for s in SOURCES if s.key}
+    prefixes = tuple(s.key for s in SOURCES if s.key.endswith("/"))
+    return [
+        (key, size)
+        for key, size in objects
+        if size > 0 and key not in declared and not key.startswith(prefixes)
+    ]
 
 
 def sources_for(release: str | None = None, *, readable_only: bool = False) -> list[StagedSource]:

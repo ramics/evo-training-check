@@ -276,3 +276,39 @@ def test_sources_for_narrows_by_release_and_readability() -> None:
     assert all(s.readable for s in sources_for("opengenome2", readable_only=True))
     with pytest.raises(ValueError, match="no staged sources"):
         sources_for("not-a-release")
+
+
+# --------------------------------------------------------------------------------------
+# The inventory guard
+# --------------------------------------------------------------------------------------
+
+
+def test_the_three_stage2_splits_are_all_declared() -> None:
+    """Regression: the first version of SOURCES had train and valid, and stage 2 has three."""
+    splits = {s.key.rsplit("/", 1)[-1] for s in SOURCES if s.corpus_component == "stage2" and s.key}
+    assert splits == {"train_stage2.parquet", "valid_stage2.parquet", "test_stage2.parquet"}
+
+
+def test_an_undeclared_staged_object_is_reported() -> None:
+    from amazebio.corpora import undeclared_objects
+
+    declared = next(s.key for s in SOURCES if s.corpus_component == "imgvr")
+    found = undeclared_objects(
+        [(declared, 11), ("corpora/opengenome/rev/stage3/surprise.parquet", 99)]
+    )
+    assert found == [("corpora/opengenome/rev/stage3/surprise.parquet", 99)]
+
+
+def test_objects_under_a_declared_prefix_are_accounted_for() -> None:
+    """GTDB is declared as a prefix because it is four tar objects, not one."""
+    from amazebio.corpora import undeclared_objects
+
+    gtdb = next(s.key for s in SOURCES if s.corpus_component == "gtdb_v220")
+    assert undeclared_objects([(gtdb + "v214/batch1.tar", 27_891_189_760)]) == []
+
+
+def test_zero_byte_objects_never_fail_a_run() -> None:
+    """A1.3 left four behind and the bucket withholds DeleteObject, so they are permanent."""
+    from amazebio.corpora import undeclared_objects
+
+    assert undeclared_objects([("corpora/opengenome2/rev/.probe", 0)]) == []
