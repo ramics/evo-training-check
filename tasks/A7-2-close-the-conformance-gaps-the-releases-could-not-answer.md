@@ -2,13 +2,13 @@
 id: A7.2
 title: Close the conformance gaps the releases could not answer
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.7]
 blocks: []
 design_ref: "§A7"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A7.2 — Close the conformance gaps the releases could not answer
@@ -109,6 +109,25 @@ something unrelated to whether it can start. It can start the moment A1.7 lands.
 - **Not ESM3.** There is no conformance arm for ESM3-open at all: neither corpus nor threshold is
   published, and the 10.6M removal count is the only published quantity a reconstruction can be
   checked against. That belongs to A1.6, not here.
+
+## State — 2026-10-15
+
+`in-progress`. Work branch: `claude/kind-wozniak-ec94y4`, restarted from `main` after PR #11.
+
+Picked up because A1.7 landed and this is the task that consumes it. Nothing else is
+outstanding from this session: A1.7 and A4.3 are both `done`.
+
+Two numbers are already on the table as checks this task must hit rather than produce:
+
+- **D-058's target for the host rule.** Evo 1's Figure S1B puts 2,374,733 of 2,653,046 retained
+  records at host kingdom *Unknown*. A re-execution that does not land near that has the
+  counting unit wrong, whatever else it reproduces.
+- **D-064's prediction for the chain.** IMG/VR v4 holds 15,677,623 records, of which 5,576,197
+  are high-confidence, spanning 2,917,521 distinct vOTUs, against Evo 1's stated 2,653,046
+  retained — a further 9.1% down, which is the order a prokaryotic-host requirement would
+  remove. Recorded in A1.7 as falsifiable, and this is the task that falsifies or confirms it.
+
+Nothing started yet beyond the claim.
 
 ## Notes
 

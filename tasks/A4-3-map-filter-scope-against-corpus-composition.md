@@ -2,7 +2,7 @@
 id: A4.3
 title: Map filter scope against corpus composition
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A0.3, A1.2, A1.3, A1.5]
 blocks: [A6.1]
@@ -46,7 +46,7 @@ This is the leading Phase A result per DECISIONS.md D-007.
 
 ## State — 2026-10-15
 
-`review`. Work branch: `claude/kind-wozniak-ec94y4`. Artefacts:
+`done`. Merged to `main` in PR #11 (branch `claude/kind-wozniak-ec94y4`). Artefacts:
 `artifacts/a4-3/scope.json` and `scope.md`, from `tools/scope_map.py`.
 
 **The headline.** The same policy, inherited verbatim by Evo 2 ("As previously described"),
