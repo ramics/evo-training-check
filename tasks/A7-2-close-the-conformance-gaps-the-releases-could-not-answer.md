@@ -112,10 +112,14 @@ something unrelated to whether it can start. It can start the moment A1.7 lands.
 
 ## State — 2026-10-15
 
-`review`. Work branch: **`claude/kind-brown-78c2qq`** (not `claude/kind-wozniak-ec94y4`, which
-this file named when the task was claimed — that branch was A1.7's and A7.2's work never went
-there). Every Done-when criterion is met except the last, which is the A3.3 gate: the headline
-numbers need a second method before any external circulation, exactly as A7.1 is held.
+`review`. **The work merged to `main` in PR #12** (branch `claude/kind-brown-78c2qq`, now
+merged; this file named `claude/kind-wozniak-ec94y4` when the task was claimed, which was
+A1.7's branch — A7.2's work never went there). Nothing is left on a branch: look on `main`.
+
+Every Done-when criterion is met except the last, which is the A3.3 gate: the headline numbers
+need a second method before any external circulation, exactly as A7.1 is held. **That gate is
+the only thing between this task and `done`**, and it now holds three results — A1.4, A7.1 and
+A7.2 — so it is the binding constraint on the Phase A write-up rather than a formality.
 
 **All five gaps are closed, and one of them closed the other way up.**
 
