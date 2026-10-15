@@ -2172,3 +2172,52 @@ decision has a threshold or parameter in it, the number goes in the entry.
   ceiling the file sits just under, and is covered by tests for the no-delete bucket's one
   real hazard — bytes uploaded that were never verified. So the first authenticated run will
   exercise a path that has been tested, which it would not have before.
+
+### D-062 — With the token reaching JGI, the download is a POST returning a zip; the documented single-file GET answers 404
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** The project owner made `JGI_API_TOKEN` a plain environment variable and removed
+  the proxy's claim on `*.jgi.doe.gov`, which is exactly what D-061 asked for. The credential
+  now reaches the publisher, and that is settled by the shape of the refusals rather than by
+  assertion: with the header the download host answers `404` or `405`, without it `401
+  {"detail":"Authentication credentials were not provided."}`. D-061 is closed. The first
+  authenticated measurement in this task's history then moved the endpoint a second time.
+  `GET /download_files/{jamo_id}/` is the publisher's own documented single-file read and is
+  what D-060 corrected to. Authenticated, it answers `404` for **every** IMG/VR file tried —
+  the 4 KB README and the 696 MB host table alike — and as nginx HTML rather than the API's own
+  JSON, so the request is authenticated and routed and the bytes are still not served that way.
+  Unauthenticated, the same URL answers `401` with `Allow: GET, HEAD, OPTIONS`, which is why no
+  measurement made before a credential existed could have distinguished the two. D-060 was not
+  wrong about what the spec documents; it was as right as an uncredentialed measurement allows.
+- **Decision:** Fetch files through `POST /download_files/` on the same host, keyed by organism
+  id: `{"ids": {"Custom_MPI-IMG_VR": {"file_ids": [...], "top_hit": "<id>"}}}`. The response is
+  a single `application/zip` stream holding the requested files under a per-release directory,
+  plus a `Download_<n>_File_Manifest.csv` carrying the publisher's md5 and size for each. Two
+  details are dictated and neither is guessable: `top_hit` is the `_id` **string** of the
+  organism's top-hit file, and posting the object the search response nests there instead
+  returns HTTP 500; and `POST /request_archived_files/`, which starts a tape restore, takes the
+  same organism-keyed body — a flat list of ids is refused as HTTP 404 by the search host's
+  nginx, reading as an absent endpoint rather than a malformed body.
+- **Verified:** End to end before any bulk transfer. The two 2022-09-20 READMEs came back inside
+  the zip at exactly the sizes and md5s pinned in `amazebio.imgvr.RELEASES` — pins recorded from
+  the public inventory before this project held any of the bytes, which is the A1.3 standard and
+  not D-040's weaker self-attestation. All six metadata files of the 2022-09-20 release then
+  staged on the same path, each verified against the publisher's md5 before its upload, and the
+  three fields this task exists for were read back out of the bucket: `Confidence`, `vOTU` and
+  `Host taxonomy prediction` are columns 9, 5 and 16 of the staged sequence-information table.
+- **Rejected:** Treating the 404 as a transient or a permissions problem and retrying or
+  re-copying the token. Both were ruled out by measurement — a small file and a large one fail
+  identically, and the unauthenticated control on the same URL returns a different status — and
+  D-061 exists precisely because the previous pass's 401 looked like a credential problem and
+  was not. Also rejected: keeping the single-file GET as a fallback. Two endpoints for one job
+  means a future failure is ambiguous between them, which is the ambiguity that cost D-060 and
+  this entry a round trip each.
+- **Consequence:** The transfer path changes shape with the endpoint. One file is requested per
+  call, so the zip holds one member and the spool stays bounded by the largest single file
+  rather than by the 7.9 GB release; the member is verified by streaming it once and uploaded by
+  streaming it again, so the extracted copy never lands on disk; and verification still strictly
+  precedes upload, because the corpus bucket withholds `s3:DeleteObject` and an object that
+  completes is permanent. A zip that does not hold exactly one member with the expected name
+  refuses rather than guessing which member was meant. The 2022-09-20 release — 6 files,
+  7.92 GB — is staged and verified. The 2022-12-20 release is on tape and its restore is
+  asynchronous, so A1.7 completes in the second pass D-056 anticipated.
