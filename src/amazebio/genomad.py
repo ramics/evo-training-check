@@ -5,14 +5,16 @@ audit can actually run (D-084). This module holds the three things that makes ne
 version pins, the output parser, and the honest statement of what the benchmarked step is —
 and nothing about statistics, which is `misassignment`'s.
 
-**The version is a bound, not a statement.** The release note pins CheckV to `v1.0.1` in the
-same field list and names geNomad with no version at all; the publisher's help page contains no
-version string anywhere. So what the audit may claim is a bound derived from dates the
-publisher does not control: geNomad 1.0.0 was released 2022-07-30, 1.1.0 on 2022-08-22, and
-1.2.0 not until 2022-11-15, while the v4 release files are dated 2022-09-20. The labels were
-produced by something at or before 1.1.0. :data:`PIN` is that newest-possible pairing and
-:data:`VERSION_EVIDENCE` is the reasoning, carried into the artefact rather than left in a
-commit message. See D-085.
+**The version is stated, and it is the one this module pins.** IMG/VR v4's paper names geNomad
+**version 1.1.0** in its Methods — twice, once for the marker-based taxonomic assignment
+specifically — and cites the Zenodo deposit of that release. What the release note and the
+help page carry is less: the note pins CheckV to `v1.0.1` in the same field list and names
+geNomad with no version, so the data a user downloads does not carry the version its own labels
+came from. A4.2 first derived 1.1.0 as the newest version that *could* have produced the labels,
+from release dates alone, because the paper was unreachable from this environment; the paper then
+confirmed it. :data:`VERSION_EVIDENCE` carries both the statement and that corroboration, plus
+the one part still inferred — the marker database version, which no source states. See D-085 and
+the correction in D-096.
 
 **`--version` lies here, and the manifest must not believe it.** geNomad 1.1.0 calls
 `click.version_option()` with no package name. A modern click resolves the distribution by
@@ -90,50 +92,63 @@ PIN = GenomadPin(
     splits=8,
 )
 
-#: Why :data:`PIN` is the version it is, in a form the artefact can carry. Each entry is a
-#: fact with its source; the conclusion is a bound.
+#: Why :data:`PIN` is the version it is. The publisher states it, in the paper and nowhere
+#: else — see D-096, which corrects the bound this field used to carry.
 VERSION_EVIDENCE: dict[str, Any] = {
-    "stated_by_publisher": None,
+    "stated_by_publisher": "1.1.0",
+    "stated_in": "S-IMGVR-V4-NAR (doi:10.1093/nar/gkac1037), Materials and Methods",
     "sources_checked": [
+        {
+            "source": "IMG/VR v4 paper (doi:10.1093/nar/gkac1037)",
+            "finding": (
+                "states the version three times: UViGs were mined from IMG/M assemblies "
+                "retrieved 2022-04-10 using geNomad version 1.1.0; the marker-based taxonomic "
+                "assignment used geNomad version 1.1.0 specifically; and reference 19 is the "
+                "Zenodo deposit of geNomad v1.1.0 (doi:10.5281/zenodo.7015982). The taxonomy "
+                "is assigned against ICTV Taxonomy Release #37."
+            ),
+        },
         {
             "source": "IMG/VR v4 release note (README.txt, both releases)",
             "finding": (
                 "pins CheckV to v1.0.1 by name in the same field list; names geNomad with no "
-                "version"
+                "version. The data a user downloads therefore does not carry the version its "
+                "own labels came from"
             ),
         },
         {
             "source": "IMG/VR help page (https://img.jgi.doe.gov/docs/IMG-VR.pdf, 13 pages)",
             "finding": (
-                "describes geNomad's role and the four taxonomy approaches; contains no "
-                "version string anywhere"
-            ),
-        },
-        {
-            "source": "IMG/VR v4 paper (doi:10.1093/nar/gkac1037)",
-            "finding": (
-                "not retrieved: the publisher returns 403 and PMC serves a proof-of-work "
-                "interstitial. The claim is therefore scoped to the two sources above"
+                "describes geNomad's role and four taxonomy approaches; contains no version "
+                "string anywhere"
             ),
         },
     ],
-    "bound": {
-        "argument": (
-            "geNomad 1.0.0 was released 2022-07-30 and 1.1.0 on 2022-08-22; 1.2.0 did not exist "
-            "until 2022-11-15. The v4 release files are dated 2022-09-20, so the labels were "
-            "produced by geNomad at or before 1.1.0, or by a pre-release build — geNomad and "
-            "IMG/VR come from the same group and the geNomad preprint postdates v4 by a year."
+    "corroboration": {
+        "release_dates": (
+            "Independent of the statement, the dates agree with it: geNomad 1.0.0 was released "
+            "2022-07-30 and 1.1.0 on 2022-08-22, 1.2.0 not until 2022-11-15, and the v4 release "
+            "files are dated 2022-09-20. A4.2 derived 1.1.0 as the newest possible version from "
+            "those dates alone before the paper was in hand, and the paper confirms it."
         ),
-        "newest_possible": "1.1.0",
-        "database_pairing": (
-            "The publisher's own releases.txt maps package 1.1 to marker database v1.1, whose "
-            "files are dated 2022-08-22."
+        "genomad_paper": (
+            "S-GENOMAD-NATBIOTECH states from the tool's authors that geNomad produced the data "
+            "IMG/VR v4 was built from, and that its taxonomically informed markers were "
+            "annotated from ICTV VMR version 19 (D-095)."
         ),
     },
+    "residual_gap": (
+        "The marker *database* version is still stated nowhere: the paper gives the package "
+        "version and the Zenodo deposit of the code, and neither it nor the release note names "
+        "the profile database. The pairing rests on the publisher's own releases.txt, which maps "
+        "package 1.1 to marker database v1.1 — whose files are dated 2022-08-22. That is a "
+        "mapping published by the tool's authors rather than a statement about this corpus, so "
+        "it is the one part of the pin that remains inferred."
+    ),
     "reading": (
-        "The version is a bound derived from release dates, not a statement by the publisher. "
-        "An error rate reported against 1.1.0 is the rate for the newest version that could "
-        "have produced these labels."
+        "The version A4.2 benchmarked is the version the publisher states it used. The earlier "
+        "framing of this field as a bound was a consequence of the paper being unreachable from "
+        "the audit's environment, not of the publisher withholding anything (D-096)."
     ),
 }
 

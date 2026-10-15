@@ -453,7 +453,16 @@ def render(result: dict[str, Any]) -> str:
     out("")
     out(f"**Tool under test:** geNomad {pin['genomad']}, marker database v{pin['marker_database']}")
     out(f"(mmseqs2 {pin['mmseqs2']}, split {pin['mmseqs2_splits']} ways).")
-    out("The version is a bound, not a statement by the publisher — see D-085.")
+    stated = pin["version_evidence"]["stated_by_publisher"]
+    if stated == pin["genomad"]:
+        out(
+            f"This is the version the publisher states it used: IMG/VR v4's paper names "
+            f"geNomad {stated} in its Methods, for the marker-based assignment specifically. "
+            f"See D-085 and D-096."
+        )
+    else:
+        out("The version is a bound, not a statement by the publisher — see D-085.")
+    out(f"Still inferred: {pin['version_evidence']['residual_gap']}")
     out("")
     gt = result["ground_truth"]
     out(f"**Ground truth:** ICTV {gt['msl']}, {gt['filename']} (published {gt['published']}).")

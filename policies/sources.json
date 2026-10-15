@@ -642,11 +642,12 @@
    "kind": "paper",
    "title": "Camargo et al. 2023 \u2014 IMG/VR v4: an expanded database of uncultivated virus genomes (Nucleic Acids Research)",
    "url": "https://doi.org/10.1093/nar/gkac1037",
-   "licence": "open access (CC-BY) per Unpaywall; not retrievable from this environment",
+   "licence": "publisher content \u2014 open access per Unpaywall, licence not stated in the PDF, so not redistributed",
    "doi": "10.1093/nar/gkac1037",
-   "status": "unretrieved",
-   "note": "The release's own paper, and the one source that could still state the geNomad version IMG/VR v4 used. A4.2's claim that no geNomad version is stated is therefore scoped to the release note and the publisher's help page \u2014 the two sources actually checked \u2014 and the gap is flagged for A6.1 (D-085).",
-   "blocker": "Four access paths tried on 2026-10-15, all refused: academic.oup.com returns HTTP 403; PMC (PMC9825611) serves a JavaScript proof-of-work interstitial instead of the PDF, and its efetch route states the publisher does not permit full-text XML; the eScholarship and OSTI mirrors Unpaywall lists both return HTTP 202 with an empty body behind a bot challenge. Unpaywall reports the article as open access, so this is an access-path problem rather than a licence one, and a human with an ordinary browser can almost certainly fetch it."
+   "status": "retrieved_not_stored",
+   "note": "Retrieved 2026-10-15 by the project owner, who supplied the PDF after four automated access paths were refused (OUP 403; PMC proof-of-work interstitial; the eScholarship and OSTI mirrors HTTP 202 behind a bot challenge). Not stored because the PDF states no redistribution licence, unlike the bioRxiv preprints in pdfs/. Verify against the recorded sha256. It settles three things A4.2 had to bound or report as undocumented, and D-096 records the corrections: geNomad's version is stated as 1.1.0 in Methods, twice and for the marker-based assignment specifically, with Zenodo doi 10.5281/zenodo.7015982 as reference 19 \u2014 which is the version A4.2 benchmarked; the ground truth is ICTV Taxonomy Release #37, which is the MSL D-086 pinned; and the taxonomy methods the release note and help page leave out are documented here, so the 'three undocumented methods' finding in D-084 does not survive.",
+   "sha256": "06de029f5e7415eef3bfcc3bbe1eaebe57f8a964fe35a427923f922dfbec9ba1",
+   "bytes": 3523561
   },
   {
    "id": "S-RVMT-CELL",
