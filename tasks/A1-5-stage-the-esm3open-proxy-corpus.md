@@ -2,7 +2,7 @@
 id: A1.5
 title: Stage the ESM3-open proxy corpus
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.1]
 blocks: [A1.4, A4.3]
@@ -62,36 +62,41 @@ side by side as though it could.
 
 ## In flight
 
-- **Branch:** `claude/awesome-archimedes-4yxn9p`
+- **Branch:** `claude/awesome-archimedes-4yxn9p` — ready for review, every Done-when met.
 - **Done:**
-  - What ESM3 states is established from the preprint, per component, with locators and
-    machine-verified quotations. The task's own premise was wrong — versions *are* stated — and
-    the correction plus the four places the under-specification actually sits are D-032 and
-    `policies/esm3-open.md` §6-8.
-  - The reconciliation: ESM3's stated corpus sizes are 14.7M and 108.2M short of the releases
-    they name, each gap alone larger than the 10.6M the filter reports removing everywhere.
-    `corpora.md` §5's proposal to validate a reconstruction against that figure is withdrawn.
-  - **Both components staged and verified.** UniRef 2023_02's three tiers (211.8 GB) and
-    MGnify 2023_02's 90%-clustered product (83.5 GB), 295.3 GB in all, each matching the md5
-    its publisher publishes. Scope was the project owner's call, logged as D-033.
-  - Stated-versus-used recorded for all eight components in
-    `artifacts/a1-5/composition.json`, joined from the staging manifests rather than retyped.
-  - Code: `src/amazebio/esm3.py` (component table, reconciliation, stated-versus-used),
-    `src/amazebio/mgnify.py` and `tools/stage_mgnify.py` (verify-then-complete transfer),
-    `tools/esm3_composition.py`, and a `Release` registry plus `ParallelRangeRead` in
-    `amazebio.uniref`. 216 tests pass.
-- **Left:**
-  - The in-region cluster count is running on EC2, checking each staged tier against its
-    release note. The archive md5 proves the bytes; the counts prove the extraction.
-  - Then status to `review`.
+  - **What ESM3 states, from the preprint, per component**, with locators and
+    machine-verified quotations. The task's own premise was wrong — versions *are* stated for
+    all eight components — and the correction plus the four places the under-specification
+    actually sits are D-032 and `policies/esm3-open.md` §6-8: UniRef's unstated tier, MGnify's
+    unstated granularity, JGI's unpinnable date, and three components the filter's scope list
+    does not name.
+  - **The reconciliation.** ESM3's stated corpus sizes are 14.7M (UniRef) and 108.2M (MGnify)
+    short of the releases they name, each gap alone larger than the 10.6M the filter reports
+    removing everywhere. `corpora.md` §5's proposal to validate a reconstruction against that
+    figure is withdrawn: for ESM3 there is no substitute for a conformance re-execution.
+  - **Both obtainable components staged and verified.** UniRef 2023_02's three tiers
+    (211.8 GB) and MGnify 2023_02's 90%-clustered product (83.5 GB), 295.3 GB in all. Each
+    matches the md5 its publisher publishes. Each UniRef tier was then counted in region
+    against its own release note — 350,950,053 / 170,669,877 / 60,479,070, delta zero — because
+    the archive md5 cannot show the tar walk split it into the right tiers. Scope was the
+    project owner's call: D-033.
+  - **Stated-versus-used for all eight components** in `artifacts/a1-5/composition.json`,
+    joined from the staging manifests rather than retyped, with no coverage share by design.
+  - **Two re-entry routes the filter's description does not reach**, recorded in
+    `esm3-open.md` §8: predicted-structure databases over already-filtered sequences, and
+    362M inverse-folded sequences that are in no database for an MMseqs query to match.
+  - Code: `src/amazebio/esm3.py`, `src/amazebio/mgnify.py`, `tools/stage_mgnify.py`,
+    `tools/esm3_composition.py`, plus a `Release` registry and `ParallelRangeRead` in
+    `amazebio.uniref`. `boto3` is now pinned, which no staging tool had. 221 tests pass.
+- **Left:** nothing. Move to `done` on review.
 - **Waiting on the project owner:** nothing.
 - **For whoever picks up A1.4 or A4.3:** A4.3's ESM3 scope table needs no staging — the
-  composition is documentary and the artefact is there now. Do not write any figure of the
-  form "x% of ESM3's corpus": JGI is about a third of its unique training tokens and cannot
-  be reconstructed at all, so coverage is over the components that could be staged.
-- **For whoever picks up A2.2:** the two re-entry routes in `esm3-open.md` §8 cannot be
-  measured without the structure-side components (AlphaFoldDB v4, ESMAtlas), which D-033
-  deliberately did not buy. Re-ask the cost question rather than assuming it.
+  composition is documentary and the artefact is there. Do not write any figure of the form
+  "x% of ESM3's corpus": JGI is about a third of its unique training tokens and cannot be
+  reconstructed at all, so coverage is over the components that could be staged.
+- **For whoever picks up A2.2:** the two re-entry routes cannot be measured without the
+  structure-side components (AlphaFoldDB v4, ESMAtlas), which D-033 deliberately did not buy.
+  Re-ask the cost question rather than assuming it.
 
 ## Notes
 
