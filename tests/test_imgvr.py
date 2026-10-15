@@ -28,18 +28,19 @@ def capture() -> dict:
 
 
 def test_every_pinned_file_matches_the_publishers_captured_listing(capture):
+    # Keyed on directory as well as date and name: two 2018 directories share a release date
+    # and four file names between them, so a (date, name) key compares across releases.
     listed = {
-        (f["added_date"], f["file_name"]): (f["file_size"], f["md5sum"], f["directory"])
+        (f["added_date"], f["directory"], f["file_name"]): (f["file_size"], f["md5sum"])
         for f in capture["files"]
     }
     for date, release in imgvr.RELEASES.items():
         for f in release.files:
-            key = (date, f.name)
+            key = (date, f.directory, f.name)
             assert key in listed, f"{f.name} is pinned for {date} but absent from the capture"
-            size, md5, directory = listed[key]
+            size, md5 = listed[key]
             assert f.bytes == size, f"{f.name}: pinned {f.bytes}, capture {size}"
             assert f.md5 == md5, f"{f.name}: pinned {f.md5}, capture {md5}"
-            assert f.directory == directory
 
 
 def test_checksums_are_full_md5_digests_not_truncated():
@@ -101,3 +102,14 @@ def test_every_role_is_documented():
 def test_an_unpinned_release_is_refused_with_the_reason():
     with pytest.raises(KeyError, match="no pinned IMG/VR release"):
         imgvr.release_on("2020-09-11")
+
+
+def test_the_capture_contains_colliding_date_and_name_pairs_across_directories(capture):
+    # The reason every lookup here is keyed on directory too. If this ever stops being true the
+    # key could be simplified — but it was true on acquisition and the simpler key reported four
+    # phantom changes on the first run of the inventory check.
+    seen: dict[tuple[str, str], set[str]] = {}
+    for f in capture["files"]:
+        seen.setdefault((f["added_date"], f["file_name"]), set()).add(f["directory"])
+    collisions = {k: v for k, v in seen.items() if len(v) > 1}
+    assert collisions, "expected at least one (date, name) pair spanning two directories"

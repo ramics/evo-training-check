@@ -1901,3 +1901,44 @@ decision has a threshold or parameter in it, the number goes in the entry.
   figures as well as on our measurement. A3.3's independent reimplementation gains a free check
   it should use — any second method whose record count is not 2,653,046 ± 1 has a bug. The
   unexplained +1 should be named in the Phase A write-up rather than smoothed over.
+
+### D-056 — Both v4 releases are audited, and one of them is on tape
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** D-052 left a choice open that an acquisition task may not make for itself: Evo 1
+  cites "IMG/VR v4" and two dated releases answer to it, differing in the metadata two of the
+  three unrunnable rules read. The project owner was asked and chose **both, with the spread
+  reported**, and chose to supply a JGI account token rather than fetch the files by hand.
+- **Decision:** `tools/stage_imgvr.py` defaults to staging **both** 2022-09-20 and 2022-12-20,
+  and A7.2 reports the confidence-gate and vOTU results as a range across them rather than a
+  point. The host-count rule and the sequence set are unaffected, since those files are
+  byte-identical across the two (D-052), so "both" costs one extra sequence-information table
+  per confidence variant — about 6.9 GB more — and converts an unresolvable citation into a
+  measured range, which is what §A0 asks of an under-specification.
+  **One operational fact that changes the shape of the staging pass:** every file in JGI's
+  listing carries a `file_status`, and the two releases differ. **2022-09-20 is `RESTORED`** —
+  on disk, directly downloadable. **2022-12-20 is `BACKUP_COMPLETE`** — on tape, and
+  unavailable until restored through `POST /request_archived_files/`, which is asynchronous and
+  can take hours. So the staging tool requests a restore and polls rather than failing, and a
+  run that ends with files still on tape says so and exits 0: re-running picks them up. Without
+  that, the December release would have presented as a permissions failure, which is the
+  misreading D-020 warns about in both directions.
+  Authentication is a **Bearer token in the `Authorization` header** — JGI's API declares
+  exactly one security scheme (`files.jgi.doe.gov/swagger.json`: apiKey named `Authorization`,
+  in header), so this is read from their spec rather than guessed. Read from `$JGI_API_TOKEN`
+  and never written to a manifest or an error.
+- **Rejected:** Staging only the September release because it is already on disk — it would pick
+  the audited input by what was convenient to fetch, which is the worst available reason, and it
+  is precisely the choice D-052 says may not be made quietly. Failing the run on a tape file —
+  it reads as an access problem and would have sent the next person after a credential that was
+  already working. Treating the two releases as one artefact and merging their metadata — they
+  disagree about the confidence label, so a merge would silently pick a winner per record.
+- **Consequence:** A1.7 completes in two passes rather than one: September immediately once a
+  token exists, December after a restore. A7.2 inherits a range rather than a number for two of
+  its five gaps, and should report it that way from the start rather than discovering it late.
+  Also worth recording because it caught a real bug: the inventory check compares live listing
+  against capture against pins, and its first run reported four changed files that had not
+  changed. Two 2018 directories share a release date *and* four file names, so a
+  `(date, name)` key compares one release's file against another's. Every lookup in
+  `amazebio.imgvr` and `tools/stage_imgvr.py` is keyed on `(date, directory, name)`, and
+  `tests/test_imgvr.py` pins that the collision exists so the key cannot be simplified back.
