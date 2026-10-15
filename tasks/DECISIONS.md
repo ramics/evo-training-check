@@ -3688,3 +3688,46 @@ decision has a threshold or parameter in it, the number goes in the entry.
   *Treat the access failure as a finding about the publisher* — it is a finding about this
   container's network path. Unpaywall reports the article open access, and a person with an
   ordinary browser retrieved it in one attempt.
+
+### D-097 — RVDB's families get a derived label, and `family_id` stays the only identity
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** A2.1's RVDB hit tables are correct and unreadable: the registry names its families
+  `FAM004230` and the top of Evo 1's result is a column of such ids. The release ships an
+  annotation database (`U-RVDBv32.0-prot-hmm.sqlite.xz`, pinned against the publisher's own md5),
+  and inspecting it settles what is available: tables of **keyword frequencies** — one set
+  harvested from the member sequences' names, one from the domain literature — plus an LCA taxon
+  id, a member count and a model length. **There is no family name anywhere in it.** So a
+  readable label cannot be looked up; it has to be derived, and deriving a name for somebody
+  else's family is exactly the kind of step that later gets quoted as if the publisher had said
+  it.
+- **Decision:** Three parts, and the second is the one that matters.
+  **The label is the four most frequent sequence-name keywords, in frequency order.** It reads as
+  a rough function: `FAM000069` becomes "helicase virus rna dependent", `FAM005268` becomes
+  "reductase ribonucleotide virus large". All 13,679 families get one; none came back empty.
+  Reference-derived keywords travel *beside* the label rather than inside it, because they
+  describe the domain literature rather than the member sequences, and mixing the two would make
+  a derived string look like a curated title.
+  **`family_id` remains the only identity.** Counts are keyed on it, the survival denominator is
+  a set of ids, and it is the only thing a figure or a paper sentence may cite as the family. The
+  label is for a reader's orientation and carries a field saying so.
+  **The labels ship in the registry artefact and are joined on `family_id`**, in
+  `artifacts/a2-1/registries/rvdb-families.json`. The hit tables are not rewritten to carry them.
+- **Rejected:** Writing the label into each table's `name` field. It would read better and it
+  would mean editing a measurement after the fact — the tables already have their `run.json`,
+  their manifest digest and their provenance, and a relabelling pass would either invalidate that
+  or silently not. The join costs a reader one small file.
+  Re-running the search with labels in place, which would be the clean way to get them into the
+  tables and costs 50 minutes of RVDB search per release to change a display string.
+  Taking the label from the LCA taxon instead ("Caudoviricetes family 4230"). It is the
+  publisher's own datum rather than a derivation, which is attractive, but 10239 (Viruses) is the
+  LCA for most families, so it labels almost everything identically.
+  Leaving the ids bare and letting A6.1 solve it. The write-up is where an unreadable table
+  becomes a figure nobody can check, and `AGENTS.md` requires every number in a write-up to trace
+  to a machine-readable artefact — the artefact is the right place for the mapping.
+- **Consequence:** A reader joins one file to read any RVDB result. The write-up must present the
+  label as derived — this project's summary of the publisher's keyword frequencies — and never as
+  RVDB's own name for the family, which is a sentence-level discipline rather than something code
+  can enforce. The same question returns in A2.2 for fold families and in C5.2 for the homology
+  neighbourhood index: where a registry ships identifiers without names, the mapping is an
+  artefact with a stated rule, not a label invented at figure time.
