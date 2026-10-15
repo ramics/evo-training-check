@@ -425,3 +425,110 @@ def test_a_write_up_is_produced_either_way_and_leads_with_the_verdict(close_tool
     assert "host counting unit `records`" in text
     assert "## The spread across readings" in text
     assert "not a record-level conformance rate" in text
+
+
+# --------------------------------------------------------------------------------------
+# One taxon at two ranks
+# --------------------------------------------------------------------------------------
+
+#: The same family name, once where it belongs and once sitting in the realm field. This is a
+#: real shape in IMG/VR v4, not a hypothetical: the publisher's strings put eleven `*viridae`
+#: names in the realm field, and the published unspecificity rule tests for an assigned realm,
+#: so the two forms of one family get opposite verdicts.
+AT_FAMILY = ";;;;;f__Bicaudaviridae;;"
+AT_REALM = "r__Bicaudaviridae;;;;;;;"
+
+
+def test_one_taxon_at_two_ranks_is_reconciled_rather_than_counted_in_both_directions(
+    close_tool, scan_tool, scan
+):
+    # Built to the proportions of the real case: the form with no realm is removed by the rule
+    # and released anyway; the form with the name in the realm field is retained by the rule and
+    # absent from the release. Scored per lineage and nothing else, the same records would be a
+    # forward failure under one tag and a converse failure under the other.
+    patched = json.loads(json.dumps(scan))
+    patched["by_classification"][AT_FAMILY] = {
+        "records": 10,
+        "records_hc": 4,
+        "seq_column_host": {"prokaryotic": 2, "none": 8},
+        "host_findings": {"prokaryotic": {"records": 2, "host_rows": 2, "host_taxa": 2}},
+        "votus_owned_outright": 3,
+    }
+    patched["by_classification"][AT_REALM] = {
+        "records": 8,
+        "records_hc": 2,
+        "seq_column_host": {"prokaryotic": 2, "none": 6},
+        "host_findings": {"prokaryotic": {"records": 2, "host_rows": 2, "host_taxa": 2}},
+        "votus_owned_outright": 2,
+    }
+    released = dict(RELEASED_BY_EVO1)
+    released[AT_FAMILY] = 5  # == 3 + 2: one record per high-confidence vOTU of both forms
+
+    result = close_tool.analyse(patched, released)
+    norm = result["per_reading"]["literal"]["rank_normalisation"]
+    assert len(norm["groups"]) == 1
+    group = norm["groups"][0]
+    assert group["taxon_names"] == ["Bicaudaviridae"]
+    assert group["released_records"] == 5
+    assert group["high_confidence_votus_in_the_group"] == 5
+    assert group["identity_holds"] is True
+    # The two records the rule retains under the realm-field form are explained; the three it
+    # removes under either form are not.
+    assert norm["records_the_rule_retains_under_another_rank"] == 2
+    assert norm["records_the_rule_removes_under_every_rank"] == 3
+    assert norm["every_group_accounts_for_its_released_records"] is True
+
+
+def test_a_lineage_pair_the_rule_treats_alike_is_not_reported_as_a_group(close_tool, scan):
+    # The reconciliation is for lineages the *rule* splits. Two spellings of a taxon that the
+    # rule treats identically explain nothing and would be noise in the table.
+    patched = json.loads(json.dumps(scan))
+    for name, votus in (
+        (AT_FAMILY, 3),
+        (";;;;;;;f__Bicaudaviridae".replace(";;;;;;;", ";;;;;"), 2),
+    ):
+        patched["by_classification"].setdefault(
+            name,
+            {
+                "records": 4,
+                "records_hc": 2,
+                "seq_column_host": {"none": 4},
+                "host_findings": {},
+                "votus_owned_outright": votus,
+            },
+        )
+    result = close_tool.analyse(patched, dict(RELEASED_BY_EVO1))
+    names = [
+        g["taxon_names"] for g in result["per_reading"]["literal"]["rank_normalisation"]["groups"]
+    ]
+    assert ["Bicaudaviridae"] not in names
+
+
+def test_the_host_evidence_the_input_asserts_is_measured_and_reported(result):
+    # Whether the readings can diverge at all is a property of the database, not of the policy:
+    # every rule they differ over is keyed on eukaryotic host evidence. The fixture asserts some,
+    # so the finding must say so rather than claiming the absence seen in the real release.
+    host = result["host_evidence_in_the_input"]
+    assert host["eukaryotic_findings"] == 1
+    assert "readings can diverge" in host["finding"]
+    assert result["reading_spread"]["why_it_is_zero"].startswith("The input asserts")
+
+
+def test_an_input_with_no_eukaryotic_host_evidence_says_what_that_means(close_tool, scan):
+    # The real case. IMG/VR v4's host field is empty, bacterial or archaeal and nothing else, so
+    # the charitable and strict readings have nothing to fire on. A zero spread then says
+    # something about the filter's source of evidence, not about the readings — and the write-up
+    # has to be the one that says which.
+    patched = json.loads(json.dumps(scan))
+    for info in patched["by_classification"].values():
+        info["host_findings"].pop("eukaryotic", None)
+        info["seq_column_host"].pop("eukaryotic", None)
+    result = close_tool.analyse(patched, dict(RELEASED_BY_EVO1))
+    assert result["host_evidence_in_the_input"]["eukaryotic_findings"] == 0
+    assert "never names a eukaryote" in result["host_evidence_in_the_input"]["finding"]
+    spread = result["reading_spread"]
+    assert spread["measurable"] is True
+    assert spread["classifications_surviving"]["spread"] == 0
+    assert "the cause is in the data" in spread["why_it_is_zero"]
+    text = close_tool.summarise(result)
+    assert "## What the input asserts about hosts" in text

@@ -265,6 +265,129 @@ def per_classification_bounds(
     return bounds
 
 
+def _taxon_names(classification: str) -> frozenset[str]:
+    """The set of taxon names a classification contains, with their ranks discarded."""
+    return frozenset(
+        field.split("__", 1)[1]
+        for field in classification.split(";")
+        if "__" in field and field.split("__", 1)[1].strip()
+    )
+
+
+def rank_normalisation(
+    scan: dict[str, Any],
+    run_: dict[str, Any],
+    totals: dict[str, Any],
+    released: dict[str, int],
+) -> dict[str, Any]:
+    """Find lineages that are the same taxon written at two different ranks, and reconcile them.
+
+    This exists because the forward and converse directions can both be reporting the same
+    records. IMG/VR v4 carries some taxa twice: once at the rank they belong to and once with
+    the name sitting in the **realm** field, which is a defect in the publisher's own strings.
+    The published unspecificity rule tests for an assigned realm, so the two forms of one family
+    get opposite verdicts — and if a developer's pipeline normalises the misplaced field between
+    input and output, the records survive the filter under one form and appear in the release
+    under the other. Scored naively that is a forward failure *and* a converse failure for the
+    same records, which would overstate both.
+
+    So classifications are grouped by their set of taxon names with ranks discarded. A group with
+    members on both sides of the release, whose rule verdicts disagree, is the pattern above.
+    For each one the released total is compared against the sum of predicted survivors across the
+    whole group: if they agree, every released record is accounted for, and the group's forward
+    failures split into the part the rule retains under its other form and the part it removes
+    under either.
+    """
+    bounds = per_classification_bounds(scan, totals["passing"])
+    by_names: dict[frozenset[str], list[str]] = collections.defaultdict(list)
+    for classification in scan["by_classification"]:
+        names = _taxon_names(classification)
+        if names:
+            by_names[names].append(classification)
+
+    groups: list[dict[str, Any]] = []
+    for names, members in by_names.items():
+        if len(members) < 2:
+            continue
+        in_release = [m for m in members if m in released]
+        out_of_release = [m for m in members if m not in released]
+        if not in_release or not out_of_release:
+            continue
+        verdicts = {totals["passing"].get(m, False) for m in members}
+        if len(verdicts) < 2:
+            continue
+        released_total = sum(released.get(m, 0) for m in members)
+        # Representatives of every high-confidence vOTU in the group, whatever the rules say,
+        # which is what the chain's first two steps alone would produce for it.
+        votus_in_group = sum(scan["by_classification"][m]["votus_owned_outright"] for m in members)
+        retained = sum(
+            scan["by_classification"][m]["votus_owned_outright"]
+            for m in members
+            if totals["passing"].get(m, False)
+        )
+        groups.append(
+            {
+                "taxon_names": sorted(names),
+                "released_records": released_total,
+                "high_confidence_votus_in_the_group": votus_in_group,
+                "predicted_survivors_across_the_group": retained,
+                "removed_under_every_rank": votus_in_group - retained,
+                # The release carrying exactly one record per high-confidence vOTU of the group
+                # is what the confidence gate and the deduplication step alone would produce,
+                # and is not what the later rules would leave. Checked rather than asserted.
+                "identity_holds": released_total == votus_in_group,
+                "predicted_bounds": {m: list(bounds[m]) for m in sorted(members)},
+                "members": [
+                    {
+                        "classification": m,
+                        "released_records": released.get(m, 0),
+                        "records_in_the_input": scan["by_classification"][m]["records"],
+                        "votus_owned_outright": scan["by_classification"][m][
+                            "votus_owned_outright"
+                        ],
+                        "rule_retains_it": totals["passing"].get(m, False),
+                        "rank_of_finest_name": _finest_rank(m),
+                    }
+                    for m in sorted(members)
+                ],
+            }
+        )
+    groups.sort(key=lambda g: -g["released_records"])
+    explained = sum(g["predicted_survivors_across_the_group"] for g in groups)
+    released_in_groups = sum(g["released_records"] for g in groups)
+    return {
+        "groups": groups,
+        "released_records_in_such_groups": released_in_groups,
+        "records_the_rule_retains_under_another_rank": explained,
+        "records_the_rule_removes_under_every_rank": sum(
+            g["removed_under_every_rank"] for g in groups
+        ),
+        "every_group_accounts_for_its_released_records": all(g["identity_holds"] for g in groups),
+        "what_it_means": (
+            "A released record in one of these groups is a record whose taxon appears in the "
+            "input at two different ranks. Where the rule retains the other form, the record "
+            "survived the filter legitimately and the release shows it under a tag the rule "
+            "would have removed — a mismatch between the input's taxonomy strings and the "
+            "release's, not a rule the filter ignored. Where the rule removes every form, it is "
+            "a conformance failure with nothing to explain it."
+        ),
+        "why_it_is_not_double_counted": (
+            "Scored per lineage and nothing else, the same records appear as a forward failure "
+            "under the rank the release uses and as a converse failure under the rank the input "
+            "uses. This reconciliation is what keeps a write-up from reporting both."
+        ),
+    }
+
+
+def _finest_rank(classification: str) -> str | None:
+    """The finest rank the classification fills, by the prefix each field carries."""
+    tag = cf.parse_lineage_tag(classification)
+    for rank in reversed(cf.RANKS):
+        if tag.taxonomy.get(rank):
+            return rank
+    return None
+
+
 def _votu_rule_id(run_: dict[str, Any]) -> str | None:
     """The id of the deduplication rule held out of the record-level chain, if there is one."""
     deferred = run_["restriction"].deferred
@@ -587,7 +710,40 @@ def published_checks(
     }
 
 
-def reading_spread(per_reading: dict[str, Any]) -> dict[str, Any]:
+def host_evidence(scan: dict[str, Any]) -> dict[str, Any]:
+    """Which host classes the input actually asserts, which is a finding in its own right.
+
+    Every rule the three readings of Evo's policy differ over is keyed on **eukaryotic** host
+    evidence: the charitable reading removes a classification carrying any, the strict reading
+    requires the evidence to be exclusively prokaryotic. So what the database asserts about
+    eukaryotic hosts decides whether the readings can differ at all — and that is a property of
+    IMG/VR v4, not of the policy, so it is measured here and reported beside the spread.
+    """
+    present: collections.Counter = collections.Counter()
+    for info in scan["by_classification"].values():
+        for host_class, units in info.get("host_findings", {}).items():
+            present[host_class] += units.get(cf.PRIMARY_HOST_UNIT.value, 0)
+    classes = {k: v for k, v in sorted(present.items()) if v}
+    return {
+        "host_classes_asserted": classes,
+        "eukaryotic_findings": classes.get("eukaryotic", 0),
+        "host_domains_in_the_sequence_table": scan.get("host_domains", {}),
+        "distinct_host_taxa": scan.get("host_table", {}).get("distinct_host_taxa"),
+        "finding": (
+            "IMG/VR v4 asserts no eukaryotic host for any record. The host-prediction field is "
+            "empty, bacterial or archaeal and nothing else, across every record and every "
+            "prediction method. A filter whose stated aim is to exclude viruses that infect "
+            "eukaryotic hosts is therefore implemented against a field that never names a "
+            "eukaryote — which is why the published procedure reaches that aim through a "
+            "prokaryotic-host *count* and a clade enumeration rather than directly, and why "
+            "the three readings of it cannot diverge on this input however they are written."
+            if not classes.get("eukaryotic")
+            else "The input asserts eukaryotic host evidence, so the readings can diverge on it."
+        ),
+    }
+
+
+def reading_spread(per_reading: dict[str, Any], host: dict[str, Any]) -> dict[str, Any]:
     """The spread across readings §A7 says matters as much as any single number.
 
     A7.1 could only report that it was unmeasurable: every rule the three readings differ over
@@ -615,6 +771,18 @@ def reading_spread(per_reading: dict[str, Any]) -> dict[str, Any]:
             "occurrences, which the release does not carry and the input does. A7.1 reported "
             "the spread as unmeasurable against the release; that was a property of the "
             "release (D-047), and this is the number it was standing in for."
+        ),
+        "why_it_is_zero": (
+            "Measured, the spread is zero on every quantity, and the cause is in the data "
+            "rather than in the readings: IMG/VR v4 asserts no eukaryotic host for any record, "
+            "so the rules the readings differ over — a one-strike eukaryotic-host removal, an "
+            "exclusivity requirement — have nothing to fire on. This is a different finding "
+            "from A7.1's. There the spread could not be measured because the release withheld "
+            "the input (D-047); here it is measured, it is zero, and what makes it zero is that "
+            "the filter's own source of host evidence never names a eukaryote."
+            if not host.get("eukaryotic_findings")
+            else "The input asserts eukaryotic host evidence, so any zero in the table below is "
+            "a property of the readings rather than of the data."
         ),
         "records_removed_record_level": spread(lambda b: b["record_level"]["records_removed"]),
         "classifications_surviving": spread(
@@ -689,6 +857,7 @@ def analyse(scan: dict[str, Any], released: dict[str, int]) -> dict[str, Any]:
             "record_level": {k: v for k, v in totals.items() if k != "passing"},
             "votu_interval": interval,
             "evo1": evo1_arm(scan, run_, totals, released),
+            "rank_normalisation": rank_normalisation(scan, run_, totals, released),
             "evo2": evo2,
             "published_checks": published_checks(scan, interval, evo2, totals),
             "non_high_confidence_label": run_["non_hc_label"],
@@ -712,7 +881,8 @@ def analyse(scan: dict[str, Any], released: dict[str, int]) -> dict[str, Any]:
             "different findings, and which direction a filter errs in is the interesting part."
         ),
         "per_reading": per_reading,
-        "reading_spread": reading_spread(per_reading),
+        "host_evidence_in_the_input": host_evidence(scan),
+        "reading_spread": reading_spread(per_reading, host_evidence(scan)),
         "causes": {c.value: text for c, text in cf.CAUSES.items()},
         "accession_shapes": scan.get("accession_shapes"),
         "provenance": {
@@ -878,6 +1048,48 @@ def summarise(result: dict[str, Any]) -> str:
                 f"`{f['cause']}` | `{f['lineage_tag']}` |"
             )
         lines.append("")
+    norm = head["rank_normalisation"]
+    if norm["groups"]:
+        lines += [
+            "#### One taxon at two ranks: what accounts for the forward failures",
+            "",
+            norm["what_it_means"],
+            "",
+            f"{norm['released_records_in_such_groups']:,} of the released records above fall in "
+            f"{len(norm['groups'])} such groups. Of those, "
+            f"**{norm['records_the_rule_retains_under_another_rank']:,}** are records the "
+            "published rule *retains* under the taxon's other rank — so they survived the "
+            "filter legitimately and the release renders them under a tag the rule would have "
+            f"removed — and **{norm['records_the_rule_removes_under_every_rank']:,}** are "
+            "records it removes however the taxon is written, which is a conformance failure "
+            "with nothing to explain it.",
+            "",
+            "| taxon | released | high-confidence vOTUs | retained under another rank | removed "
+            "under every rank |",
+            "|---|---|---|---|---|",
+        ]
+        for g in norm["groups"][:12]:
+            lines.append(
+                f"| {', '.join(g['taxon_names'])} | {g['released_records']:,} | "
+                f"{g['high_confidence_votus_in_the_group']:,} | "
+                f"{g['predicted_survivors_across_the_group']:,} | "
+                f"{g['removed_under_every_rank']:,} |"
+            )
+        lines += [
+            "",
+            "Each group's released total "
+            + (
+                "equals the number of high-confidence vOTUs across its forms exactly, so every "
+                "released record is accounted for."
+                if norm["every_group_accounts_for_its_released_records"]
+                else "does **not** equal the number of high-confidence vOTUs across its forms, "
+                "so some released records in these groups are unaccounted for and the "
+                "reconciliation below is incomplete."
+            ),
+            "",
+            norm["why_it_is_not_double_counted"],
+            "",
+        ]
     lines += [
         "### Evo 2's release, compared per record",
         "",
@@ -915,10 +1127,24 @@ def summarise(result: dict[str, Any]) -> str:
             "because whether the chain retains them depends on the undetermined representative.",
             "",
         ]
+    host = result["host_evidence_in_the_input"]
     lines += [
+        "## What the input asserts about hosts",
+        "",
+        host["finding"],
+        "",
+        "| host class | findings (primary unit) |",
+        "|---|---|",
+        *(f"| {k} | {v:,} |" for k, v in host["host_classes_asserted"].items()),
+        "",
+        f"{host['distinct_host_taxa']:,} distinct host taxa appear in the publisher's "
+        "host-prediction table.",
+        "",
         "## The spread across readings",
         "",
         spread["why_it_is_measurable_here"],
+        "",
+        spread["why_it_is_zero"],
         "",
         "| quantity | literal | charitable | strict | spread |",
         "|---|---|---|---|---|",
