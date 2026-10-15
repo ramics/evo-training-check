@@ -37,6 +37,21 @@ artifacts/a1-4/
 
 The removed set is absent when a reading removes nothing. That is a result, not a missing file.
 
+### `index.json`
+
+The list a consumer reads first. `manifests[]`, one entry per manifest produced:
+
+| field | meaning |
+|---|---|
+| `policy`, `release` | which model x reading x release the entry is for |
+| `manifest` | the manifest's filename, relative to this directory — **`manifest`, not `file`** |
+| `totals` | the same outcome counts as the manifest's own `totals` |
+| `removed_records` | records the reading removes, so a consumer can size the removed set before opening it |
+
+A2.1 read `file` first and failed on every entry, which is the right failure: a consumer of
+another task's artefact should stop on a shape it does not know rather than skip entries it
+cannot parse.
+
 ## Outcomes
 
 Every record resolves to exactly one of five outcomes. The first four come from
@@ -165,9 +180,15 @@ covered only the staged components would read as a verdict on the whole release.
 
 ### `sources[]`
 
+**One row per staged object, not per component.** Evo 1 publishes stage 2 as three splits —
+train, valid and test — so `stage2` appears three times, with its own `key` in each row. A
+consumer that groups by `corpus_component` and takes the first row reads one split and reports
+its counts as if they covered the component; A2.1 hit exactly that and now joins on `key`. The
+three-for-two version of this mistake is also why `corpora.undeclared_objects` exists.
+
 | field | meaning |
 |---|---|
-| `key`, `bytes` | the staged object, and its pinned length — checked before reading |
+| `key`, `bytes` | the staged object, and its pinned length — checked before reading. `key` is the row's identity: it is unique across the manifest, while `corpus_component` is not |
 | `component` | the component name the **published methods** use, e.g. `IMG/VR` |
 | `corpus_component` | the name `amazebio.opengenome` uses, e.g. `stage2` — so the row reconciles against A1.2's composition table without re-deriving either |
 | `records`, `enumerated`, `uniform`, `uniform_outcome` | see above |
