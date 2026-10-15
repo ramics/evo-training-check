@@ -1046,3 +1046,342 @@ decision has a threshold or parameter in it, the number goes in the entry.
   0.2% of OpenGenome2 against 82% eukaryotic genomes the filter never saw, which is DESIGN.md
   §A1's scope gap measured; and Evo 1's inline lineage tags appear not to have survived into Evo
   2's release, on a four-file sample that A7.1 will settle properly.
+
+### D-032 — A1.5's premise was wrong: ESM3 states its releases, and the gap is elsewhere
+- **Date:** 2026-10-14
+- **Task:** A1.5
+- **Context:** A1.5's file, written when A1.3 split (D-030), said: "The paper names PDB, UniRef,
+  MGnify and JGI without versions, so expect the §A0 under-specification finding to be most of the
+  result." That came from the filter appendix, whose scope sentence does name four databases and no
+  versions. The pretraining-data appendix two pages earlier states a release for every component,
+  and Table S3 tabulates them. Taking the task's premise on trust would have produced a finding
+  that is false and that an adversarial reader checks in one minute.
+- **Decision:** **Record the correction as the first result, and relocate the under-specification
+  finding to the four places it actually sits.** All eight components carry a stated release.
+  UniRef 2023_02 and MGnify 2023_02 are exact releases still served with a publisher checksum, so
+  two of ESM3's components are pinnable to the standard A1.3 reached for ESM-2. What is unstated
+  is: (1) which UniRef *tier* was parsed, across which the component varies 5.8-fold; (2) whether
+  "MGnify90" means the released 90% product or the full protein set behind it; (3) JGI's pin, which
+  is a date — given as July 31st in prose and July 30th in Table S3 — over a set whose membership
+  changes, with no snapshot; (4) whether the filter reached OAS, AlphaFoldDB and ESMAtlas, which its
+  scope list does not name. Written up in `policies/esm3-open.md` §6-8, with the component table and
+  the arithmetic in `src/amazebio/esm3.py` and `tools/esm3_composition.py`.
+- **A second finding falls out of the arithmetic, and it costs us something.** ESM3's stated corpus
+  sizes are 14.7M (UniRef, against UniRef90's 170,669,877) and 108.2M (MGnify, against the release's
+  729,215,663 clusters at 90%) short of the releases they name. Each gap alone exceeds the 10.6M
+  sequences the filter is reported to have removed across every component together. The cause is not
+  decidable from published text — ESM3 re-clusters with its own mmseqs flags, which is sufficient to
+  explain a different cluster count, and so is removal the filter description omits. `corpora.md` §5
+  had proposed sweeping the unpublished threshold until a reconstruction reproduced 10.6M, as the
+  nearest available substitute for a conformance re-execution. **That proposal is withdrawn.**
+  Tuning a threshold to hit a figure that cannot be reconciled with the corpus it was measured on
+  would be fitting to a number that does not mean what the sweep assumes. For ESM3 there is no
+  substitute for a conformance re-execution, and the write-up says so.
+- **Rejected:** Keeping the task file's premise and reporting "versions unstated" — false, and §7
+  requires Phase A to survive a motivated reader. Editing the premise out of the task file silently —
+  the premise was a reasonable reading of the filter appendix, and a later reader asking why A1.5
+  did not report the obvious finding deserves the answer. Resolving the UniRef tier by inference: the
+  70%/90% columns are consistent with parsing UniRef100 and re-clustering, which is suggestive, but
+  Table S3's clustering levels are ESM3's own and no arrangement of the published numbers identifies
+  the input. A proxy chooses and says it chose; it does not guess and present the guess as recovered.
+- **Consequence:** `amazebio.uniref` now carries a `Release` registry rather than four module
+  constants, so ESM3's 2023_02 stages through A1.3's verified path unchanged and the 2021_04
+  constants remain as aliases that A1.3's manifests still resolve. Because the tier is unstated, a
+  UniRef proxy stages the whole archive — all three tiers — rather than a tier chosen on the
+  reader's behalf; that is a cost, and it is the subject of the staging-scope question put to the
+  project owner separately. A4.3 gains its ESM3 scope table without waiting for any staging: the
+  composition is documentary. Two re-entry routes the filter's description does not reach are
+  recorded in `policies/esm3-open.md` §8 — predicted-structure databases over already-filtered
+  sequences, and 362M inverse-folded sequences that are in no database for an MMseqs query to
+  match. Both are findings about the published description, not measurements; A2 would need the
+  structure-side components staged to measure either, which nothing has authorised.
+
+### D-032 — eight of the twelve staged objects are verified in flight, not by readback
+- **Date:** 2026-10-14
+- **Task:** A1.2
+- **Context:** Each object is hashed as it streams and the upload completes only on a match
+  against the SHA-256 the release publishes, so all twelve are verified. But an in-flight hash
+  checks the bytes that went past, and a readback checks the bytes the bucket holds — which is
+  strictly stronger, because it would also catch a fault in our own multipart assembly rather than
+  trusting the code that is under test. Four of the twelve were small enough to re-read for
+  nothing and are readback-verified. Re-reading the other eight means 134 GiB of egress from
+  outside the region, about $12, for files whose digests already matched.
+  A related mistake happened here and is worth recording because the fix is now in code: a resumed
+  pass wrote its own weaker rows over the manifest and erased the evidence that the eight had been
+  checked at all. Manifests now merge and keep the stronger proof per file.
+- **Decision:** **Leave the eight verified in flight, and fold the readback into the first
+  in-region pass rather than launching anything for it.** D-026 already settled that analysis runs
+  in `us-east-1`, where reads of this bucket are free. A7.1 reads the IMG/VR component in full
+  anyway, so the readback costs nothing when it rides along with work that was happening regardless.
+  Until then the manifest says, per file, how its checksum was established — "stream" or
+  "readback" — rather than a bare `verified: true` that flattens the difference.
+- **Rejected:** Paying the $12 egress now — it buys a stronger check on twelve files that already
+  matched, weeks before anything depends on it, and the same check is free later.
+  Launching an EC2 instance for the readback alone — AGENTS.md says launch only when being
+  in-region is the point, and bookkeeping that can ride along with A7.1 is not that.
+  Recording all twelve as simply verified — true, but it hides which were checked the stronger way,
+  and §7 assumes a reader who wants to know exactly that.
+  Re-uploading the eight with `--no-resume` to force a fresh in-flight hash — it repeats the
+  weaker check at the cost of the whole transfer, and the bucket cannot delete, so an overwrite is
+  the one operation worth being most careful with.
+- **Consequence:** A1.2's corpus is staged and checksummed, so its Done-when is met. **A7.1
+  inherits one small obligation:** run the readback over the eight large objects as part of its
+  in-region pass and merge the result into `artifacts/a1-2/staged_*.json`, which upgrades those
+  rows from "stream" to "readback". If A7.1 is re-scoped away from reading those objects, the
+  obligation moves to whichever in-region task reads them first; it should not become a reason to
+  launch an instance on its own.
+
+### D-033 — A1.5 stages the two components ESM3 states exactly, at their published granularity
+- **Date:** 2026-10-14
+- **Task:** A1.5
+- **Context:** D-032 established that all eight of ESM3's components carry a stated release but
+  only two can be obtained as stated: UniRef 2023_02 and MGnify 2023_02, both still served with a
+  publisher checksum. JGI and OAS have no dated snapshot at all. AlphaFoldDB v4 and ESMAtlas are
+  stated exactly but are large and fall outside the filter's named scope. That left a scope question
+  A1.5 could not settle itself, for the same reason D-031 could not: the corpus bucket withholds
+  `s3:DeleteObject`, so anything staged is permanent spend. Four options were costed and put to the
+  project owner, spanning $0 to about $15 a month.
+- **Decision:** **UniRef 2023_02's three tiers plus MGnify 2023_02's 90%-clustered product.** About
+  294 GB, roughly $6.80 a month. Three parts of this are commitments rather than implementation
+  detail.
+  **All three UniRef tiers, because the tier is unstated.** ESM3 says "UniRef release 2023 02" and
+  the release holds UniRef50, UniRef90 and UniRef100 — 60,479,070, 170,669,877 and 350,950,053
+  clusters. Staging one would be choosing on the reader's behalf and would have to be defended in
+  the write-up; staging all three makes the proxy independent of a question nobody can answer.
+  **MGnify at the granularity its name states, not both readings.** "MGnify90" is the release's
+  90%-clustered product, served as one 83,473,342,442-byte file with a published md5. The full
+  2.97-billion-sequence protein set behind it is 362 GB more, and D-032 established that the
+  published counts cannot settle which was parsed. The clustered product is what the name says, and
+  the other reading is deferred rather than bought at four times the price.
+  **The raw UniRef archive is not retained, which is where this departs from A1.3.** A1.3 kept its
+  169 GB archive verbatim alongside the extracted tiers. Retention buys re-read speed and nothing
+  else: the md5 is verified in the same streaming pass either way, and both publishers serve
+  previous releases indefinitely — UniProt still serves 2021_04 and EBI still serves MGnify
+  releases from 2017. Not retaining it saves about $4.90 a month, permanently.
+- **Rejected:** UniRef only (~210 GB, ~$4.80/month) — it would leave the audit silent on MGnify,
+  which is 105.5B of ESM3's stated tokens and, carrying no taxonomic annotation at all, the clearest
+  case in the project of a component an alignment-based filter can reach and a taxonomy-based one
+  cannot. Both MGnify readings (~656 GB, ~$15/month) — the extra copy answers an ambiguity that the
+  published counts cannot resolve anyway, so it buys coverage of a question rather than an answer.
+  Staging nothing — the composition table and the findings need no bytes and are already committed,
+  but A1.4 would then run ESM3's predicates against ESM-2's UniRef 2021_04, which is a different
+  release as well as a different tier, and that substitution is worse than the storage bill.
+  Staging AlphaFoldDB or ESMAtlas "while we are here" — they are the two re-entry routes in
+  `policies/esm3-open.md` §8 and they matter, but measuring either is A2.2's work and A2.2 is not
+  started; this is the scope creep AGENTS.md names.
+- **Consequence:** A1.4 and A4.3 get the ESM3 proxy they depend on, at a standard that carries the
+  proxy qualifier A1.1 requires but no acquisition qualifier: both components are verified against
+  their publishers' own checksums. **Three things the next worker should expect.** JGI remains
+  unstageable, so every ESM3 coverage figure is a fraction of the components staged and must say so
+  — that is not fixable by spending more. The MGnify protein set and the two structure-side
+  components are deliberately unstaged, with the figures here; whoever needs one should re-ask the
+  cost question rather than assume it. And the stated-versus-used record for ESM3 is not a byte
+  comparison like ESM-2's: it is the component table in `src/amazebio/esm3.py`, because what ESM3
+  states and what is obtainable differ by release granularity rather than by content.
+
+### D-034 — Tier 2 is out of scope, decided by measuring the launch policy rather than judging it
+- **Date:** 2026-10-14
+- **Task:** B1.1
+- **Context:** `DESIGN.md` §B1 names Evo 2 40B, Nucleotide Transformer and ProGen2 as Tier 2 "if
+  compute allows", and B1.1 owes a recorded scope decision. "If compute allows" had never been
+  measured. `AGENTS.md` describes the account's launch policy as an allowlist of instance types
+  without enumerating it, and the session container has no GPU, so neither the ceiling nor the
+  availability of an accelerator was known. `tools/ec2_capability.py` measured it by dry-running
+  `RunInstances` across a fixed list of types — `DryRun=True` authorizes the request and then
+  refuses it, so nothing is launched and nothing is billed. The request carries the `Project` and
+  `Owner` tags and the instance profile, without which every refusal is an indistinguishable
+  `UnauthorizedOperation` and the probe would have reported the whole space as denied.
+- **Decision:** **Tier 2 is out of scope, on compute.** The first probe found no accelerated type
+  permitted at any size — `g4dn`, `g5`, `g6`, `g6e`, `p3`, `p4d`, `p5` all refused — with a ceiling
+  of 8 vCPU and 64 GB. That was put to the project owner, who added `g5.xlarge` and `g6.xlarge`; the
+  second probe confirms them, so one 24 GB accelerator is available and every Tier 1 checkpoint is
+  runnable. Evo 2 40B is not: its own developers state it needs FP8 via Transformer Engine on a
+  Hopper GPU and multiple H100s for the weights, which means `p5.48xlarge` and roughly $98 an hour
+  against roughly $1 for a single-GPU box. Nucleotide Transformer and ProGen2 are out for a
+  different and stronger reason — nothing about either has been retrieved into `sources.json`, and
+  §B1 step 0 forbids inheriting a training-data claim from `DESIGN.md`, so neither can be an
+  inventory row at all until someone acquires its sources.
+- **Rejected:** Asking for Hopper access so 40B is runnable — the 40B and 7B checkpoints share one
+  policy, one corpus and one lineage (`policies/evo.md`), so the second size buys a scaling result
+  the homology regression does not need, at about a hundred times the hourly cost, on an account
+  that cannot stop an instance mid-run. Adding Nucleotide Transformer and ProGen2 as rows marked
+  unverified — it would put two checkpoints in the inventory whose exclusion status rests on nothing,
+  which is precisely the shape of claim this store exists to prevent. Recording Tier 2 as deferred
+  pending compute without measuring — that was the state of the question before this task, and it
+  would have left a scope decision resting on an assumption about an account policy that in fact
+  changed twice in one afternoon.
+- **Consequence:** Phase B's model list is the five Tier 1 checkpoints. `evo2_40b` stays in
+  `amazebio.models` as a Tier 2 row, because its requirement is a published fact worth recording and
+  the thing that excludes it is a measurement that can change; `tools/model_inventory.py` recomputes
+  feasibility from the current allowlist rather than from a frozen verdict. The allowlist snapshot
+  carries its date and must be re-run rather than cited — it changed during this task, which is the
+  argument for not hard-coding it. One consequence for B1.2: a 24 GB card fits all five, but nothing
+  here establishes that a 200-assay zero-shot pass finishes in useful time, and that measurement is
+  B1.2's first job rather than an inventory's claim.
+
+### D-035 — ESM-C enters Phase B as the 600M variant, and "open release" does not name one
+- **Date:** 2026-10-14
+- **Task:** B1.1
+- **Context:** `DESIGN.md` §B1 lists the second positive control as "ESM-C (open release)". That
+  phrase does not pick out a checkpoint: the family is 300M, 600M and 6B, and all three are openly
+  downloadable from the same HuggingFace collection, with the smaller two described by their own
+  developers as overtrained variants for local inference. B1.1 has to record a checkpoint
+  identifier, so the ambiguity had to be resolved rather than carried.
+- **Decision:** `ESMC-600M`. It is the largest variant that runs comfortably on the one 24 GB
+  accelerator this account permits (D-034), and the role §B1 gives ESM-C is a second
+  viruses-included comparison — the contrast being that its viral content is largely bacteriophage
+  — not a capability ceiling. The corpus claim behind that role rests on the preprint either way,
+  because the 600M and 6B model cards are byte-identical and neither evidences anything
+  variant-specific (`policies/esm-c.md` §5).
+- **Rejected:** ESMC-6B — the strongest model in the family, but it answers a question Phase B is
+  not asking, and §B1's own narrowing in v0.4 makes the homology regression primary and model
+  comparison supporting. The published ESM-C evaluation this design leans on compares "ESMC models"
+  as a family, so nothing downstream depends on which variant. ESMC-300M — no reason to prefer it
+  once 600M fits. All three — scope creep for a control, and `DESIGN.md` §7 names that as a live
+  risk.
+- **Consequence:** If a later task wants the 6B model, that is a compute decision and not a
+  re-verification: the exclusion status, licence and access route recorded in `policies/models.md`
+  §3 are family-level and already cover it. Note the asymmetry this creates with the ESM-2 arm,
+  which carries two sizes because §B1 names two.
+
+### D-036 — ESM3-open's parameter count is recorded as unstated, not as 1.4B
+- **Date:** 2026-10-14
+- **Task:** B1.1
+- **Context:** Phase B needs ESM3-open's size, and it is universally given as 1.4B. No first-party
+  source retrieved into this store states it. The ESM3 family table lists `esm3-large-2024-03` at
+  98B, `esm3-medium-2024-08` at 7B and `esm3-small-2024-08` at 1.4B, and does not list
+  `esm3-sm-open-v1` at all — the open checkpoint appears only in the prose above the table, as the
+  one whose weights are public. So neither its size nor which flagship checkpoint it corresponds to
+  is established by its developers' own documentation. The model card gives corpus scale and token
+  counts and no parameter count. The only size attribution in the store is the ESM-C preprint's
+  "ESM3 1.4B Open", which is one lab describing another lab's model.
+- **Decision:** `params` is recorded as `None`, with the gap named in
+  `src/amazebio/models.py`, argued from the sources in `policies/models.md` §2, and pinned by a test
+  so that filling it in requires a primary source. §B1 step 0 says to verify from primary sources
+  and trust no secondary source; a second lab's parenthetical about someone else's checkpoint is a
+  secondary source, however reliable it looks. The inference is very probably correct and that is
+  not the standard.
+- **Rejected:** Recording 1.4B cited to the ESM-C preprint — it would put a number in the inventory
+  on the authority of a source that is primary for ESM-C and secondary for ESM3, and the whole
+  reason this store checks quotations mechanically is that a plausible attribution acquiring a
+  citation is the failure mode that would most damage the project. Recording 1.4B as "widely
+  reported" — same defect, with the citation removed. Inferring it from the checkpoint's own config
+  on HuggingFace — that would actually settle it, and it is a legitimate route, but it means
+  downloading the weights, which belongs to B1.2 rather than to an inventory task.
+- **Consequence:** Two checkpoints of six now carry a §A0 under-specification finding, which
+  `tools/model_inventory.py` reports on every run. Anything in a write-up that turns on
+  ESM3-open's size needs either the Science version of record (S-ESM3-SCIENCE, still unretrieved)
+  or the config from the weights themselves. For B1.2 this is nearly free to close: the config is
+  read anyway when the model loads, and recording what it says would convert a §A0 finding into a
+  verified field.
+
+### D-037 — Spearman is implemented in the standard library rather than adding scipy
+- **Date:** 2026-10-14
+- **Task:** B2.1
+- **Context:** `DESIGN.md` §B2 requires the benchmark's standard rank-correlation metric so
+  results stay comparable to the published leaderboard, and `AGENTS.md` says a tool is added by
+  the task that needs it, with the version choice recorded. The metric is Spearman's rho with
+  ties averaged, which the maintainers compute with `scipy.stats.spearmanr`. The project has no
+  numeric dependency at all: `pixi.toml` carries `pypdf` and `pyyaml` and nothing else.
+- **Decision:** Implement it in `amazebio.proteingym.spearman` — Pearson's correlation of
+  average ranks, about twenty lines — and add no dependency. This is not inventing a metric,
+  which §B2 forbids; it is the same definition, and the evidence for that is empirical rather
+  than asserted: `tools/proteingym_check.py` recomputes the published per-assay value for all
+  217 assays and every one agrees at the three decimals the maintainers publish, with a maximum
+  deviation of 0.0005 and a mean of 0.000246 — which is what rounding alone produces. A unit
+  test against hand-computed values could not establish that; agreement with the published
+  numbers on 2.47 million variants does.
+- **Rejected:** Adding scipy (and numpy beneath it) now — it is a large pinned dependency for
+  one function, at a point where nothing else needs it, and `pixi.toml` explicitly warns against
+  pre-populating the environment with tools no result depends on yet. Deferring the metric to
+  B5 and shipping the ingest without one — then nothing validates the ingest, and the join and
+  the variant list would go unchecked until the analysis, which is the worst time to find a
+  mismatch. Using the maintainers' own scripts — they pull in the full benchmark toolchain, and
+  an independent implementation that agrees with their published output is better evidence than
+  running their code and finding it agrees with itself.
+- **Consequence:** Phase B will almost certainly need numpy when B5 fits regressions and
+  bootstraps intervals, and that is the task to add it, with its own entry. Until then the
+  metric has no dependency and one pure-Python implementation that a reviewer can read in full.
+  Note the incidental benefit for §7: the published leaderboard is now an independent check on
+  our metric code, which is the same kind of second-method agreement A3.3 requires of the
+  headline counts.
+
+### D-038 — "standard splits" in the zero-shot setting means the published variant list, whole
+- **Date:** 2026-10-14
+- **Task:** B2.1
+- **Context:** §B2 says to use the benchmark's standard splits and not to invent either the
+  splits or the metric. The release ships CV fold files — `cv_folds_singles_substitutions.zip`
+  and `cv_folds_multiples_substitutions.zip` — so a reader could reasonably expect B2.1 to load
+  them. Those folds belong to the benchmark's *supervised* track, where a model is trained on
+  some variants and tested on others. `DESIGN.md` §4 restricts this project to zero-shot
+  scoring, which has nothing to train and therefore nothing to split.
+- **Decision:** No fold file is used. "Standard split" here means the published variant list
+  per assay, taken exactly as shipped: every variant the maintainers include is scored, none is
+  filtered, and the assay is the unit of analysis. This is recorded in the module docstring as
+  well as here, because it is the kind of thing a later reader would otherwise assume had been
+  overlooked rather than decided.
+- **Rejected:** Loading the CV folds anyway for "comparability" — it would make this project's
+  numbers comparable to a benchmark track it does not run and is forbidden from running.
+  Restricting to single substitutions and dropping multi-mutants — plausible-looking, since most
+  assays are singles-only, and wrong: it would silently redefine the benchmark and break the
+  comparability §B2 asks for. 24 of the 217 assays carry multi-mutants.
+- **Consequence:** Per-assay variant counts match the reference file's own counts exactly, which
+  `tests/test_proteingym.py` checks for a sample and the reproduction check confirms for all 217
+  assays by agreeing with the published numbers. If a later task needs a subset — B2.3's
+  within-study positive controls, say — it must subset explicitly and say so, rather than
+  changing what the ingest returns.
+
+### D-039 — the leaderboard's headline average is not reproduced, and is not the mean of the per-assay values
+- **Date:** 2026-10-14
+- **Task:** B2.1
+- **Context:** §B2's ingest check is "reproduce one published leaderboard number". The obvious
+  candidate is a model's headline average Spearman, and that number cannot be reproduced by
+  averaging the per-assay values. The maintainers state that their performance scripts correct
+  for biases — assays per protein family, functional groupings — so the published average is a
+  weighted quantity whose weighting is theirs, and the arithmetic mean of 217 per-assay values
+  is a different number.
+- **Decision:** Reproduce the published *per-assay* values instead, and do it for every assay
+  rather than the one §B2 asks for. The aggregate is deliberately not reproduced and no
+  aggregate of ours is reported in this task's artefact. Any pooled figure this project
+  publishes later must be computed by us, specified before results are seen, and reported
+  after the per-assay breakdown — which `AGENTS.md` requires anyway, and which §B5 states is
+  the default presentation because pooled correlations are fragile at this sample size.
+- **Rejected:** Reimplementing their bias correction to match the headline number — it is their
+  weighting, reimplementing it would be a second place for it to be wrong, and nothing in this
+  project needs the aggregate to agree. Comparing our arithmetic mean to their corrected
+  average and calling a small gap agreement — that is the failure mode this entry exists to
+  prevent: the two are different quantities, and a close-looking match would be a coincidence
+  presented as a check.
+- **Consequence:** The ingest check is per-assay and exact. One number that follows, and should
+  not be misread: the mean of our per-assay values for ESM-2 650M is not the leaderboard's
+  0.414, and any write-up that cites a leaderboard rank must cite their aggregate as theirs.
+
+### D-040 — the benchmark release is pinned by our own checksums, and two of its files carry no version at all
+- **Date:** 2026-10-14
+- **Task:** B2.1
+- **Context:** `AGENTS.md` requires every input pinned, and A1.3 set the standard: UniRef was
+  verified against the publisher's own md5, so the pin was the publisher's and a re-cut release
+  would have been caught. The benchmark publishes no checksums for its archives. Worse for
+  pinning, two files this task depends on — the assay reference file, which carries the taxon
+  labels, and the published per-assay leaderboard, which the reproduction check compares against
+  — are not in the versioned data release at all. They live in the maintainers' git repository,
+  which carries no tag for v1.3, so their URLs name `main` rather than a version.
+- **Decision:** Record a SHA-256 of all five staged files in `amazebio.proteingym.RELEASE` and
+  check them with `verify_release`, while keeping the two unversioned files in a separate
+  `unversioned` mapping rather than folding them in with the versioned archives. The separation
+  is the point: a hash in `files` sits behind a URL that names v1.3, and a hash in `unversioned`
+  is the entire pin. State plainly, here and in the artefact, that these hashes attest the bytes
+  have not changed since *this* acquisition and not that they are the bytes released.
+- **Rejected:** Treating all five as equivalently pinned — it would hide that two of them track
+  a moving branch. Pinning the repository files by commit SHA, which would be better — the
+  GitHub API is not reachable from this environment to resolve `main` to a commit, and the raw
+  endpoint does not return one; a later task with API access should upgrade this. Declining to
+  use the unversioned files — not an option: the reference file is the only source of the taxon
+  labels §B5 reports by, and the leaderboard file is what makes the ingest checkable.
+- **Consequence:** Two things for whoever comes next. The per-assay numbers this project
+  reproduces are a moving target upstream, so a future re-run that disagrees should first check
+  whether the leaderboard file changed rather than assuming the ingest broke — the recorded hash
+  makes that a one-command question. And the documented archive sizes are wrong, one by more
+  than an order of magnitude (1.0GB documented against 43MB served, 4.4GB against 1.91GB); the
+  stated-versus-actual record is in `artifacts/b2-1/release/release.json`, and the lesson for
+  B2.2 is to size downloads from `content-length` rather than from documentation.

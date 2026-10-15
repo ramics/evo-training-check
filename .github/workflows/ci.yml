@@ -42,5 +42,11 @@ jobs:
       - name: Policy specs
         run: pixi run -e dev specs-check
 
+      # Validates the Phase B model inventory: every checkpoint's identity, licence and
+      # exclusion status cites a source that was actually retrieved. Same failure mode as
+      # the specs check, one level up. See policies/models.md and src/amazebio/models.py.
+      - name: Model inventory
+        run: pixi run -e dev models-check
+
       - name: Tests
         run: pixi run -e dev test

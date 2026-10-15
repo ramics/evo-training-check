@@ -58,10 +58,20 @@ test = "pytest -q"
 policies-check = "python3 tools/policies.py"
 # Validate the filter policy specs: schema, and that every rule cites a retrieved source.
 specs-check = "python3 tools/specs.py"
+# Validate the Phase B model inventory: every checkpoint's claims cite a retrieved source.
+models-check = "python3 tools/model_inventory.py --check"
 # Render each policy as prose, for eyeballing a spec against its quoted source.
 specs = "python3 tools/specs.py --describe"
 lint = "ruff check ."
 fmt = "ruff format ."
 fmt-check = "ruff format --check ."
 # Everything CI runs, in one command.
-check = { depends-on = ["lint", "fmt-check", "board-check", "policies-check", "specs-check", "test"] }
+check = { depends-on = [
+  "lint",
+  "fmt-check",
+  "board-check",
+  "policies-check",
+  "specs-check",
+  "models-check",
+  "test",
+] }
