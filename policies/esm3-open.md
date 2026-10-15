@@ -114,6 +114,16 @@ so that route is not applicable in the same way.
    organisms. "Some" appears to understate the paper.
 6. **Version of record.** S-ESM3-SCIENCE is unretrieved (paywalled). Quotes here are from the
    preprint and should be checked against the published version before publication.
+   Checked on 2026-10-15, because A1.5's findings rest on the preprint's appendix and a
+   correction would change them: Crossref returns **no** work registered as updating or
+   correcting `10.1126/science.ads0018`, bioRxiv serves only v1 and v2 of the preprint (v2 is
+   what is pinned here), and the Europe PMC record for the published paper is closed access,
+   not in PMC, and lists no supplementary material and no correction. So no published
+   correction exists. That is not the same as having read the version of record: its
+   supplementary materials could restate the pretraining-data appendix differently, and every
+   load-bearing quotation in §6 comes from that appendix. Reading it needs institutional
+   access this project does not have — worth asking the project owner for before publication,
+   and X3.1 is the natural checkpoint.
 
 ---
 

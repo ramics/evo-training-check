@@ -256,7 +256,8 @@
         "ESM3"
       ],
       "status": "unretrieved",
-      "blocker": "science.org returns 403 directly and via doi.org; not deposited in PMC. Likely paywalled. The preprint is stored and carries the filter description; the version of record should be checked before quoting in a publication."
+      "blocker": "science.org returns 403 directly and via doi.org; not deposited in PMC. Likely paywalled. The preprint is stored and carries the filter description; the version of record should be checked before quoting in a publication.",
+      "note": "Checked for a correction on 2026-10-15 (A1.5): Crossref returns no work registered as updating this DOI, bioRxiv has only v1 and v2 of the preprint, and the Europe PMC record is closed access with no supplementary material listed. No published correction exists. The version of record itself is still unread, so its supplementary materials may restate the pretraining-data appendix that A1.5's findings quote; that needs institutional access."
     },
     {
       "id": "S-BIOHUB-PLATFORM-RESOURCES",
