@@ -2,7 +2,7 @@
 id: A4.3
 title: Map filter scope against corpus composition
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.3, A1.2, A1.3, A1.5]
 blocks: [A6.1]

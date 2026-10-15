@@ -2,7 +2,7 @@
 id: A7.1
 title: Re-execute published predicates against released corpora
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.3, A1.1, A1.2]
 blocks: [X5.1]
