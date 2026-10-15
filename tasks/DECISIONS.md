@@ -1942,3 +1942,133 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `(date, name)` key compares one release's file against another's. Every lookup in
   `amazebio.imgvr` and `tools/stage_imgvr.py` is keyed on `(date, directory, name)`, and
   `tests/test_imgvr.py` pins that the collision exists so the key cannot be simplified back.
+
+### D-057 — A1.4 and A7.1 declared the same facts twice; the rule-input table and the released-format parser are unified
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** A1.4 and A7.1 ran in parallel and converged on the same problem from opposite
+  ends. A7.1 needed to know which of Evo's published rules its release could re-execute, and
+  built `conformance.RULE_INPUTS` plus `RELEASE_INPUTS`, deriving a restricted policy and
+  reporting `3/6` coverage (D-047). A1.4 needed to classify every record rather than every rule,
+  and built `policyspec.Evidence` plus a new `Outcome.UNRESOLVED`. Both tracks also wrote a
+  parser for the released lineage tag and a splitter for the released row. The two
+  rule-input tables agreed on all eight kinds, and the agreement was luck: that mapping decides
+  which of an author's rules we hold them to, and A7.2's first step is to extend the release
+  inventory with IMG/VR v4. Both branches were unmerged when this was noticed, which is the only
+  cheap moment to fix it.
+- **Decision:** Unify the two declarations that are the same fact at the same granularity, and
+  guard the one that is not. `RULE_INPUTS` moves to `policyspec` as the single declaration,
+  keeping A7.1's input names because its artefacts and write-up already report them;
+  `conformance.RULE_INPUTS` re-exports it and A1.4's per-key evidence checks take their channel
+  from it. A1.4 drops its own lineage parser and row splitter in favour of A7.1's, which read
+  the format better: prefix wins over position, a disagreement is recorded rather than resolved,
+  and a short tag is a formatting variation rather than a finding — so a malformed tag is now
+  counted and its taxonomy still used, where A1.4 previously discarded the record. The release
+  inventory stays in two granularities, because they genuinely differ: A7.1 restricts per
+  channel, A1.4 checks per key, and the key matters (Evo 2's release carries
+  `record_attributes` in the shape of an accession, which answers no rule that reads that
+  channel). A test pins their agreement instead — identical kept rule sets on `stage2`, and both
+  declarations refusing Evo 2's release.
+- **Rejected:** Forcing the release inventory into one representation — it would mean rewriting
+  `restrict` inside a module at `review` whose numbers are published, and rewriting the test
+  that guards a real hazard: a release that carried vOTU identifiers would make `keep_one_per`
+  checkable and the diff would report zero removals as conformance. Having A1.4 import A7.1's
+  tables wholesale — its coarser per-kind mapping cannot express a rule that needs every host
+  class rather than one, which is what separates the strict reading's exclusivity rule from the
+  literal reading's count. Leaving both and documenting the overlap — the drift it invites is
+  not visible in any artefact, which is what makes it dangerous rather than merely untidy.
+  Keeping A1.4's stricter parser — it raised on a short tag and on a prefix out of position,
+  discarding records whose taxonomy is perfectly usable, and a parse failure that imitates an
+  unlabelled record corrupts one of this audit's own findings.
+- **Consequence:** `policyspec` now owns the statement of what each rule kind reads, so a new
+  rule kind must be declared there and both consumers pick it up at once. A7.2 extends
+  `RELEASE_INPUTS` for IMG/VR v4 as planned, and the cross-check test will fail if the
+  corresponding `Evidence` declaration in `corpora.SOURCES` is not extended with it — which is
+  the intended behaviour, not an obstacle: the two must move together. One piece of layering is
+  left untidy on purpose: `corpora` imports the released-format primitives from `conformance`,
+  which inverts the natural direction, because moving them would have churned a module under
+  review. Whoever closes A7.1's review should move `LineageTag`, `parse_lineage_tag`, `RowShape`,
+  `split_row` and `BLOCK_CHARS` into `corpora` and re-export them, at which point the import
+  direction is right and nothing else changes.
+
+### D-058 — Evo 1's own Figure S1 reconciles our census by realm, and sizes the host rule's reach
+- **Date:** 2026-10-15
+- **Task:** A7.1 (found while starting A1.7)
+- **Context:** D-055 checked A7.1's census against Evo 1's Table S3 and found agreement to within
+  one record on three aggregate quantities. Aggregates can agree while composition does not, and
+  the project owner asked whether the three rules no release can re-execute could be got at any
+  other way. Figure S1 turns out to answer both: its panels publish per-category counts for the
+  same component, and panel B is downstream of one of those three rules.
+- **Decision:** Record the reconciliation, with its provenance caveat stated rather than buried.
+  **By realm** (Figure S1A, p41), published against our census: Duplodnaviria 2,628,512 against
+  2,628,513; Monodnaviria 17,781 against 17,781; Riboviria 6,105 against 6,105; Other 648
+  against 648. **Three of four categories agree exactly**, and the +1 from D-055 is therefore
+  localised: whatever it is, it is one Duplodnaviria record. Their `Other` bin decomposes
+  exactly into our Varidnaviria 413, Adnaviria 140 and **the 95 realmless records** — so the
+  records behind A7.1's headline finding are accounted for in the developers' own published
+  figure, not only in ours. That is the strongest corroboration this finding is going to get
+  short of the authors confirming it.
+  **By host kingdom** (Figure S1B): Unknown 2,374,733, Bacteria 276,569, Archaea 1,744, and
+  **no Eukaryota category at all**. The last is consistent with the filter's stated aim. The
+  first is the useful one, and it is not the contradiction it first looks like: the published
+  rule retains records whose *taxonomic classification* was found in a prokaryotic host at least
+  twice, so a record with no host annotation of its own survives on evidence attached to its
+  classification. **89.5% of retained records sit in that position.** That sizes how much of the
+  corpus was kept on evidence not attached to the record, and it settles that A7.2's
+  host-rule check must aggregate over classifications and join back, never read a per-record
+  host field — the unit error that would otherwise produce a confident wrong number.
+  **Provenance is weaker here than for Table S3, and the entry says so.** Figure S1 is a
+  flattened raster: `Duplodnaviria` appears nowhere in the PDF's text layer though it is 99% of
+  the released records, so these values were read off the rendered image and X1.4's quote
+  checker cannot reach them. What backs them is arithmetic — each panel must sum to Table S3's
+  record count, which *is* text-extractable — and `tools/conformance_diff.py` asserts both sums
+  on import so a mis-transcription cannot reach an artefact. Panel B's Archaea label is printed
+  malformed as "N = 17,44"; 1,744 is recovered as the residual, the printed form is kept
+  alongside it, and that is exactly why the sum check is load-bearing rather than decorative.
+- **Rejected:** Treating the figure values as equivalent in standing to the table's — they are
+  not, and the write-up must not cite them as though a quote checker had verified them.
+  Publishing the realm percentages rather than the counts — the counts are what the figure gives
+  and what reconciles; percentages would invite comparison with D-020's sample, which was
+  explicitly not a census. Reading the panel B result as the host rule having failed — the
+  classification-level reading accounts for it and is the natural reading of the published
+  sentence; asserting a failure here would be the over-claim §7's adversarial reader is waiting
+  for. Adding an image library to the pinned environment to extract the figure — the PNG was
+  rendered in the scratchpad with the standard library, and nothing in a pipeline needs it.
+- **Consequence:** A7.1's census is now corroborated per category rather than only in aggregate,
+  and the 95-record finding is visible in the developers' own figure. A7.2 inherits a hard
+  constraint on its host-rule check and a quantity to compare against once IMG/VR v4 is staged:
+  if a re-execution does not reproduce roughly 2,374,733 retained records with no host kingdom,
+  the reading is wrong. And one for whoever writes Phase A up: the exact counts in this paper's
+  figures are not in its text layer, so anything relying on a figure needs reading, not grepping
+  — there may be more of this in the Evo 2 and ESM3 papers, which nobody has checked.
+
+### D-059 — A1.4's "consumed by an A2 task" criterion moves to A2.1, which is the first point it can be shown
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** A1.4's Done-when list required the manifest format to be "documented and consumed
+  by at least one A2 task". The first half is satisfied — `metrics/manifests.md` specifies the
+  format, written to be usable without reading the code, as A3.3's independent-reimplementation
+  requirement needs. The second half cannot be satisfied from inside A1.4: all five A2 tasks
+  depend on A1.4 and none has started, so the criterion makes the task that unblocks them wait
+  on them. That is exactly the phantom-progress D-042 removed from A3.1, for the same structural
+  reason, and leaving A1.4 at `review` for it would park a finished pipeline behind unstarted
+  work while ten tasks stay blocked.
+- **Decision:** Split the criterion the way D-042 did. A1.4 keeps the half it can demonstrate —
+  the format is specified, and the artefacts conform to the specification — and closes. A2.1, as
+  the first detector, picks up the consumption half as a Done-when: it reads the manifests as the
+  shared input rather than re-deriving a surviving set, and it tags its detections with
+  `amazebio.apply.route_for`, which is the point of contact that would catch a format that looks
+  complete and is not usable.
+- **Rejected:** Holding A1.4 at `review` until a detector lands — it misreports the board for as
+  long as that takes and blocks the ten tasks A1.4 gates. Writing a token A2 consumer inside
+  A1.4 to satisfy the criterion — a detector written to validate a format rather than to detect
+  anything is scope creep that proves nothing, and §A2's detectors are substantial tasks with
+  their own thresholds to fix before results are seen. Dropping the criterion — the risk it
+  guards against is real: a format that no downstream task has read is a format nobody has
+  tested, and recording that in a closed task's notes is how it stops being anyone's job.
+- **Consequence:** The format contract is now checked at A2.1 rather than at A1.4, so A2.1 should
+  expect to find gaps in `metrics/manifests.md` and fix them there rather than treating the spec
+  as frozen — it is a data contract this project owns, not a published standard, and A1.6 will
+  write to it too. One concrete thing for A2.1 to verify rather than assume: `route_for` refuses
+  to map a removed record to `conformance_failure`, so a detector meeting a record from a
+  manifest's removed set has to route it through A7.1's evidence rather than tag it in passing.

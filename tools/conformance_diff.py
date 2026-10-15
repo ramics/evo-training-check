@@ -66,6 +66,71 @@ PUBLISHED_IMGVR = {
     "mean_length": 13_658,
 }
 
+#: Evo 1's own per-realm counts for the same component, from Figure S1 panel A (p41), and its
+#: host-kingdom counts from panel B. These are a stronger check than the totals above: the
+#: totals could agree while the composition did not.
+#:
+#: **Provenance is weaker than the table's, and the difference matters.** Figure S1 is a
+#: flattened raster — "Duplodnaviria" appears nowhere in the PDF's text layer though it is 99%
+#: of the released records — so these numbers were read off the rendered image rather than
+#: extracted, and X1.4's quote checker cannot verify them. What backs them is arithmetic:
+#: :func:`_check_published_arithmetic` asserts that each panel sums to the record count in
+#: Table S3, which *is* text-extractable. A misread digit would almost certainly break that sum.
+#:
+#: Panel B's Archaea label is printed malformed in the source, as "N = 17,44". The value below
+#: is recovered as the residual, which is what makes the sum check load-bearing rather than
+#: decorative. See D-058.
+PUBLISHED_REALMS = {
+    "source": "S-EVO1-PREPRINT",
+    "locator": "Figure S1A, p41",
+    "transcribed_from": "rasterised figure; not present in the PDF text layer",
+    "counts": {
+        "Duplodnaviria": 2_628_512,
+        "Monodnaviria": 17_781,
+        "Riboviria": 6_105,
+        # Everything not named above. Our census resolves it as Varidnaviria + Adnaviria +
+        # the realmless records, which is the decomposition D-058 records.
+        "Other": 648,
+    },
+}
+
+PUBLISHED_HOST_KINGDOMS = {
+    "source": "S-EVO1-PREPRINT",
+    "locator": "Figure S1B, p41",
+    "transcribed_from": "rasterised figure; not present in the PDF text layer",
+    "counts": {
+        "Unknown": 2_374_733,
+        "Bacteria": 276_569,
+        # Printed as "N = 17,44" in the source; recovered as the residual against Table S3.
+        "Archaea": 1_744,
+    },
+    "archaea_label_as_printed": "17,44",
+}
+
+#: The three realms Figure S1A names. Anything else the census finds belongs to "Other".
+_NAMED_REALMS = ("Duplodnaviria", "Monodnaviria", "Riboviria")
+
+
+def _check_published_arithmetic() -> None:
+    """Both figure panels must sum to the record count Table S3 publishes.
+
+    This is what stands in for a machine-extractable source on the two panels. It runs on
+    import rather than in a test so that a mis-transcription cannot reach an artefact even if
+    the test suite is not run.
+    """
+    total = PUBLISHED_IMGVR["records"]
+    for name, block in (("Figure S1A", PUBLISHED_REALMS), ("Figure S1B", PUBLISHED_HOST_KINGDOMS)):
+        got = sum(block["counts"].values())
+        if got != total:
+            raise AssertionError(
+                f"{name} counts sum to {got:,}, but Table S3 publishes {total:,} records. "
+                "One of the transcribed figure values is wrong — these were read off a raster, "
+                "so re-read the panel rather than adjusting the total."
+            )
+
+
+_check_published_arithmetic()
+
 
 def _rows_from_scan(scan: dict[str, Any]):
     """Yield one weighted row per distinct lineage tag.
@@ -187,6 +252,41 @@ def _compare_to_published(scan: dict[str, Any]) -> dict[str, Any]:
             "the difference is explained: see D-055."
         ),
         "unexplained_offset": rows - pub["records"],
+        "by_realm": _compare_realms(scan),
+        "host_kingdoms": {
+            "published": dict(PUBLISHED_HOST_KINGDOMS["counts"]),
+            "published_source": (
+                f"{PUBLISHED_HOST_KINGDOMS['source']} {PUBLISHED_HOST_KINGDOMS['locator']}"
+            ),
+            "unknown_share": (PUBLISHED_HOST_KINGDOMS["counts"]["Unknown"] / pub["records"]),
+            "eukaryota_present": "Eukaryota" in PUBLISHED_HOST_KINGDOMS["counts"],
+            "why_it_matters": (
+                "Downstream of the prokaryotic-host rule, which this release cannot re-execute. "
+                "The rule keeps records whose taxonomic classification was found in a "
+                "prokaryotic host at least twice, yet the developers' own figure puts most "
+                "retained records at an unknown host kingdom. That is not a contradiction: it "
+                "means the rule reads host evidence aggregated over the classification rather "
+                "than per record, which is the unit A7.2 has to get right. It also sizes how "
+                "much of the corpus was retained on evidence not attached to the record."
+            ),
+        },
+    }
+
+
+def _compare_realms(scan: dict[str, Any]) -> dict[str, Any]:
+    """Our census by realm against Evo 1's own Figure S1A, binned the way they bin it."""
+    ours = scan.get("realms", {})
+    binned: dict[str, int] = {r: ours.get(r, 0) for r in _NAMED_REALMS}
+    binned["Other"] = sum(n for r, n in ours.items() if r not in _NAMED_REALMS)
+    pub = PUBLISHED_REALMS["counts"]
+    return {
+        "published": dict(pub),
+        "published_source": f"{PUBLISHED_REALMS['source']} {PUBLISHED_REALMS['locator']}",
+        "counted": binned,
+        "delta": {k: binned.get(k, 0) - v for k, v in pub.items()},
+        "other_decomposition": {r: n for r, n in sorted(ours.items()) if r not in _NAMED_REALMS},
+        "categories_agreeing": sum(1 for k, v in pub.items() if binned.get(k, 0) == v),
+        "categories": len(pub),
     }
 
 
@@ -337,9 +437,54 @@ def summarise(result: dict[str, Any], scan: dict[str, Any]) -> str:
         "",
         pc["verdict"],
         "",
+        f"Composition agrees too, and more sharply: {pc['by_realm']['categories_agreeing']} of "
+        f"{pc['by_realm']['categories']} realm categories match **exactly** against "
+        f"{pc['by_realm']['published_source']}.",
+        "",
+        "| realm | published | counted | delta |",
+        "|---|---|---|---|",
+    ]
+    br = pc["by_realm"]
+    for realm, pubn in br["published"].items():
+        lines.append(
+            f"| {realm} | {pubn:,} | {br['counted'].get(realm, 0):,} | "
+            f"{br['delta'].get(realm, 0):+,} |"
+        )
+    lines += [
+        "",
+        "Their `Other` bin decomposes exactly into "
+        + ", ".join(f"{r} {n:,}" for r, n in br["other_decomposition"].items())
+        + ". The realmless records are therefore accounted for in the developers' own "
+        "published figure, not only in ours.",
+        "",
+        "Figure S1 is a flattened raster — `Duplodnaviria` appears nowhere in the PDF text "
+        "layer though it is 99% of the released records — so these values were read off the "
+        "rendered image and cannot be machine-verified from the source. What backs them is "
+        "that each panel sums to the record count in Table S3, which is text-extractable; "
+        "that assertion runs on import.",
+        "",
+        "### What the host panel says about a rule this release cannot test",
+        "",
+        "| host kingdom | records |",
+        "|---|---|",
+    ]
+    hk = pc["host_kingdoms"]
+    for kingdom, n in hk["published"].items():
+        lines.append(f"| {kingdom} | {n:,} |")
+    lines += [
+        "",
+        f"Unknown accounts for {hk['unknown_share']:.1%} of retained records, and Eukaryota "
+        f"does not appear at all. {hk['why_it_matters']}",
+        "",
+        "One transcription note: panel B prints the Archaea count malformed, as "
+        f"`N = {PUBLISHED_HOST_KINGDOMS['archaea_label_as_printed']}`. It is recovered here as "
+        "the residual against Table S3.",
+        "",
         f"The {pc['unexplained_offset']:+d}-record offset is **not explained** and is reported "
         "rather than rounded away. A conformance audit that rounds its own denominator has no "
-        "standing to report a 95-record finding. See D-055.",
+        "standing to report a 95-record finding. The realm table localises it: every other "
+        "category agrees exactly, so whatever the difference is, it is one Duplodnaviria "
+        "record. See D-055 and D-058.",
         "",
         "## Structural premise",
         "",

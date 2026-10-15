@@ -30,6 +30,10 @@ taxonomy labels.
 ## Done when
 
 - Per-family hit tables exist for every manifest.
+- A1.4's manifests are consumed as the shared input rather than a surviving set re-derived here,
+  and detections are routed with `amazebio.apply.route_for` (DECISIONS.md D-059, carried from
+  A1.4's own Done-when list). Expect to find gaps in `metrics/manifests.md` and fix them here —
+  the format is this project's data contract, not a frozen standard.
 - Thresholds were fixed and recorded before results were inspected.
 - Output conforms to the shared detection schema.
 

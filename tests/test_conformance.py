@@ -356,3 +356,45 @@ def test_an_order_dependent_rule_is_refused_rather_than_reported_as_zero_removal
     )
     with pytest.raises(ValueError, match="order-dependent"):
         cf.diff(evo_policies["evo1-literal"], _rows(CAUDO), release="opengenome-stage2")
+
+
+# --------------------------------------------------------------------------------------
+# The published-figure checks
+# --------------------------------------------------------------------------------------
+
+
+def test_the_published_figure_panels_sum_to_the_published_record_count():
+    # The only thing standing in for a machine-extractable source on Figure S1: its values were
+    # read off a raster, and a misread digit would almost certainly break these sums. The
+    # production code asserts this on import; this is the same check, where a reader looks.
+    import importlib.util
+    import pathlib
+
+    spec = importlib.util.spec_from_file_location(
+        "conformance_diff",
+        pathlib.Path(__file__).resolve().parent.parent / "tools" / "conformance_diff.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    total = mod.PUBLISHED_IMGVR["records"]
+    assert sum(mod.PUBLISHED_REALMS["counts"].values()) == total
+    assert sum(mod.PUBLISHED_HOST_KINGDOMS["counts"].values()) == total
+
+
+def test_the_malformed_archaea_label_is_recorded_as_printed():
+    # The source prints "N = 17,44", which is not a number. The recovered value is only
+    # defensible because the panel has to sum; keeping the printed form is what lets a reviewer
+    # check that reasoning rather than take 1,744 on trust.
+    import importlib.util
+    import pathlib
+
+    spec = importlib.util.spec_from_file_location(
+        "conformance_diff",
+        pathlib.Path(__file__).resolve().parent.parent / "tools" / "conformance_diff.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    assert mod.PUBLISHED_HOST_KINGDOMS["archaea_label_as_printed"] == "17,44"
+    assert mod.PUBLISHED_HOST_KINGDOMS["counts"]["Archaea"] == 1_744
