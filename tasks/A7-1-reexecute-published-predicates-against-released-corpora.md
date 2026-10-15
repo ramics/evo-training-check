@@ -2,13 +2,13 @@
 id: A7.1
 title: Re-execute published predicates against released corpora
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A0.3, A1.1, A1.2]
 blocks: [X5.1]
 design_ref: "§A7"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A7.1 — Re-execute published predicates against released corpora
@@ -63,6 +63,24 @@ D-019 and D-020.
   threshold recovered that way ships as an estimate with an interval, never as their parameter.
 - **Qualify every Evo claim by the verdicts above**, and state plainly that the audited procedure
   is Evo 1's while one of the two audited outputs is Evo 2's.
+
+## State — 2026-10-15
+
+`in-progress`, on branch `ccr-2e82b91e-hou4gf`.
+
+Both ends of the forward check are already staged in `us-east-1`, which is what makes this
+runnable now:
+
+- `corpora/opengenome/84369c05…/stage2/train_stage2.parquet` — 16.92 GB, Evo 1's own released
+  viral component, with the inline lineage tag the taxonomy rules consume (D-020).
+- `corpora/opengenome2/84d2a7e6…/fasta/plasmids_phage/imgvr.fasta.gz` — 11.22 GB, Evo 2's
+  release of the same component, headers carrying IMG/VR accessions and no lineage.
+
+**What is left:** the in-region pass that turns those two files into a small auditable
+intermediate, then the conformance diff computed locally from it.
+
+**Waiting on the project owner:** nothing yet.
+
 
 ## Notes
 
