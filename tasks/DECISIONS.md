@@ -3307,3 +3307,39 @@ decision has a threshold or parameter in it, the number goes in the entry.
   *Bootstrap intervals* — no advantage over the exact method for a binomial, and they would put
   a seed where a closed form does.
   *Pooling across families as the headline* — reports the ICTV's species-ratification effort.
+
+---
+
+### D-089 — Leakage is derived from the records a rule removed, not by multiplying them by the escape rate
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** D-088 fixed the propagation step as multiplying the escape rate by "an estimate
+  of the in-scope corpus population". Implementing it exposed that the obvious estimate is the
+  wrong one, and wrong in the direction that flatters the filter. Recorded before the
+  benchmark's escape rate existed: the geNomad run over the evaluation set was still in its
+  marker search when this was written, so no rate had been seen.
+- **Decision:** What the corpus shows is `R`, the records the rule **did** remove — 181,530
+  denylist hits, of which 38.56% rest on a geNomad label. What a leakage figure needs is `N`,
+  the records it **should** have removed. A rule removes the in-scope records it did not miss,
+  so `R = N(1 - e)`, giving `N = R / (1 - e)` and an escaping count of `R * e / (1 - e)`.
+
+  Multiplying `R` by `e` — the reflex, and what D-088's wording invited — understates leakage by
+  a factor of `1 - e`, because it treats the observed removals as the whole in-scope population
+  when they are precisely that population *minus the thing being counted*. At an escape rate of
+  a half it is wrong by a factor of two.
+
+  Each interval endpoint goes through the same derivation, so the reported range is a range of
+  implied populations rather than an interval around one of them. At `e = 1` the result is
+  `None`, not infinity: if nothing in scope was ever removed, the observed removals carry no
+  information about how many there were, and a sentinel is more honest than a very large number.
+  The artefact carries the algebra in an `arithmetic` field, because this is the step a reader
+  is most likely to redo.
+- **Rejected:** *Keep `R * e` and note the bias in prose* — the number gets quoted and the prose
+  does not travel with it, which is the same failure `propagate`'s `bound` field exists to
+  prevent.
+  *Estimate `N` from A4.1's family-labelled share instead* — that counts records the corpus
+  labels at family, which is a different population again (it includes out-of-scope families and
+  excludes everything unlabelled), and it would silently mix two tasks' denominators.
+  *Report the escaping count without an implied population* — the derivation is the part a
+  reviewer has to check, so hiding it inside one multiplication is the wrong trade.
