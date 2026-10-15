@@ -2,7 +2,7 @@
 id: A7.2
 title: Close the conformance gaps the releases could not answer
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A1.7]
 blocks: []

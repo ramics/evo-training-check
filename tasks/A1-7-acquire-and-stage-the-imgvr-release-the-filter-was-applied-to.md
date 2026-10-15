@@ -2,7 +2,7 @@
 id: A1.7
 title: Acquire and stage the IMG/VR release the filter was applied to
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.1]
 blocks: [A7.2]
@@ -98,8 +98,8 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 
 ## State — 2026-10-15
 
-`review`. **Both releases are staged and verified and every Done-when criterion is met.**
-Work branch: `claude/kind-wozniak-ec94y4`.
+`done`. **Both releases are staged and verified and every Done-when criterion is met.**
+The work merged to `main` in PR #10 (branch `claude/kind-wozniak-ec94y4`).
 
 **Staged:** 12 objects, 15.84 GB, under
 `s3://amazebio-corpora-897641797669/corpora/imgvr/{2022-09-20,2022-12-20}/`. Every file was
