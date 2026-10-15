@@ -342,3 +342,17 @@ def test_every_cause_is_documented(evo_policies):
         "§A7 requires the causes defined before the count; an undocumented cause is one "
         "defined after it"
     )
+
+
+def test_an_order_dependent_rule_is_refused_rather_than_reported_as_zero_removals(
+    evo_policies, monkeypatch
+):
+    # If a release ever carried vOTU identifiers, `keep_one_per` would become "checkable" and
+    # this diff would retain every record as its own representative — zero removals, reading as
+    # conformance. D-017 records that the rule is not reproducible for want of a published input
+    # order; the guard is what stops that becoming a number.
+    monkeypatch.setitem(
+        cf.RELEASE_INPUTS, "opengenome-stage2", frozenset({"taxonomy", "record_attributes"})
+    )
+    with pytest.raises(ValueError, match="order-dependent"):
+        cf.diff(evo_policies["evo1-literal"], _rows(CAUDO), release="opengenome-stage2")

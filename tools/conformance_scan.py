@@ -232,11 +232,16 @@ def scan_parquet(
         meta = pq.ParquetFile(pa.PythonFile(S3RandomRead(client, bucket, full), mode="rb")).metadata
         n_groups, n_rows = meta.num_row_groups, meta.num_rows
         print(f"[scan] {key}: {n_rows:,} rows in {n_groups:,} row groups", flush=True)
-        shards = [list(range(i, n_groups, workers)) for i in range(workers)]
-        shards = [s for s in shards if s]
+        # Many small shards rather than one per worker. With one shard each, nothing completes
+        # until a worker finishes its whole share, so a seven-minute pass prints nothing for
+        # seven minutes and an operator cannot tell a slow run from a hung one. Chunks of 32
+        # row groups give ~83 units of progress per worker and cost one extra Parquet footer
+        # read each, which is a few kilobytes.
+        chunk = 32
+        shards = [list(range(i, min(i + chunk, n_groups))) for i in range(0, n_groups, chunk)]
         file_tally = _blank_tally()
         started = last = time.time()
-        with ProcessPoolExecutor(max_workers=len(shards)) as pool:
+        with ProcessPoolExecutor(max_workers=min(workers, len(shards))) as pool:
             futures = {
                 pool.submit(_scan_row_groups, bucket, full, shard): shard for shard in shards
             }

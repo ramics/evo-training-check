@@ -519,6 +519,20 @@ def diff(
     IMG/VR v4, which this project has not acquired, and no count here speaks to it.
     """
     restriction = restrict(policy, release=release)
+    order_dependent = [r.id for r in restriction.kept if r.kind == "keep_one_per"]
+    if order_dependent:
+        # Each record is evaluated on its own, and the scan aggregates identical tags before
+        # getting here, so the input order the published pipeline depends on is gone twice over.
+        # `keep_one_per` would then retain every record as its own representative and report
+        # zero removals, which reads as conformance. D-017 already records that the vOTU rule is
+        # not reproducible for want of a published input order; this refuses rather than
+        # producing the number that would hide it.
+        raise ValueError(
+            f"policy {policy.id!r} keeps order-dependent rule(s) {order_dependent} against "
+            f"release {release!r}. This diff evaluates records independently and over tags "
+            "aggregated by the scan, so an order-dependent rule cannot be re-executed here: "
+            "compute it at the level of the attribute it deduplicates on, per D-017."
+        )
     by_rule = {r.id: r for r in restriction.kept}
     failures: list[Failure] = []
     for record_id, record, tag, weight in rows:
