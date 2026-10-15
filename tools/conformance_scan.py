@@ -118,6 +118,16 @@ class S3RandomRead(io.RawIOBase):
             self._pos = self.size + offset
         return self._pos
 
+    #: Attempts per range, and the backoff between them. A range GET that breaks mid-stream is
+    #: the normal failure at this concurrency rather than an exceptional one — sixteen readers
+    #: through the project's outbound proxy produced an `IncompleteRead` partway through a
+    #: 2.65M-row pass, which is the same class of failure `amazebio.uniref.ResumableRead` was
+    #: written for. A range is re-requested whole rather than resumed: the request is a few
+    #: megabytes, so re-reading it is cheaper than tracking a partial buffer, and a retried
+    #: range either arrives complete or raises.
+    ATTEMPTS = 5
+    BACKOFF = 2.0
+
     def read(self, size: int = -1) -> bytes:
         if size is None or size < 0:
             size = self.size - self._pos
@@ -125,11 +135,28 @@ class S3RandomRead(io.RawIOBase):
         if size <= 0:
             return b""
         end = self._pos + size - 1
-        body = self._c.get_object(
-            Bucket=self._bucket, Key=self._key, Range=f"bytes={self._pos}-{end}"
-        )["Body"].read()
-        self._pos += len(body)
-        return body
+        last: Exception | None = None
+        for attempt in range(self.ATTEMPTS):
+            try:
+                body = self._c.get_object(
+                    Bucket=self._bucket, Key=self._key, Range=f"bytes={self._pos}-{end}"
+                )["Body"].read()
+            except Exception as exc:  # any transport failure here is worth one more attempt
+                last = exc
+                time.sleep(self.BACKOFF**attempt)
+                continue
+            if len(body) != size:
+                # A short read is a broken stream that did not raise. Treating it as data would
+                # corrupt a Parquet column chunk and the scan would fail far from the cause.
+                last = OSError(f"short range read: got {len(body)} of {size} bytes")
+                time.sleep(self.BACKOFF**attempt)
+                continue
+            self._pos += len(body)
+            return body
+        raise OSError(
+            f"range {self._pos}-{end} of s3://{self._bucket}/{self._key} failed "
+            f"{self.ATTEMPTS} times; last error: {last}"
+        ) from last
 
     def readinto(self, buf: Any) -> int:
         """Required by `io.BufferedReader`, which calls this and never `read`.
