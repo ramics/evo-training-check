@@ -246,7 +246,7 @@ def search(reg: Registry, proteins: list[Any], *, restrict_to: set[str] | None) 
     with open_profiles(hmm_path(reg)) as handle, pyhmmer.plan7.HMMFile(handle) as hmms:
         models = hmms if restrict_to is None else (h for h in hmms if _name(h) in restrict_to)
         for top in pyhmmer.hmmsearch(models, block, cpus=3, **options):
-            query_name = top.query.name.decode()
+            query_name = _text(top.query.name)
             query_length = top.query.M
             for hit in top:
                 if hit.included is False:
@@ -254,7 +254,7 @@ def search(reg: Registry, proteins: list[Any], *, restrict_to: set[str] | None) 
                 coverage = _best_model_coverage(hit, query_length)
                 if coverage < MIN_MODEL_COVERAGE:
                     continue
-                record_id, _, gene = hit.name.decode().partition("|")
+                record_id, _, gene = _text(hit.name).partition("|")
                 accepted.append(
                     {
                         "profile": query_name,
@@ -269,8 +269,13 @@ def search(reg: Registry, proteins: list[Any], *, restrict_to: set[str] | None) 
     return accepted
 
 
+def _text(value: Any) -> str:
+    """A pyhmmer name as text. The library returns `bytes` in some versions and `str` in others."""
+    return value.decode() if isinstance(value, bytes) else str(value)
+
+
 def _name(hmm: Any) -> str:
-    return hmm.name.decode() if isinstance(hmm.name, bytes) else str(hmm.name)
+    return _text(hmm.name)
 
 
 def _best_model_coverage(hit: Any, model_length: int) -> float:
@@ -308,7 +313,11 @@ def load_manifests(manifest_dir: Path) -> list[dict[str, Any]]:
     produced = json.loads(index.read_text())
     manifests = []
     for entry in produced.get("manifests", produced if isinstance(produced, list) else []):
-        path = manifest_dir / entry["file"] if "file" in entry else None
+        # A1.4's index names each file under `manifest`; `file` is accepted as well rather than
+        # assumed away, because the index is another task's artefact and this reader must fail
+        # loudly on a shape it does not know instead of silently skipping an entry.
+        name = entry.get("manifest") or entry.get("file")
+        path = manifest_dir / name if name else None
         if path is None or not path.exists():
             raise SystemExit(f"manifest listed in index.json is missing: {entry}")
         manifests.append({"path": path, "manifest": json.loads(path.read_text())})
@@ -417,7 +426,7 @@ def main(argv: list[str] | None = None) -> int:
     if not manifests:
         raise SystemExit("no manifests selected")
 
-    policies = {p.id: p for p in load_policy_dir(SPECS)}
+    policies = load_policy_dir(SPECS)
     by_release: dict[str, list[dict[str, Any]]] = {}
     for entry in manifests:
         by_release.setdefault(entry["manifest"]["release"], []).append(entry)
@@ -442,7 +451,19 @@ def main(argv: list[str] | None = None) -> int:
     client = _client()
 
     written: list[str] = []
-    with run("A2.1", seed=SEED, outdir=out, allow_dirty=args.allow_dirty, repo=REPO) as m:
+    # One provenance file per invocation, named for what it covered. A full pass over both
+    # nucleotide releases does not fit the time a single run gets here, so A2.1 is run per
+    # release — and two runs sharing one `run.json` would leave the second silently overwriting
+    # the first one's provenance, which A1.5 hit with two staging passes at once.
+    scope = "-".join(sorted(by_release)) if len(by_release) < 3 else "all"
+    with run(
+        "A2.1",
+        seed=SEED,
+        outdir=out,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        manifest_name=f"run-{scope}.json",
+    ) as m:
         m.parameter("registries", [r.key for r in regs])
         m.parameter("sample_seed", SEED)
         m.parameter("sample_rates", SAMPLE_RATES)
@@ -649,8 +670,9 @@ def main(argv: list[str] | None = None) -> int:
             "registries": [r.key for r in regs],
             "sample": {"seed": SEED, "rates": SAMPLE_RATES, "decision_ref": "D-078"},
         }
-        (out / "index.json").write_text(json.dumps(index, indent=2) + "\n")
-        m.output_file(out / "index.json", role="index")
+        index["scope"] = scope
+        (out / f"index-{scope}.json").write_text(json.dumps(index, indent=2) + "\n")
+        m.output_file(out / f"index-{scope}.json", role="index")
         m.note(
             "Family-level survival from a sample is a lower bound (D-078): an unread record can "
             "only add a family, never remove one."
