@@ -1942,3 +1942,51 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `(date, name)` key compares one release's file against another's. Every lookup in
   `amazebio.imgvr` and `tools/stage_imgvr.py` is keyed on `(date, directory, name)`, and
   `tests/test_imgvr.py` pins that the collision exists so the key cannot be simplified back.
+
+### D-057 — A1.4 and A7.1 declared the same facts twice; the rule-input table and the released-format parser are unified
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** A1.4 and A7.1 ran in parallel and converged on the same problem from opposite
+  ends. A7.1 needed to know which of Evo's published rules its release could re-execute, and
+  built `conformance.RULE_INPUTS` plus `RELEASE_INPUTS`, deriving a restricted policy and
+  reporting `3/6` coverage (D-047). A1.4 needed to classify every record rather than every rule,
+  and built `policyspec.Evidence` plus a new `Outcome.UNRESOLVED`. Both tracks also wrote a
+  parser for the released lineage tag and a splitter for the released row. The two
+  rule-input tables agreed on all eight kinds, and the agreement was luck: that mapping decides
+  which of an author's rules we hold them to, and A7.2's first step is to extend the release
+  inventory with IMG/VR v4. Both branches were unmerged when this was noticed, which is the only
+  cheap moment to fix it.
+- **Decision:** Unify the two declarations that are the same fact at the same granularity, and
+  guard the one that is not. `RULE_INPUTS` moves to `policyspec` as the single declaration,
+  keeping A7.1's input names because its artefacts and write-up already report them;
+  `conformance.RULE_INPUTS` re-exports it and A1.4's per-key evidence checks take their channel
+  from it. A1.4 drops its own lineage parser and row splitter in favour of A7.1's, which read
+  the format better: prefix wins over position, a disagreement is recorded rather than resolved,
+  and a short tag is a formatting variation rather than a finding — so a malformed tag is now
+  counted and its taxonomy still used, where A1.4 previously discarded the record. The release
+  inventory stays in two granularities, because they genuinely differ: A7.1 restricts per
+  channel, A1.4 checks per key, and the key matters (Evo 2's release carries
+  `record_attributes` in the shape of an accession, which answers no rule that reads that
+  channel). A test pins their agreement instead — identical kept rule sets on `stage2`, and both
+  declarations refusing Evo 2's release.
+- **Rejected:** Forcing the release inventory into one representation — it would mean rewriting
+  `restrict` inside a module at `review` whose numbers are published, and rewriting the test
+  that guards a real hazard: a release that carried vOTU identifiers would make `keep_one_per`
+  checkable and the diff would report zero removals as conformance. Having A1.4 import A7.1's
+  tables wholesale — its coarser per-kind mapping cannot express a rule that needs every host
+  class rather than one, which is what separates the strict reading's exclusivity rule from the
+  literal reading's count. Leaving both and documenting the overlap — the drift it invites is
+  not visible in any artefact, which is what makes it dangerous rather than merely untidy.
+  Keeping A1.4's stricter parser — it raised on a short tag and on a prefix out of position,
+  discarding records whose taxonomy is perfectly usable, and a parse failure that imitates an
+  unlabelled record corrupts one of this audit's own findings.
+- **Consequence:** `policyspec` now owns the statement of what each rule kind reads, so a new
+  rule kind must be declared there and both consumers pick it up at once. A7.2 extends
+  `RELEASE_INPUTS` for IMG/VR v4 as planned, and the cross-check test will fail if the
+  corresponding `Evidence` declaration in `corpora.SOURCES` is not extended with it — which is
+  the intended behaviour, not an obstacle: the two must move together. One piece of layering is
+  left untidy on purpose: `corpora` imports the released-format primitives from `conformance`,
+  which inverts the natural direction, because moving them would have churned a module under
+  review. Whoever closes A7.1's review should move `LineageTag`, `parse_lineage_tag`, `RowShape`,
+  `split_row` and `BLOCK_CHARS` into `corpora` and re-export them, at which point the import
+  direction is right and nothing else changes.
