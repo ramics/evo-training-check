@@ -2684,3 +2684,234 @@ decision has a threshold or parameter in it, the number goes in the entry.
   requires every cited source to exist and be `retrieved`, so a checkpoint added without its
   source fails there — it is enumeration-driven already and does not share this defect. The
   release inventory was the one that did.
+
+### D-075 — The profile registries are Pfam 38.2 and RVDB-prot 32.0, and "viral clans" is read at family level
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** `DESIGN.md` §A2 names the profile resources as "viral protein family HMMs (Pfam
+  viral clans; RVDB, which exists for exactly this purpose)". Neither half is a set this project
+  can simply load. RVDB is published in several forms and versions and §A2 pins none of them.
+  And **"Pfam viral clans" does not denote a usable set at all**: a Pfam clan is a *structural*
+  superfamily, so clans mix viral with cellular families freely. `CL0055` (Nucleoplasmin) holds
+  seven viral capsid families beside the cellular nucleoplasmins; `CL0063` (NADP_Rossmann) holds
+  two reovirus methyltransferase domains inside one of the largest cellular clans in the
+  database. A profile set built from clans would call a Rossmann fold viral content, and this
+  audit's headline is the fraction of viral families with a surviving homolog — so an inflated
+  numerator inflates the finding, in the direction that favours the result the project is
+  testing for. The gap had to be closed before anything was searched.
+- **Decision:** Two registries, pinned by version, searched separately and never pooled
+  (`metrics/survival.md`, D-022):
+  **Pfam 38.2** (EMBL-EBI, 2026-01-22), pinned by its versioned release directory rather than
+  `current_release`, which is a moving pointer. 30,134 families, every one carrying a GA
+  gathering cutoff. Digests are the publisher's own `md5_checksums`.
+  **RVDB-prot 32.0** (Bioinformatics Hub, Institut Pasteur, 2026-07), the HMM form:
+  `U-RVDBv32.0-prot.hmm.xz`, 13,679 profiles, with digests, counts and the build's own tool
+  versions taken from the release's `U-RVDBv32.0-prot-metadata.yaml`. The staged file's profiles
+  are counted independently of that metadata: stated 13,679, counted 13,679.
+  **The Pfam viral set is selected at family level, not clan level.** A family is in when its
+  own Pfam ID or description names a viral entity, against a keyword list frozen in
+  `amazebio.profiles.VIRAL_KEYWORDS` before the corpus was searched. That selects **1,719 of
+  30,134** families. `integrase` and `transposase` are deliberately *not* in the list: they are
+  mobile-element machinery shared with transposons, and a bacterial transposase counted as
+  viral content would be the same inflation by another route. The selected set ships per family
+  — accession, name, description, clan, cutoff — as `artifacts/a2-1/registries/pfam-viral-families.json`,
+  so the membership is reviewable family by family rather than taken on trust.
+- **Rejected:** The clan-level reading, with its consequence measured rather than asserted. Every
+  family in every clan containing at least one viral family is **6,698 families across 131 clans,
+  of which 6,132 are not themselves viral** — the profile set is four times larger and
+  overwhelmingly cellular. It is also *incomplete*: only 13,933 of Pfam's 30,134 families belong
+  to a clan at all, and **1,153 of the 1,719 selected viral families have no clan**, so the
+  clan-level reading would drop two thirds of them. Over-broad and under-inclusive at once.
+  Also rejected: RVDB's clustered FASTA with a sequence-similarity search instead of the HMMs.
+  §A2 asks for profile search, profiles are the sensitive instrument at this distance, and
+  RVDB-prot ships the HMMs ready-built.
+  Also rejected: deriving the viral set from the taxonomy of each family's seed alignment, which
+  would be a stronger criterion than keywords. It needs the full seed alignments (another
+  release to pin and parse) and it would still be this project's reading rather than Pfam's.
+  Recorded as the better instrument if a reviewer disputes the membership.
+- **Consequence:** The two registries answer "is this family viral" by *different authorities* —
+  RVDB's by its curators, Pfam's by this project — which is why the headline is reported once per
+  registry and the two denominators are never added together. The Pfam membership is this
+  project's judgement call and is therefore a stated limitation of every Pfam-registry figure;
+  the per-family artefact is what makes it an auditable one. The clan-level numbers above are a
+  §A0-style finding in their own right: a specification that says "viral clans" names no set,
+  and the spread between its two readings is a factor of four.
+
+### D-076 — Hit thresholds are bit scores, or E-values against a pinned database size
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** A2.1 has to fix its thresholds before looking at any hits, and the obvious choice
+  — "E ≤ 1e-5", the field default — is unsound for this audit in a way that is easy to miss.
+  A sequence E-value is scaled by the number of target sequences searched, so the same profile
+  at the same E-value cut-off corresponds to a *different bit score* on a sample than on a whole
+  corpus, and to different bit scores on two manifests of different size. The headline — the
+  fraction of families with a surviving homolog — would then move with how much corpus a run
+  happened to read, in the direction of finding more survival the more was searched. That is a
+  threshold that reports its own sample size.
+- **Decision:** Every threshold in A2.1 is a bit score, or an E-value computed against a pinned
+  database size, which is the same thing:
+  **Pfam: the release's own per-model GA gathering cutoffs, used as published.** Pfam curates a
+  cutoff per family and all 30,134 carry one; this project does not get to pick its own threshold
+  for somebody else's curated database. Searched with `bit_cutoffs="gathering"`.
+  **RVDB-prot: sequence E ≤ 1e-5 against `Z = 1_000_000`** (`domZ` the same), pinned in
+  `amazebio.profiles.PINNED_Z` / `PINNED_E_VALUE`. RVDB's profiles are built automatically and
+  carry no curated cutoff, so a threshold has to come from somewhere; fixing `Z` makes it a
+  constant per-model bit score. The equivalent bit score is derived per model from the model's
+  own calibrated Forward tail, `T = f_tau + ln(Z/E) / f_lambda`, and it is `T` that is recorded
+  as each detection's threshold — so `amazebio.survival.Detection`'s score-above-threshold
+  invariant is checked against a real bit score, and a stricter threshold can be re-applied to
+  the artefact later without re-running the search. One million is not a magic number: it is
+  within an order of magnitude of the translated gene count of a single staged source, which
+  keeps the reported E-values readable as E-values rather than as a rescaled bit score.
+  **Both registries additionally require envelope coverage of at least 0.5 of the model**
+  (`MIN_MODEL_COVERAGE`). A profile search over called genes finds short partial matches in
+  abundance, and a 20-residue slice of a 400-residue capsid model is not a surviving homolog of
+  that family in any sense §A3 reports. This applies on top of Pfam's gathering cutoffs too,
+  because Pfam curates those for annotating domains in proteins, which is a different question
+  from whether a family survived a filter.
+  Every accepted hit's score, E-value, threshold and coverage are written to the artefact, so
+  the thresholds are re-checkable and a reviewer can re-cut at a stricter one.
+- **Rejected:** A plain `E ≤ 1e-5` with `Z` left to the search, for the reason above — it is the
+  default and it would have made the headline a function of the sample size.
+  A single fixed bit score across a whole registry (say 30 bits), which ignores that a 60-residue
+  model and an 1,800-residue model reach that score with wildly different amounts of evidence.
+  Pfam's trusted cutoffs (TC) instead of gathering (GA): TC is the lowest score of a sequence
+  *in* the family, which is stricter than Pfam's own inclusion decision and would discard
+  homologs Pfam itself would annotate. GA is the curated inclusion boundary and is the one to use.
+  Tightening the coverage floor to 0.8, which would be defensible and is not pre-registered as
+  the primary: the artefact carries coverage per hit, so 0.8 is a sensitivity analysis A3.2 can
+  run from what A2.1 already wrote, rather than a second search.
+- **Consequence:** Thresholds are comparable across manifests, releases, sample sizes and the two
+  registries, which is what lets A3.2 merge A2.1's output with A2.2–A2.5's. The numbers are fixed
+  here, dated, before any hit was inspected, which is what `AGENTS.md` requires. The coverage
+  floor is the one place A2.1 is stricter than the registries' own authors, and it is stated as
+  such beside every figure.
+
+### D-077 — Reading frames come from gene calling, not from six-frame translation
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** The profiles are protein and two of the three surviving corpora are nucleotide, so
+  something has to decide what the reading frames are. The cheap answer is six-frame
+  translation: translate every record in all six frames and search the lot.
+- **Decision:** Genes are called with Prodigal in metagenomic mode (`pyrodigal` 3.7.1, vendoring
+  Prodigal v2.6.3), and the called proteins are what gets searched. Metagenomic mode because the
+  records are contigs and fragments of unknown provenance rather than finished genomes with
+  enough sequence to train a genome-specific model.
+- **Rejected:** Six-frame translation. It puts five wrong answers beside every right one, and a
+  profile hit on a frame no gene occupies is a false positive — in a project whose headline is
+  "this family survived the filter", reported against named laboratories, with §7 requiring the
+  result to be airtight. It also costs six times the search for the privilege. The honest
+  trade is the other way round: gene calling can *miss* a gene, so it costs sensitivity, and a
+  missed gene can only make the survival figure lower, which is the safe direction for a finding
+  of this kind.
+  Also rejected: calling genes with a tool of this project's choosing on the grounds of accuracy.
+  Prodigal is the caller IMG/VR's own annotation pipeline uses, so the genes in the records are
+  called the way the records' publisher calls them, and a disagreement about gene boundaries
+  cannot be a disagreement this audit introduced.
+- **Consequence:** Reported family survival is a lower bound with respect to gene calling as well
+  as sampling (D-078). Records whose genes Prodigal cannot call contribute nothing and are
+  counted separately in each table's per-source row, rather than being absorbed into "no hit" —
+  that population is a limitation of the method and has to be visible as one.
+
+### D-078 — The sample is a deterministic hash of the record id, and what it supports is a lower bound
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** A profile search over the whole surviving corpus is not expensive, it is
+  arithmetically out of reach. Measured on this project's own environment: 98 million
+  profile-residues per second for RVDB-prot and 254 million for the Pfam viral set, on three
+  cores. The Evo 1 viral component alone is 36.2 Gbp (2,653,047 records, A7.1's census), which is
+  about 10.9 G amino acids of coding sequence; against 13,679 RVDB profiles that is roughly
+  40,000 core-hours, and Evo 2's viral component is larger again. No instance size and no budget
+  this project has changes the order of magnitude. So the headline comes from a sample, and the
+  sample has to be pre-registered rather than chosen once the hits are in.
+- **Decision:** Sample membership is a deterministic function of the record identifier and a
+  pinned seed: a record is in when `blake2b(key=seed, record_id)` read as a 64-bit integer is
+  below `rate · 2⁶⁴` (`amazebio.detect.in_sample`). Seed **20261015**. Rates, fixed now, one per
+  source, chosen so that each source contributes a comparable residue budget rather than a
+  comparable record count — the headline is per family, not per record, and the binding
+  constraint is compute:
+  | source | rate | expected records |
+  |---|---|---|
+  | `opengenome` / `stage2` | 0.002 | ~5,306 of 2,653,047 |
+  | `opengenome2` / `imgvr` | 0.001 | ~1 in 1,000 |
+  | `opengenome2` / `imgpr` | 0.001 | ~1 in 1,000 |
+  Hash sampling rather than a random draw because it is declarable in advance, reproducible
+  without storing a list of ids, resumable after an interruption, independent of the order
+  records are read in, and checkable per record after the fact: a reader can ask whether a named
+  record was in the sample without re-running anything.
+  **The resulting family-level survival figure is a lower bound, and the schema says so in its
+  own field** (`estimate_kind: lower_bound`). A family detected in the sample is detected, and no
+  amount of unread corpus takes that back; a family absent from the sample may survive in the
+  records not read. The bound is reported with its Wilson interval over the sampled denominator,
+  and A3.2 must not read a sampled table as a population estimate.
+- **Rejected:** A uniform record-count sample across sources, which would have spent most of the
+  budget on whichever source has the shortest records.
+  A reservoir or RNG-drawn sample, which needs the draw stored to be reproducible and cannot be
+  resumed or checked per record.
+  Waiting for a faster method before producing any number — a profile-vs-profile prefilter, or
+  MMseqs2 profile search at one to two orders of magnitude more throughput. That is the right way
+  to widen this and it is a method substitution with its own sensitivity to establish, so it is
+  put to the project owner as a scale decision rather than absorbed into A2.1 unannounced.
+  Scaling up by sampling less deeply but reporting it as a population figure. The bound is what
+  the evidence supports.
+- **Consequence:** Every A2.1 figure is a lower bound on two counts — sampling and gene calling
+  (D-077) — and both are stated in the artefact rather than in a footnote. This is the safe
+  direction: the audit under-reports survival rather than over-reporting it, and `DESIGN.md` §2's
+  commitment is that a null result must remain visible, which a lower bound does not threaten.
+  A3.2 reads `estimate_kind` and must refuse to pool a `lower_bound` table with a `population`
+  one. If the owner funds a wider pass, the same seed and a larger rate *extend* the same sample
+  rather than replacing it — hash membership is nested in the rate — so nothing already searched
+  is searched again.
+
+### D-079 — A profile hit names a family, never an element kind
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** `amazebio.survival.Detection` requires an `ElementKind` beside the route, and the
+  taxonomy has seven: free virus, prophage, endogenous retroelement, non-retroviral EVE,
+  satellite, viral-derived fragment, unclassified element. A profile hit supports almost none of
+  them. It says a viral protein family is present in a record; it does not say whether the record
+  is a free virus, a prophage in a bacterial genome, or an endogenous element in a host genome —
+  and those are precisely what A2.3 (EVEs) and A2.4 (prophage) establish with their own methods.
+- **Decision:** A2.1 assigns element kind from the record's *component*, taking the weakest kind
+  that component's own definition supports, and never infers one from the hit
+  (`amazebio.detect.COMPONENT_KINDS`). IMG/VR is a database of viral genomes and metagenomic
+  viral contigs, so a hit there is `free_virus` by the publisher's definition of the collection.
+  Everything else — `stage2`, `imgpr`, and any component added later — is
+  `unclassified_element`. A hit in a bacterial genome becomes `prophage` when A2.4 says so, not
+  when A2.1 guesses.
+- **Rejected:** Inferring the kind from which families were hit — a capsid plus a terminase plus
+  a portal protein in a bacterial contig does look like a prophage. It is also exactly A2.4's
+  result, arrived at by a weaker method, and `metrics/survival.md` cross-tabulates kind against
+  route specifically so that the two claims stay separable.
+  Leaving the kind null. The field is not optional in the frozen schema, and a null would be
+  silently read as "not viral-derived" by anything tabulating it.
+- **Consequence:** A2.1's kind column is nearly constant by construction and carries no
+  information beyond the component — which is correct, and the cross-tabulation in A3.2 gets its
+  information from A2.3 and A2.4 as intended. `metrics/detections.md` states this so that a
+  reader does not mistake A2.1's `unclassified_element` rows for a finding that the elements are
+  unclassifiable.
+
+### D-080 — A2.1 searches the viral components; the non-viral ones are A2.3's and A2.4's
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** The strict reading's scope is the whole corpus, so its manifests cover components
+  far beyond the viral ones — GTDB's bacterial genomes (110 GB staged), organelles, ncRNA,
+  promoters, and Evo 2's unstaged eukaryotic genomes. A profile search would run on any of them,
+  and "search the surviving corpora" could be read as covering all of it.
+- **Decision:** A2.1 searches the components the filter's own viral rules act on and that A1.4
+  enumerates: `stage2` for the `opengenome` release, `imgvr` and `imgpr` for `opengenome2`. Every
+  other component appears in the manifest's table as a row with `searched: false` and the reason
+  — `A2.3` for host genomes, `A2.4` for bacterial genomes, or not staged — so a reader sees the
+  full scope of the manifest and exactly which part of it A2.1 answered for.
+- **Rejected:** Searching GTDB's bacterial genomes here. Viral content in bacterial genomes is
+  prophage, geNomad and CheckV are the instruments §A2 names for it, and that is A2.4 — running a
+  profile search over it first would duplicate the task with a weaker method and widen A2.1 past
+  one unit of work, which `AGENTS.md` forbids in as many words.
+  Omitting the unsearched components from the tables, which is what would make the omission
+  invisible. `metrics/manifests.md` already took this decision for A1.4's own manifests, for the
+  same reason: a table that silently covered only part of a release reads as a verdict on all of it.
+- **Consequence:** A2.1's survival figures are survival *in the viral components*, stated that
+  way. The cross-component question — whether viral families survive in the components the filter
+  never pointed at — is A2.3's and A2.4's, and A3.2 merges the three by route. The
+  `out_of_scope` route is where that merge will mostly land, and it is the headline Phase A
+  finding (D-007), so it matters that it comes from the detector built for it.
