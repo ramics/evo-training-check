@@ -30,12 +30,15 @@ pyproject.toml        package metadata, lint and test config
 src/amazebio/         library code
   repro.py            seeding, input pinning, run provenance
   survival.py         the frozen route taxonomy and headline metrics
+  uniref.py           streaming acquisition of a pinned UniRef release, per release
+  esm3.py             what ESM3-open states about its corpus, and what does not reconcile
 metrics/survival.md   FROZEN — the headline metric spec; changing it is a DECISIONS entry
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tools/stage_uniref.py stages a pinned UniRef release into object storage, streaming
 tools/count_clusters.py counts clusters in a staged tier and checks the composition
 tools/stage_opengenome.py stages the pinned Evo nucleotide corpora, by component
 tools/ec2_count.py    runs the count in-region on EC2; see "Running work on EC2"
+tools/esm3_composition.py writes ESM3's stated composition and its reconciliation gaps
 tasks/README.md       the task protocol in detail
 tasks/BOARD.md        GENERATED — never hand-edit
 tasks/DECISIONS.md    append-only log of resolved ambiguities

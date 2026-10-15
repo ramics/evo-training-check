@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Stage the pinned UniRef release for A1.3, streaming it into object storage.
 
-The archive is 169 GB and the working disk here is 30 GB, so nothing lands
-locally: the release is pulled, verified, split and uploaded in one forward pass.
-See `src/amazebio/uniref.py` for why that is the only shape available, and
-DECISIONS.md D-024 (the version pin) and D-025 (that the corpus is UniRef50
-clusters *with* their UniRef90 members, not the representatives).
+The archive is 169 GB for ESM-2's release and 212 GB for ESM3-open's, against a
+30 GB working disk, so nothing lands locally: the release is pulled, verified,
+split and uploaded in one forward pass. See `src/amazebio/uniref.py` for why that
+is the only shape available, and DECISIONS.md D-024 (ESM-2's version pin), D-025
+(that its corpus is UniRef50 clusters *with* their UniRef90 members, not the
+representatives) and D-033 (that ESM3-open's states no tier, so all three are
+staged).
 
 Two modes, because they answer different questions:
 
@@ -42,7 +44,10 @@ from amazebio import uniref
 from amazebio.repro import ReproError, run
 
 DEFAULT_TIERS = ("uniref50", "uniref90")
-OUTDIR = Path("artifacts/a1-3")
+# Which task a release's staging belongs to. A manifest is only provenance if it names
+# the right task: A1.3 staged ESM-2's release, A1.5 stages ESM3-open's, and a run.json
+# claiming the wrong one would misattribute the artefact.
+TASK_BY_RELEASE = {"2021_04": "A1.3", "2023_02": "A1.5"}
 # The endpoint has to be the regional one: this session's AWS credentials are
 # injected by a proxy scoped to *.us-east-1.amazonaws.com, and the global
 # s3.amazonaws.com host does not match it.
@@ -85,6 +90,13 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--probe", action="store_true", help="report the layout, upload nothing")
     mode.add_argument("--stage", action="store_true", help="upload the selected tiers")
     ap.add_argument(
+        "--release",
+        choices=sorted(uniref.RELEASES),
+        default=uniref.UNIREF_2021_04.release,
+        help="which pinned release to stage: 2021_04 is ESM-2's, 2023_02 is ESM3-open's "
+        "(default: %(default)s)",
+    )
+    ap.add_argument(
         "--tier",
         action="append",
         choices=["uniref50", "uniref90", "uniref100"],
@@ -111,12 +123,30 @@ def main(argv: list[str] | None = None) -> int:
     # allowance of 2,000. Smaller parts would double it for no benefit.
     ap.add_argument("--part-bytes", type=int, default=128 << 20, help="multipart part size")
     ap.add_argument(
+        "--fetch-concurrency",
+        type=int,
+        default=8,
+        help="ranged connections to the publisher. 1 falls back to a single resumable "
+        "stream, which is what A1.3 used and about four times slower (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--window-bytes",
+        type=int,
+        default=32 << 20,
+        help="bytes per ranged fetch; memory is this times the connections in flight",
+    )
+    ap.add_argument(
         "--concurrency",
         type=int,
         default=8,
         help="parts uploaded at once per sink (measured: 1 gives ~52 MB/s, 8 gives ~123)",
     )
-    ap.add_argument("--outdir", type=Path, default=OUTDIR)
+    ap.add_argument(
+        "--outdir",
+        type=Path,
+        default=None,
+        help="default: artifacts/<task owning this release>",
+    )
     ap.add_argument(
         "--allow-dirty", action="store_true", help="iteration only, never for a cited run"
     )
@@ -165,39 +195,72 @@ def _execute(
     key_prefix: str,
 ) -> int:
     partial = args.max_compressed_bytes is not None
+    rel = uniref.RELEASES[args.release]
+    task = TASK_BY_RELEASE[rel.release]
+    if args.outdir is None:
+        args.outdir = Path("artifacts") / task.lower().replace(".", "-")
     with run(
-        "A1.3",
+        task,
         seed=None,  # Nothing here is random: a byte-for-byte transfer or a bug.
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
     ) as manifest:
-        manifest.parameter("release", uniref.RELEASE)
-        manifest.parameter("archive_url", uniref.ARCHIVE_URL)
-        manifest.parameter("published_md5", uniref.ARCHIVE_MD5)
-        manifest.parameter("published_bytes", uniref.ARCHIVE_BYTES)
+        manifest.parameter("release", rel.release)
+        manifest.parameter("archive_url", rel.archive_url)
+        manifest.parameter("published_md5", rel.archive_md5)
+        manifest.parameter("published_bytes", rel.archive_bytes)
         manifest.parameter("mode", "probe" if args.probe else "stage")
         manifest.parameter("tiers", list(tiers))
         manifest.parameter("max_compressed_bytes", args.max_compressed_bytes)
         manifest.parameter("part_bytes", args.part_bytes)
         manifest.parameter("upload_concurrency", args.concurrency)
+        manifest.parameter("fetch_concurrency", args.fetch_concurrency)
+        manifest.parameter("window_bytes", args.window_bytes)
         manifest.parameter("retain_raw_archive", bool(args.raw))
         manifest.parameter("destination", f"s3://{bucket}/{key_prefix}" if args.stage else None)
-        manifest.note(
-            "DECISIONS.md D-025: the ESM-2 corpus is UniRef50 clusters with their UniRef90 "
-            "members, so staging UniRef50 alone would reconstruct a different dataset."
-        )
+        # Release-specific, because a manifest that carries another release's reasoning
+        # is worse than one that carries none: A1.5's first staged run recorded ESM-2's
+        # UniRef50-with-members note against ESM3-open's corpus.
+        if rel.release == uniref.UNIREF_2021_04.release:
+            manifest.note(
+                "DECISIONS.md D-025: the ESM-2 corpus is UniRef50 clusters with their "
+                "UniRef90 members, so staging UniRef50 alone would reconstruct a "
+                "different dataset."
+            )
+        else:
+            manifest.note(
+                "DECISIONS.md D-033: ESM3-open states the release and not the tier, so "
+                "all three tiers are staged rather than one chosen on the reader's behalf."
+            )
 
-        reader = uniref.ResumableRead(
-            uniref.ARCHIVE_URL,
-            expected_bytes=uniref.ARCHIVE_BYTES,
-            on_reconnect=lambda attempt, pos, exc: print(
+        def note_reconnect(attempt: int, pos: int, exc: BaseException) -> None:
+            print(
                 f"  reconnect #{attempt} at {human(pos)}: {type(exc).__name__}: {exc}",
                 flush=True,
-            ),
-        )
+            )
+
+        reader: Any
+        if args.fetch_concurrency > 1:
+            # UniProt throttles one connection to about 20 MB/s and serves about
+            # 155 MB/s across four, measured from this container by A1.5. The windows
+            # are served strictly in order, so the gzip stream decodes and the
+            # compressed md5 is still a verification of the whole release.
+            reader = uniref.ParallelRangeRead(
+                rel.archive_url,
+                total_bytes=rel.archive_bytes,
+                window=args.window_bytes,
+                concurrency=args.fetch_concurrency,
+                on_reconnect=note_reconnect,
+            )
+        else:
+            reader = uniref.ResumableRead(
+                rel.archive_url,
+                expected_bytes=rel.archive_bytes,
+                on_reconnect=note_reconnect,
+            )
         raw_sink = None
         if args.raw and args.stage:
-            raw_key = f"{key_prefix}/uniref/{uniref.RELEASE}/uniref{uniref.RELEASE}.tar.gz"
+            raw_key = f"{key_prefix}/uniref/{rel.release}/{rel.archive_name}"
             raw_sink = uniref.S3PartSink(
                 client,
                 bucket,
@@ -226,8 +289,8 @@ def _execute(
             # s3:DeleteObject that litter is permanent.
             return args.stage and not is_container(member) and tier_of(member) in tiers
 
-        print(f"archive: {uniref.ARCHIVE_URL}")
-        print(f"expected: {human(uniref.ARCHIVE_BYTES)}, md5 {uniref.ARCHIVE_MD5}")
+        print(f"archive: {rel.archive_url}")
+        print(f"expected: {human(rel.archive_bytes)}, md5 {rel.archive_md5}")
         print(f"mode: {'probe' if args.probe else 'stage ' + ','.join(tiers)}", flush=True)
 
         walker = uniref.iter_tar_members(
@@ -251,7 +314,7 @@ def _execute(
             )
 
             if wanted(member):
-                key = f"{key_prefix}/uniref/{uniref.RELEASE}/{member.qualified}".replace("//", "/")
+                key = f"{key_prefix}/uniref/{rel.release}/{member.qualified}".replace("//", "/")
                 with uniref.S3PartSink(
                     client,
                     bucket,
@@ -266,7 +329,7 @@ def _execute(
                             rate = reader.pos / max(now - started, 1e-9)
                             print(
                                 f"    {human(reader.pos)} read "
-                                f"({100 * reader.pos / uniref.ARCHIVE_BYTES:.1f}%), "
+                                f"({100 * reader.pos / rel.archive_bytes:.1f}%), "
                                 f"{human(sink.bytes_written)} into {member.name}, "
                                 f"{human(rate)}/s",
                                 flush=True,
@@ -308,11 +371,11 @@ def _execute(
         md5_verified: bool | None = None
         if not stopped_early and stream.exhausted:
             actual = stream.compressed_md5()
-            md5_verified = actual == uniref.ARCHIVE_MD5
+            md5_verified = actual == rel.archive_md5
             print(f"md5: {actual} ({'matches' if md5_verified else 'DOES NOT MATCH'} published)")
             if not md5_verified:
                 manifest.note(
-                    f"published md5 {uniref.ARCHIVE_MD5} but read {actual} — the staged bytes "
+                    f"published md5 {rel.archive_md5} but read {actual} — the staged bytes "
                     "are not the released bytes and nothing downstream may treat them as such"
                 )
 
@@ -342,14 +405,14 @@ def _execute(
                 )
 
         manifest.input_url(
-            uniref.ARCHIVE_URL,
+            rel.archive_url,
             role="release-archive",
             bytes=reader.pos,
-            checksum=uniref.ARCHIVE_MD5,
+            checksum=rel.archive_md5,
             checksum_type="md5",
             verified=md5_verified,
         )
-        manifest.note(f"compressed bytes read: {reader.pos} of {uniref.ARCHIVE_BYTES}")
+        manifest.note(f"compressed bytes read: {reader.pos} of {rel.archive_bytes}")
         manifest.note(f"stream reconnects: {reader.reconnects}")
         if stopped_early or partial:
             manifest.note(
@@ -362,8 +425,8 @@ def _execute(
         layout.write_text(
             json.dumps(
                 {
-                    "release": uniref.RELEASE,
-                    "archive_url": uniref.ARCHIVE_URL,
+                    "release": rel.release,
+                    "archive_url": rel.archive_url,
                     "partial": stopped_early or partial,
                     "compressed_bytes_read": reader.pos,
                     "md5_verified": md5_verified,

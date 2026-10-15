@@ -35,6 +35,17 @@ pixi run -e dev board-check # validate the task graph and board freshness
 pixi run -e dev fmt         # format
 ```
 
+Acquiring pinned inputs. Both are idempotent: they skip what is already staged, and `--verify`
+re-checksums without downloading.
+
+```bash
+python3 tools/stage_proteingym.py           # stage the benchmark DMS release (B2.1, ~1.9 GB)
+python3 tools/stage_proteingym.py --verify   # re-checksum what is staged
+python3 tools/proteingym_check.py            # reproduce the published per-assay numbers
+python3 tools/model_inventory.py --check     # validate the Phase B model inventory (B1.1)
+python3 tools/ec2_capability.py --print      # what this account may launch; launches nothing
+```
+
 `pixi run -e dev check` is what CI runs, so a green local run means a green CI run.
 
 ## Layout
@@ -47,8 +58,12 @@ pyproject.toml        package metadata, lint and test config
 src/amazebio/         library code
   repro.py            seeding, input pinning, run provenance
   survival.py         the frozen route taxonomy and headline metrics
+  models.py           the verified Phase B model inventory (B1.1)
+  proteingym.py       the benchmark DMS ingest, schema and metric (B2.1)
 metrics/survival.md   the frozen survival metric specification (A3.1)
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
+tools/stage_proteingym.py  acquires and pins the benchmark DMS release
+tools/proteingym_check.py  reproduces the benchmark's published per-assay numbers
 tasks/                one file per unit of work; BOARD.md is generated
 tests/                tests
 data/                 pinned inputs (git-ignored)

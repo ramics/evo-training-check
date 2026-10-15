@@ -12,6 +12,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import io
+import itertools
 import os
 import tarfile
 import threading
@@ -673,3 +674,148 @@ def test_peek_on_a_stream_without_pushback_is_still_safe():
     """A plain file object has no unread, so the peek must not crash on it."""
     attrs = uniref.read_root_attributes(io.BytesIO(SAMPLE_XML))
     assert attrs["element"] == "UniRef50"
+
+
+# --------------------------------------------------------------------------- #
+# Parallel ranged reads — added by A1.5
+# --------------------------------------------------------------------------- #
+
+
+class RangeServer:
+    """Serves byte ranges out of a body, and can be told to fail or misbehave."""
+
+    def __init__(self, body: bytes, *, fail_first: int = 0, status: int = 206):
+        self.body = body
+        self.fail_first = fail_first
+        self.status = status
+        self.requests: list[tuple[int, int]] = []
+
+    def __call__(self, request):
+        header = request.get_header("Range")
+        assert header is not None, "a ranged read must send a Range header"
+        start, end = (int(x) for x in header.removeprefix("bytes=").split("-"))
+        self.requests.append((start, end))
+        if self.fail_first > 0:
+            self.fail_first -= 1
+            raise OSError("connection reset")
+        return _FakeResponse(self.body[start : end + 1], self.status)
+
+
+class _FakeResponse:
+    def __init__(self, payload: bytes, status: int):
+        self._buf = io.BytesIO(payload)
+        self.status = status
+
+    def read(self, size: int = -1) -> bytes:
+        return self._buf.read(size)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+BODY = bytes(range(256)) * 4096  # 1 MiB, every byte value, so order is checkable.
+
+
+def test_a_parallel_read_delivers_exactly_the_sequential_bytes():
+    server = RangeServer(BODY)
+    reader = uniref.ParallelRangeRead(
+        "https://example/f", len(BODY), window=64 << 10, concurrency=4, opener=server
+    )
+    chunks = []
+    while chunk := reader.read(7919):  # Awkward size, unaligned to the window.
+        chunks.append(chunk)
+    reader.close()
+
+    # This is the whole point of the class: concurrency must not reorder a byte.
+    assert b"".join(chunks) == BODY
+    assert reader.pos == len(BODY)
+
+
+def test_every_window_is_requested_exactly_once_and_covers_the_file():
+    server = RangeServer(BODY)
+    reader = uniref.ParallelRangeRead(
+        "https://example/f", len(BODY), window=100_000, concurrency=3, opener=server
+    )
+    while reader.read(1 << 16):
+        pass
+    reader.close()
+
+    assert len(server.requests) == reader.windows
+    covered = sorted(server.requests)
+    assert covered[0][0] == 0
+    assert covered[-1][1] == len(BODY) - 1
+    for (_, prev_end), (next_start, _) in itertools.pairwise(covered):
+        assert next_start == prev_end + 1  # contiguous, no gap and no overlap
+
+
+def test_memory_is_bounded_by_the_submission_window_not_the_file():
+    server = RangeServer(BODY)
+    reader = uniref.ParallelRangeRead(
+        "https://example/f",
+        len(BODY),
+        window=64 << 10,
+        concurrency=2,
+        ahead=3,
+        opener=server,
+    )
+    reader.read(10)
+    # A fast server must not be able to run ahead of the reader without limit.
+    assert len(reader._pending) <= 3
+    reader.close()
+
+
+def test_a_dropped_connection_is_retried_rather_than_losing_the_window():
+    server = RangeServer(BODY, fail_first=3)
+    reader = uniref.ParallelRangeRead(
+        "https://example/f",
+        len(BODY),
+        window=256 << 10,
+        concurrency=2,
+        opener=server,
+        sleep=lambda _: None,
+    )
+    out = []
+    while chunk := reader.read(1 << 16):
+        out.append(chunk)
+    reader.close()
+
+    assert b"".join(out) == BODY
+    assert reader.reconnects == 3
+
+
+def test_a_server_that_ignores_ranges_is_refused_rather_than_truncated():
+    """A 200 means the body is the whole file, so taking its first N bytes as window
+    k would assemble a corpus of the wrong bytes with a plausible-looking length."""
+    server = RangeServer(BODY, status=200)
+    reader = uniref.ParallelRangeRead(
+        "https://example/f", len(BODY), window=64 << 10, concurrency=2, opener=server
+    )
+    with pytest.raises(uniref.VerificationError, match="not honouring ranges"):
+        reader.read(1 << 16)
+    reader.close()
+
+
+def test_a_short_ranged_response_is_completed_rather_than_accepted():
+    """A ranged GET may return fewer bytes than asked for without failing."""
+
+    class Stingy(RangeServer):
+        def __call__(self, request):
+            header = request.get_header("Range")
+            start, end = (int(x) for x in header.removeprefix("bytes=").split("-"))
+            self.requests.append((start, end))
+            # Hand back a third of what was asked for, each time.
+            stop = min(start + max((end - start + 1) // 3, 1), end + 1)
+            return _FakeResponse(self.body[start:stop], 206)
+
+    server = Stingy(BODY)
+    reader = uniref.ParallelRangeRead(
+        "https://example/f", len(BODY), window=64 << 10, concurrency=2, opener=server
+    )
+    out = []
+    while chunk := reader.read(1 << 15):
+        out.append(chunk)
+    reader.close()
+    assert b"".join(out) == BODY

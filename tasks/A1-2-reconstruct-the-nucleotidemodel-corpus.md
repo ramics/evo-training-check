@@ -2,7 +2,7 @@
 id: A1.2
 title: Reconstruct the nucleotide-model corpus
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.1]
 blocks: [A1.4, A4.3, A7.1]
@@ -48,28 +48,37 @@ DECISIONS.md D-017, D-019, D-020.
 - **Evo 1's version of record (S-EVO1-SCIENCE) is unretrieved.** If it names a deposit the
   preprint does not, revisit the Evo 1 entry before publication.
 
-## In flight
+## In review
 
-- **Branch:** `claude/jolly-hawking-wtgnid`
-- **Done:**
-  - Both releases pinned to commit SHAs with a published SHA-256 per file
-    (`src/amazebio/opengenome.py`, `tools/stage_opengenome.py`, tests). Fetched manifests
-    reconcile exactly to both pins: 22 files / 146,886,935,899 bytes for Evo 1, and
-    1,126 files / 5,523,240,795,932 bytes for Evo 2.
-  - Composition table computed per component and per representation, with each component's
-    role in the audit recorded in code rather than left to the next pipeline.
-  - Write-up in `policies/evo.md` §7-8; five sources registered with captures.
-  - Staging scope settled with the project owner and logged as D-031.
-- **Left:**
-  - The staging pass itself is running (12 files, 134.2 GiB, ~22 MB/s). When it finishes,
-    `artifacts/a1-2/run.json` records each object with the checksum it was verified against;
-    that is what closes Done-when's first criterion.
-  - Then status to `review`.
+- **Branch:** `claude/jolly-hawking-wtgnid` (pushed).
+- **Done — all three Done-when criteria met:**
+  - **Staged, checksummed, version-pinned.** 12 objects, 134.2 GiB, under
+    `s3://amazebio-corpora-897641797669/corpora/{opengenome,opengenome2}/<revision>/`.
+    Every object is verified against the SHA-256 its release publishes per file: four by
+    reading the object back out of the bucket, eight by hashing in flight (D-032 — the
+    readback for those rides along with A7.1's in-region pass). Both pins reconcile exactly:
+    22 files / 146,886,935,899 bytes and 1,126 files / 5,523,240,795,932 bytes.
+  - **Composition with provenance per component.** `artifacts/a1-2/composition.json`, one row
+    per component *and* representation, each carrying its role in the audit; written up in
+    `policies/evo.md` §7.
+  - **Proxy substitutions documented.** There are none — these are the only two corpora in the
+    audit needing no acquisition qualifier. Stated explicitly in `policies/evo.md` §7, with
+    A1.1's byte-level-identity limit carried forward.
+- **Decisions:** D-031 (staging scope and representation), D-032 (verification method per object).
+- **Two findings for the Phase A write-up**, both in `policies/evo.md` §7-8:
+  - The published procedure's subject is **0.2%** of Evo 2's corpus — 10.4 GiB of IMG/VR
+    against 5.02 TiB — while **82%** is eukaryotic genomes added after the filter was designed.
+    That is §5's scope gap, measured, and A4.3 inherits it.
+  - Evo 1's inline lineage tags appear not to have survived into Evo 2's release, on a
+    four-file sample. Not a census; A7.1 settles it when it reads the component in full.
+- **For a reviewer:** the claim to check hardest is that the pinned revisions carry
+  publication-time sequence content. It rests on the commit histories, and it supports
+  "unchanged since February 2025" but not "nothing was removed" — a deletion would leave no
+  trace in a listing of what is present. Said so in the write-up rather than left implicit.
 - **Waiting on the project owner:** nothing.
-- **For whoever picks up A2.3 or A4.1:** your component is deliberately not staged. D-031 has
-  the figures; the tier flag is already in the code, so it is one resumable pass, but it is
-  2.17 TB (eukaryotic) or 252 GB (metagenomic) of permanent storage and the cost question
-  should be re-asked rather than assumed.
+- **For A2.3 and A4.1:** your components are deliberately unstaged — 2.17 TB of eukaryotic
+  genomes and 252 GB of metagenomes. D-031 has the figures and the tier flag is in the code,
+  so it is one resumable pass each, but it is permanent storage: re-ask the cost question.
 
 ## Notes
 

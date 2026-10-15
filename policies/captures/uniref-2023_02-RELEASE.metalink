@@ -1,0 +1,54 @@
+<metalink xmlns="http://www.metalinker.org/" version="3.0">
+  <publisher>
+    <name>UniProt Consortium</name>
+    <url>http://www.uniprot.org/</url>
+  </publisher>
+  <license>
+    <name>Creative Commons Attribution 4.0 International (CC BY 4.0)</name>
+    <url>http://creativecommons.org/licenses/by/4.0/</url>
+  </license>
+  <description>UniProt</description>
+  <version>2023_02</version>
+  <files>
+    <file name="uniref100.release_note">
+      <size>312</size>
+      <verification>
+        <hash type="md5">57c921f75c9a978f9e6112833dd7a8f9</hash>
+      </verification>
+      <resources>
+        <url type="ftp" location="uk" preference="100">ftp://ftp.ebi.ac.uk/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref100.release_note</url>
+        <url type="ftp" location="us" preference="100">ftp://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref100.release_note</url>
+      </resources>
+    </file>
+  <file name="uniref90.release_note">
+      <size>311</size>
+      <verification>
+        <hash type="md5">ad59af82ca4974193f17916faaf4ff39</hash>
+      </verification>
+      <resources>
+        <url type="ftp" location="uk" preference="100">ftp://ftp.ebi.ac.uk/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref90.release_note</url>
+        <url type="ftp" location="us" preference="100">ftp://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref90.release_note</url>
+      </resources>
+    </file>
+  <file name="uniref2023_02.tar.gz">
+      <size>211819312677</size>
+      <verification>
+        <hash type="md5">353681f464572bb199fa032f714d4669</hash>
+      </verification>
+      <resources>
+        <url type="ftp" location="uk" preference="100">ftp://ftp.ebi.ac.uk/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref2023_02.tar.gz</url>
+        <url type="ftp" location="us" preference="100">ftp://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref2023_02.tar.gz</url>
+      </resources>
+    </file>
+  <file name="uniref50.release_note">
+      <size>311</size>
+      <verification>
+        <hash type="md5">792bf381b78400f7619543d649c5da48</hash>
+      </verification>
+      <resources>
+        <url type="ftp" location="uk" preference="100">ftp://ftp.ebi.ac.uk/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref50.release_note</url>
+        <url type="ftp" location="us" preference="100">ftp://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref50.release_note</url>
+      </resources>
+    </file>
+  </files>
+</metalink>

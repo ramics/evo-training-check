@@ -219,3 +219,20 @@ class TestRunBlock:
             first = random.random()
         with run("T", seed=99, repo=repo):
             assert random.random() == first
+
+
+def test_two_runs_sharing_a_directory_keep_separate_manifests(tmp_path):
+    """A1.5 ran two staging passes into one directory and the second would have
+    overwritten the first's provenance. A manifest that can be silently replaced is
+    not provenance, so the filename is settable."""
+    from amazebio.repro import run
+
+    with run("A1.5", outdir=tmp_path, allow_dirty=True) as first:
+        first.parameter("which", "uniref")
+    with run("A1.5", outdir=tmp_path, allow_dirty=True, manifest_name="run-mgnify.json") as second:
+        second.parameter("which", "mgnify")
+
+    import json
+
+    assert json.loads((tmp_path / "run.json").read_text())["parameters"]["which"] == "uniref"
+    assert json.loads((tmp_path / "run-mgnify.json").read_text())["parameters"]["which"] == "mgnify"
