@@ -39,6 +39,21 @@ boto3 = ">=1.43.111,<2"
 # what keeps the pass off local disk, which a 15.8 GiB file in a session container needs.
 # Floor from A7.1 (>=18); A1.4 asked only for >=17, so the tighter bound governs.
 pyarrow = ">=18,<22"
+# Profile search is A2.1's whole method, and HMMER is the tool §A2 names. `pyhmmer` rather than
+# the `hmmer` binaries because the search runs inside the pipeline that reads the corpus: a
+# subprocess would need the translated sequences written to disk first, and the surviving set is
+# too large for that to be anything but a staging problem. It also makes the per-model gathering
+# cutoffs readable from the profile itself, which is what lets A2.1's thresholds be Pfam's own
+# curated ones rather than an E-value this project picked (DECISIONS.md D-076). Vendors HMMER
+# 3.4 internally; `pyhmmer.hmmer.__version__` records which, and `run.json` pins it.
+pyhmmer = ">=0.12.3,<0.13"
+# Evo's surviving corpora are nucleotide and the profiles are protein, so something has to decide
+# what the reading frames are. Gene calling in metagenomic mode rather than six-frame translation
+# because six frames put five wrong answers beside every right one and a profile hit on a frame
+# no gene occupies is a false positive this audit cannot afford to report (D-077). Prodigal is
+# the caller IMG/VR's own annotation pipeline uses, so the genes are called the way the records'
+# publisher calls them. `pyrodigal` for the same in-process reason as `pyhmmer`.
+pyrodigal = ">=3.7.1,<4"
 # A7.2 joins 15.7 million IMG/VR accessions against two other sets and groups them by vOTU.
 # Those are sorts, set memberships and bincounts over tens of millions of integers: a dict of
 # 15.7 million strings does not fit the container the pass runs in, and the packed-integer
