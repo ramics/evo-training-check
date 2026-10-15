@@ -2915,3 +2915,141 @@ decision has a threshold or parameter in it, the number goes in the entry.
   never pointed at — is A2.3's and A2.4's, and A3.2 merges the three by route. The
   `out_of_scope` route is where that merge will mostly land, and it is the headline Phase A
   finding (D-007), so it matters that it comes from the detector built for it.
+
+### D-081 — The unfilterable fraction is two shares per rule, because absence of a label fires half of Evo's rules
+- **Date:** 2026-10-15
+- **Task:** A4.1
+- **Context:** §A4 asks what share of the corpus is outside a taxonomy filter's reach in
+  principle. The obvious implementation is one number per component — the unclassified share —
+  and it is wrong twice over.
+  **There is no single unclassified share.** IMG/VR v4.1 labels 96.68% of its 15,677,623 records
+  at realm and 6.25% at family. The two rules in Evo's published procedure that name a hazard
+  are the 19-family and 12-order denylists, keyed on family and order. A component-level
+  "unclassified fraction" averages over the only distinction that matters: 3.29% of records fill
+  no rank at all, which would have been the headline, and it is not the finding.
+  **A rule can read the absence of a label.** Evo 1's pipeline is mostly keep-listing:
+  "viruses with poor taxonomic specificity were excluded, including those with no assigned realm
+  at all" removes a record *because* its realm is missing, and "keeping only sequences whose
+  assigned taxonomic classification was found within a prokaryotic host at least twice" removes
+  a record with no host prediction for the same reason. Those rules are decidable on every
+  record in the database. Reporting them as blocked by missing labels would overstate the
+  finding, and §2's commitment to publishing a null cuts both ways: a measurement tilted in the
+  audit's favour fails in the same way as one tilted in the filter's.
+- **Decision:** Every rule carries two shares over every population, and the artefact reports
+  both.
+  **`decidable_share`** is where the rule produces its stated outcome; a rule firing on absence
+  scores 1.0. **`discriminating_share`** is where the rule's own criterion can be evaluated
+  against a label that is present, and that is the ceiling §A4 asks for. The headline per
+  reading is the *lowest* discriminating share among the rules that need a label — not the mean,
+  because a procedure is as blind as its blindest discriminating step.
+  The direction each rule kind reads its evidence (`label_present`, `label_absent`, `either`) is
+  **declared** in `unfilterable.FIRES_ON`, keyed by the same rule kinds as
+  `policyspec.RULE_INPUTS`, with a test driving off that table rather than a list written beside
+  it — the D-074 lesson — and an unknown kind raising rather than defaulting. Which way an
+  author's rule reads its evidence is a reading of their words, and a default here would decide
+  it silently.
+- **And the ceiling is reported over two populations, not one.** Evo's confidence gate runs
+  first, so the denylists are handed 5,576,197 records rather than 15,677,623. Over the whole
+  release the family denylist can discriminate on **6.25%**; over the population the gate
+  actually hands it, **7.87%**. Both are in the artefact, because the first answers a question
+  about the database and the second about the filter, and quoting either alone invites the
+  obvious objection without answering it.
+- **Rejected:** A single unclassified fraction per component, for the reason above. Also
+  rejected: reporting the discriminating share alone, which reads as "the filter cannot touch
+  the other 94%" — it can, bluntly. The shallowness backstop ships beside the ceiling to say how
+  much: 599,507 records of v4.1 (3.82%) are removed by the unspecificity rule for having no
+  realm or terminating in one of its eight named stop taxa. That count is a caveat and not a
+  finding, because what actually survived is A3.2's question over a population this pass does
+  not compute.
+- **Consequence:** Four labelling states stay separate all the way into the artefact —
+  `unlabelled` (the field is present and empty), `not_annotated` (the component carries no such
+  field), `out_of_policy_scope` (the filter was never applied; A4.3 owns the share) and
+  `not_taxonomy_dependent` (ESM3-open's rule reads a similarity threshold, so no taxonomic
+  ceiling binds it). None may be summed with another, and the artefact's caveat block says so in
+  machine-readable form.
+
+### D-082 — A4.1 measures the filter's input from the primary tables and reuses the pinned released-corpus scans
+- **Date:** 2026-10-15
+- **Task:** A4.1
+- **Context:** A ceiling is a claim about the population the filter was applied to, which is the
+  two staged IMG/VR releases. A4.1 also wants the same per-rank measurement on the two
+  *released* viral components, so the filter's input and its output can be compared on one axis.
+  A7.1 and A7.2 already read those two components — 17 GB of Parquet and 11 GB of gzipped FASTA
+  — and published lineage histograms alongside their own independently counted record totals.
+- **Decision:** The input is measured by a fresh pass over the publisher's own tables: both
+  releases' `IMGVR_all_Sequence_information.tsv`, byte-sharded 64 ways, five fields per record,
+  which is every field any published Evo rule reads. The released components are taken from
+  A7.1's and A7.2's pinned scans rather than re-read.
+  The reuse is sound only because a histogram can be checked, so it is: each one is verified to
+  sum to that scan's own record total, counted by a different code path, before any share is
+  taken from it, and the check raises rather than warning. A partition that sums to the
+  component's record count cannot be missing a record, and a dropped shard shows up as a
+  mismatch — which is the failure mode that makes reusing a derived artefact dangerous at all.
+- **The independent pass agrees with A7.2 exactly**, which is worth more than the saved
+  minutes: all eight ranks, the record total, the confidence split and the host-domain tallies
+  match to the record, from two unrelated implementations — A7.2's sharded classification-id
+  arrays and numpy joins against this pass's per-shard counters.
+- **Rejected:** Re-reading 28 GB to recompute tallies that are already pinned and checkable.
+  That is not an independent second method, it is the same method over the same bytes, and §7's
+  independent-reimplementation requirement belongs to A3.3 over the headline counts. Also
+  rejected: taking the *input* figures from A7.2's scan too. They are the ceiling, A4.1 should
+  be able to state them from the publisher's file, and the agreement above is only available if
+  the two passes are actually separate.
+- **Consequence:** Evo 2's released viral component is reported as `not_annotated` rather than
+  unclassified. It carries no lineage field at all, and all 2,917,521 of its distinct accessions
+  resolve in IMG/VR, so its ranks come from A7.2's join and are labelled as recovered.
+  "100% unclassified" would have been the easiest wrong number in this task.
+
+### D-083 — The Pfam viral selection misses families named for a virus taxon, and both wider rules are contaminated
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Numbering:** drafted as D-081, which A4.1 took first; renumbered per `AGENTS.md`. A commit
+  message on branch `ccr-a85b7882-p8ohv8` cites this finding as D-081 and is already pushed, so
+  that citation resolves here.
+- **Context:** D-075 selects the Pfam viral family universe by matching a frozen vocabulary
+  against each family's own ID and description. Writing the tests for it surfaced a class of
+  family the rule cannot see: one **named for a virus taxon** rather than for a viral structure.
+  `Ebola_NP` is described as "Ebola nucleoprotein"; `Rhabdo_ncap` and `Paramyxo_ncap` are the
+  same shape. None of them contains `virus`, `viral`, `capsid`, `nucleocapsid` or anything else
+  in the vocabulary, so all three sit outside the universe — a filovirus nucleoprotein family
+  excluded from an audit of viral content. This was found by a test expecting `Ebola_NP` to be
+  selected, not by inspecting results, so nothing downstream had been computed yet.
+- **Decision:** The universe stays as D-075 defines it — the family-name rule alone, 1,719
+  families — and the gap is **measured and reported per family** rather than closed. Three things
+  make that defensible:
+  **The rule stays crisp.** A denominator assembled from two rules of different reliability
+  cannot be defended family by family, and the per-family artefact is what makes this
+  project's selection auditable at all.
+  **Both wider rules were measured, and both are contaminated.** The clan-level reading is
+  6,698 families with 6,132 not viral (D-075). The *narrowest* widening available — admitting a
+  family whose own clan's **name** names a viral entity — adds 61 families, and inspecting them
+  shows the same defect in miniature: `CL0511` is called `Retroviral_zf` and contributes
+  cellular zinc fingers (`CLIP1_ZNF`, `AIR2-like_ZnK4`), `CL0504` is called `Phage_barrel` and
+  contributes `Alg8_N`. 32 of the 61 come from `Phage_barrel` alone. It would admit `Ebola_NP`,
+  via the `Nucleocapsid` clan, at the price of a third of the addition being cellular.
+  **The other registry covers the gap.** RVDB-prot's membership is its curators' and is built
+  for virus detection; a filovirus nucleoprotein family is in it on their authority, not ours.
+  This is exactly why A2.1 searches two registries whose membership comes from two different
+  authorities and never pools them.
+  `amazebio.profiles.clan_name_additions` computes the addition, and
+  `artifacts/a2-1/registries/pfam-viral-families.json` carries it beside the universe with every
+  family's `selected_by`. A reviewer who disagrees can re-cut from the artefact without
+  re-running a search.
+- **Rejected:** Extending the vocabulary with virus taxon names — `ebola`, `rhabdo`, `paramyxo`,
+  `filo`, `herpes`, and the fifty more it would take to be consistent. It would work, and it
+  would replace one reviewable rule with a long list of this project's own judgements, each of
+  which a reviewer would have to check individually. If a reviewer asks for it, the artefact
+  makes the swap cheap.
+  Adopting the clan-name rule, for the contamination above. Note the direction, though, because
+  it is not symmetric and the write-up should say so: a *cellular* family inside the universe
+  contributes a near-guaranteed zero and pushes the survival fraction **down**, while a missing
+  viral family removes a row from both numerator and denominator. Contamination is the
+  conservative error and omission is the neutral one, which is a further reason not to trade the
+  second for the first.
+- **Consequence:** Every Pfam-registry figure is explicitly "survival among families Pfam's own
+  names identify as viral", and the blind spot is a stated limitation with a number attached
+  rather than a surprise for a reviewer to find. The general lesson is the one to carry into
+  A2.2–A2.5: **the family universe is a denominator, and its membership rule is a finding about
+  the registry, not a detail of the pipeline.** A2.2's fold families and A2.5's problem taxa both
+  face the same question, and both should expect to report their membership rule rather than
+  assume one.
