@@ -155,6 +155,29 @@ token guard reports what to do, and the tape-restore path requests and polls rat
 failing. What has never executed is the authenticated download itself. Authentication is a
 Bearer token in the `Authorization` header, read from JGI's own API spec rather than guessed.
 
+### Where the token comes from, and one caveat (added from the A1.4 session, 2026-10-15)
+
+Established from JGI's live API spec (`files.jgi.doe.gov/swagger.json`, version 202610.92006.17)
+and its SSO site, because the login service changed on **27 July 2026** and the old
+`signon.jgi.doe.gov` is retired — a URL recalled rather than checked would have been wrong.
+
+- **Getting it:** log in to the Data Portal (`https://data.jgi.doe.gov`), click the avatar in the
+  upper right, then **"Copy My Session Token"**. The API's own parameter is named *SSO session
+  token* with pattern `^Bearer \S+$`, so the value pasted into `JGI_API_TOKEN` is the token
+  alone — `stage_imgvr.py` adds the `Bearer ` prefix itself.
+- **Accounts now need ORCID.** Non-JGI users authenticate through an ORCID iD with 2FA enabled,
+  associated with the JGI account. The project owner has done this.
+- **The caveat: it is a browser *session* token, not a long-lived API key.** This task stages
+  7.9 GB per release across **two passes with an asynchronous tape restore between them**
+  (2022-12-20 is `BACKUP_COMPLETE`). A token that expires during the restore wait will surface as
+  HTTP 401, which this tool's own guard reports as a missing credential. Whoever resumes should
+  read a mid-run 401 as "expired, re-copy the token" before concluding anything about
+  permissions, and consider whether the restore wait should be a separate invocation rather than
+  a poll inside one long-lived run.
+- **The download host did not move.** The spec points at `files-download.jgi.doe.gov/apidoc/` for
+  the `download_files` documentation, but `files.jgi.doe.gov/filedownload/` — what this tool
+  uses — still answers (401 unauthenticated), so the endpoint is live and no change is needed.
+
 **Waiting on the project owner:** the `JGI_API_TOKEN` secret. Nothing else.
 
 ## Numbering
