@@ -2630,3 +2630,57 @@ decision has a threshold or parameter in it, the number goes in the entry.
   write-ups must not be allowed to blur into one: Evo 1's is a near-clean result with a 95-record
   exception, Evo 2's is a mismatch across four of six rules. A6.1 should state both and claim
   neither on the other's evidence.
+
+### D-074 — D-057's cross-declaration guard did not cover an addition, and the classification is now explicit
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** D-057 unified the rule-input table that A1.4 and A7.1 had each declared
+  independently, and deliberately left the *release* inventory standing in two granularities
+  rather than refactor a module under review: `conformance.RELEASE_INPUTS`, which `restrict`
+  reduces a policy by, and the per-record `Evidence` on each `corpora.StagedSource`, which A1.4
+  checks a rule against. A test was left pinning their agreement, and A1.4's outcome note told
+  the next worker what to expect from it: "A7.2 extends the release inventory with IMG/VR v4. The
+  cross-check test in `tests/test_apply.py` will fail if the matching `Evidence` declaration in
+  `corpora.SOURCES` is not extended with it. That is intended."
+  A7.2 extended the inventory with `imgvr-v4` and `imgvr-v4.1`, did not touch `corpora.SOURCES`,
+  and **nothing failed.** The test named the two releases it knew —
+  `opengenome-stage2` and `opengenome2-imgvr` — and asserted agreement on those. It caught drift
+  in the pair it hard-coded and was structurally blind to a third release being added. Both
+  tasks' CI was green throughout, and the note's promise was simply false.
+- **Decision:** Two changes, and the first is the one that matters.
+  **`conformance.INPUT_RELEASES` classifies every entry that is the filter's input rather than a
+  corpus a developer released.** A7.2 had already introduced the distinction behind
+  `COMPARISON_KEYS` — a release in it has something to join on, an input has nothing to be
+  compared against — so the classification could have been inferred from a key's absence. It is
+  declared instead, because inferring a fact from an absence is precisely what let this through:
+  a new key with no comparison key looked exactly like an input, and a new key that *is* an
+  input looks exactly like a mistake. A key classified as neither, as both, or classified but
+  absent from `RELEASE_INPUTS` now fails a test.
+  **And the agreement check drives off `RELEASE_INPUTS` itself**, joining each key to a staged
+  source mechanically — a `StagedSource` is addressed by `f"{release}-{corpus_component}"`, which
+  is the form the inventory keys already take — rather than through a second hard-coded map that
+  would need extending by hand and would fail the same way the first one did.
+- **Verified by making it fail, not by watching it pass.** The old guard passed; that is the
+  whole problem, so a green test proves nothing here. Three failure modes were injected and each
+  was confirmed to fire with a message naming the culprit: a release added and left unclassified,
+  a release classified but absent from the inventory, and a released output with no staged source.
+  The scratch harness is not committed — it mutates a module under test — but the method should
+  be: a guard whose job is to fire on a change nobody remembers to make is not tested until it
+  has been seen to fire.
+- **Rejected:** Collapsing the two declarations into one, which is what would actually remove the
+  class of bug. It is the right fix and it is not this task's: `corpora` would have to stop
+  carrying per-record evidence or `conformance` would have to start, and both modules are at
+  `review` behind the A3.3 gate. D-057 declined the same refactor for the same reason and this
+  entry declines it again, with the cost now measured rather than estimated — one silent drift
+  across two tasks. Also rejected: deleting the hard-coded test in favour of the enumerating one.
+  It asserts something the general version does not, namely that `restrict` *raises* on Evo 2's
+  release rather than returning an empty pipeline a caller could report zero failures from.
+- **Consequence:** A1.4's outcome note is corrected on `main` rather than left to be discovered,
+  since it was the note a later worker would have trusted. The general lesson is the one worth
+  carrying: **a guard that enumerates the thing it guards cannot be outflanked by an addition, and
+  a guard that names its cases can.** The other two tables in this repo that are checked across
+  declarations were looked at rather than left as a worry. The rule inputs are now literally one
+  object, so there is nothing to drift. `models.validate` iterates the whole inventory and
+  requires every cited source to exist and be `retrieved`, so a checkpoint added without its
+  source fails there — it is enumeration-driven already and does not share this defect. The
+  release inventory was the one that did.
