@@ -382,7 +382,15 @@ def main(argv: list[str] | None = None) -> int:
 
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
-    with run(TASK, seed=SEED, outdir=outdir, allow_dirty=args.allow_dirty) as manifest:
+    with run(
+        TASK,
+        seed=SEED,
+        outdir=outdir,
+        allow_dirty=args.allow_dirty,
+        # Distinct per step: three A4.2 pipelines write to this directory, and a shared
+        # `run.json` means the last one silently erases the others' provenance. A1.5 hit this.
+        manifest_name="run-dependency.json",
+    ) as manifest:
         manifest.parameter("release", args.release)
         manifest.parameter("policy", args.policy)
         manifest.parameter("length_edges", list(LENGTH_EDGES))

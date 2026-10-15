@@ -596,7 +596,13 @@ def main(argv: list[str] | None = None) -> int:
     fetched_path = outdir / "fetched.json"
 
     if args.step == "build":
-        with run(TASK, seed=SEED, outdir=outdir, allow_dirty=args.allow_dirty) as manifest:
+        with run(
+            TASK,
+            seed=SEED,
+            outdir=outdir,
+            allow_dirty=args.allow_dirty,
+            manifest_name="run-build.json",
+        ) as manifest:
             manifest.parameter("in_scope_cap", IN_SCOPE_CAP)
             manifest.parameter("control_cap", CONTROL_CAP)
             manifest.parameter("ground_truth_release", ictv.BENCHMARK_RELEASE)
@@ -644,7 +650,15 @@ def main(argv: list[str] | None = None) -> int:
     dependency_path = outdir / "dependency.json"
     dependency = json.loads(dependency_path.read_text()) if dependency_path.exists() else None
 
-    with run(TASK, seed=SEED, outdir=outdir, allow_dirty=args.allow_dirty) as manifest:
+    with run(
+        TASK,
+        seed=SEED,
+        outdir=outdir,
+        allow_dirty=args.allow_dirty,
+        # See the note in tools/taxonomy_dependency.py: one manifest per step, or the last
+        # pipeline to finish erases the provenance of the artefacts it did not produce.
+        manifest_name="run-score.json",
+    ) as manifest:
         manifest.parameter("confidence", 0.95)
         manifest.parameter("interval_method", "clopper-pearson")
         manifest.parameter("genomad_version", genomad.PIN.version)
