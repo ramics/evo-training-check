@@ -54,7 +54,14 @@ def test_checksums_are_full_md5_digests_not_truncated():
 
 def test_both_releases_answering_to_v4_are_pinned():
     assert set(imgvr.V4_CANDIDATES) == set(imgvr.RELEASES)
-    assert all(imgvr.release_on(d).version == "v4" for d in imgvr.V4_CANDIDATES)
+    # Both are candidates for Evo 1's "IMG/VR v4" citation; only one of them is called v4.
+    # The publisher's own READMEs name the September release v4 and the December one v4.1,
+    # an erratum of it (D-063). Pinned here because a later task that re-derives the version
+    # from a README is a later task that can get it wrong, and because the asymmetry is the
+    # finding: the citation points at September, and the erratum touches exactly the table
+    # September's confidence and vOTU rules read.
+    assert imgvr.release_on("2022-09-20").version == "v4"
+    assert imgvr.release_on("2022-12-20").version == "v4.1"
 
 
 def test_the_two_v4_releases_agree_on_sequence_and_host_and_differ_on_the_metadata():

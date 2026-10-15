@@ -128,8 +128,10 @@ RELEASES = {
         date="2022-09-20",
         version="v4",
         note=(
-            "The first release answering to v4, three months before the v4 paper's issue date. "
-            "Its sequence-information table differs from the December one."
+            "v4 proper: its own README reads '### IMG/VR database v4 release Oct. 2022 ###', "
+            "three months before the v4 paper's issue date. This is the release Evo 1's "
+            "citation names on the publisher's own naming. Its sequence-information table "
+            "differs from the December one, and the December one says why (D-063)."
         ),
         files=(
             _f(
@@ -216,11 +218,15 @@ RELEASES = {
     ),
     "2022-12-20": Release(
         date="2022-12-20",
-        version="v4",
+        version="v4.1",
         note=(
-            "The second release answering to v4, the month the v4 paper issued. Identical "
-            "nucleotides and host information to September; different sequence information "
-            "and proteins."
+            "Not a second v4 but an erratum of it. Its README reads '### IMG/VR database v4.1 "
+            "release Dec. 2022 ###' and states that v4.1 'includes the same sequences as "
+            "IMG/VR v4, but fixes issues with two files (IMGVR_all_proteins.faa and "
+            "IMGVR_all_Sequence_information.tsv) in which a few sequences/rows were "
+            "incorrect', everything else being identical. That is exactly the difference set "
+            "D-052 derived from the md5sums alone, confirmed independently by the publisher "
+            "(D-063)."
         ),
         files=(
             _f(
