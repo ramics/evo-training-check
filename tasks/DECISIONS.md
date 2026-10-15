@@ -2346,3 +2346,254 @@ decision has a threshold or parameter in it, the number goes in the entry.
   task delivers is unaffected in substance and sharper in form: **the same policy, inherited
   verbatim by Evo 2 ("As previously described"), covers 11.52% of OpenGenome v1 and 0.41% of
   OpenGenome2.** The scope gap widened as the corpus grew, which is D-007's claim measured.
+
+### D-066 — The host rule counts sequences per classification, and the unit is declared before the numbers
+- **Date:** 2026-10-15
+- **Task:** A7.2
+- **Context:** Evo 1's third published rule keeps "only sequences whose assigned taxonomic
+  classification was found within a prokaryotic host at least twice". D-058 already settled the
+  subject of the count from the developers' own Figure S1B: it is the **classification**, not the
+  record, because 89.5% of their retained records carry no host kingdom at all and a per-record
+  reading cannot retain any of them. What D-058 did not settle, because the published sentence
+  does not, is what one *finding* is. The publisher offers three countable things per
+  classification, and they are not the same number: the sequences of that classification carrying
+  a prokaryotic host prediction; the rows of the host-prediction table for those sequences, of
+  which one sequence may have several; and the distinct host taxa the classification was
+  predicted in. AGENTS.md forbids choosing after looking.
+- **Decision:** `amazebio.conformance.PRIMARY_HOST_UNIT = HostUnit.RECORDS` — sequences of the
+  classification carrying a prokaryotic host prediction — declared in code and committed before
+  the pass that computes any of the three ran. The argument, in one line: the sentence's
+  grammatical subject is "sequences", so a sequence found in a prokaryotic host is the natural
+  unit of a finding; it is the only one of the three that neither inflates with the publisher's
+  prediction-method count nor demands two *different* hosts where the text asks for two findings.
+  The other two are computed on every run and travel with the headline as a sensitivity, per
+  reading, in the artefact and in the write-up — because the choice is ours and a reader is
+  entitled to see what it cost. The count is built over the whole database per classification and
+  joined back to the record, never read from a record's own host field.
+- **Rejected:** Reading the rule per record — it is the unit error D-058 exists to prevent, and it
+  would remove every record with no host annotation, which is most of the corpus the filter kept.
+  Counting host-prediction rows as primary — the publisher emits one row per prediction *method*
+  as well as per host, so a sequence with a CRISPR match and a k-mer match to the same host
+  contributes two findings to a threshold of two, which makes the rule turn on IMG/VR's method
+  coverage rather than on host evidence. Counting distinct host taxa as primary — it reads "twice"
+  as corroboration by two different hosts, which is a defensible sentence but a different one.
+  Picking whichever unit reproduced Evo 1's published count most closely — that is fitting a
+  predicate to the data it audits, which D-051 forbids outright.
+- **Consequence:** Every host-rule number in A7.2 names its unit. The three readings of the
+  *policy* and the three readings of the *unit* are reported as separate spreads and never
+  multiplied into one, because they are different kinds of under-specification: one is an
+  ambiguity in what the authors meant, the other in what their data lets anyone count.
+
+### D-067 — The vOTU rule is deferred, not dropped, and the retained total is an interval
+- **Date:** 2026-10-15
+- **Task:** A7.2
+- **Context:** A7.1 split a published policy in two against a release: the rules whose inputs the
+  release carries, and the rules it does not (D-047). The input side breaks that in two places.
+  Every input Evo 1's vOTU rule reads is present in IMG/VR v4 — the vOTU assignment is a column —
+  and the rule still cannot be re-executed per record, because `keep_one_per` depends on the
+  order records arrive in and no published source states one (D-017). Reporting it as "input
+  missing" would be false. Reporting it as checkable would hand `conformance.diff` a rule that
+  retains every record as its own representative and reports zero removals, which reads as
+  conformance — the exact failure A7.1's guard exists to prevent.
+- **Decision:** A third category. `Restriction.deferred` holds a rule whose inputs are all present
+  and which is order-dependent; it is held out of the record-level chain, counted in the coverage
+  denominator like a dropped rule, and compared at the unit of the attribute it deduplicates on.
+  Two numbers are therefore reported side by side and never merged: `rule_coverage`, the
+  record-level figure (5/6 for Evo 1's literal reading against this input, against A7.1's 3/6
+  against the release), and `unit_coverage` (6/6), which counts the vOTU rule as run at its own
+  unit. The guard inside `diff` stays, unreachable through `restrict` and tested directly, because
+  it is what will stop the next order-dependent rule kind from producing the same silent zero.
+  **And the retained total becomes an interval.** The published order gates on confidence, then
+  keeps one representative per vOTU, then applies the host and taxonomy rules — so one surviving
+  vOTU is one retained record and whether a vOTU survives depends on which of its records was
+  chosen. Where every high-confidence record of a vOTU carries the same classification the choice
+  cannot matter; where they do not, it does. `votu_bounds` reports both ends, and the width is
+  exactly the vOTUs whose records straddle the predicate.
+- **Rejected:** Sorting the input deterministically and reporting the resulting count — it is a
+  number, and it is our sort order rather than their filter, which is precisely what D-017
+  refused. Reporting the midpoint or either end alone — AGENTS.md requires uncertainty to travel
+  with the estimate, and here the uncertainty is not statistical but a gap in the published
+  procedure, which makes it more important to show, not less. Folding the vOTU comparison into a
+  record-level conformance rate — a rate mixing a per-record check with a per-vOTU one is neither.
+- **Consequence:** A7.2 reports a conformance rate for the vOTU rule at vOTU level with the unit
+  printed beside every number, and the retained-count check against Evo 1's own Table S3 figure
+  asks whether a published count falls *inside* an interval rather than how close it is to a
+  point. X5.1 inherits a requirement with a clean justification: publishing the input order of an
+  order-dependent filter step costs a sentence and is the difference between a reproducible step
+  and an unreproducible one.
+
+### D-068 — IMG/VR ships two accession shapes, and the second one is the giant viruses
+- **Date:** 2026-10-15
+- **Task:** A7.2
+- **Context:** Every count in A7.2 is a join: the host table against the sequence table, and Evo
+  2's released FASTA against both. 15.7 million 28-character accessions do not fit the memory this
+  pass runs in as dictionary keys, so `IMGVR_UViG_<taxon_oid>_<n>` is packed losslessly into one
+  integer. The first version of that packing raised on anything else and the caller skipped the
+  row. Measuring the skipped rows rather than trusting the count found a second published shape:
+  `IMGVR_UViG_GVMAG-<M|S>-<oid>-<n>_<m>`, whose middle field is a giant-virus
+  metagenome-assembled genome identifier carrying letters and hyphens. **1,783 of Evo 2's released
+  accessions are of that shape.** Giant viruses infect eukaryotes, which makes these the single
+  worst population to lose from an audit of a filter aimed at eukaryote-infecting viruses: they
+  would have vanished from the converse direction silently, and their absence would have made the
+  filter look cleaner than it is.
+- **Decision:** Carry them. `imgvr.uvig_join_key` packs the numeric shape and falls back to a
+  truncated BLAKE2b digest of the accession, returned negative so it cannot collide with a packed
+  key by construction. The digest is a function of the accession string alone, which is what lets
+  two passes run at different times join on it without a shared vocabulary. A hash is not an
+  injection, so both passes check: `imgvr.collision_free` compares the number of distinct
+  non-packable accessions against the number of distinct keys and the pass **raises** rather than
+  emitting an artefact if they differ. The count and examples of both shapes are carried in every
+  artefact, as is the count of accessions this audit cannot read at all, which is a different and
+  so far empty category.
+- **Rejected:** Dropping the non-packable accessions and reporting the count — 1,783 records is
+  small and they are not a random 1,783. Widening the packing to cover the GVMAG fields — it has
+  four of them and would not fit an `int64`, and a packing that fails on the next shape the
+  publisher introduces fails the same way this one did. A vocabulary-assigned id — it cannot match
+  across two passes. Assuming the hash injective — the check costs nothing on a small vocabulary
+  and the failure mode is two records silently merging in every join.
+- **Consequence:** Both joins are complete, and the completeness is asserted rather than assumed.
+  One lesson worth carrying past this task: the bug was found by *measuring the rows the parser
+  rejected* instead of counting the rows it accepted. A pass that reports what it could not read
+  is the only kind whose totals mean anything.
+
+### D-069 — A released record in excess of the vOTU bound is the deduplication rule's failure, not the taxonomy rules'
+- **Date:** 2026-10-15
+- **Task:** A7.2
+- **Context:** The forward direction asks which released records a published rule removes. Against
+  Evo 1's release the comparison is per lineage, because the release carries a lineage tag and no
+  accession, and two quite different things make a lineage's released count exceed what the
+  procedure predicts. Either a record-level rule removes that lineage outright, in which case
+  every released record under it is that rule's failure; or the lineage survives every
+  record-level rule and more records were released than it has vOTUs to represent, in which case
+  one representative per vOTU was not kept. The first draft of the diff attributed both to
+  whichever rule the lineage's verdict named, which for a surviving lineage is no rule at all —
+  the artefact carried `rule: null` against the largest excess in the table.
+- **Decision:** Split the forward direction by which rule the excess belongs to, and report the
+  two components separately under one total:
+  `records_removed_by_a_record_level_rule` and `records_in_excess_of_the_votu_bound`, the latter
+  attributed to the deduplication rule by name. Each row of the detail table carries an
+  `attributed_to` field. The excess is measured against the bound that favours the developer —
+  the **most** the procedure could have retained under any input order — so nothing inside the
+  interval is counted against them.
+- **Rejected:** One combined forward count — §7 notes Phase A names real labs, and a write-up that
+  reports a lineage's excess under the heading of a taxonomy rule names the wrong rule. Dropping
+  the surviving-lineage excess because it cannot be attributed per record — it is the only
+  evidence about the vOTU rule that Evo 1's release can give, since the release carries no vOTU
+  identifier of its own.
+- **Consequence:** Forward, converse, and the two components of forward are four numbers that are
+  never summed into one. The artefact says so in a field rather than in prose.
+
+### D-070 — The whole of A7.2 runs in the session container, and the EC2 test is applied and declined again
+- **Date:** 2026-10-15
+- **Task:** A7.2
+- **Context:** AGENTS.md's test for launching an instance is whether the work is bound by data
+  movement that is free inside `us-east-1` and metered outside it, and names reading the staged
+  corpora as the case that qualifies. A7.2 reads 11.5 GB of IMG/VR metadata and 10.4 GiB of Evo
+  2's gzipped FASTA, which reads like exactly that case. D-050 applied the same test for A7.1 and
+  declined, and AGENTS.md is explicit that the test is to be applied rather than the precedent
+  copied.
+- **Decision:** No instance, and the parallelism ceiling decided it in both directions. The IMG/VR
+  metadata tables are plain TSV, which is splittable: `objectstore.byte_shards` cuts the 5 GB
+  sequence table into byte ranges and the pass reads it with twelve workers, so it is bound by
+  cores and the outbound proxy rather than by the format. Evo 2's FASTA is a single gzip member,
+  which is one thread however large the instance — the pass took 18 minutes in the container, and
+  an instance would have taken the same 18 minutes plus its own provisioning. Compute that runs
+  acceptably in the session container does not qualify, which is AGENTS.md's own sentence.
+- **Rejected:** Launching for the FASTA pass because it is the slow one — a bigger instance cannot
+  decompress one gzip member faster, which is the ceiling A1.3's note asks to be worked out before
+  choosing a size. Splitting the FASTA by byte range as the TSVs are split — a gzip stream has no
+  addressable member boundaries, so a range read starts mid-stream and decompresses nothing.
+- **Consequence:** Three tasks have now applied this test and none has launched. The pattern worth
+  stating for whoever reads `tools/ec2_count.py` as a template: the question is not how large the
+  input is but whether the format admits parallelism, and for every corpus staged in this project
+  so far the honest answer has been that the container is the right size.
+
+### D-071 — One taxon written at two ranks is reconciled, and it identifies which IMG/VR release Evo 1 used
+- **Date:** 2026-10-15
+- **Task:** A7.2
+- **Context:** A7.1's headline finding is 95 released records whose finest taxonomic assignment is
+  a family and which carry no realm, so the published unspecificity rule removes them and Evo 1's
+  release contains them. Re-executed from the input side, the same 95 records come back — and so
+  does something A7.1 could not see. IMG/VR v4 carries eighteen classifications whose taxon name
+  sits in the wrong rank field: `r__Bicaudaviridae;;;;;;;` and `r__Fuselloviridae;;;;;;;` among
+  them, a family name in the **realm** position. Those forms have an assigned realm as far as the
+  published rule can tell, so they survive it, while the correctly-ranked form of the same family
+  does not. Scored per lineage and nothing else, that makes the same records a forward failure
+  under one rank and a converse failure under the other, and reporting both would overstate both.
+- **Decision:** Classifications are grouped by their set of taxon names with ranks discarded
+  (`conformance_close.rank_normalisation`), and a group whose members the rule splits is
+  reconciled rather than counted twice. Each group's released total is checked against the
+  high-confidence vOTUs across its forms, and the released records divide into the part the rule
+  retains under the taxon's other rank and the part it removes however the taxon is written. The
+  write-up reports the second number as the unexplained one.
+- **The reconciliation then identifies the input, which Evo 1's own words could not.** v4.1 is an
+  erratum of v4 that corrects exactly these strings: in v4.1 `r__Bicaudaviridae;;;;;;;` does not
+  exist and its 494 records sit under `;;;;;f__Bicaudaviridae;;` (432 + 494 = 926, and the same
+  identity holds for Fuselloviridae, Ovaliviridae and the four misplaced `r__Naldaviricetes`
+  forms). So the two releases predict different survivor *sets*, and only one of them matches
+  what Evo 1 released: **re-executed over v4.1 the procedure predicts survivors in exactly the
+  181 lineages the release carries and no others, while over v4 it predicts 43 records in two
+  lineages the release carries none of.** D-052 and D-063 recorded that which release Evo 1
+  applied its procedure to is not determinable from Evo 1's citation. It is determinable from Evo
+  1's corpus, and the answer is **v4.1 (2022-12-20)**.
+- **Consequence, and it cuts against the audit's own earlier reading:** under v4 these 43 records
+  would have been explained away as a mismatch between the input's taxonomy strings and the
+  release's, leaving 52 of A7.1's 95 unexplained. Under v4.1, which is the release the output
+  identifies, there is no second form to explain anything and **all 95 stand as conformance
+  failures**. The reconciliation machinery stays, because it is what made the identification
+  possible and because it is the honest way to score any future release that carries a taxon
+  twice — but the number it produces on the identified input is zero records explained. Recording
+  the direction explicitly, because a mechanism that would have weakened this project's own
+  headline finding and then did not deserves more scrutiny than one that confirmed it.
+- **Rejected:** Reporting the 43 in both directions — the same records, counted twice, in two
+  directions that are supposed to mean opposite things. Averaging the two releases' results, or
+  reporting only the release that gives the smaller failure count — one of them is the input and
+  the other is not, and the evidence says which. Treating the eighteen misplaced-rank strings as
+  a defect to correct before re-execution — the filter ran on the publisher's strings as shipped,
+  and normalising them first would audit a pipeline nobody ran (D-051).
+- **Not claimed:** that Evo 1 built its corpus from v4.1 *because* of the erratum, or that the
+  developers were aware of either. What is claimed is that their released corpus is consistent
+  with v4.1 on this test and not with v4.
+
+### D-072 — The reading spread is measured, it is zero, and the cause is that IMG/VR names no eukaryotic host
+- **Date:** 2026-10-15
+- **Task:** A7.2
+- **Context:** §A7 asks for the spread across the three readings of a policy, and says it matters
+  as much as any single number. A7.1 had to report it as **unmeasurable**: every rule the literal,
+  charitable and strict readings differ over reads host occurrences, and Evo 1's release carries
+  none, so the three readings re-executed an identical pipeline by construction (D-047). A7.2 has
+  the host data, so the number exists for the first time.
+- **Decision:** Report it as measured and zero, with the cause named in the same breath, and never
+  as agreement between readings. The cause is in the data: **IMG/VR v4 asserts no eukaryotic host
+  for any of its 15,677,623 records.** The host-prediction field is empty, bacterial or archaeal
+  and nothing else, across every record and all four of the publisher's prediction methods, and
+  across all 18,859 distinct host taxa in the host table. Both rules the readings differ over —
+  the charitable reading's one-strike eukaryotic-host removal and the strict reading's exclusivity
+  requirement — are keyed on eukaryotic evidence, so neither can fire. The spread is therefore
+  zero on every quantity A7.2 computes: records removed, classifications surviving, both ends of
+  the retained interval, and both releases' forward failure counts. `conformance_close.host_evidence`
+  measures the vocabulary and the artefact carries it beside the spread table, so a reader cannot
+  take the zero for three readings agreeing.
+- **Why this is a finding and not a formality:** the published aim is to exclude viruses that
+  infect eukaryotic hosts, and the only host evidence the filter's own input carries never names a
+  eukaryote. That is why the published procedure reaches the aim through a prokaryotic-host
+  *count* and a clade enumeration rather than through a eukaryotic-host test — the direct test is
+  not available in the data, whatever a reader of the paper's prose would assume. It also means
+  the charitable reading, which A0.3 constructed precisely to implement the authors' stated aim
+  more directly than their own procedure does, **cannot be implemented against this database at
+  all**. A0.4 should read this entry before reporting the Evo spread: the spread between readings
+  of this policy is zero for a reason that is a property of IMG/VR, and will not generalise to a
+  model whose corpus carries eukaryotic host annotation.
+- **Rejected:** Reporting zero without the cause — three identical columns read as agreement
+  between readings, which is the misreading D-047 built `readings_agree_by_construction` to
+  prevent in the structural case and which needs preventing just as much in the empirical one.
+  Inferring eukaryotic host assignments from a taxonomy source to make the readings separable —
+  AGENTS.md forbids secondary sources for factual claims about this data, and the resulting spread
+  would measure our inference. Dropping the charitable and strict readings from the artefact
+  because they produce identical numbers — the identity is the result.
+- **Consequence:** X5.1 gains a requirement with evidence behind it: a filter that excludes by
+  host range should publish which host-range evidence it used and what that evidence can express,
+  because an exclusion criterion stated over a field that cannot represent the excluded category
+  is unauditable in a way no amount of re-execution fixes. And B1 should not assume that any
+  host-based exclusion claim in any model card is backed by host annotation that names the hosts
+  it excludes.
