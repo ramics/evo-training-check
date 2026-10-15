@@ -3558,3 +3558,60 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** The calibration run is next, and its figure decides the full pass. The sharding
   requirement is a property of the account's policy rather than of this task, so it belongs in
   AGENTS.md's EC2 section alongside the parallelism and memory notes.
+
+---
+
+### D-095 — geNomad's markers were annotated from a different VMR than A4.2 scored against, and it changes nothing
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Numbering:** drafted as D-092, which A1.6 took first; renumbered per `AGENTS.md`. Commit
+  `b5200a2` on branch `ccr-bcc7b994-9ycpzn` is already pushed and cites this entry as D-092 in
+  its message, so that citation resolves here. A1.6's D-092 is the one left in place: it was
+  committed first and is cited from three entries of its own series.
+- **Context:** D-086 pinned ICTV VMR_20-190822_MSL37.3 as ground truth, reasoning that the
+  taxonomy in force when IMG/VR v4 was built is what isolates tool error from the taxonomic
+  revision A9.1 measures. Retrieving the geNomad paper (`S-GENOMAD-NATBIOTECH`) afterwards
+  surfaced a fact that reasoning did not account for: geNomad's taxonomically informed markers
+  were annotated from **ICTV Virus Metadata Resource version 19**, four months earlier than
+  VMR 20 though still MSL37.
+
+  That matters because it splits the question D-086 treated as one. Scoring against the VMR the
+  markers were built from measures the tool against its own reference — can it reproduce the
+  taxonomy it was taught? Scoring against the VMR in force when the corpus was built measures
+  what the filter inherited. A4.2 reports the second, which is the audit's question, but a
+  reviewer is entitled to ask whether the first would give a different number.
+
+  The same paper also states, from the tool's authors, that geNomad produced the data IMG/VR v4
+  was built from. D-084 established the dependency from the corpus's own method field; this
+  corroborates it from a primary source, which `AGENTS.md`'s rule against secondary sources
+  makes worth having.
+- **Decision:** The pin stands, and the sensitivity check is run and reported rather than
+  argued. `ictv.MARKER_SOURCE_RELEASE` pins VMR 19 (`VMR_19-250422_MSL37.xlsx`, sha256
+  `e8ed871a…`) so the comparison is re-runnable, and a test asserts it is the same MSL as the
+  benchmark release — a different MSL would make the comparison a measure of taxonomic revision
+  rather than of this choice.
+
+  Over the 3,149 scored accessions:
+
+  | difference | count |
+  |---|---|
+  | family assignment differs | 4 |
+  | order assignment differs | 0 |
+  | **denylist scope differs** | **0** |
+  | accession absent from VMR 19 | 24 |
+
+  All four family differences are bacteriophage renames — `Flexireviridae`→`Graaviviridae`,
+  `Queuoviridae`→`Druskaviridae` — and every one is an out-of-scope control. **No record
+  changes which side of the denylist it falls on, so neither reported rate moves.** The 24
+  absences are accession-field edits between the two revisions, not taxonomic changes.
+
+  So A4.2's escape rate of 36.23% and spurious-removal rate of 3.05% stand as reported, and the
+  artefact's choice of ground truth is now a measured non-issue rather than an assumption.
+- **Rejected:** *Re-score against VMR 19 and report that instead* — it answers a question about
+  geNomad's self-consistency rather than about what the filter inherited, and D-086's reasoning
+  for the later release is unchanged by this.
+  *Report both as parallel headline rates* — they are identical to within four out-of-scope
+  renames, so a second column would imply a distinction the data does not contain.
+  *Leave the discrepancy unrecorded because the result is unchanged* — the check is cheap, the
+  objection is obvious, and §7 requires writing for a reviewer who wants the result to be wrong.
