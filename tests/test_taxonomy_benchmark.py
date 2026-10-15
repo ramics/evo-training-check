@@ -462,3 +462,53 @@ def test_caps_match_the_preregistration() -> None:
 def test_evalset_json_roundtrips(monkeypatch: pytest.MonkeyPatch) -> None:
     built = _build(monkeypatch, [_exemplar("a")])
     assert json.loads(json.dumps(built))["counts"]["sequences"] == 1
+
+
+# --------------------------------------------------------------------------------------
+# The join
+# --------------------------------------------------------------------------------------
+
+
+def test_call_index_accepts_versioned_and_bare_names() -> None:
+    """geNomad echoes the FASTA name it was given; the VMR's accessions are unversioned."""
+    calls = _calls({"NC_001806.2": CORONA})
+    index = tool._call_index(calls)
+    assert "NC_001806.2" in index
+    assert "NC_001806" in index
+
+
+def test_versioned_taxonomy_names_still_join() -> None:
+    """The failure this prevents is not a crash, it is a publishable-looking 100% escape rate."""
+    evalset = _evalset([_record("NC_001806", "Coronaviridae")])
+    fetched = {"lengths": {"NC_001806": 30000}, "bases": 30000, "missing": []}
+    result = tool.score(evalset, fetched, _calls({"NC_001806.2": CORONA}), DENYLIST)
+    assert result["rates"]["escape"]["numerator"] == 0
+    assert result["evaluation_set"]["sequences_with_a_taxonomy_row"] == 1
+
+
+def test_bare_evalset_name_joins_a_versioned_call_and_vice_versa() -> None:
+    evalset = _evalset([_record("NC_001806.2", "Coronaviridae")])
+    fetched = {"lengths": {"NC_001806.2": 30000}, "bases": 30000, "missing": []}
+    result = tool.score(evalset, fetched, _calls({"NC_001806": CORONA}), DENYLIST)
+    assert result["rates"]["escape"]["numerator"] == 0
+
+
+def test_a_total_join_failure_raises_instead_of_reporting_total_leakage() -> None:
+    """Every record unclassified is arithmetically indistinguishable from a join failure.
+
+    Reporting it would be the most flattering possible result for this audit, which is exactly
+    why it has to be refused rather than printed. §2's commitment cuts both ways.
+    """
+    evalset = _evalset([_record("AAA111", "Coronaviridae")])
+    fetched = {"lengths": {"AAA111": 30000}, "bases": 30000, "missing": []}
+    with pytest.raises(ValueError, match="join failure, not a 100% escape rate"):
+        tool.score(evalset, fetched, _calls({"ZZZ999": CORONA}), DENYLIST)
+
+
+def test_a_genuinely_empty_taxonomy_output_is_not_mistaken_for_a_join_failure() -> None:
+    """A tool that classified nothing at all is a real result; only a mismatch is an error."""
+    evalset = _evalset([_record("AAA111", "Coronaviridae")])
+    fetched = {"lengths": {"AAA111": 30000}, "bases": 30000, "missing": []}
+    result = tool.score(evalset, fetched, {}, DENYLIST)
+    assert result["rates"]["escape"]["numerator"] == 1
+    assert result["evaluation_set"]["sequences_with_a_taxonomy_row"] == 0

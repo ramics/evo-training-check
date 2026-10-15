@@ -290,6 +290,26 @@ def fetch_sequences(evalset: dict[str, Any], out_fasta: Path, *, email: str) -> 
 # --------------------------------------------------------------------------------------
 
 
+def _call_index(
+    calls: dict[str, genomad.TaxonomyCall],
+) -> dict[str, genomad.TaxonomyCall]:
+    """Index the tool's calls by both the name it used and that name without its version.
+
+    The join is the one place in this pipeline where a mistake produces a spectacular result
+    rather than an obviously broken one. geNomad echoes the FASTA name it was given; the
+    evaluation set keys on the VMR's accession, which is usually unversioned while NCBI's own
+    FASTA headers are not. Join the two strictly and every record comes back unclassified —
+    which this pipeline would report, perfectly consistently, as a 100% escape rate.
+
+    So both forms are indexed, and :func:`score` refuses a run where nothing joined at all.
+    """
+    index: dict[str, genomad.TaxonomyCall] = {}
+    for name, call in calls.items():
+        index.setdefault(name, call)
+        index.setdefault(name.split(".")[0], call)
+    return index
+
+
 def score(
     evalset: dict[str, Any],
     fetched: dict[str, Any],
@@ -300,6 +320,8 @@ def score(
 ) -> dict[str, Any]:
     """Classify every record and assemble the artefact, per D-088."""
     lengths: dict[str, int] = fetched["lengths"]
+    index = _call_index(calls)
+    matched = 0
     judgements: list[misassignment.Judgement] = []
     anomalies: list[dict[str, Any]] = []
     not_submitted = 0
@@ -312,7 +334,9 @@ def score(
             # failed on, and folding the two together would invent leakage.
             not_submitted += 1
             continue
-        call = calls.get(accession)
+        call = index.get(accession) or index.get(accession.split(".")[0])
+        if call is not None:
+            matched += 1
         if call is not None and call.anomalies:
             anomalies.append({"accession": accession, "anomalies": list(call.anomalies)})
         judgements.append(
@@ -327,6 +351,17 @@ def score(
                 called_viral=True,
                 length=lengths.get(accession),
             )
+        )
+
+    if calls and judgements and matched == 0:
+        # Loud rather than plausible. Every record unclassified is indistinguishable, in the
+        # arithmetic, from a tool that classified nothing — and it would be published as a
+        # 100% escape rate. The names are shown so the mismatch is diagnosable.
+        raise ValueError(
+            "no evaluation-set accession matched any sequence in the taxonomy output: "
+            f"{len(judgements)} records scored, {len(calls)} calls read. "
+            f"Example record {judgements[0].record!r}; example call "
+            f"{next(iter(calls))!r}. This is a join failure, not a 100% escape rate."
         )
 
     rates = misassignment.rates(judgements)
@@ -380,6 +415,7 @@ def score(
             **evalset["counts"],
             "selection": evalset["selection"],
             "sequences_submitted": len(judgements),
+            "sequences_with_a_taxonomy_row": matched,
             "sequences_not_retrieved": not_submitted,
             "bases_submitted": fetched["bases"],
             "accessions_missing": fetched["missing"],
