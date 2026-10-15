@@ -1548,3 +1548,214 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the metagenomes or the eukaryotic genomes is the in-region case and should be planned as one,
   with `tools/ec2_count.py` as the worked example. A1.4's own numbers regenerate with one
   command here, which is what X1.2 wants.
+### D-047 — What a conformance re-execution can test against Evo 1's release, and why the reading spread is unmeasurable
+- **Date:** 2026-10-15
+- **Task:** A7.1
+- **Numbering:** appended as D-042 and renumbered to D-047 on 2026-10-15. The A3.1/A1.4 track took D-042 through D-046 first and all five of this task's entries collided with them: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically, exactly as D-041 records. Their five are already on `main` and cited from its commits, so this block is the cheaper of the two to move. Commit `2c8c18c` and the A7.1 push cite the old numbers; these lines are how they resolve.
+- **Context:** §A7 says to execute each reading's predicate over the released dataset and to
+  report the spread across readings, which "matters as much as any single number". Evo 1's
+  published procedure has six steps reading four kinds of input: IMG/VR confidence labels, vOTU
+  identifiers, host-occurrence counts, and taxonomic lineage. Exactly one of those travels with
+  the released records — the inline lineage tag D-020 established. The naive run is not merely
+  weaker, it is wrong in a way that would look like a result: with no `confidence` attribute on
+  any released record, `keep-high-confidence` removes all 2,652,947 of them at the first step,
+  and a "conformance failure rate of 100%" would be our missing metadata published as their
+  filter.
+- **Decision:** A7.1 re-executes a **restriction** of each published policy, derived
+  mechanically from a declared inventory of what each release carries per record
+  (`amazebio.conformance.RELEASE_INPUTS`, with `RULE_INPUTS` mapping each frozen rule kind to
+  the one input it reads). For `opengenome-stage2` the inventory is `{taxonomy}`, so three of the
+  six rules are re-executed — `remove-denylisted-families`, `remove-denylisted-orders`,
+  `remove-taxonomically-unspecific` — and three are reported as not checkable with the input
+  each needs named. Coverage (`3/6`) is carried in the artefact next to every count and in every
+  table of the write-up, never separately. A rule kind absent from `RULE_INPUTS` raises rather
+  than defaulting to checkable, and a release that can re-execute nothing raises rather than
+  returning an empty pipeline a caller could run and report zero failures from.
+  **The reading spread is unmeasurable against this release, and that is the finding.** Every
+  rule the literal, charitable and strict readings differ over — the prokaryotic-host count, the
+  charitable eukaryotic-host rule, the strict exclusivity rule, and the wildcard scope — reads
+  `host_occurrences` or `record_attributes`. The taxonomy rules are identical in all three
+  specs. So the three readings re-execute the same pipeline here by construction, and
+  `readings_agree_by_construction` asserts that from the specs so the write-up reports a
+  property of the release rather than three identical output columns read as agreement.
+- **Rejected:** Hand-picking the testable rules — it would put the most consequential judgement
+  in this task, which of an author's rules we hold them to, into an unreviewable list, and a
+  reader could not distinguish a rule dropped because the release omits its input from one
+  dropped because it was inconvenient. Treating an absent input as
+  `Outcome.UNDETERMINED` — that already means something different and load-bearing, namely that
+  the *published source* does not state a value (ESM3's identity threshold is why it exists);
+  merging a gap in somebody's prose with a gap in somebody's data would lose both findings.
+  Imputing the missing metadata from any secondary source — AGENTS.md forbids secondary sources
+  for factual claims about training data, and an imputed host count would make the conformance
+  number a measurement of our imputation. Reporting the restricted rate as the policy's
+  conformance rate — it is the rate for three named rules.
+- **Consequence:** The headline A7.1 number is a conformance rate for Evo 1's three taxonomy
+  rules against Evo 1's own released viral component, and must always be worded that way. Two
+  consequences beyond this task. **A0.4 cannot get its Evo spread from the release.** The
+  argument in `policies/corpora.md` §2 — that whichever reading best reproduces the released
+  component is the developers' de facto reading — does not survive contact with the release:
+  the readings are indistinguishable on everything it can test, so the release cannot identify
+  which reading is theirs. That paragraph should be read with this entry. **The three
+  unrunnable rules are themselves a disclosure finding**, and the one X5.1 can act on: a
+  developer who published the filter's output without the three metadata fields their own
+  procedure turns on made two thirds of their stated filter unauditable from their own release.
+  That belongs in the filter disclosure standard as a requirement, not as a complaint.
+
+### D-048 — One released row is one released record; D-020's "context windows" is corrected
+- **Date:** 2026-10-15
+- **Task:** A7.1
+- **Numbering:** appended as D-043 and renumbered to D-048 on 2026-10-15; see D-047's note.
+- **Context:** Every count A7.1 publishes is a count of records, and nothing published about
+  `LongSafari/open-genome` states what one row of `stage2` contains. D-020, sampling 800 rows
+  through the HuggingFace rows API, recorded the opposite of what is true: "rows are context
+  windows rather than records, one genome may span many", and used it to refuse publishing any
+  proportion from the sample. The refusal was right for its own reasons — 0.03%, contiguous
+  blocks — but the stated reason was wrong, and left as it stood it would have forced A7.1 to
+  report per-window counts or to dedupe on a field the release does not carry.
+- **Decision:** The row is the record, and the claim is measured on every pass rather than
+  assumed. A row is `|tag|sequence`; a record longer than **131,072 characters** (2^17, counting
+  the tag against the budget) arrives as several `|tag|block` pairs concatenated into *one* row,
+  each pair carrying the same tag, rather than as several rows. So the scan counts, over all
+  2,652,947 rows: blocks per row, rows carrying more than one distinct lineage tag, rows whose
+  final block is full-length, and rows carrying no tag at all. The first two would mean a row
+  packs several records; the third would mean a record may continue into the next row. The
+  artefact carries `structure.one_row_one_record` as the conjunction, and when it is false the
+  diff relabels every count per row and says so in the summary — a count of records that is
+  really a count of rows is the kind of error that survives review and then gets quoted.
+  Length distribution supports the reading independently: lengths run continuously from about
+  1.5 kb past 300 kb with no mode at any context size, which is a genome-length distribution
+  and not a window one.
+- **Rejected:** Counting tag occurrences rather than rows — it would count a 300 kb genome three
+  times, because the chunking repeats the tag. Deduplicating within a row by tag and leaving it
+  there — right for the common case and silently wrong the moment a row genuinely packs two
+  records, which is why both are counted and reported. Trusting D-020's characterisation —
+  the standing lesson of D-019 and D-020 both is that a sample answers questions about the
+  sample; two corrections to the same paragraph is enough.
+- **Consequence:** A7.1's counts are per record, and the evidence that they are is in the
+  artefact rather than in this entry. `policies/corpora.md` §3 needs its "rows are context
+  windows" sentence corrected the next time that file is touched; D-020's refusal to publish a
+  proportion stands on its sampling design, which this does not disturb. For A2 and A4.1, which
+  will read the same component: the release's record identity is the row, there is no accession
+  on it, and no join to IMG/VR is possible from `stage2` at all.
+
+### D-049 — A7.1 runs the forward direction only; the converse and Evo 2's arm both need IMG/VR v4
+- **Date:** 2026-10-15
+- **Task:** A7.1
+- **Numbering:** appended as D-044 and renumbered to D-049 on 2026-10-15; see D-047's note.
+- **Context:** The task calls for the converse check as well as the forward one — records removed
+  that the predicate does not call for, since an over-broad filter is also a mismatch between
+  rule and practice — and for running the diff against OpenGenome2's IMG/VR component as well as
+  Evo 1's. Both turn out to need the filter's *input*. `policies/corpora.md` §2 states IMG/VR v4
+  is independently available at its pinned version from its own publisher, which is true and is
+  not the same as acquired: it is not in `policies/sources.json`, there is no staging tool for
+  it, and nothing in the corpus bucket holds it.
+- **Decision:** A7.1 ships the forward direction only, and says so in a field of the artefact
+  rather than in prose, because a missing arm mentioned only in a footnote gets cited as a null
+  result. Evo 2's IMG/VR release is read far enough to establish what it can and cannot support
+  and no further: its FASTA headers carry `IMGVR_UViG_<taxon_oid>_<n>` accessions, zero
+  delimiters and no rank-prefixed field, so **no published Evo rule can be re-executed against
+  Evo 2's release at all** — the inverse of Evo 1's release, which is testable against the
+  taxonomy rules and traceable to nothing. That was established from a bounded 2,000-header read
+  rather than a full 11.2 GB pass, and `conformance_scan.py` keeps the `--max-headers` bound
+  that makes it reproducible. The accession inventory the join would need is **not** collected
+  here.
+- **Rejected:** Acquiring IMG/VR v4 inside this task — it is a corpus acquisition with its own
+  pinning, verification and staging work, on the scale of A1.2 and A1.3, and AGENTS.md is
+  explicit that a task which turns out to be two tasks is split rather than quietly widened.
+  Collecting the full OpenGenome2 accession inventory because the pass was cheap — nothing
+  consumes it yet, and pixi.toml's own rule about unused pinned tools applies as well to unused
+  pinned data: it is a maintenance cost with no result attached. Inferring over-removal from the
+  released component's composition alone — without the input there is no denominator, and a
+  count of what is absent from a corpus cannot be taken from the corpus. Reporting the forward
+  rate as the conformance rate without qualification.
+- **Consequence:** An IMG/VR v4 acquisition is the blocker for three things, and should be its
+  own Phase A task rather than an item inside A7.1: the converse check, the forward check for
+  Evo 2's release, and the three rules D-047 records as unrunnable, all of which the input
+  supplies. Until it exists, A7.1's result is one-directional and `X5.1` inherits the stronger
+  of the two findings anyway — that two thirds of a published filter cannot be audited from the
+  release that filter produced.
+
+### D-050 — The release pass runs in the session container, and the EC2 test is applied and declined
+- **Date:** 2026-10-15
+- **Task:** A7.1
+- **Numbering:** appended as D-045 and renumbered to D-050 on 2026-10-15; see D-047's note.
+- **Context:** AGENTS.md sets a test for launching an instance: whether the work is bound by data
+  movement that is free inside `us-east-1` and metered outside it, with "reading the staged
+  corpora" named as the case that qualifies because a full pass is tens of gigabytes. A7.1's
+  pass is 16.92 GB of Parquet, which reads like exactly that case, and A1.3's worked example in
+  `tools/ec2_count.py` was sitting there to copy.
+- **Decision:** Measured first, and the test fails: the pass runs in the session container in
+  about seven minutes, so no instance is launched. Three numbers decided it. A single ranged read
+  from the corpus bucket through this project's outbound proxy runs at 19 MB/s, and sixteen
+  concurrent readers at 178 MB/s, so the transfer is minutes rather than hours. Unlike the gzip
+  streams A1.3 was bound by, `train_stage2.parquet` is **2,653 row groups of 1,000 rows**, each
+  column chunk independently decompressible, so parallelism is bounded by cores and not by the
+  format — the honest answer A1.3's own note asks for turned out to be that no instance is the
+  right size. Measured single-process throughput is 1,646 rows/s, giving about 6.7 minutes on
+  four processes. AGENTS.md's own sentence settles it: compute that would run acceptably in the
+  session container does not qualify.
+  `pyarrow>=18,<22` is pinned for the Parquet read, per pixi.toml's rule that the task needing a
+  tool adds it; 21.0.0 is what the lockfile resolved to.
+- **Rejected:** Launching anyway because the file is large and the pattern existed — an instance
+  costs money, leaves a resource that can be forgotten, and cannot be inspected once running,
+  and none of that is worth paying to save three minutes. Treating the 16.92 GB of metered
+  egress as the deciding cost — it is about $1.50, and an instance is not free either; wall clock
+  and the risk of a forgotten resource are the real terms. Applying the Arrow-native fast path
+  that would have cut the Python per-row cost — the pass is network-bound at four processes, so
+  it would buy nothing and the naive path is the one the tests cover.
+- **Converging independently:** the A1.4 track applied the same AGENTS.md test to a different
+  pass and also declined to launch (their D-046, on `main`). Two tracks reading the same
+  paragraph and both measuring first is some evidence the paragraph is doing its job; it also
+  means the EC2 note in AGENTS.md now has two worked declines against A1.3's one launch, and
+  should probably say so the next time that file is touched.
+- **Consequence:** A7.1 leaves no AWS resource behind, and the scan tool runs anywhere with
+  credentials rather than only in-region. For the next task weighing this: measure the three
+  numbers before copying `ec2_count.py` — streams, format parallelism, rows per second — because
+  a splittable format changes the answer that a gzip stream forced. The in-region route stays
+  right for the gzip corpora, which cannot be split at all.
+
+### D-051 — The published realm test is not a specificity test, and the release proves it on 95 records
+- **Date:** 2026-10-15
+- **Task:** A7.1
+- **Numbering:** appended as D-046 and renumbered to D-051 on 2026-10-15; see D-047's note.
+- **Context:** Evo 1's last exclusion step is encoded as `require_rank: realm`, from "viruses with
+  poor taxonomic specificity were excluded, including those with no assigned realm at all" and
+  the eight named stop-taxa. A0.3 debated the required rank twice — D-016 and D-018 withdrew a
+  strict reading that raised it to family, because the authors ceiling their own enumeration at
+  class — and both times the argument was textual. The re-execution supplies data.
+- **Decision:** Record the conflation as a finding in its own right, separate from the
+  conformance count that exposed it. Of 2,653,047 released records, **95 carry no assigned realm
+  and are therefore removed by the rule as published**, and all 95 are assigned at **family**
+  rank: 73 `f__Bicaudaviridae`, 21 `f__Fuselloviridae`, 1 `f__Ovaliviridae`. The modal released
+  record fills four ranks and stops at **class** — 2,543,536 of 2,653,047. So the published rule
+  removes records that are better resolved than the overwhelming majority it keeps, because rank
+  of assignment and taxonomic specificity are different axes and the encoding tests the first
+  while the sentence is about the second. A family with no realm above it is not a poorly
+  specified virus; it is a family whose higher placement the taxonomy has not settled.
+  Two things this entry deliberately does **not** claim. It does not say which hosts those three
+  families infect — that needs a taxonomy source this project has not retrieved, and A9.1 is
+  where one enters. And it does not revise the spec: `require_rank: realm` stays, because it is
+  the conservative encoding of the published words and A7.1's job is to re-execute what was
+  published, not to improve it.
+- **Rejected:** Classifying the 95 as `predicate_ambiguous` — the realm limb is stated outright
+  and fires unambiguously; the ambiguity is in the *other* limb, the unquantified "including",
+  and conflating the two would hide a clean failure behind a vague one. Reporting the 95 as a
+  filter defect without the rank context — true as a conformance statement and misleading as a
+  finding, since the filter's judgement looks better than its stated rule. Amending
+  `require_rank` to something that reproduces the release — that is fitting the spec to the
+  data, which is the one thing a conformance audit may not do. Treating 0.004% as too small to
+  report: the rate is small and the mechanism is not, and §2 commits this project to publishing
+  what it finds either way.
+- **Consequence:** Three downstream uses. **A9.1 gains its sharpest case**: this is a static rank
+  test decaying against a live taxonomy, measured on real records rather than argued from the
+  text. **A0.4 gains a worked example** of under-specification with a count attached, which is
+  what §A0 asks for. **X5.1 gains a disclosure requirement** that follows from the mechanism
+  rather than from a preference: a filter spec should state the property it tests for, not the
+  rank it happens to read, because the two diverge exactly where a taxonomy is unsettled — which
+  is where the records nobody has placed live.
+  Also recorded, because it closes an open caution rather than opening one: D-020 found no
+  `r__Riboviria` in an 800-row sample and was careful to say that must not be reported as absence
+  from the corpus. The census settles it — **6,105 Riboviria records**, every one of them
+  `c__Leviviricetes` and no deeper. All are correctly retained by the rule as written, whose
+  stop-taxon limb removes a record whose *finest* assignment is a named stop and not one that
+  merely sits under `r__Riboviria`. The caution was right and the number is now exact.
