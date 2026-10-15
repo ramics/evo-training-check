@@ -68,6 +68,13 @@ set -xeuo pipefail
 exec > >(tee /dev/console) 2>&1
 echo "=== amazebio a1-6 calibration starting $(date -Is) ==="
 
+# A dead man's switch, armed before anything that can fail. The launcher's own terminate
+# in its `finally` covers a launcher that lives to run it; this covers the case it cannot
+# — the session ending, the watcher being killed — and it is independent of whether the
+# script below ever reaches its own shutdown. InstanceInitiatedShutdownBehavior=terminate
+# at launch is what makes this a terminate rather than a stop that keeps billing a volume.
+shutdown -h +{hard_stop_minutes} &
+
 dnf install -y tar gzip unzip >/dev/null
 
 # Amazon Linux 2023 ships python3.9 as `python3`, and this project needs 3.12.
@@ -189,6 +196,14 @@ def main(argv: list[str] | None = None) -> int:
     # which is why the pass is sharded at all (D-094).
     ap.add_argument("--volume-size", type=int, default=120)
     ap.add_argument("--timeout-minutes", type=float, default=420.0)
+    ap.add_argument(
+        "--hard-stop-minutes",
+        type=int,
+        default=400,
+        help="a shutdown timer armed on the instance at boot, before anything that can "
+        "fail. Independent of the script reaching its own shutdown and of the launcher "
+        "surviving to run its terminate (default: %(default)s)",
+    )
     ap.add_argument("--poll-seconds", type=float, default=120.0)
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
     args = ap.parse_args(argv)
@@ -248,6 +263,7 @@ def main(argv: list[str] | None = None) -> int:
         strict_buckets=args.strict_buckets,
         threads=args.threads,
         budget=args.search_budget_seconds,
+        hard_stop_minutes=args.hard_stop_minutes,
         mmseqs_url=MMSEQS_URL,
         mmseqs_sha256=MMSEQS_SHA256,
         taxdump_url=seeds.TAXDUMP_2023_04.url,
