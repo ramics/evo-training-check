@@ -5,7 +5,7 @@
     {
       "id": "S-EVO1-PREPRINT",
       "kind": "paper",
-      "title": "Nguyen et al. 2024 — Sequence modeling and design from molecular to genome scale with Evo (preprint)",
+      "title": "Nguyen et al. 2024 \u2014 Sequence modeling and design from molecular to genome scale with Evo (preprint)",
       "url": "https://www.biorxiv.org/content/10.1101/2024.02.27.582234v1.full.pdf",
       "licence": "CC-BY 4.0",
       "models": [
@@ -22,7 +22,7 @@
     {
       "id": "S-EVO2-PREPRINT",
       "kind": "paper",
-      "title": "Brixi et al. 2025 — Genome modeling and design across all domains of life with Evo 2 (preprint)",
+      "title": "Brixi et al. 2025 \u2014 Genome modeling and design across all domains of life with Evo 2 (preprint)",
       "url": "https://www.biorxiv.org/content/10.1101/2025.02.18.638918v1.full.pdf",
       "licence": "CC-BY-ND 4.0",
       "models": [
@@ -38,7 +38,7 @@
     {
       "id": "S-ESM3-PREPRINT",
       "kind": "paper",
-      "title": "Hayes et al. 2024 — Simulating 500 million years of evolution with a language model (preprint)",
+      "title": "Hayes et al. 2024 \u2014 Simulating 500 million years of evolution with a language model (preprint)",
       "url": "https://www.biorxiv.org/content/10.1101/2024.07.01.600583v2.full.pdf",
       "licence": "CC-BY-NC-ND 4.0",
       "models": [
@@ -54,7 +54,7 @@
     {
       "id": "S-ESMC-PREPRINT",
       "kind": "paper",
-      "title": "Candido et al. 2026 — Language Modeling Materializes a World Model of Protein Biology (preprint)",
+      "title": "Candido et al. 2026 \u2014 Language Modeling Materializes a World Model of Protein Biology (preprint)",
       "url": "https://www.biorxiv.org/content/10.64898/2026.06.03.729735v1.full.pdf",
       "licence": "CC-BY 4.0",
       "models": [
@@ -140,7 +140,7 @@
     {
       "id": "S-ESM3-REPO",
       "kind": "repo_doc",
-      "title": "evolutionaryscale/esm — ESM3 README",
+      "title": "evolutionaryscale/esm \u2014 ESM3 README",
       "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/_assets/ESM3_README.md",
       "licence": "MIT",
       "models": [
@@ -226,9 +226,9 @@
     {
       "id": "S-EVO2-NATURE",
       "kind": "paper",
-      "title": "Brixi et al. 2026 — Genome modelling and design across all domains of life with Evo 2 (Nature; version of record)",
+      "title": "Brixi et al. 2026 \u2014 Genome modelling and design across all domains of life with Evo 2 (Nature; version of record)",
       "url": "https://www.nature.com/articles/s41586-026-10176-5",
-      "licence": "publisher content — not redistributed",
+      "licence": "publisher content \u2014 not redistributed",
       "models": [
         "Evo 2"
       ],
@@ -250,7 +250,7 @@
     {
       "id": "S-ESM3-SCIENCE",
       "kind": "paper",
-      "title": "Hayes et al. 2025 — Simulating 500 million years of evolution with a language model (Science; version of record)",
+      "title": "Hayes et al. 2025 \u2014 Simulating 500 million years of evolution with a language model (Science; version of record)",
       "url": "https://doi.org/10.1126/science.ads0018",
       "models": [
         "ESM3"
@@ -329,12 +329,12 @@
       "capture": "policies/captures/hf-open-genome-stage2-lineage-sample.json",
       "sha256": "0768885be15229573158207389aa4a6f0c407b8f3466dc63b9f24b3223534622",
       "bytes": 2981,
-      "note": "A sample, not a document, and the weakest kind of entry in this store: 800 of 2,652,947 rows, drawn as eight contiguous blocks of 100 rather than at random, so it supports qualitative statements about what the split contains and no published proportion. Stores lineage tags and counts only — no genomic sequence enters this repo. Dated, and a later revision of the dataset may differ."
+      "note": "A sample, not a document, and the weakest kind of entry in this store: 800 of 2,652,947 rows, drawn as eight contiguous blocks of 100 rather than at random, so it supports qualitative statements about what the split contains and no published proportion. Stores lineage tags and counts only \u2014 no genomic sequence enters this repo. Dated, and a later revision of the dataset may differ."
     },
     {
       "id": "S-EVO1-SCIENCE",
       "kind": "paper",
-      "title": "Nguyen et al. 2024 — Sequence modeling and design from molecular to genome scale (Science, version of record)",
+      "title": "Nguyen et al. 2024 \u2014 Sequence modeling and design from molecular to genome scale (Science, version of record)",
       "url": "https://www.science.org/doi/10.1126/science.ado9336",
       "doi": "10.1126/science.ado9336",
       "models": [
@@ -347,7 +347,7 @@
     {
       "id": "S-ESM1B-PNAS",
       "kind": "paper",
-      "title": "Rives et al. 2021 — Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences (PNAS, version of record)",
+      "title": "Rives et al. 2021 \u2014 Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences (PNAS, version of record)",
       "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8053943/fullTextXML",
       "licence": "CC-BY-NC-ND 4.0",
       "models": [
@@ -359,12 +359,12 @@
       "capture": "policies/captures/esm1b-pnas-fulltext.xml",
       "sha256": "371ba324fb6c86b69e6777377c4656e0332745aec5a7bf4240a11af31dd06d2c",
       "bytes": 171069,
-      "note": "The paper that defines the UR100, UR50/S and UR50/D dataset notation the ESM repository's model table uses; retrieved for A1.3 (DECISIONS.md D-025). Captured as JATS XML from the Europe PMC REST endpoint because pnas.org returns HTTP 403 and the PMC article page serves an interstitial rather than the PDF. The capture is the publisher's own full text, not a mirror's rendering, but quotes are matched against XML bytes, so a quotation must not span inline markup (an <xref> citation marker, a formula) — pick a sentence that reads clean in the source."
+      "note": "The paper that defines the UR100, UR50/S and UR50/D dataset notation the ESM repository's model table uses; retrieved for A1.3 (DECISIONS.md D-025). Captured as JATS XML from the Europe PMC REST endpoint because pnas.org returns HTTP 403 and the PMC article page serves an interstitial rather than the PDF. The capture is the publisher's own full text, not a mirror's rendering, but quotes are matched against XML bytes, so a quotation must not span inline markup (an <xref> citation marker, a formula) \u2014 pick a sentence that reads clean in the source."
     },
     {
       "id": "S-ESM2-PREPRINT",
       "kind": "paper",
-      "title": "Lin et al. 2022 — Evolutionary-scale prediction of atomic level protein structure with a language model (preprint)",
+      "title": "Lin et al. 2022 \u2014 Evolutionary-scale prediction of atomic level protein structure with a language model (preprint)",
       "url": "https://www.biorxiv.org/content/10.1101/2022.07.20.500902v3.full.pdf",
       "doi": "10.1101/2022.07.20.500902",
       "models": [
@@ -380,7 +380,7 @@
     {
       "id": "S-ESM2-SCIENCE",
       "kind": "paper",
-      "title": "Lin et al. 2023 — Evolutionary-scale prediction of atomic-level protein structure with a language model (Science, version of record)",
+      "title": "Lin et al. 2023 \u2014 Evolutionary-scale prediction of atomic-level protein structure with a language model (Science, version of record)",
       "url": "https://www.science.org/doi/10.1126/science.ade2574",
       "doi": "10.1126/science.ade2574",
       "models": [
@@ -544,7 +544,7 @@
       "capture": "policies/captures/hf-opengenome2-manifest.json",
       "sha256": "58aa66b7cc0ab3a66fd19630f025abf745d0ab4e73b8f1b82cd5c62ee72bebf2",
       "bytes": 310792,
-      "note": "A listing, not a document. 1,126 files totalling 5,523,240,795,932 bytes, each with the Git LFS oid HuggingFace publishes for it — a SHA-256 over the file contents, and what every staged object is verified against before its upload completes. Paths, sizes and checksums only; no sequence. Pinned to a commit rather than `main`, which has moved."
+      "note": "A listing, not a document. 1,126 files totalling 5,523,240,795,932 bytes, each with the Git LFS oid HuggingFace publishes for it \u2014 a SHA-256 over the file contents, and what every staged object is verified against before its upload completes. Paths, sizes and checksums only; no sequence. Pinned to a commit rather than `main`, which has moved."
     },
     {
       "id": "S-OPENGENOME1-MANIFEST",
@@ -604,7 +604,26 @@
       "capture": "policies/captures/hf-opengenome2-record-fields.json",
       "sha256": "0c81c2afcea8f4da364782365ab464ecfc73e86f863225e46f07b2e7babc4b38",
       "bytes": 1709,
-      "note": "A sample, and the weakest kind of entry in this store: the leading ~3 MB of four files out of 1,123, read to establish which representation carries a traceable identifier. Field names, record counts and accession prefixes only — no sequence enters this repo. Supports qualitative statements about record structure and no proportion. Dated."
+      "note": "A sample, and the weakest kind of entry in this store: the leading ~3 MB of four files out of 1,123, read to establish which representation carries a traceable identifier. Field names, record counts and accession prefixes only \u2014 no sequence enters this repo. Supports qualitative statements about record structure and no proportion. Dated."
+    },
+    {
+      "id": "S-IMGVR-JGI-INVENTORY",
+      "kind": "file_listing",
+      "title": "JGI Data Portal file listing for the IMG/VR dataset (42 files, 10 dated releases)",
+      "url": "https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR&x=50",
+      "licence": "see JGI data use policy",
+      "models": [
+        "Evo 1",
+        "Evo 2",
+        "OpenGenome",
+        "OpenGenome2"
+      ],
+      "status": "retrieved",
+      "capture": "policies/captures/jgi-imgvr-inventory.json",
+      "sha256": "949ee672b86523e2acab128cab6529ae984732a82dc40b5db49c3d526751b519",
+      "bytes": 12551,
+      "retrieved": "2026-10-15",
+      "note": "The publisher's own inventory, including an md5sum per file, served without authentication. The dataset identifier Custom_MPI-IMG_VR came from the portal's own redirect rather than a guess: the documented download page is a JavaScript application with no static links. The files themselves return HTTP 401 {\"detail\":\"Authentication credentials were not provided.\"} and are marked _es_public_data: false, so this entry pins what IMG/VR contains and not its contents. Dated and mutable, like S-OPENGENOME1-TREE: claims from it carry the retrieval date. Two releases answer to 'IMG/VR v4' (2022-09-20 and 2022-12-20); see DECISIONS.md D-052 and D-054."
     }
   ]
 }
