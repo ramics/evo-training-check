@@ -3731,3 +3731,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   can enforce. The same question returns in A2.2 for fold families and in C5.2 for the homology
   neighbourhood index: where a registry ships identifiers without names, the mapping is an
   artefact with a stated rule, not a label invented at figure time.
+
+### D-098 — D-078's cost figure was wrong by a factor of thirty, and a full census is affordable after all
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** D-078 pre-registered the sample and justified it with a measurement: "98 million
+  profile-residues per second for RVDB-prot ... against 13,679 RVDB profiles that is roughly
+  40,000 core-hours", and concluded that a full pass is "not expensive, it is arithmetically out
+  of reach". **The conclusion was false and the measurement behind it was worthless.** The
+  benchmark searched 300 profiles against 2,000 random 300-residue sequences — a job small enough
+  that per-profile fixed cost dominated it, which understated real throughput by about three
+  orders of magnitude.
+  The real runs settle it. RVDB-prot over 23.28 M residues of Evo 1's viral component took 50.0
+  minutes on three cores: **386 core-seconds per million residues**, against the benchmark's
+  implied 140,000. Evo 2's component gives 428 and its plasmid/phage component 344, so the figure
+  is stable across sources.
+- **Decision:** The cost of a full, unsampled census is recorded here as measured, and D-078's
+  figure is superseded. Scaling each component's own measured rate to its full residue count:
+  | component | residues | RVDB | Pfam viral |
+  |---|---|---|---|
+  | `opengenome`/`stage2` | ~11,642 Maa | 1,250 core-hours | 87 |
+  | `opengenome2`/`imgvr` | ~11,577 Maa | 1,375 core-hours | 95 |
+  | `opengenome2`/`imgpr` | ~1,472 Maa | 141 core-hours | 43 |
+  **About 3,000 core-hours for both releases against both registries** — not 40,000 for one
+  component of one release. Linear scaling is sound here: `hmmsearch`'s cost is residues x
+  profiles, and the sample is a 0.1-0.2% random draw.
+  **The sampling design itself stands**, unchanged and still pre-registered: a sample was the
+  right first pass, it produced the result, and the hash nesting means a deeper pass extends it
+  rather than repeating it. What is withdrawn is the *reason* given — "out of reach" — and every
+  statement resting on it.
+- **Rejected:** Correcting D-078 in place. The log is append-only and that entry was cited in the
+  PR for #17, in `metrics/detections.md` and in the task file before the error was found;
+  rewriting it would leave those citations pointing at text that no longer says what they
+  reported. The citations are repointed to this entry instead.
+  Also rejected: treating this as a private slip to fix quietly. The figure had already been
+  published in a merged pull request body and used to justify a methodological choice to the
+  project owner, which makes it a finding about this project's own rigour. `AGENTS.md` asks for
+  airtight work against a motivated reader; a reader who re-derived the arithmetic would find
+  this in a minute.
+- **Consequence:** The scale decision changes from impossible to affordable and goes back to the
+  project owner with real numbers. Two bounds on it: the account's policy allows nothing larger
+  than `c6i.2xlarge` (8 vCPU — `c6i.4xlarge` and above return `UnauthorizedOperation`), so a
+  census is about 375 instance-hours of one machine or a fan-out across several, and an instance
+  cannot be inspected once running (`AGENTS.md`). And the accumulation curves say the current
+  bound is weak: on the last doubling of sampled records, Pfam still gained 16% more families and
+  RVDB 31-39%, so family discovery is far from saturated and a deeper pass would move the
+  headline materially rather than confirm it.
+  The general lesson, which is the part worth carrying: **a benchmark that does not resemble the
+  real job is not evidence.** This one was off by 1,000x because it was too small to leave the
+  fixed-cost regime, and it was used to justify a decision about what is possible. Any later task
+  costing a pass over the corpora — A2.2's structural search above all, which has the same shape —
+  should take its throughput from a run of realistic size or not quote one.
