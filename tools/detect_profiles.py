@@ -530,6 +530,14 @@ def main(argv: list[str] | None = None) -> int:
                     "search_seconds": {},
                 }
                 for reg in regs:
+                    if not proteins:
+                        # A source the sample drew nothing from still costs a full pass over
+                        # the profile file — 418 MB for Pfam, 2.7 GB for RVDB — to search
+                        # nothing. Evo 1's test and valid splits are under a megabyte each, so
+                        # at the pre-registered rate they are expected to be empty, and the
+                        # zero is recorded rather than searched for.
+                        source_row["search_seconds"][reg.id] = 0.0
+                        continue
                     t0 = time.time()
                     found = search(reg, proteins, restrict_to=views[reg.id].restrict_to)
                     source_row["search_seconds"][reg.id] = round(time.time() - t0, 1)
