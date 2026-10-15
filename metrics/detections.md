@@ -99,8 +99,8 @@ A2.3's, and the rows say so (D-080).
 
 | field | meaning |
 |---|---|
-| `family_id` | the universe's key: Pfam's stable accession (`PF05505`, never `PF05505.16`), RVDB's family name |
-| `name` | the display name |
+| `family_id` | the universe's key: Pfam's stable accession (`PF05505`, never `PF05505.16`), RVDB's family id (`FAM004230`) |
+| `name` | the display name. For RVDB this equals `family_id`: the release assigns its families no descriptive name, so a readable label is **derived** and lives in `registries/rvdb-families.json`, joined on `family_id` (D-097). A table is a measurement and is not rewritten to carry a label. |
 | `hits` | detections, which may exceed `records`: one record can carry several genes of a family |
 | `records` | distinct surviving records carrying the family |
 | `best_score` | highest bit score seen |
