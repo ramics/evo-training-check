@@ -113,3 +113,15 @@ def test_the_capture_contains_colliding_date_and_name_pairs_across_directories(c
         seen.setdefault((f["added_date"], f["file_name"]), set()).add(f["directory"])
     collisions = {k: v for k, v in seen.items() if len(v) > 1}
     assert collisions, "expected at least one (date, name) pair spanning two directories"
+
+
+def test_the_download_url_is_the_hosts_documented_single_file_read():
+    # Pinned because the first version of the staging tool used the search host's
+    # `filedownload/?_id=` form, which answers `Allow: POST, OPTIONS` — a GET there would have
+    # failed on the method once a token existed, and reported itself as an auth failure. The
+    # documented read is a path segment on the download host, and it is the only shape that
+    # survived being checked against the live API.
+    url = imgvr.download_url("632a1b312de7c323533daac5")
+    assert url == "https://files-download.jgi.doe.gov/download_files/632a1b312de7c323533daac5/"
+    assert "?" not in url, "the id is a path segment, not a query parameter"
+    assert url.startswith(imgvr.DOWNLOAD_BASE)

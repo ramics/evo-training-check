@@ -56,7 +56,6 @@ from amazebio import imgvr
 from amazebio.repro import run
 
 SEARCH_URL = "https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR&x=50"
-DOWNLOAD_URL = "https://files.jgi.doe.gov/filedownload/"
 RESTORE_URL = "https://files.jgi.doe.gov/request_archived_files/"
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 REGION = "us-east-1"
@@ -243,7 +242,7 @@ def download_verify_upload(
 ) -> dict[str, Any]:
     """Stream one file, hashing as it passes, and upload only on an md5 match."""
     key = stage_key(date, file.name, prefix=prefix)
-    url = f"{DOWNLOAD_URL}?_id={file_id}"
+    url = imgvr.download_url(file_id)
     if dry_run:
         return {"key": key, "bytes": file.bytes, "verified": None, "skipped": "dry-run"}
 
