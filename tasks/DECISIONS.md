@@ -1990,3 +1990,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   review. Whoever closes A7.1's review should move `LineageTag`, `parse_lineage_tag`, `RowShape`,
   `split_row` and `BLOCK_CHARS` into `corpora` and re-export them, at which point the import
   direction is right and nothing else changes.
+
+### D-058 — Evo 1's own Figure S1 reconciles our census by realm, and sizes the host rule's reach
+- **Date:** 2026-10-15
+- **Task:** A7.1 (found while starting A1.7)
+- **Context:** D-055 checked A7.1's census against Evo 1's Table S3 and found agreement to within
+  one record on three aggregate quantities. Aggregates can agree while composition does not, and
+  the project owner asked whether the three rules no release can re-execute could be got at any
+  other way. Figure S1 turns out to answer both: its panels publish per-category counts for the
+  same component, and panel B is downstream of one of those three rules.
+- **Decision:** Record the reconciliation, with its provenance caveat stated rather than buried.
+  **By realm** (Figure S1A, p41), published against our census: Duplodnaviria 2,628,512 against
+  2,628,513; Monodnaviria 17,781 against 17,781; Riboviria 6,105 against 6,105; Other 648
+  against 648. **Three of four categories agree exactly**, and the +1 from D-055 is therefore
+  localised: whatever it is, it is one Duplodnaviria record. Their `Other` bin decomposes
+  exactly into our Varidnaviria 413, Adnaviria 140 and **the 95 realmless records** — so the
+  records behind A7.1's headline finding are accounted for in the developers' own published
+  figure, not only in ours. That is the strongest corroboration this finding is going to get
+  short of the authors confirming it.
+  **By host kingdom** (Figure S1B): Unknown 2,374,733, Bacteria 276,569, Archaea 1,744, and
+  **no Eukaryota category at all**. The last is consistent with the filter's stated aim. The
+  first is the useful one, and it is not the contradiction it first looks like: the published
+  rule retains records whose *taxonomic classification* was found in a prokaryotic host at least
+  twice, so a record with no host annotation of its own survives on evidence attached to its
+  classification. **89.5% of retained records sit in that position.** That sizes how much of the
+  corpus was kept on evidence not attached to the record, and it settles that A7.2's
+  host-rule check must aggregate over classifications and join back, never read a per-record
+  host field — the unit error that would otherwise produce a confident wrong number.
+  **Provenance is weaker here than for Table S3, and the entry says so.** Figure S1 is a
+  flattened raster: `Duplodnaviria` appears nowhere in the PDF's text layer though it is 99% of
+  the released records, so these values were read off the rendered image and X1.4's quote
+  checker cannot reach them. What backs them is arithmetic — each panel must sum to Table S3's
+  record count, which *is* text-extractable — and `tools/conformance_diff.py` asserts both sums
+  on import so a mis-transcription cannot reach an artefact. Panel B's Archaea label is printed
+  malformed as "N = 17,44"; 1,744 is recovered as the residual, the printed form is kept
+  alongside it, and that is exactly why the sum check is load-bearing rather than decorative.
+- **Rejected:** Treating the figure values as equivalent in standing to the table's — they are
+  not, and the write-up must not cite them as though a quote checker had verified them.
+  Publishing the realm percentages rather than the counts — the counts are what the figure gives
+  and what reconciles; percentages would invite comparison with D-020's sample, which was
+  explicitly not a census. Reading the panel B result as the host rule having failed — the
+  classification-level reading accounts for it and is the natural reading of the published
+  sentence; asserting a failure here would be the over-claim §7's adversarial reader is waiting
+  for. Adding an image library to the pinned environment to extract the figure — the PNG was
+  rendered in the scratchpad with the standard library, and nothing in a pipeline needs it.
+- **Consequence:** A7.1's census is now corroborated per category rather than only in aggregate,
+  and the 95-record finding is visible in the developers' own figure. A7.2 inherits a hard
+  constraint on its host-rule check and a quantity to compare against once IMG/VR v4 is staged:
+  if a re-execution does not reproduce roughly 2,374,733 retained records with no host kingdom,
+  the reading is wrong. And one for whoever writes Phase A up: the exact counts in this paper's
+  figures are not in its text layer, so anything relying on a figure needs reading, not grepping
+  — there may be more of this in the Evo 2 and ESM3 papers, which nobody has checked.

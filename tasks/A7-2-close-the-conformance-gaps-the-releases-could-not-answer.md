@@ -45,6 +45,13 @@ something unrelated to whether it can start. It can start the moment A1.7 lands.
    is about how often a *classification* was seen in a prokaryotic host, so the count is built
    over the database and then joined back. Closes fully, and getting the unit wrong here is the
    obvious way to produce a confident wrong number.
+
+   **D-058 settles the unit and supplies a target.** Evo 1's own Figure S1B puts 2,374,733 of
+   2,653,046 retained records — 89.5% — at host kingdom *Unknown*, with no Eukaryota category
+   at all. A per-record reading of the rule cannot produce that; the classification-level
+   reading does. So aggregate over classifications and join back, and treat it as a check
+   rather than a choice: a re-execution that does not land near **2,374,733 retained records
+   with no host kingdom** has the unit wrong, whatever else it reproduces.
 3. **The vOTU representative** (`keep_one_per`, vOTU). **Does not fully close, ever.** The rule is
    order-dependent and no input order is published (D-017, carried into D-049), so which record
    survives a vOTU is undetermined. Compare at **vOTU level** — did each vOTU contribute exactly
