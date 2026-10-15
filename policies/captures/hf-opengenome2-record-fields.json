@@ -1,0 +1,57 @@
+{
+ "retrieved": "2026-10-14",
+ "dataset": "arcinstitute/opengenome2",
+ "revision": "84d2a7e690c8bb395d1f4868822dfa031ea561c6",
+ "note": "Which identifying fields each representation carries on the viral component, and on a non-viral component for contrast. Read from the leading ~3 MB of each file. Field names, counts and accession *prefixes* only; no sequence stored.",
+ "observations": [
+  {
+   "path": "fasta/plasmids_phage/imgvr.fasta.gz",
+   "representation": "fasta",
+   "role": "viral",
+   "records_sampled": 1588,
+   "carries_identifier": true,
+   "identifier_form": "IMGVR_UViG_<taxon-oid>_<n>",
+   "identifier_prefixes": {
+    "IMGVR": 1588
+   },
+   "carries_lineage_tag": false
+  },
+  {
+   "path": "json/pretraining_or_both_phases/imgvr_untagged/data_imgvr_train_chunk1.jsonl.gz",
+   "representation": "json",
+   "role": "viral",
+   "records_sampled": 1469,
+   "fields": {
+    "text": 1469
+   },
+   "carries_identifier": false,
+   "carries_lineage_tag": false,
+   "records_with_leading_lineage_tag": 0
+  },
+  {
+   "path": "json/pretraining_or_both_phases/gtdb_v220_imgpr/data_gtdb_train_chunk1.jsonl.gz",
+   "representation": "json",
+   "role": "prokaryotic",
+   "records_sampled": 517,
+   "fields": {
+    "record": 517,
+    "text": 517
+   },
+   "carries_identifier": true,
+   "carries_lineage_tag": false,
+   "records_with_leading_lineage_tag": 0
+  },
+  {
+   "path": "json/pretraining_or_both_phases/promoters/data_promoters_train_chunk1.jsonl.gz",
+   "representation": "json",
+   "role": "transcript_regulatory",
+   "records_sampled": 17035,
+   "fields": {
+    "text": 17035
+   },
+   "carries_identifier": false,
+   "carries_lineage_tag": false,
+   "records_with_leading_lineage_tag": 0
+  }
+ ]
+}
