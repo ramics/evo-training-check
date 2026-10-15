@@ -301,12 +301,13 @@ class TestAShareIsOnlyTakenFromAPartition:
             "rows": 120,
             "classes_hc": {";;;;;;;": 5},
             "rows_hc": 6,
-            "hosts": {},
-            "hosts_hc": {},
-            "confidence": {},
-            "votu": {},
-            "votu_hc": {},
-            "method": {},
+            "hosts": {"Bacteria": 120},
+            "hosts_hc": {"Bacteria": 5},
+            "confidence": {"High-confidence": 5, "Putative": 115},
+            "votu": {"assigned": 120},
+            "votu_hc": {"assigned": 5},
+            "method": {"geNomad": 120},
+            "method_hc": {"geNomad": 5},
         }
         with pytest.raises(SystemExit, match="partition"):
             tool._fills(scanned, high_confidence=True)
@@ -330,6 +331,7 @@ class TestAShareIsOnlyTakenFromAPartition:
             "votu": {"assigned": 120},
             "votu_hc": {"assigned": 10},
             "method": {"geNomad": 120},
+            "method_hc": {"geNomad": 10},
         }
         full = tool._fills(scanned)
         gated = tool._fills(scanned, high_confidence=True)
@@ -339,6 +341,26 @@ class TestAShareIsOnlyTakenFromAPartition:
         assert gated["ranks"].share("family") == pytest.approx(1.0)
         # Every record in the gated population carries the value the gate kept, by definition.
         assert gated["attributes"]["confidence"].present == 10
+
+    def test_a_field_tallied_over_the_wrong_population_is_refused(self):
+        # This fired on the real artefact: the classification-method field was tallied over the
+        # whole table and reported beside the gated subset, claiming 15,161,577 labelled methods
+        # in a population of 5,576,197.
+        scanned = {
+            "classes": dict(HISTOGRAM),
+            "rows": 120,
+            "classes_hc": {";;;;;;;": 9},
+            "rows_hc": 9,
+            "hosts": {"Bacteria": 120},
+            "hosts_hc": {"Bacteria": 9},
+            "confidence": {"High-confidence": 9, "Putative": 111},
+            "votu": {"assigned": 120},
+            "votu_hc": {"assigned": 9},
+            "method": {"geNomad": 120},
+            "method_hc": {"geNomad": 120},  # the bug: the full table's tally
+        }
+        with pytest.raises(SystemExit, match="population it is reported beside"):
+            tool._fills(scanned, high_confidence=True)
 
     def test_the_confidence_value_measured_is_the_one_the_spec_names(self, policies):
         # Declared in two places — the spec's rule and this pass's cross-tab — so the agreement

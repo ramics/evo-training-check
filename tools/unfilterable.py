@@ -116,6 +116,7 @@ def _scan_shard(bucket: str, key: str, start: int, end: int, header: list[str]) 
     classes_hc: collections.Counter = collections.Counter()
     hosts_hc: collections.Counter = collections.Counter()
     votu_hc: collections.Counter = collections.Counter()
+    method_hc: collections.Counter = collections.Counter()
     rows = 0
     rows_hc = 0
     malformed = 0
@@ -139,12 +140,14 @@ def _scan_shard(bucket: str, key: str, start: int, end: int, header: list[str]) 
         hosts[domain] += 1
         confidence[conf or EMPTY] += 1
         votu[votu_value] += 1
-        method[fields[method_col].strip() or EMPTY] += 1
+        classification_method = fields[method_col].strip() or EMPTY
+        method[classification_method] += 1
         if conf == HIGH_CONFIDENCE:
             rows_hc += 1
             classes_hc[classification] += 1
             hosts_hc[domain] += 1
             votu_hc[votu_value] += 1
+            method_hc[classification_method] += 1
     return {
         "classes": dict(classes),
         "classes_hc": dict(classes_hc),
@@ -160,6 +163,7 @@ def _scan_shard(bucket: str, key: str, start: int, end: int, header: list[str]) 
             "assigned": sum(votu_hc.values()) - votu_hc.get(EMPTY, 0),
         },
         "method": dict(method),
+        "method_hc": dict(method_hc),
         "rows": rows,
         "rows_hc": rows_hc,
         "malformed": malformed,
@@ -177,6 +181,7 @@ def _merge(shards: list[dict[str, Any]]) -> dict[str, Any]:
         "votu",
         "votu_hc",
         "method",
+        "method_hc",
     )
     for field in fields:
         merged: collections.Counter = collections.Counter()
@@ -225,6 +230,13 @@ def scan_release(bucket: str, prefix: str, date: str, *, workers: int, progress:
     return merged
 
 
+def _boto3_version() -> str:
+    """The one third-party library every byte of this measurement passes through."""
+    import boto3
+
+    return str(boto3.__version__)
+
+
 def _read_header(client: Any, bucket: str, key: str) -> list[str]:
     body = client.get_object(Bucket=bucket, Key=key, Range="bytes=0-65535")["Body"].read()
     return body.split(b"\n", 1)[0].decode("utf-8").rstrip("\r").split("\t")
@@ -257,7 +269,18 @@ def _fills(scanned: dict[str, Any], *, high_confidence: bool = False) -> dict[st
         "confidence": unfilterable.field_fill("Confidence", confidence),
         "vOTU": unfilterable.field_fill("vOTU", scanned["votu" + suffix]),
     }
-    method = unfilterable.field_fill("Taxonomic classification method", scanned["method"])
+    method = unfilterable.field_fill("Taxonomic classification method", scanned["method" + suffix])
+    # Every fill must be a fill *of this population*. Without this, a field tallied over the
+    # whole table and reported beside a subset reads as a present count larger than the
+    # population it describes — which happened, and is exactly the kind of number a reviewer
+    # finds first.
+    for fill in (host, method, *attributes.values()):
+        if fill.total != counted:
+            raise SystemExit(
+                f"{fill.field!r} was tallied over {fill.total:,} records and this population "
+                f"holds {counted:,}. A fill must be measured over the population it is "
+                "reported beside."
+            )
     return {"ranks": ranks, "host": host, "attributes": attributes, "method": method}
 
 
@@ -754,6 +777,7 @@ def main(argv: list[str] | None = None) -> int:
         m.parameter("releases", dates)
         m.parameter("source", uri)
         m.parameter("workers", args.workers)
+        m.parameter("boto3_version", _boto3_version())
         m.note(
             "The ceiling is the discriminating share: where a rule's criterion can be evaluated "
             "against a label that is present. A rule firing on an absent label is decidable "
