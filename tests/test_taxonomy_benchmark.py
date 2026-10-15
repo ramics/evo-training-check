@@ -370,13 +370,14 @@ def test_score_collects_lineage_anomalies() -> None:
     assert result["lineage_anomalies"][0]["accession"] == "a"
 
 
-def test_score_carries_the_tool_pin_and_the_version_bound() -> None:
+def test_score_carries_the_tool_pin_and_the_stated_version() -> None:
     evalset = _evalset([_record("a", "Coronaviridae")])
     fetched = {"lengths": {"a": 30000}, "bases": 30000, "missing": []}
     result = tool.score(evalset, fetched, {}, DENYLIST)
     pin = result["tool_under_test"]
     assert pin["genomad"] == "1.1.0"
-    assert pin["version_evidence"]["stated_by_publisher"] is None
+    # The artefact must show that the version it ran is the version the publisher states.
+    assert pin["version_evidence"]["stated_by_publisher"] == pin["genomad"]
     assert "not_viral" in pin["scope"]
 
 
@@ -446,7 +447,10 @@ def test_render_produces_the_tables_a_reader_needs() -> None:
     assert "lower bound" in text
     assert "Bias in the evaluation set" in text
     # The version bound must be visible to someone who reads only the report.
-    assert "bound, not a statement" in text
+    # Whether the version is stated or bounded must be visible to someone who reads only
+    # the report, and so must the part that is still inferred.
+    assert "the version the publisher states it used" in text
+    assert "Still inferred:" in text
 
 
 def test_render_survives_a_result_with_no_controls() -> None:

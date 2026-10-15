@@ -271,15 +271,36 @@ def test_pin_is_the_contemporaneous_pairing() -> None:
     assert genomad.PIN.mmseqs2.startswith("13.")
 
 
-def test_version_evidence_states_that_the_publisher_states_nothing() -> None:
-    """The artefact must carry the absence as a fact, not as a missing field."""
+def test_version_evidence_carries_the_stated_version_and_matches_the_pin() -> None:
+    """The publisher does state it, in the paper, and it is what the benchmark ran.
+
+    This test previously asserted the opposite — that no version was stated — which was true
+    of every source reachable from this environment and false of the paper. D-096 records the
+    correction; the assertion now pins the agreement between the statement and the pin, which
+    is the property that actually matters.
+    """
     evidence = genomad.VERSION_EVIDENCE
-    assert evidence["stated_by_publisher"] is None
-    assert evidence["bound"]["newest_possible"] == "1.1.0"
+    assert evidence["stated_by_publisher"] == "1.1.0"
+    assert evidence["stated_by_publisher"] == genomad.PIN.version
+    assert "gkac1037" in evidence["stated_in"]
     sources = {entry["source"] for entry in evidence["sources_checked"]}
-    # The unretrieved paper is listed, so the claim's scope is visible rather than implied.
     assert any("gkac1037" in s for s in sources)
     assert any("release note" in s for s in sources)
+
+
+def test_version_evidence_keeps_the_part_that_is_still_inferred() -> None:
+    """The marker database version is stated nowhere, and the artefact must not imply it is."""
+    gap = genomad.VERSION_EVIDENCE["residual_gap"]
+    assert "releases.txt" in gap
+    assert "inferred" in gap
+
+
+def test_version_evidence_keeps_the_independent_corroboration() -> None:
+    """The date argument reached 1.1.0 before the paper did; keeping it is what makes the
+    agreement checkable rather than circular."""
+    corroboration = genomad.VERSION_EVIDENCE["corroboration"]["release_dates"]
+    assert "2022-08-22" in corroboration
+    assert "1.2.0" in corroboration
 
 
 def test_scope_note_names_the_structural_zero() -> None:

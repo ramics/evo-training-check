@@ -336,3 +336,17 @@ def test_benchmark_release_is_pinned_and_contemporaneous() -> None:
 def test_unknown_release_is_refused() -> None:
     with pytest.raises(KeyError, match="no pinned VMR release"):
         ictv.release("MSL99")
+
+
+def test_marker_source_release_is_pinned_and_earlier() -> None:
+    """geNomad's markers were annotated from VMR 19; D-095 checks it changes nothing.
+
+    Pinned so that sensitivity check is re-runnable rather than a claim in a log entry. It
+    must be the same MSL as the benchmark release — a different MSL would make the comparison
+    a measure of taxonomic revision, which is A9.1's subject.
+    """
+    marker = ictv.release(ictv.MARKER_SOURCE_RELEASE)
+    benchmark = ictv.release(ictv.BENCHMARK_RELEASE)
+    assert marker.msl == benchmark.msl
+    assert marker.published < benchmark.published
+    assert len(marker.sha256) == 64

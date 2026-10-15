@@ -149,11 +149,34 @@ RELEASES: dict[str, VMRRelease] = {
             "subject and not this one's."
         ),
     ),
+    "MSL37.1": VMRRelease(
+        filename="VMR_19-250422_MSL37.xlsx",
+        msl="MSL37",
+        published="2022-04-25",
+        sha256="e8ed871aeb0ef801775385376003939d76d435c4de327974cdc469199c7647b1",
+        bytes=1_288_178,
+        note=(
+            "VMR 19, which geNomad's paper (S-GENOMAD-NATBIOTECH) states its taxonomically "
+            "informed markers were annotated from. Same MSL as the benchmark release, four "
+            "months earlier. Held as the sensitivity check behind D-095, not as the default: "
+            "scoring against the taxonomy the markers were built from measures the tool "
+            "against its own reference, while scoring against the taxonomy in force when the "
+            "corpus was built measures what the filter inherited. The two agree on every "
+            "denylist-scope decision in the evaluation set."
+        ),
+    ),
 }
 
 #: The release A4.2 benchmarks against. Named rather than inlined so a reader of the
 #: artefact can see which choice was made without reading the pipeline.
 BENCHMARK_RELEASE = "MSL37.3"
+
+#: The release geNomad's own markers were annotated from, per its paper, and therefore the
+#: one a purist would score it against. Pinned so the sensitivity check D-095 reports can be
+#: re-run rather than taken on trust: the two differ on 4 of 3,149 scored accessions, all of
+#: them bacteriophage family renames out of the denylist's scope, and on no order and no
+#: in-scope/out-of-scope classification at all.
+MARKER_SOURCE_RELEASE = "MSL37.1"
 
 
 def release(key: str) -> VMRRelease:
