@@ -343,3 +343,67 @@ def test_totals_count_only_enumerated_sources() -> None:
     assert payload["records_enumerated"] == 10
     assert payload["sources"][1]["records"] is None
     assert "candidate conformance failures" in payload["reading_this_manifest"]
+
+
+# --------------------------------------------------------------------------------------
+# The two input declarations must not drift
+# --------------------------------------------------------------------------------------
+
+
+def test_rule_inputs_is_one_table_not_two() -> None:
+    """A1.4 reads it through Evidence, A7.1 through its restriction. One table (D-056)."""
+    from amazebio import conformance as cf
+    from amazebio.policyspec import RULE_INPUTS
+
+    assert cf.RULE_INPUTS is RULE_INPUTS
+
+
+def test_every_rule_kind_is_declared_in_it() -> None:
+    from amazebio.policyspec import RULE_INPUTS, RULE_KINDS
+
+    assert set(RULE_INPUTS) == set(RULE_KINDS), (
+        "a rule kind with no declared input would be silently treated as checkable by A7.1 "
+        "and as answerable by A1.4"
+    )
+
+
+def test_the_two_release_declarations_agree_on_what_can_be_re_executed() -> None:
+    """The inventory A7.1 restricts by and the evidence A1.4 checks per record are different
+    granularities of the same fact, and D-056 left both standing rather than refactor a module
+    under review. This is the guard that makes that safe: if they ever disagree about which
+    rules a release can re-execute, the audit is claiming two different things about the same
+    rules, and the one that drifted is whichever this test names.
+    """
+    from pathlib import Path
+
+    from amazebio import conformance as cf
+    from amazebio import corpora
+    from amazebio.policyspec import load_policy_dir
+
+    specs = load_policy_dir(Path(__file__).resolve().parents[1] / "policies" / "specs")
+    evo = [p for p in specs.values() if p.id.startswith("evo1-")]
+    assert evo, "the Evo specs are what both declarations are declared over"
+
+    def kept_by_evidence(policy: Policy, source: object) -> set[str]:
+        return {
+            rule.id
+            for rule in policy.rules
+            if not rule.unspecified_params() and not source.evidence.missing_for(rule)
+        }
+
+    stage2 = next(s for s in corpora.SOURCES if s.corpus_component == "stage2")
+    for policy in evo:
+        kept = {r.id for r in cf.restrict(policy, release="opengenome-stage2").kept}
+        assert kept == kept_by_evidence(policy, stage2), (
+            f"{policy.id} on opengenome-stage2: A7.1 would re-execute {kept}, "
+            f"A1.4's evidence says {kept_by_evidence(policy, stage2)}"
+        )
+
+    # Evo 2's release carries an accession and nothing any rule reads, so both declarations say
+    # nothing is re-executable against it. A7.1 raises rather than returning an empty pipeline
+    # a caller could run and report zero failures from; A1.4 records every record as unresolved.
+    imgvr = next(s for s in corpora.SOURCES if s.corpus_component == "imgvr")
+    for policy in evo:
+        assert kept_by_evidence(policy, imgvr) == set()
+        with pytest.raises(ValueError, match="can re-execute none"):
+            cf.restrict(policy, release="opengenome2-imgvr")

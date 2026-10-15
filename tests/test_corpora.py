@@ -17,9 +17,9 @@ import io
 
 import pytest
 
+from amazebio.conformance import RANKS, parse_lineage_tag
 from amazebio.corpora import (
     ESM3_SOURCES,
-    LINEAGE_RANKS,
     SOURCES,
     LineageError,
     RangedObject,
@@ -27,8 +27,8 @@ from amazebio.corpora import (
     has_lineage_tag,
     iter_fasta_records,
     iter_stage2_records,
-    parse_lineage,
     sources_for,
+    tag_of,
 )
 
 TAG = "|r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;|"
@@ -39,8 +39,8 @@ TAG = "|r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;|
 # --------------------------------------------------------------------------------------
 
 
-def test_parse_lineage_reads_the_documented_format() -> None:
-    assert parse_lineage(TAG + "ACGT") == {
+def test_the_head_tag_reads_the_documented_format() -> None:
+    assert parse_lineage_tag(tag_of(TAG + "ACGT")).taxonomy == {
         "realm": "Duplodnaviria",
         "kingdom": "Heunggongvirae",
         "phylum": "Uroviricota",
@@ -50,35 +50,49 @@ def test_parse_lineage_reads_the_documented_format() -> None:
 
 def test_empty_slots_are_absent_rather_than_empty_strings() -> None:
     """Most released records resolve no deeper than class, and the rules must see that."""
-    taxonomy = parse_lineage(TAG + "ACGT")
+    taxonomy = parse_lineage_tag(tag_of(TAG + "ACGT")).taxonomy
     for rank in ("order", "family", "genus", "species"):
         assert rank not in taxonomy
 
 
 def test_a_family_without_a_realm_parses_rather_than_failing() -> None:
-    """The released corpus contains these, and they are what the unspecificity rule acts on."""
-    assert parse_lineage("|;;;;;f__Fuselloviridae;;|ATG") == {"family": "Fuselloviridae"}
+    """95 released records are exactly this, and they are what the realm rule acts on (D-051)."""
+    tag = parse_lineage_tag(tag_of("|;;;;;f__Fuselloviridae;;|ATG"))
+    assert tag.taxonomy == {"family": "Fuselloviridae"}
+    assert not tag.is_malformed
 
 
 def test_all_eight_ranks_round_trip() -> None:
-    tag = "|" + ";".join(f"{p}__{rank.title()}" for p, rank in LINEAGE_RANKS) + "|"
-    assert parse_lineage(tag) == {rank: rank.title() for _, rank in LINEAGE_RANKS}
+    from amazebio.conformance import RANK_PREFIXES
+
+    by_rank = {rank: prefix for prefix, rank in RANK_PREFIXES.items()}
+    raw = ";".join(f"{by_rank[rank]}__{rank.title()}" for rank in RANKS)
+    assert parse_lineage_tag(raw).taxonomy == {rank: rank.title() for rank in RANKS}
 
 
-def test_unclosed_tag_is_an_error() -> None:
+def test_a_row_not_opening_with_a_tag_is_an_error() -> None:
+    """Never read as "no taxonomy assigned": an unlabelled record is a finding of its own."""
+    with pytest.raises(LineageError, match="does not open"):
+        tag_of("ACGTACGT")
+
+
+def test_an_unclosed_tag_is_an_error() -> None:
     with pytest.raises(LineageError, match="no closing"):
-        parse_lineage("r__Duplodnaviria;k__Heunggongvirae")
+        tag_of("|r__Duplodnaviria;k__Heunggongvirae")
 
 
-def test_wrong_slot_count_is_an_error() -> None:
-    with pytest.raises(LineageError, match="4 slots"):
-        parse_lineage("|r__A;k__B;p__C;c__D|ACGT")
+def test_a_short_tag_is_a_formatting_variation_not_a_finding() -> None:
+    """A7.1's reading, adopted here so one parser serves both (D-056)."""
+    tag = parse_lineage_tag(tag_of("|r__Duplodnaviria;k__Heunggongvirae|ACGT"))
+    assert tag.taxonomy == {"realm": "Duplodnaviria", "kingdom": "Heunggongvirae"}
+    assert not tag.is_malformed
 
 
-def test_a_slot_in_the_wrong_rank_position_is_an_error() -> None:
-    """The one mis-parse that would otherwise be invisible: shifted slots, plausible output."""
-    with pytest.raises(LineageError, match="does not carry its"):
-        parse_lineage("|k__Heunggongvirae;r__Duplodnaviria;;;;;;|ACGT")
+def test_a_prefix_disagreeing_with_its_position_is_recorded_not_discarded() -> None:
+    """The one case worth keeping the detail for: the taxonomy is still usable."""
+    tag = parse_lineage_tag(tag_of("|k__Heunggongvirae;r__Duplodnaviria;;;;;;|ACGT"))
+    assert tag.is_malformed
+    assert tag.taxonomy == {"kingdom": "Heunggongvirae", "realm": "Duplodnaviria"}
 
 
 def test_has_lineage_tag_finds_a_tag_anywhere_in_a_head() -> None:
@@ -394,6 +408,18 @@ def test_retries_are_reported_to_the_caller() -> None:
 # --------------------------------------------------------------------------------------
 
 
+def _full_block() -> int:
+    """A block length that exactly fills the budget, by the splitter's own definition.
+
+    `amazebio.conformance.split_row` counts the tag and the block against `BLOCK_CHARS` and not
+    the two delimiters, so a test that builds its row from the whole tag falls two characters
+    short and silently stops exercising the boundary.
+    """
+    from amazebio.conformance import BLOCK_CHARS
+
+    return BLOCK_CHARS - len(TAG.strip("|"))
+
+
 def _structure(rows: list[str], *, row_group_size: int = 2) -> Stage2Structure:
     from amazebio.corpora import Stage2Structure
 
@@ -420,9 +446,7 @@ def test_ordinary_rows_confirm_one_row_one_record() -> None:
 
 def test_a_long_record_chunked_under_one_tag_is_still_one_record() -> None:
     """D-048: over the budget, a record repeats its tag within the same row."""
-    from amazebio.corpora import BLOCK_BUDGET
-
-    long_row = TAG + "A" * (BLOCK_BUDGET - len(TAG)) + TAG + "GGGG"
+    long_row = TAG + "A" * _full_block() + TAG + "GGGG"
     found = _structure([TAG + "ACGT", long_row])
     assert found.rows_multi_block == 1
     assert found.rows_multi_distinct_tag == 0
@@ -438,9 +462,7 @@ def test_two_distinct_tags_in_a_row_falsify_the_reading() -> None:
 
 def test_a_final_block_on_the_budget_falsifies_the_reading() -> None:
     """A record that fills its last block may continue into the next row."""
-    from amazebio.corpora import BLOCK_BUDGET
-
-    filled = TAG + "A" * (BLOCK_BUDGET - len(TAG))
+    filled = TAG + "A" * _full_block()
     found = _structure([filled])
     assert found.rows_final_block_at_budget == 1
     assert not found.one_row_one_record

@@ -53,10 +53,10 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
+from amazebio.conformance import BLOCK_CHARS, RANKS, parse_lineage_tag, split_row
 from amazebio.policyspec import Evidence, Record
 
 __all__ = [
-    "BLOCK_BUDGET",
     "BUCKET",
     "ESM3_SOURCES",
     "S3_ENDPOINT",
@@ -69,9 +69,9 @@ __all__ = [
     "has_lineage_tag",
     "iter_fasta_records",
     "iter_stage2_records",
-    "parse_lineage",
     "scan_row_structure",
     "sources_for",
+    "tag_of",
     "undeclared_objects",
 ]
 
@@ -222,24 +222,11 @@ class RangedObject(io.RawIOBase):
 # The inline lineage tag
 # --------------------------------------------------------------------------------------
 
-#: The eight ranks Evo 1's lineage tag carries, in order, with the single-letter prefix each
-#: slot uses. The same rank list the published unspecificity rule enumerates, and the same
-#: prefix scheme its stop-taxa use (`r:Riboviria`, `c:Tectiliviricetes`).
-LINEAGE_RANKS = (
-    ("r", "realm"),
-    ("k", "kingdom"),
-    ("p", "phylum"),
-    ("c", "class"),
-    ("o", "order"),
-    ("f", "family"),
-    ("g", "genus"),
-    ("s", "species"),
-)
-
-#: The per-block character budget of Evo 1's stage 2, from DECISIONS.md D-048: a record longer
-#: than this arrives as several `|tag|block` pairs concatenated into *one* row, each pair
-#: carrying the same tag, rather than as several rows. 2^17, counting the tag against the budget.
-BLOCK_BUDGET = 131_072
+# The rank table, the tag parser and the row splitter live in `amazebio.conformance`, which
+# reached the released format first and reads it more carefully than this module first did:
+# prefix wins over position, a disagreement is recorded rather than resolved, and a short tag
+# is a formatting variation rather than a finding. Two parsers of the same bytes disagree
+# exactly on the records that matter — the malformed ones — so there is one (D-056).
 
 
 @dataclass
@@ -253,8 +240,8 @@ class Stage2Structure:
     survives review and then gets quoted.
 
     Two of these counts would falsify the reading: more than one *distinct* tag in a row, or a
-    final block sitting on :data:`BLOCK_BUDGET`, would mean a row packs several records or a
-    record continues into the next row. Several blocks carrying the *same* tag would not — that
+    final block sitting on the block budget, would mean a row packs several records or a record
+    continues into the next row. Several blocks carrying the *same* tag would not — that
     is one long genome, chunked.
     """
 
@@ -263,9 +250,13 @@ class Stage2Structure:
     rows_multi_block: int = 0
     rows_multi_distinct_tag: int = 0
     rows_final_block_at_budget: int = 0
+    #: Tags A7.1's parser could read but flagged: a field whose prefix disagrees with its
+    #: position, or one carrying no prefix at all. Counted rather than discarded, because the
+    #: taxonomy is still usable and the anomaly is evidence about the release either way.
+    malformed_tags: int = 0
     max_blocks: int = 0
     longest_row: int = 0
-    block_budget: int = BLOCK_BUDGET
+    block_budget: int = BLOCK_CHARS
 
     @property
     def one_row_one_record(self) -> bool:
@@ -279,6 +270,7 @@ class Stage2Structure:
             "rows_multi_block": self.rows_multi_block,
             "rows_multi_distinct_tag": self.rows_multi_distinct_tag,
             "rows_final_block_at_budget": self.rows_final_block_at_budget,
+            "malformed_tags": self.malformed_tags,
             "max_blocks": self.max_blocks,
             "longest_row": self.longest_row,
             "block_budget": self.block_budget,
@@ -292,25 +284,22 @@ class Stage2Structure:
 
 
 def scan_row_structure(text: str, structure: Stage2Structure) -> None:
-    """Fold one row's structure into `structure`.
+    """Fold one row's shape into `structure`, using A7.1's splitter.
 
-    Sequence data carries no `|`, so splitting on it is exact: the parts alternate tag, block,
-    tag, block. Only multi-block rows need this, and they are the minority.
+    Only the rows that could falsify one-row-one-record reach here, so the whole-row cost is
+    paid on a small minority of the component rather than on all of it.
     """
-    structure.longest_row = max(structure.longest_row, len(text))
-    parts = text.split("|")
-    tags = parts[1::2]
-    blocks = parts[2::2]
-    if not tags:
+    shape = split_row(text)
+    structure.longest_row = max(structure.longest_row, shape.total_chars)
+    if shape.n_blocks == 0:
         structure.rows_without_tag += 1
         return
-    structure.max_blocks = max(structure.max_blocks, len(tags))
-    if len(tags) > 1:
+    structure.max_blocks = max(structure.max_blocks, shape.n_blocks)
+    if shape.n_blocks > 1:
         structure.rows_multi_block += 1
-        if len(set(tags)) > 1:
+        if len(shape.distinct_tags) > 1:
             structure.rows_multi_distinct_tag += 1
-    # `|tag|` costs two delimiters plus the tag itself.
-    if blocks and (2 + len(tags[-1]) + len(blocks[-1])) >= structure.block_budget:
+    if shape.last_block_full:
         structure.rows_final_block_at_budget += 1
 
 
@@ -320,8 +309,6 @@ def scan_row_structure(text: str, structure: Stage2Structure) -> None:
 #: per row to find a 72-byte prefix, which is a hundred gigabytes of string allocation over the
 #: component.
 LINEAGE_WINDOW = 512
-
-_TAG = re.compile(r"^\|([^|]*)\|")
 
 #: A lineage tag anywhere in a record's head, not only at its start. Used to check an evidence
 #: declaration of *absence*: Evo 2's viral component is declared to carry no taxonomy, and a
@@ -334,43 +321,27 @@ def has_lineage_tag(head: str) -> bool:
     return _TAG_ANYWHERE.search(head) is not None
 
 
-def parse_lineage(prefix: str) -> dict[str, str]:
-    """Parse the inline lineage tag at the head of a stage-2 record.
+def tag_of(head: str) -> str:
+    """The lineage tag at the head of a stage-2 row, without its delimiters.
 
-    The format is `|r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;|`:
-    eight `;`-separated slots in rank order, each either empty or `x__Name`. Empty slots are
-    data — most released records resolve no deeper than class — so they are returned absent
-    rather than as empty strings, which is what the taxonomy rules need to see.
+    Only each row's head is materialised — see :func:`iter_stage2_records` — so the tag is taken
+    from there rather than from the whole row. What comes back is parsed by
+    `amazebio.conformance.parse_lineage_tag`, which is the one reading of this format.
 
     Raises:
-        LineageError: if there is no closing delimiter in :data:`LINEAGE_WINDOW` bytes, if the
-            slot count is not eight, or if a filled slot does not carry its rank's prefix. All
-            three mean the record is not in the format `policies/corpora.md` §3 documents, and
-            a mis-parse would be read downstream as an unlabelled record.
+        LineageError: if the head does not open with a tag, or the tag is not closed within
+            :data:`LINEAGE_WINDOW` characters. Both mean the row is not in the documented form,
+            and neither may be quietly read as "no taxonomy assigned" — an unlabelled record is
+            a finding of this audit, so a malformed row must not be able to imitate one.
     """
-    match = _TAG.match(prefix)
-    if match is None:
+    if not head.startswith("|"):
+        raise LineageError(f"row does not open with a lineage tag: {head[:64]!r}")
+    closing = head.find("|", 1)
+    if closing < 0:
         raise LineageError(
-            f"no closing '|' within {LINEAGE_WINDOW} bytes of the record head: {prefix[:64]!r}"
+            f"no closing '|' within {LINEAGE_WINDOW} characters of the row head: {head[:64]!r}"
         )
-    slots = match.group(1).split(";")
-    if len(slots) != len(LINEAGE_RANKS):
-        raise LineageError(
-            f"lineage tag has {len(slots)} slots, expected {len(LINEAGE_RANKS)}: "
-            f"{match.group(1)[:120]!r}"
-        )
-    taxonomy: dict[str, str] = {}
-    for (prefix_letter, rank), slot in zip(LINEAGE_RANKS, slots, strict=True):
-        if not slot:
-            continue
-        expected = f"{prefix_letter}__"
-        if not slot.startswith(expected):
-            raise LineageError(
-                f"slot for {rank} is {slot[:40]!r}, which does not carry its {expected!r} "
-                "prefix, so the slots are not in the documented rank order"
-            )
-        taxonomy[rank] = slot[len(expected) :]
-    return taxonomy
+    return head[1:closing]
 
 
 # --------------------------------------------------------------------------------------
@@ -388,9 +359,10 @@ def iter_stage2_records(
 ) -> Iterator[Record]:
     """Yield one :class:`Record` per Parquet row of an Evo 1 stage-2 object.
 
-    One row is one record (D-048). A record longer than :data:`BLOCK_BUDGET` arrives as several
-    `|tag|block` pairs concatenated into that single row, all carrying the same tag, so reading
-    the leading tag reads the record's taxonomy whatever its length.
+    One row is one record (D-048). A record longer than the block budget
+    (`amazebio.conformance.BLOCK_CHARS`) arrives as several `|tag|block` pairs in that one row,
+    all carrying the same tag, so reading the leading tag reads the record's taxonomy whatever
+    its length.
 
     Only the first :data:`LINEAGE_WINDOW` code units of each row are materialised, sliced in
     Arrow rather than Python: the column holds tens of kB of sequence per row and the audit needs
@@ -449,18 +421,18 @@ def iter_stage2_records(
             record_id = f"{record_prefix}#{row}"
             row += 1
             if head is None:
-                error = LineageError("row holds no text at all")
+                error: LineageError | None = LineageError("row holds no text at all")
             else:
                 try:
-                    yield Record(
-                        id=record_id,
-                        component=component,
-                        taxonomy=parse_lineage(head),
-                    )
-                    continue
+                    tag = parse_lineage_tag(tag_of(head))
                 except LineageError as exc:
                     error = exc
-            if on_parse_error is not None:
+                else:
+                    error = None
+                    if tag.is_malformed and structure is not None:
+                        structure.malformed_tags += 1
+                    yield Record(id=record_id, component=component, taxonomy=tag.taxonomy)
+            if error is not None and on_parse_error is not None:
                 on_parse_error(record_id, error)
 
 
@@ -561,7 +533,7 @@ class StagedSource:
 #: slots are present in the tag, so an empty slot is an unassigned rank rather than missing
 #: evidence — which is what the unspecificity rule is there to act on.
 _STAGE2_EVIDENCE = Evidence(
-    taxonomy_ranks=frozenset(rank for _, rank in LINEAGE_RANKS),
+    taxonomy_ranks=frozenset(RANKS),
     note=(
         "Inline lineage tag, eight ranks, on every record (policies/corpora.md §3). No "
         "identifier, no IMG/VR metadata: the high-confidence flag, the vOTU and the "

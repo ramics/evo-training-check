@@ -53,6 +53,7 @@ from typing import Any, ClassVar
 
 __all__ = [
     "CHANNELS",
+    "RULE_INPUTS",
     "Decision",
     "Evidence",
     "Outcome",
@@ -201,16 +202,39 @@ RULE_KINDS = {
 #: without guessing. `ANY_KEY` is the wildcard for a rule that needs a whole channel rather
 #: than one key in it: an exclusivity rule has to see *every* host class to know a record has
 #: no other, so partial host evidence cannot decide it.
-CHANNELS = ("attribute", "taxonomy", "host_occurrences", "similarity")
+#: Which input each frozen rule kind reads. **The single declaration of this fact**, consumed
+#: both by A1.4's evaluator (through :class:`Evidence`) and by A7.1's restriction mechanism
+#: (`amazebio.conformance.RULE_INPUTS` re-exports this, and derives its `kept/dropped` coverage
+#: from it). The two were written independently and agreed, which is luck rather than a
+#: guarantee: this mapping decides which of an author's rules we hold them to, so two copies of
+#: it drifting apart would silently change what the audit claims. Unified by A1.4, D-056.
+#:
+#: The names are A7.1's, because its artefacts and write-up already report them.
+RULE_INPUTS = {
+    "keep_if_attribute_in": "record_attributes",
+    "keep_one_per": "record_attributes",
+    "keep_if_host_occurrence_at_least": "host_occurrences",
+    "remove_if_host_class_in": "host_occurrences",
+    "keep_if_host_evidence_exclusive": "host_occurrences",
+    "remove_if_taxon_in": "taxonomy",
+    "remove_if_unspecific": "taxonomy",
+    "remove_if_similar_to": "alignment_to_seed_set",
+}
+
+CHANNELS = tuple(dict.fromkeys(RULE_INPUTS.values()))
 ANY_KEY = "*"
 
 
 def _required_evidence(kind: str, params: Mapping[str, Any]) -> tuple[tuple[str, str], ...]:
     """The (channel, key) pairs a rule of this kind reads from a record.
 
-    Derived from the kind and its params rather than declared per rule, so a spec author
-    cannot get it wrong and a new kind cannot be added without saying what it reads — the
-    match below is total, and an unhandled kind raises.
+    The channel comes from :data:`RULE_INPUTS`; what this adds is the *key* within it, which the
+    restriction mechanism does not need and the record-level evaluator does. The difference is
+    load-bearing in one place: an exclusivity rule needs every host class, not one, so it asks
+    for the whole channel and partial host evidence cannot decide it.
+
+    Derived from the kind and its params rather than declared per rule, so a spec author cannot
+    get it wrong and a new kind cannot be added without saying what it reads.
     """
     if any(isinstance(v, Unspecified) for v in params.values()):
         # A rule the source left undetermined reads nothing, because it cannot run at all.
@@ -221,19 +245,19 @@ def _required_evidence(kind: str, params: Mapping[str, Any]) -> tuple[tuple[str,
         return ()
     match kind:
         case "keep_if_attribute_in" | "keep_one_per":
-            return (("attribute", params["attribute"]),)
+            return ((RULE_INPUTS[kind], params["attribute"]),)
         case "keep_if_host_occurrence_at_least":
-            return (("host_occurrences", params["host_class"]),)
+            return ((RULE_INPUTS[kind], params["host_class"]),)
         case "keep_if_host_evidence_exclusive" | "remove_if_host_class_in":
             # Needs the whole channel: "in no other host class" is a claim about every class.
-            return (("host_occurrences", ANY_KEY),)
+            return ((RULE_INPUTS[kind], ANY_KEY),)
         case "remove_if_taxon_in":
-            return (("taxonomy", params["rank"]),)
+            return ((RULE_INPUTS[kind], params["rank"]),)
         case "remove_if_unspecific":
             ranks = (params["require_rank"], *params["ranks"])
-            return tuple(("taxonomy", r) for r in dict.fromkeys(ranks))
+            return tuple((RULE_INPUTS[kind], r) for r in dict.fromkeys(ranks))
         case "remove_if_similar_to":
-            return (("similarity", params["seed_set"]),)
+            return ((RULE_INPUTS[kind], params["seed_set"]),)
         case _:  # pragma: no cover - guarded by Rule.from_dict
             raise PolicyError(
                 f"rule kind {kind!r} declares no evidence requirement. Adding a kind means "
@@ -269,10 +293,10 @@ class Evidence:
     note: str = ""
 
     _BY_CHANNEL: ClassVar[dict[str, str]] = {
-        "attribute": "attributes",
+        "record_attributes": "attributes",
         "taxonomy": "taxonomy_ranks",
         "host_occurrences": "host_classes",
-        "similarity": "seed_sets",
+        "alignment_to_seed_set": "seed_sets",
     }
 
     @classmethod
