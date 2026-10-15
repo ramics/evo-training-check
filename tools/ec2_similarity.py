@@ -124,7 +124,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --taxdump /opt/amazebio/taxdmp.zip \
     --outdir /opt/amazebio/out --workdir /mnt/work \
     --sample-rate {sample_rate} --buckets {buckets} --strict-buckets {strict_buckets} \
-    --threads {threads} --search-budget-seconds {budget} \
+    --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
     --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
 
@@ -183,6 +183,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--buckets", type=int, default=8)
     ap.add_argument("--strict-buckets", type=int, default=3)
     ap.add_argument("--threads", type=int, default=8)
+    ap.add_argument(
+        "--workers",
+        type=int,
+        default=7,
+        help="entry-parsing processes, one fewer than the vCPUs so the decompressor has "
+        "a core to itself. Passed explicitly rather than left to the tool's default "
+        "because this run's artefact gets cited (default: %(default)s)",
+    )
     ap.add_argument(
         "--search-budget-seconds",
         type=float,
@@ -262,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
         buckets=args.buckets,
         strict_buckets=args.strict_buckets,
         threads=args.threads,
+        workers=args.workers,
         budget=args.search_budget_seconds,
         hard_stop_minutes=args.hard_stop_minutes,
         mmseqs_url=MMSEQS_URL,
