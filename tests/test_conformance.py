@@ -526,3 +526,42 @@ def test_an_input_release_declares_no_comparison_key_of_its_own():
     assert "imgvr-v4" not in cf.COMPARISON_KEYS
     assert cf.COMPARISON_KEYS["opengenome-stage2"] == "lineage_tag"
     assert cf.COMPARISON_KEYS["opengenome2-imgvr"] == "source_accession"
+
+
+def test_every_declared_release_is_classified_as_an_input_or_a_released_output():
+    """The tripwire D-057 thought it had, and did not (see A1.4's closing note).
+
+    `RELEASE_INPUTS` is declared twice over at two granularities: here, as the inventory
+    `restrict` reduces a policy by, and in `corpora.SOURCES`, as per-record `Evidence`. The test
+    pinning their agreement enumerated neither table — it named the two releases it knew — so
+    adding `imgvr-v4` and `imgvr-v4.1` in A7.2 drifted the two declarations apart without
+    failing anything.
+
+    This is the guard that makes adding a release impossible to do silently: every key must be
+    classified, and the two classes mean different things to every consumer. A released output
+    has a comparison key and a `corpora` source; the filter's input has neither, because a
+    predicate is re-executed over it rather than compared against it.
+    """
+    unclassified = set(cf.RELEASE_INPUTS) - set(cf.COMPARISON_KEYS) - cf.INPUT_RELEASES
+    assert not unclassified, (
+        f"{sorted(unclassified)} declared in RELEASE_INPUTS and classified as neither a "
+        "released output (COMPARISON_KEYS) nor the filter's input (INPUT_RELEASES). Classify "
+        "it: the two are compared in opposite directions and no consumer can tell which you "
+        "meant."
+    )
+    both = set(cf.COMPARISON_KEYS) & cf.INPUT_RELEASES
+    assert not both, f"{sorted(both)} classified as both an input and a released output"
+    stray = (set(cf.COMPARISON_KEYS) | cf.INPUT_RELEASES) - set(cf.RELEASE_INPUTS)
+    assert not stray, (
+        f"{sorted(stray)} classified but absent from RELEASE_INPUTS, so nothing can be "
+        "restricted against it"
+    )
+
+
+def test_the_filters_input_has_no_comparison_key():
+    # Re-executing a predicate over the input and comparing the result against an output are
+    # different questions (D-047, D-049). A comparison key on an input would invite a join that
+    # has no second side.
+    for release in cf.INPUT_RELEASES:
+        assert release not in cf.COMPARISON_KEYS
+        assert release in cf.RELEASE_INPUTS

@@ -32,6 +32,12 @@ pyyaml = ">=6,<7"
 # does not record. AGENTS.md requires a result to regenerate from pinned inputs, and a
 # transfer is only as reproducible as the thing that performed it. Added by A1.5.
 boto3 = ">=1.43.111,<2"
+# Evo 1's corpus is published as Parquet and nothing else — there is no FASTA tree for
+# OpenGenome v1 — and its viral component is the one staged object carrying the taxonomic
+# lineage the published filter acts on. A7.1's census and A1.4's policy evaluation both have
+# to read it. Reading it row-group by row-group over a ranged object-storage reader is also
+# what keeps the pass off local disk, which a 15.8 GiB file in a session container needs.
+# Floor from A7.1 (>=18); A1.4 asked only for >=17, so the tighter bound governs.
 pyarrow = ">=18,<22"
 # A7.2 joins 15.7 million IMG/VR accessions against two other sets and groups them by vOTU.
 # Those are sorts, set memberships and bincounts over tens of millions of integers: a dict of
