@@ -1,0 +1,347 @@
+{
+  "retrieved": "2026-10-15",
+  "source": "JGI Data Portal file listing",
+  "endpoint": "https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR&x=50",
+  "dataset": "Custom_MPI-IMG_VR",
+  "note": "The publisher's own inventory: every IMG/VR file, its size, its release date and its md5sum. Served without authentication; the files themselves return HTTP 401 with {\"detail\":\"Authentication credentials were not provided.\"}. Query bookkeeping (timings, cursor) dropped; files sorted by date, directory, name.",
+  "file_count": 42,
+  "total_bytes": 322744096793,
+  "files": [
+    {
+      "added_date": "2018-01-24",
+      "directory": "AUTO-141612",
+      "file_name": "IMGVR_Sequence_information.tsv",
+      "file_size": 39629685,
+      "md5sum": "776191a48754d70867d4328ea3f71b77",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-141612"
+    },
+    {
+      "added_date": "2018-01-24",
+      "directory": "AUTO-141612",
+      "file_name": "IMGVR_mVCs_nucleotides.fna.gz",
+      "file_size": 1227211878,
+      "md5sum": "9e5034207a7c7e35455469d56e2f30a0",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-141612"
+    },
+    {
+      "added_date": "2018-01-24",
+      "directory": "AUTO-141612",
+      "file_name": "IMGVR_mVCs_proteins.faa.gz",
+      "file_size": 853316350,
+      "md5sum": "9eec1f615425efbaf2e4d5783f0e7537",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-141612"
+    },
+    {
+      "added_date": "2018-01-24",
+      "directory": "AUTO-141612",
+      "file_name": "README.txt",
+      "file_size": 415,
+      "md5sum": "23e0e6c15239c9423ee0b7a70985ceaf",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-141612"
+    },
+    {
+      "added_date": "2018-01-24",
+      "directory": "AUTO-141623",
+      "file_name": "IMGVR_Sequence_information.tsv",
+      "file_size": 104116894,
+      "md5sum": "bfc167c92fb2dace467d50c6af4c88be",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-141623"
+    },
+    {
+      "added_date": "2018-01-24",
+      "directory": "AUTO-141623",
+      "file_name": "IMGVR_mVCs_nucleotides.fna.gz",
+      "file_size": 3695508332,
+      "md5sum": "4de10fa839a041353f9e3cea807715e7",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-141623"
+    },
+    {
+      "added_date": "2018-01-24",
+      "directory": "AUTO-141623",
+      "file_name": "IMGVR_mVCs_proteins.faa.gz",
+      "file_size": 2252205704,
+      "md5sum": "81c07c6b28d2fd6759ae604ab0695e24",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-141623"
+    },
+    {
+      "added_date": "2018-01-24",
+      "directory": "AUTO-141623",
+      "file_name": "README.txt",
+      "file_size": 415,
+      "md5sum": "6f3b0e7d31aecc375d6d597264bda527",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-141623"
+    },
+    {
+      "added_date": "2018-09-13",
+      "directory": "AUTO-195006",
+      "file_name": "IMGVR_all_Sequence_information.tsv",
+      "file_size": 154284698,
+      "md5sum": "3d6fb7ce0e0244638196b43700090b8a",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-195006"
+    },
+    {
+      "added_date": "2018-09-13",
+      "directory": "AUTO-195006",
+      "file_name": "IMGVR_all_nucleotides.fna.gz",
+      "file_size": 3988233967,
+      "md5sum": "bdc92daa596d6d8e6cc5682b3d85b648",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-195006"
+    },
+    {
+      "added_date": "2018-09-13",
+      "directory": "AUTO-195006",
+      "file_name": "IMGVR_all_proteins.faa.gz",
+      "file_size": 2469322630,
+      "md5sum": "90d80d47cff201abdaaf5ce3db6de34a",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-195006"
+    },
+    {
+      "added_date": "2018-09-13",
+      "directory": "AUTO-195006",
+      "file_name": "README.txt",
+      "file_size": 868,
+      "md5sum": "51d23d2bd5530411a0789835e25d3ddf",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-195006"
+    },
+    {
+      "added_date": "2020-09-11",
+      "directory": "AUTO-297653",
+      "file_name": "IMGVR_all_Host_information.tsv",
+      "file_size": 370117464,
+      "md5sum": "0ed9125b0d1aec0bf55840ea4a086dc5",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-297653"
+    },
+    {
+      "added_date": "2020-09-11",
+      "directory": "AUTO-297653",
+      "file_name": "IMGVR_all_Sequence_information.tsv",
+      "file_size": 1515605308,
+      "md5sum": "a623037b0c6a76ed05c83acb1b70012f",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-297653"
+    },
+    {
+      "added_date": "2020-09-11",
+      "directory": "AUTO-297653",
+      "file_name": "IMGVR_all_nucleotides.fna.gz",
+      "file_size": 14009690970,
+      "md5sum": "5ecb54efaf1db7c9b17ce2e7c48aff50",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-297653"
+    },
+    {
+      "added_date": "2020-09-11",
+      "directory": "AUTO-297653",
+      "file_name": "IMGVR_all_proteins.faa.gz",
+      "file_size": 9336950417,
+      "md5sum": "1808205c8409dec2eefc62bbc8328b58",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-297653"
+    },
+    {
+      "added_date": "2020-09-11",
+      "directory": "AUTO-297653",
+      "file_name": "README.txt",
+      "file_size": 4585,
+      "md5sum": "35409db1e036cadaf22bf91646bd1824",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-297653"
+    },
+    {
+      "added_date": "2020-10-12",
+      "directory": "AUTO-300263",
+      "file_name": "IMGVR_all_Host_information.tsv",
+      "file_size": 370117464,
+      "md5sum": "0ed9125b0d1aec0bf55840ea4a086dc5",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-300263"
+    },
+    {
+      "added_date": "2020-10-12",
+      "directory": "AUTO-300263",
+      "file_name": "IMGVR_all_Sequence_information.tsv",
+      "file_size": 1509553793,
+      "md5sum": "e9bc9adc0e86def56a4f2e2ef9f5013b",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-300263"
+    },
+    {
+      "added_date": "2020-10-12",
+      "directory": "AUTO-300263",
+      "file_name": "IMGVR_all_nucleotides.fna.gz",
+      "file_size": 14009691001,
+      "md5sum": "5432fc35476bae7a7ed1ca785a0ee52e",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-300263"
+    },
+    {
+      "added_date": "2020-10-12",
+      "directory": "AUTO-300263",
+      "file_name": "IMGVR_all_proteins.faa.gz",
+      "file_size": 9144773232,
+      "md5sum": "cb5f0e7811b9d6785723fc5d5e7cbb51",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-300263"
+    },
+    {
+      "added_date": "2020-10-12",
+      "directory": "AUTO-300263",
+      "file_name": "README.txt",
+      "file_size": 4790,
+      "md5sum": "d0c8c28b3a51c00d9e25fdf909df44e8",
+      "file_path": "/global/dna/dm_archive/mep/analyses/AUTO-300263"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420894",
+      "file_name": "IMGVR_all_Host_information.tsv",
+      "file_size": 696380987,
+      "md5sum": "3486513594a81fd00e276e37803994e0",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420894"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420894",
+      "file_name": "IMGVR_all_Sequence_information.tsv",
+      "file_size": 5047197400,
+      "md5sum": "2d088a49561248e199843f73222c5a94",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420894"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420894",
+      "file_name": "IMGVR_all_nucleotides.fna.gz",
+      "file_size": 48319030883,
+      "md5sum": "e37e6a541e10a75a88577763f75fc9cd",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420894"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420894",
+      "file_name": "IMGVR_all_proteins.faa.gz",
+      "file_size": 31527214055,
+      "md5sum": "4ad51e8940d2e4174bda17a0809f8f44",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420894"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420894",
+      "file_name": "README.txt",
+      "file_size": 4063,
+      "md5sum": "de00c84dbd84612e382532b6523ab77b",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420894"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420906",
+      "file_name": "IMGVR_all_Host_information-high_confidence.tsv",
+      "file_size": 289219376,
+      "md5sum": "71b54d0f5c186d813f058bf0379dfd24",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420906"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420906",
+      "file_name": "IMGVR_all_Sequence_information-high_confidence.tsv",
+      "file_size": 1888622388,
+      "md5sum": "a2eedc151e557a78a327d6bf9a95bd25",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420906"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420906",
+      "file_name": "IMGVR_all_nucleotides-high_confidence.fna.gz",
+      "file_size": 24792200438,
+      "md5sum": "83301c9c6dfefea3305a53ee2a41bac3",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420906"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420906",
+      "file_name": "IMGVR_all_proteins-high_confidence.faa.gz",
+      "file_size": 16474572352,
+      "md5sum": "c04b4c385386741d5c7cdbfa23e9af9d",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420906"
+    },
+    {
+      "added_date": "2022-09-20",
+      "directory": "AUTO-420906",
+      "file_name": "README-high_confidence.txt",
+      "file_size": 4804,
+      "md5sum": "823d65f8c9c6ff07f772228e685e55dd",
+      "file_path": "/global/dna/dm_archive/mep/analyses-42/AUTO-420906"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444368",
+      "file_name": "IMGVR_all_Host_information.tsv",
+      "file_size": 696380987,
+      "md5sum": "3486513594a81fd00e276e37803994e0",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444368"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444368",
+      "file_name": "IMGVR_all_Sequence_information.tsv",
+      "file_size": 5047197637,
+      "md5sum": "658ce076cd26729892552ed5876ad17c",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444368"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444368",
+      "file_name": "IMGVR_all_nucleotides.fna.gz",
+      "file_size": 48319030883,
+      "md5sum": "e37e6a541e10a75a88577763f75fc9cd",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444368"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444368",
+      "file_name": "IMGVR_all_proteins.faa.gz",
+      "file_size": 31477831962,
+      "md5sum": "fff611fc3983ce2ce8e9f9a4d671ae0e",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444368"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444368",
+      "file_name": "README.txt",
+      "file_size": 4332,
+      "md5sum": "ba749fd171bbf5821dcddeeff3db343b",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444368"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444369",
+      "file_name": "IMGVR_all_Host_information-high_confidence.tsv",
+      "file_size": 289219376,
+      "md5sum": "71b54d0f5c186d813f058bf0379dfd24",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444369"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444369",
+      "file_name": "IMGVR_all_Sequence_information-high_confidence.tsv",
+      "file_size": 1888622625,
+      "md5sum": "3c516db128082fa29dc2c2f60520da1b",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444369"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444369",
+      "file_name": "IMGVR_all_nucleotides-high_confidence.fna.gz",
+      "file_size": 24792200438,
+      "md5sum": "83301c9c6dfefea3305a53ee2a41bac3",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444369"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444369",
+      "file_name": "IMGVR_all_proteins-high_confidence.faa.gz",
+      "file_size": 16148816357,
+      "md5sum": "19e266b87ec7ca96fe586aed172438fe",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444369"
+    },
+    {
+      "added_date": "2022-12-20",
+      "directory": "AUTO-444369",
+      "file_name": "README-high_confidence.txt",
+      "file_size": 4590,
+      "md5sum": "7097befc3787e4f78858ba8f6ff7e4c0",
+      "file_path": "/global/dna/dm_archive/mep/analyses-44/AUTO-444369"
+    }
+  ]
+}

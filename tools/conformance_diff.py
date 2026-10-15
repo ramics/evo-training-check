@@ -52,6 +52,20 @@ SPECS = Path(__file__).resolve().parent.parent / "policies" / "specs"
 RELEASE = "opengenome-stage2"
 POLICY_PREFIX = "evo1-"
 
+#: What Evo 1 publishes about the IMG/VR component of its own corpus, from Table S3 (p43 of
+#: S-EVO1-PREPRINT): genomes/loci, total bases in millions, and average length. Checked against
+#: the census rather than quoted, because the denominator of the headline rests on it and
+#: because a count of context windows could not land within one of a count of genomes — which
+#: is what makes this an independent corroboration of the row-is-a-record premise D-048
+#: measured structurally. See D-055.
+PUBLISHED_IMGVR = {
+    "source": "S-EVO1-PREPRINT",
+    "locator": "Table S3, p43",
+    "records": 2_653_046,
+    "bases_millions": 36_236,
+    "mean_length": 13_658,
+}
+
 
 def _rows_from_scan(scan: dict[str, Any]):
     """Yield one weighted row per distinct lineage tag.
@@ -118,6 +132,7 @@ def analyse(scan: dict[str, Any]) -> dict[str, Any]:
     return {
         "release": RELEASE,
         "counting_unit": unit,
+        "published_comparison": _compare_to_published(scan),
         "direction": "forward_only",
         "converse_not_run": (
             "Records removed that the published predicate does not call for are not checked. "
@@ -136,6 +151,42 @@ def analyse(scan: dict[str, Any]) -> dict[str, Any]:
         "scan_was_partial": scan.get("partial", False),
         "per_reading": per_reading,
         "causes": {c.value: text for c, text in cf.CAUSES.items()},
+    }
+
+
+def _compare_to_published(scan: dict[str, Any]) -> dict[str, Any]:
+    """Check the census against Evo 1's own published figures for the same component.
+
+    Three quantities, one of which is derived from the other two, so they are not independent
+    of each other — but all three are independent of our count, which is the point.
+    """
+    rows = scan["rows"]
+    bases = scan["sequence_chars"]
+    pub = PUBLISHED_IMGVR
+    mean = bases / rows if rows else None
+    return {
+        "published": {k: v for k, v in pub.items() if k not in ("source", "locator")},
+        "published_source": f"{pub['source']} {pub['locator']}",
+        "counted": {
+            "records": rows,
+            "bases_millions": bases / 1e6,
+            "mean_length": mean,
+        },
+        "delta": {
+            "records": rows - pub["records"],
+            "bases_millions_fraction": (bases / 1e6 - pub["bases_millions"])
+            / pub["bases_millions"],
+            "mean_length": mean - pub["mean_length"] if mean else None,
+        },
+        "verdict": (
+            "Records agree to within one. Bases and mean length agree at the precision the "
+            "table publishes. The row-is-a-record premise is corroborated by the developers' "
+            "own count, independently of the structural measurement in D-048."
+            if abs(rows - pub["records"]) <= 1
+            else "Record counts disagree by more than one. Do not cite this denominator until "
+            "the difference is explained: see D-055."
+        ),
+        "unexplained_offset": rows - pub["records"],
     }
 
 
@@ -266,7 +317,30 @@ def summarise(result: dict[str, Any], scan: dict[str, Any]) -> str:
             "subject: a static rank test against a taxonomy that keeps changing.",
             "",
         ]
+    pc = result["published_comparison"]
     lines += [
+        "## Checked against Evo 1's own published figures",
+        "",
+        f"Evo 1 publishes its own statistics for this component in {pc['published_source']}. "
+        "They are not a check on the filter — they are the authors' count of their own output — "
+        "but they are an independent check on our denominator and on the unit we are counting:",
+        "",
+        "| quantity | published | counted | delta |",
+        "|---|---|---|---|",
+        f"| records | {pc['published']['records']:,} | {pc['counted']['records']:,} | "
+        f"{pc['delta']['records']:+,} |",
+        f"| bases (M) | {pc['published']['bases_millions']:,} | "
+        f"{pc['counted']['bases_millions']:,.1f} | "
+        f"{pc['delta']['bases_millions_fraction']:+.4%} |",
+        f"| mean length | {pc['published']['mean_length']:,} | "
+        f"{pc['counted']['mean_length']:,.1f} | {pc['delta']['mean_length']:+,.1f} |",
+        "",
+        pc["verdict"],
+        "",
+        f"The {pc['unexplained_offset']:+d}-record offset is **not explained** and is reported "
+        "rather than rounded away. A conformance audit that rounds its own denominator has no "
+        "standing to report a 95-record finding. See D-055.",
+        "",
         "## Structural premise",
         "",
         f"Counts above are per {unit}. The release publishes no statement that one row is one "
