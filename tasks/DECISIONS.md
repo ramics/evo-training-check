@@ -3688,3 +3688,97 @@ decision has a threshold or parameter in it, the number goes in the entry.
   *Treat the access failure as a finding about the publisher* — it is a finding about this
   container's network path. Unpaywall reports the article open access, and a person with an
   ordinary browser retrieved it in one attempt.
+
+### D-097 — RVDB's families get a derived label, and `family_id` stays the only identity
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** A2.1's RVDB hit tables are correct and unreadable: the registry names its families
+  `FAM004230` and the top of Evo 1's result is a column of such ids. The release ships an
+  annotation database (`U-RVDBv32.0-prot-hmm.sqlite.xz`, pinned against the publisher's own md5),
+  and inspecting it settles what is available: tables of **keyword frequencies** — one set
+  harvested from the member sequences' names, one from the domain literature — plus an LCA taxon
+  id, a member count and a model length. **There is no family name anywhere in it.** So a
+  readable label cannot be looked up; it has to be derived, and deriving a name for somebody
+  else's family is exactly the kind of step that later gets quoted as if the publisher had said
+  it.
+- **Decision:** Three parts, and the second is the one that matters.
+  **The label is the four most frequent sequence-name keywords, in frequency order.** It reads as
+  a rough function: `FAM000069` becomes "helicase virus rna dependent", `FAM005268` becomes
+  "reductase ribonucleotide virus large". All 13,679 families get one; none came back empty.
+  Reference-derived keywords travel *beside* the label rather than inside it, because they
+  describe the domain literature rather than the member sequences, and mixing the two would make
+  a derived string look like a curated title.
+  **`family_id` remains the only identity.** Counts are keyed on it, the survival denominator is
+  a set of ids, and it is the only thing a figure or a paper sentence may cite as the family. The
+  label is for a reader's orientation and carries a field saying so.
+  **The labels ship in the registry artefact and are joined on `family_id`**, in
+  `artifacts/a2-1/registries/rvdb-families.json`. The hit tables are not rewritten to carry them.
+- **Rejected:** Writing the label into each table's `name` field. It would read better and it
+  would mean editing a measurement after the fact — the tables already have their `run.json`,
+  their manifest digest and their provenance, and a relabelling pass would either invalidate that
+  or silently not. The join costs a reader one small file.
+  Re-running the search with labels in place, which would be the clean way to get them into the
+  tables and costs 50 minutes of RVDB search per release to change a display string.
+  Taking the label from the LCA taxon instead ("Caudoviricetes family 4230"). It is the
+  publisher's own datum rather than a derivation, which is attractive, but 10239 (Viruses) is the
+  LCA for most families, so it labels almost everything identically.
+  Leaving the ids bare and letting A6.1 solve it. The write-up is where an unreadable table
+  becomes a figure nobody can check, and `AGENTS.md` requires every number in a write-up to trace
+  to a machine-readable artefact — the artefact is the right place for the mapping.
+- **Consequence:** A reader joins one file to read any RVDB result. The write-up must present the
+  label as derived — this project's summary of the publisher's keyword frequencies — and never as
+  RVDB's own name for the family, which is a sentence-level discipline rather than something code
+  can enforce. The same question returns in A2.2 for fold families and in C5.2 for the homology
+  neighbourhood index: where a registry ships identifiers without names, the mapping is an
+  artefact with a stated rule, not a label invented at figure time.
+
+### D-098 — D-078's cost figure was wrong by a factor of thirty, and a full census is affordable after all
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** D-078 pre-registered the sample and justified it with a measurement: "98 million
+  profile-residues per second for RVDB-prot ... against 13,679 RVDB profiles that is roughly
+  40,000 core-hours", and concluded that a full pass is "not expensive, it is arithmetically out
+  of reach". **The conclusion was false and the measurement behind it was worthless.** The
+  benchmark searched 300 profiles against 2,000 random 300-residue sequences — a job small enough
+  that per-profile fixed cost dominated it, which understated real throughput by about three
+  orders of magnitude.
+  The real runs settle it. RVDB-prot over 23.28 M residues of Evo 1's viral component took 50.0
+  minutes on three cores: **386 core-seconds per million residues**, against the benchmark's
+  implied 140,000. Evo 2's component gives 428 and its plasmid/phage component 344, so the figure
+  is stable across sources.
+- **Decision:** The cost of a full, unsampled census is recorded here as measured, and D-078's
+  figure is superseded. Scaling each component's own measured rate to its full residue count:
+  | component | residues | RVDB | Pfam viral |
+  |---|---|---|---|
+  | `opengenome`/`stage2` | ~11,642 Maa | 1,250 core-hours | 87 |
+  | `opengenome2`/`imgvr` | ~11,577 Maa | 1,375 core-hours | 95 |
+  | `opengenome2`/`imgpr` | ~1,472 Maa | 141 core-hours | 43 |
+  **About 3,000 core-hours for both releases against both registries** — not 40,000 for one
+  component of one release. Linear scaling is sound here: `hmmsearch`'s cost is residues x
+  profiles, and the sample is a 0.1-0.2% random draw.
+  **The sampling design itself stands**, unchanged and still pre-registered: a sample was the
+  right first pass, it produced the result, and the hash nesting means a deeper pass extends it
+  rather than repeating it. What is withdrawn is the *reason* given — "out of reach" — and every
+  statement resting on it.
+- **Rejected:** Correcting D-078 in place. The log is append-only and that entry was cited in the
+  PR for #17, in `metrics/detections.md` and in the task file before the error was found;
+  rewriting it would leave those citations pointing at text that no longer says what they
+  reported. The citations are repointed to this entry instead.
+  Also rejected: treating this as a private slip to fix quietly. The figure had already been
+  published in a merged pull request body and used to justify a methodological choice to the
+  project owner, which makes it a finding about this project's own rigour. `AGENTS.md` asks for
+  airtight work against a motivated reader; a reader who re-derived the arithmetic would find
+  this in a minute.
+- **Consequence:** The scale decision changes from impossible to affordable and goes back to the
+  project owner with real numbers. Two bounds on it: the account's policy allows nothing larger
+  than `c6i.2xlarge` (8 vCPU — `c6i.4xlarge` and above return `UnauthorizedOperation`), so a
+  census is about 375 instance-hours of one machine or a fan-out across several, and an instance
+  cannot be inspected once running (`AGENTS.md`). And the accumulation curves say the current
+  bound is weak: on the last doubling of sampled records, Pfam still gained 16% more families and
+  RVDB 31-39%, so family discovery is far from saturated and a deeper pass would move the
+  headline materially rather than confirm it.
+  The general lesson, which is the part worth carrying: **a benchmark that does not resemble the
+  real job is not evidence.** This one was off by 1,000x because it was too small to leave the
+  fixed-cost regime, and it was used to justify a decision about what is possible. Any later task
+  costing a pass over the corpora — A2.2's structural search above all, which has the same shape —
+  should take its throughput from a run of realistic size or not quote one.
