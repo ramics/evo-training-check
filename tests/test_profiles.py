@@ -121,7 +121,7 @@ def test_selection_refuses_a_family_with_no_curated_cutoff(tmp_path):
 
 
 def test_the_selections_blind_spot_is_pinned_rather_than_rediscovered(dat, tmp_path):
-    # D-081. A family named for a virus taxon carries no word from the vocabulary: `Ebola_NP`
+    # D-083. A family named for a virus taxon carries no word from the vocabulary: `Ebola_NP`
     # is described as "Ebola nucleoprotein" and matches none of `virus`, `viral`, `capsid` or
     # the rest. It is outside the Pfam universe and RVDB-prot is what covers it.
     assert "PF05505" not in select_viral_families(dat)

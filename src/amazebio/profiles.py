@@ -389,7 +389,7 @@ def clan_names(clans_path: str | Path) -> dict[str, str]:
     than clan membership: `CL0156` is called `Nucleocapsid` and holds nothing but viral
     nucleocapsids, while `CL0055` is called `Nucleoplasmin` and holds viral capsids beside
     cellular families. Reading the name keeps the first and rejects the second, which is the
-    distinction D-075 and D-081 turn on.
+    distinction D-075 and D-083 turn on.
     """
     path = Path(clans_path)
     opener = gzip.open if path.suffix == ".gz" else open
@@ -412,7 +412,7 @@ def select_viral_families(dat_path: str | Path) -> dict[str, FamilyMeta]:
     The rule has a known blind spot and it is pinned by a test rather than left to be
     rediscovered: a family named for a virus *taxon* carries no word from the vocabulary at all.
     `Ebola_NP`, `Rhabdo_ncap` and `Paramyxo_ncap` are outside this universe for that reason.
-    :func:`clan_name_additions` measures the gap, D-081 records why it is reported rather than
+    :func:`clan_name_additions` measures the gap, D-083 records why it is reported rather than
     closed, and RVDB-prot — whose membership is its publisher's, not ours — is the registry that
     covers it.
 
@@ -446,7 +446,7 @@ def clan_name_additions(
 ) -> dict[str, tuple[FamilyMeta, str]]:
     """Families a second rule would add: those whose *clan's* name names a viral entity.
 
-    Measured and reported, not used (D-081). It is the narrowest widening available — the
+    Measured and reported, not used (D-083). It is the narrowest widening available — the
     clan's own name rather than its membership — and it is still contaminated: `CL0511` is
     called `Retroviral_zf` and holds cellular zinc fingers (`CLIP1_ZNF`), `CL0504` is called
     `Phage_barrel` and holds `Alg8_N`. A universe is a denominator, so a cellular family inside

@@ -231,7 +231,7 @@ def pfam_universe(reg: Registry) -> dict[str, Any]:
                 "membership — and still contaminated: CL0511 is called Retroviral_zf and holds "
                 "cellular zinc fingers, CL0504 is called Phage_barrel and holds Alg8_N. It is "
                 "also what would admit the families named for a virus taxon, Ebola_NP among "
-                "them, which the family-name rule misses. Reported rather than used: D-081."
+                "them, which the family-name rule misses. Reported rather than used: D-083."
             ),
         },
         "families": [
@@ -310,7 +310,7 @@ def main() -> int:
                 f"{universe['clan_level_alternative']['families_not_themselves_viral']:,} of "
                 "them not viral; the clan-name reading would add "
                 f"{universe['clan_name_alternative']['families']:,}, contaminated in the same "
-                "way (D-081)."
+                "way (D-083)."
             )
         m.note(
             "Registry membership is defined by two different authorities — RVDB's curators and "
