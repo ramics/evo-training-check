@@ -83,6 +83,11 @@ EVO2_JOIN_SCAN = "results/a7-2/input-scan-2022-12-20.json"
 #: convention, so the two must agree and neither may invent a third spelling.
 EMPTY = "(empty)"
 
+#: The one confidence value Evo 1's first published rule keeps, quoted from the spec it is
+#: declared in rather than spelled again here: `keep-high-confidence` names it, and the
+#: population every later rule sees is what that rule kept.
+HIGH_CONFIDENCE = "High-confidence"
+
 
 # --------------------------------------------------------------------------------------
 # The primary pass over the filter's input
@@ -104,7 +109,15 @@ def _scan_shard(bucket: str, key: str, start: int, end: int, header: list[str]) 
     confidence: collections.Counter = collections.Counter()
     votu: collections.Counter = collections.Counter()
     method: collections.Counter = collections.Counter()
+    # The same two tallies again over the high-confidence subset, because Evo's confidence gate
+    # runs *first* and the denylists only ever see what it kept. A ceiling measured over the
+    # whole table answers a question about the database; the denylist's own ceiling is over the
+    # population it was handed, and the two differ.
+    classes_hc: collections.Counter = collections.Counter()
+    hosts_hc: collections.Counter = collections.Counter()
+    votu_hc: collections.Counter = collections.Counter()
     rows = 0
+    rows_hc = 0
     malformed = 0
     client = objectstore.client()
     for line in objectstore.shard_lines(client, bucket, key, start, end, skip_header=(start == 0)):
@@ -118,34 +131,61 @@ def _scan_shard(bucket: str, key: str, start: int, end: int, header: list[str]) 
             malformed += 1
             continue
         rows += 1
-        classes[fields[idx["classification"]].strip()] += 1
-        hosts[imgvr.host_domain(fields[idx["host"]])] += 1
-        confidence[fields[idx["confidence"]].strip() or EMPTY] += 1
-        votu[fields[idx["votu"]].strip() or EMPTY] += 1
+        classification = fields[idx["classification"]].strip()
+        domain = imgvr.host_domain(fields[idx["host"]])
+        conf = fields[idx["confidence"]].strip()
+        votu_value = fields[idx["votu"]].strip() or EMPTY
+        classes[classification] += 1
+        hosts[domain] += 1
+        confidence[conf or EMPTY] += 1
+        votu[votu_value] += 1
         method[fields[method_col].strip() or EMPTY] += 1
+        if conf == HIGH_CONFIDENCE:
+            rows_hc += 1
+            classes_hc[classification] += 1
+            hosts_hc[domain] += 1
+            votu_hc[votu_value] += 1
     return {
         "classes": dict(classes),
+        "classes_hc": dict(classes_hc),
         "hosts": dict(hosts),
+        "hosts_hc": dict(hosts_hc),
         "confidence": dict(confidence),
         # Presence only. The vOTU vocabulary is 8.6 million values and the rule that reads it
         # deduplicates by identity, which A7.2 measured; what a ceiling needs is whether the
         # field is there at all.
         "votu": {EMPTY: votu.get(EMPTY, 0), "assigned": sum(votu.values()) - votu.get(EMPTY, 0)},
+        "votu_hc": {
+            EMPTY: votu_hc.get(EMPTY, 0),
+            "assigned": sum(votu_hc.values()) - votu_hc.get(EMPTY, 0),
+        },
         "method": dict(method),
         "rows": rows,
+        "rows_hc": rows_hc,
         "malformed": malformed,
     }
 
 
 def _merge(shards: list[dict[str, Any]]) -> dict[str, Any]:
-    out: dict[str, Any] = {"rows": 0, "malformed": 0}
-    for field in ("classes", "hosts", "confidence", "votu", "method"):
+    out: dict[str, Any] = {"rows": 0, "rows_hc": 0, "malformed": 0}
+    fields = (
+        "classes",
+        "classes_hc",
+        "hosts",
+        "hosts_hc",
+        "confidence",
+        "votu",
+        "votu_hc",
+        "method",
+    )
+    for field in fields:
         merged: collections.Counter = collections.Counter()
         for shard in shards:
             merged.update(shard[field])
         out[field] = dict(merged)
     for shard in shards:
         out["rows"] += shard["rows"]
+        out["rows_hc"] += shard["rows_hc"]
         out["malformed"] += shard["malformed"]
     return out
 
@@ -195,60 +235,103 @@ def _read_header(client: Any, bucket: str, key: str) -> list[str]:
 # --------------------------------------------------------------------------------------
 
 
-def _fills(scanned: dict[str, Any]) -> dict[str, Any]:
-    """The labelling of one scanned release: ranks, and one fill per non-taxonomic field."""
-    ranks = unfilterable.rank_fill(scanned["classes"])
-    if ranks.total != scanned["rows"]:
+def _fills(scanned: dict[str, Any], *, high_confidence: bool = False) -> dict[str, Any]:
+    """The labelling of one scanned release: ranks, and one fill per non-taxonomic field.
+
+    `high_confidence` measures the subset Evo's first rule keeps instead of the whole table.
+    Both are reported, because they answer different questions: the full table is what the
+    database holds, and the high-confidence subset is what every rule after the gate was
+    handed. Each is checked against its own independently counted row total.
+    """
+    suffix = "_hc" if high_confidence else ""
+    counted = scanned["rows_hc" if high_confidence else "rows"]
+    ranks = unfilterable.rank_fill(scanned["classes" + suffix])
+    if ranks.total != counted:
         raise SystemExit(
             f"classification histogram sums to {ranks.total:,} and the pass counted "
-            f"{scanned['rows']:,} rows. A histogram that is not a partition cannot carry a share."
+            f"{counted:,} rows. A histogram that is not a partition cannot carry a share."
         )
-    host = unfilterable.host_fill(scanned["hosts"])
+    host = unfilterable.host_fill(scanned["hosts" + suffix])
+    confidence = {HIGH_CONFIDENCE: counted} if high_confidence else scanned["confidence"]
     attributes = {
-        "confidence": unfilterable.field_fill("Confidence", scanned["confidence"]),
-        "vOTU": unfilterable.field_fill("vOTU", scanned["votu"]),
+        "confidence": unfilterable.field_fill("Confidence", confidence),
+        "vOTU": unfilterable.field_fill("vOTU", scanned["votu" + suffix]),
     }
     method = unfilterable.field_fill("Taxonomic classification method", scanned["method"])
     return {"ranks": ranks, "host": host, "attributes": attributes, "method": method}
 
 
+#: The two populations each release is measured over. The second is not a corpus component: it
+#: is the output of the filter's own first rule, and it is here because the rules that name a
+#: hazard run after it. Reporting only the first invites the obvious objection and does not
+#: answer it; reporting only the second would measure a population the publisher never shipped.
+POPULATIONS = (
+    ("all records", False, "the filter's input"),
+    (
+        "high-confidence subset",
+        True,
+        "the filter's input, after its own confidence gate",
+    ),
+)
+
+
 def input_rows(scans: dict[str, dict[str, Any]], policies: dict[str, policyspec.Policy]) -> list:
-    """One row per IMG/VR release: the component every Evo rule is actually applied to."""
+    """One row per IMG/VR release and population: what every Evo rule is actually applied to."""
     rows = []
     for date, scanned in sorted(scans.items()):
-        fills = _fills(scanned)
-        release = imgvr.release_on(date)
-        for pid in sorted(policies):
-            policy = policies[pid]
-            cell = scope.classify(policy, "imgvr", family="evo")
-            rows.append(
-                unfilterable.ComponentFill(
-                    component=f"imgvr/{date}",
-                    corpus=f"IMG/VR {release.version}",
-                    role="the filter's input",
-                    scope_state=cell.state,
-                    labelling=unfilterable.LABELLED,
+        for population, hc, role in POPULATIONS:
+            rows += _rows_for(date, scanned, policies, population=population, hc=hc, role=role)
+    return rows
+
+
+def _rows_for(
+    date: str,
+    scanned: dict[str, Any],
+    policies: dict[str, policyspec.Policy],
+    *,
+    population: str,
+    hc: bool,
+    role: str,
+) -> list[dict[str, Any]]:
+    rows = []
+    fills = _fills(scanned, high_confidence=hc)
+    release = imgvr.release_on(date)
+    for pid in sorted(policies):
+        policy = policies[pid]
+        cell = scope.classify(policy, "imgvr", family="evo")
+        rows.append(
+            unfilterable.ComponentFill(
+                component=f"imgvr/{date}",
+                corpus=f"IMG/VR {release.version}",
+                role=role,
+                scope_state=cell.state,
+                labelling=unfilterable.LABELLED,
+                ranks=fills["ranks"],
+                fields=(
+                    fills["host"],
+                    fills["attributes"]["confidence"],
+                    fills["attributes"]["vOTU"],
+                    fills["method"],
+                ),
+                ceilings=unfilterable.policy_ceilings(
+                    policy,
                     ranks=fills["ranks"],
-                    fields=(
-                        fills["host"],
-                        fills["attributes"]["confidence"],
-                        fills["attributes"]["vOTU"],
-                        fills["method"],
-                    ),
-                    ceilings=unfilterable.policy_ceilings(
-                        policy,
-                        ranks=fills["ranks"],
-                        host=fills["host"],
-                        attributes=fills["attributes"],
-                    ),
-                    note=(
-                        f"{policy.model}, {policy.reading} reading. Measured from "
-                        f"{scanned['file']['name']}, md5 {scanned['file']['md5']}, "
-                        f"{scanned['malformed']} malformed rows."
-                    ),
-                ).to_dict()
-                | {"policy_id": pid, "reading": policy.reading, "release": date}
-            )
+                    host=fills["host"],
+                    attributes=fills["attributes"],
+                ),
+                note=(
+                    f"{policy.model}, {policy.reading} reading, over {population}. "
+                    f"Measured from {scanned['file']['name']}, md5 "
+                    f"{scanned['file']['md5']}, {scanned['malformed']} malformed rows."
+                ),
+            ).to_dict()
+            | {
+                "policy_id": pid,
+                "reading": policy.reading,
+                "release": date,
+                "population": population,
+            }
+        )
     return rows
 
 
@@ -424,6 +507,7 @@ def ceiling_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         out.append(
             {
                 "component": row["component"],
+                "population": row["population"],
                 "policy_id": row["policy_id"],
                 "reading": row["reading"],
                 "records": row["ranks"]["total"],
@@ -604,12 +688,15 @@ def summarise(doc: dict[str, Any]) -> str:
     lines += ["## Labelling, per rank, of the filter's input", ""]
     seen = set()
     for row in doc["components"]:
-        if row["role"] != "the filter's input" or row["component"] in seen:
+        if row["ranks"] is None or not row.get("population"):
             continue
-        seen.add(row["component"])
+        name = (row["component"], row["population"])
+        if name in seen:
+            continue
+        seen.add(name)
         r = row["ranks"]
         lines += [
-            f"**{row['component']}** — {r['total']:,} records, "
+            f"**{row['component']}**, {row['population']} — {r['total']:,} records, "
             f"{r['unclassified_records']:,} ({r['unclassified_share']:.2%}) filling no rank.",
             "",
             "| rank | labelled | share |",
@@ -621,13 +708,13 @@ def summarise(doc: dict[str, Any]) -> str:
     lines += [
         "## The ceiling, per reading",
         "",
-        "| component | reading | binding rule | rank | ceiling |",
-        "|---|---|---|---|---|",
+        "| component | population | reading | binding rule | rank | ceiling |",
+        "|---|---|---|---|---|---|",
     ]
     for c in doc["ceiling"]:
         lines.append(
-            f"| {c['component']} | {c['reading']} | `{c['binding_rule']}` | {c['binding_rank']} | "
-            f"{c['ceiling']:.2%} |"
+            f"| {c['component']} | {c['population']} | {c['reading']} | `{c['binding_rule']}` | "
+            f"{c['binding_rank']} | {c['ceiling']:.2%} |"
         )
     lines += ["", "## Released components", ""]
     for row in doc["components"]:

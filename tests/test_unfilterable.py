@@ -292,6 +292,60 @@ class TestAShareIsOnlyTakenFromAPartition:
         assert fills["ranks"].total == 120
         assert set(fills["attributes"]) == {"confidence", "vOTU"}
 
+    def test_the_high_confidence_subset_is_checked_against_its_own_total(self):
+        # The gate's own population needs its own guard: checking the subset histogram against
+        # the full row count would pass silently whenever the subset is complete and fail
+        # wrongly whenever it is not, which is the opposite of useful.
+        scanned = {
+            "classes": dict(HISTOGRAM),
+            "rows": 120,
+            "classes_hc": {";;;;;;;": 5},
+            "rows_hc": 6,
+            "hosts": {},
+            "hosts_hc": {},
+            "confidence": {},
+            "votu": {},
+            "votu_hc": {},
+            "method": {},
+        }
+        with pytest.raises(SystemExit, match="partition"):
+            tool._fills(scanned, high_confidence=True)
+        # ... and the full-table reading of the same scan is unaffected.
+        assert tool._fills(scanned)["ranks"].total == 120
+
+    def test_the_gate_population_is_measured_from_its_own_cross_tab(self):
+        scanned = {
+            "classes": dict(HISTOGRAM),
+            "rows": 120,
+            # The gate keeps the deep lineage and drops the dominant shallow one, which is the
+            # direction that matters: the denylist's ceiling is better on what the gate kept.
+            "classes_hc": {
+                "r__Riboviria;k__Orthornavirae;p__Pisuviricota;c__Pisoniviricetes;"
+                "o__Picornavirales;f__Marnaviridae;;": 10
+            },
+            "rows_hc": 10,
+            "hosts": {"Bacteria": 120},
+            "hosts_hc": {"Bacteria": 10},
+            "confidence": {"High-confidence": 10, "Putative": 110},
+            "votu": {"assigned": 120},
+            "votu_hc": {"assigned": 10},
+            "method": {"geNomad": 120},
+        }
+        full = tool._fills(scanned)
+        gated = tool._fills(scanned, high_confidence=True)
+        assert full["ranks"].total == 120
+        assert gated["ranks"].total == 10
+        assert full["ranks"].share("family") == pytest.approx(10 / 120)
+        assert gated["ranks"].share("family") == pytest.approx(1.0)
+        # Every record in the gated population carries the value the gate kept, by definition.
+        assert gated["attributes"]["confidence"].present == 10
+
+    def test_the_confidence_value_measured_is_the_one_the_spec_names(self, policies):
+        # Declared in two places — the spec's rule and this pass's cross-tab — so the agreement
+        # is pinned rather than trusted. A drift here would silently measure an empty subset.
+        (rule,) = [r for r in policies["evo1-literal"].rules if r.kind == "keep_if_attribute_in"]
+        assert tool.HIGH_CONFIDENCE in rule.params["values"]
+
     def test_the_tool_measures_every_channel_the_evo_rules_read(self, policies):
         # If a reading grows a rule reading a channel this pass does not measure, the ceiling
         # for it would be missing rather than wrong — so the agreement is pinned here.
@@ -314,6 +368,7 @@ class TestTheSummaryPicksTheBlindestDiscriminatingRule:
         policy = policies["evo1-literal"]
         row = {
             "component": "test",
+            "population": "all records",
             "policy_id": "evo1-literal",
             "reading": policy.reading,
             "ranks": fill.to_dict(),
