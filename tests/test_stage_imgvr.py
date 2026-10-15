@@ -17,6 +17,7 @@ import importlib.util
 import io
 import pathlib
 import sys
+import zipfile
 
 import pytest
 
@@ -30,6 +31,17 @@ from amazebio import imgvr  # noqa: E402  (after the tool, which sets up `src` o
 
 BODY = b"uvig\tvotu\tconfidence\n" * 4096
 NBYTES = len(BODY)
+MEMBER = "Cus_VR/IMG_VR_2022-09-20_6/IMGVR_all_Sequence_information.tsv"
+
+
+def _zip(members):
+    """The publisher serves a zip, not raw bytes (D-062). Build one the same shape."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("Download_1_File_Manifest.csv", "filename,md5 checksum\n")
+        for name, body in members.items():
+            zf.writestr(name, body)
+    return buf.getvalue()
 
 
 class FakeClient:
@@ -38,15 +50,15 @@ class FakeClient:
     def __init__(self):
         self.uploaded = []
 
-    def upload_file(self, filename, bucket, key):
-        # Read it here: the point of spooling is that the bytes are on disk and still intact
-        # at the moment the upload is handed the path.
-        self.uploaded.append((key, pathlib.Path(filename).read_bytes()))
+    def upload_fileobj(self, fileobj, bucket, key):
+        # Read it here: the point of streaming the member is that the bytes handed to the
+        # upload are the ones that were just verified, never a second copy on disk.
+        self.uploaded.append((key, fileobj.read()))
 
     def put_object(self, **kw):  # pragma: no cover - a regression guard, see test below
         raise AssertionError(
             "put_object caps a single upload at 5 GiB and the largest file staged here is "
-            "within a few hundred MB of that; use upload_file"
+            "within a few hundred MB of that; use upload_fileobj"
         )
 
 
@@ -67,9 +79,15 @@ def served(monkeypatch):
 
     @contextlib.contextmanager
     def fake_request(url, *, token=None, data=None):
-        assert url == imgvr.download_url("abc123"), "must use the documented single-file read"
+        import json
+
+        expected_url, expected_body = imgvr.download_request(
+            ["abc123"], organism_id="Custom_MPI-IMG_VR", top_hit="th"
+        )
+        assert url == expected_url, "must POST to the route that actually serves bytes"
         assert token == "tok", "the token must reach the download, as a Bearer header"
-        yield io.BytesIO(BODY)
+        assert json.loads(data) == expected_body, "the body names the organism and the file"
+        yield io.BytesIO(_zip({MEMBER: BODY}))
 
     monkeypatch.setattr(stage, "_request", fake_request)
 
@@ -85,6 +103,8 @@ def _stage(file, tmp_path, client):
         prefix="staged",
         dry_run=False,
         spool=tmp_path,
+        organism_id="Custom_MPI-IMG_VR",
+        top_hit="th",
     )
 
 
@@ -146,8 +166,28 @@ def test_a_dry_run_transfers_nothing(tmp_path):
         prefix="",
         dry_run=True,
         spool=tmp_path,
+        organism_id="Custom_MPI-IMG_VR",
+        top_hit="th",
     )
     assert row["skipped"] == "dry-run"
     assert row["verified"] is None
+    assert client.uploaded == []
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_zip_without_the_expected_member_uploads_nothing(monkeypatch, tmp_path):
+    import hashlib
+
+    # One file is requested per call, so the zip should hold exactly one member with that
+    # name. A zip that does not is the publisher having changed something, and guessing which
+    # member was meant would write a permanent object under the wrong key.
+    @contextlib.contextmanager
+    def fake_request(url, *, token=None, data=None):
+        yield io.BytesIO(_zip({"Cus_VR/IMG_VR_2022-09-20_6/something_else.tsv": BODY}))
+
+    monkeypatch.setattr(stage, "_request", fake_request)
+    client = FakeClient()
+    with pytest.raises(SystemExit, match="zip holds 0 members"):
+        _stage(_file(hashlib.md5(BODY).hexdigest()), tmp_path, client)
     assert client.uploaded == []
     assert list(tmp_path.iterdir()) == []

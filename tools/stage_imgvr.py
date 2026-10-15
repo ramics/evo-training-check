@@ -49,7 +49,8 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -103,8 +104,14 @@ def _request(url: str, *, token: str | None = None, data: bytes | None = None) -
 # --------------------------------------------------------------------------------------
 
 
-def fetch_inventory() -> list[dict[str, Any]]:
-    """The publisher's current listing, normalised the way the capture stores it."""
+def fetch_catalog() -> tuple[str, str, list[dict[str, Any]]]:
+    """The publisher's current listing, plus the two organism-level ids the download needs.
+
+    `POST /download_files/` is keyed by the organism id and wants the organism's `top_hit` as
+    an id *string*; both come from the same search response as the file listing, so they are
+    read here rather than hard-coded. Passing the nested `top_hit` object instead of its `_id`
+    returns HTTP 500 (D-062).
+    """
     with _request(SEARCH_URL) as resp:
         raw = json.loads(resp.read())
     orgs = raw.get("organisms") or []
@@ -127,7 +134,21 @@ def fetch_inventory() -> list[dict[str, Any]]:
                 "_id": f.get("_id"),
             }
         )
-    return sorted(out, key=lambda x: (x["added_date"], x["directory"], x["file_name"]))
+    org = orgs[0]
+    top_hit = (org.get("top_hit") or {}).get("_id")
+    if not org.get("id") or not top_hit:
+        raise SystemExit(
+            "The search response carries no organism id or no top_hit._id. Both are required "
+            "by POST /download_files/ and neither can be guessed; re-derive them from the "
+            "portal rather than inventing them (D-062)."
+        )
+    files = sorted(out, key=lambda x: (x["added_date"], x["directory"], x["file_name"]))
+    return org["id"], top_hit, files
+
+
+def fetch_inventory() -> list[dict[str, Any]]:
+    """Just the file listing, for the paths that do not download anything."""
+    return fetch_catalog()[2]
 
 
 def check_inventory() -> int:
@@ -242,10 +263,19 @@ def download_verify_upload(
     prefix: str,
     dry_run: bool,
     spool: Path,
+    organism_id: str,
+    top_hit: str,
 ) -> dict[str, Any]:
-    """Stream one file, hashing as it passes, and upload only on an md5 match."""
+    """Fetch one file, verify it against the publisher's md5, and upload only on a match.
+
+    The publisher serves files as a zip stream and not as raw bytes: `POST /download_files/`
+    returns `application/zip` holding the requested files plus a manifest, and the documented
+    single-file `GET /download_files/<id>/` answers 404 for every IMG/VR file (D-062). One file
+    is requested per call anyway, so the zip holds one member and the spool stays bounded by
+    that file rather than by the 7.9 GB release.
+    """
     key = stage_key(date, file.name, prefix=prefix)
-    url = imgvr.download_url(file_id)
+    url, body = imgvr.download_request([file_id], organism_id=organism_id, top_hit=top_hit)
     if dry_run:
         return {"key": key, "bytes": file.bytes, "verified": None, "skipped": "dry-run"}
 
@@ -253,40 +283,56 @@ def download_verify_upload(
     # 5.0 GB sequence-information table, and accumulating it in memory and then joining it
     # peaks at roughly twice that — more than the session container has. Disk is the cheap
     # resource and the file is deleted as soon as it is uploaded.
-    #
-    # md5 because that is the digest the publisher publishes; a sha256 of ours is
-    # recorded alongside it so later passes can verify without re-deriving theirs.
-    md5 = hashlib.md5()
-    sha = hashlib.sha256()
-    read = 0
-    with tempfile.NamedTemporaryFile(dir=spool, suffix=".part", delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(dir=spool, suffix=".zip", delete=False) as tmp:
         spooled = Path(tmp.name)
         try:
-            with _request(url, token=token) as resp:
+            with _request(url, token=token, data=json.dumps(body).encode()) as resp:
                 while chunk := resp.read(_CHUNK):
-                    md5.update(chunk)
-                    sha.update(chunk)
                     tmp.write(chunk)
-                    read += len(chunk)
             tmp.flush()
-            got = md5.hexdigest()
-            if got != file.md5:
-                raise SystemExit(
-                    f"{file.name}: md5 {got} does not match the publisher's published "
-                    f"{file.md5}. Nothing uploaded. The corpus bucket has no s3:DeleteObject, "
-                    "so an object claiming to be a release it has not been shown to be is "
-                    "worse than no object at all."
-                )
-            if read != file.bytes:
-                raise SystemExit(
-                    f"{file.name}: {read} bytes read, listing says {file.bytes}. "
-                    "Nothing uploaded."
-                )
-            # upload_file, not put_object: a single PUT is capped at 5 GiB and the largest
-            # file here is within a few hundred megabytes of that ceiling. This splits into
-            # a multipart upload on its own, and an interrupted multipart upload never
-            # becomes a visible object — which is what the no-delete bucket requires.
-            client.upload_file(str(spooled), bucket, key)
+            with zipfile.ZipFile(spooled) as zf:
+                members = [
+                    n for n in zf.namelist() if PurePosixPath(n).name == file.name
+                ]
+                if len(members) != 1:
+                    raise SystemExit(
+                        f"{date}/{file.name}: the download zip holds {len(members)} members "
+                        f"with that name, out of {zf.namelist()}. Nothing uploaded."
+                    )
+                member = members[0]
+                # Two passes over the member, both streaming: verify first, upload second.
+                # The order is not a preference. The corpus bucket has no s3:DeleteObject, so
+                # an object claiming to be a release it has not been shown to be is permanent
+                # and worse than no object at all.
+                #
+                # md5 because that is the digest the publisher publishes; a sha256 of ours is
+                # recorded alongside it so later passes can verify without re-deriving theirs.
+                md5 = hashlib.md5()
+                sha = hashlib.sha256()
+                read = 0
+                with zf.open(member) as fh:
+                    while chunk := fh.read(_CHUNK):
+                        md5.update(chunk)
+                        sha.update(chunk)
+                        read += len(chunk)
+                got = md5.hexdigest()
+                if got != file.md5:
+                    raise SystemExit(
+                        f"{file.name}: md5 {got} does not match the publisher's published "
+                        f"{file.md5}. Nothing uploaded."
+                    )
+                if read != file.bytes:
+                    raise SystemExit(
+                        f"{file.name}: {read} bytes read, listing says {file.bytes}. "
+                        "Nothing uploaded."
+                    )
+                # upload_fileobj, not put_object: a single PUT is capped at 5 GiB and the
+                # largest file here is within a few hundred megabytes of that ceiling. This
+                # splits into a multipart upload on its own, and an interrupted multipart
+                # upload never becomes a visible object — which is what the no-delete bucket
+                # requires. Streaming the member also keeps the extracted copy off disk.
+                with zf.open(member) as fh:
+                    client.upload_fileobj(fh, bucket, key)
         finally:
             spooled.unlink(missing_ok=True)
     print(f"[imgvr] staged {key}  {read/1e9:.3f} GB  md5 ok", flush=True)
@@ -351,7 +397,7 @@ def main(argv: list[str] | None = None) -> int:
     import boto3
 
     client = boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
-    live = fetch_inventory()
+    organism_id, top_hit, live = fetch_catalog()
     outdir = Path(args.outdir)
 
     # Fail before the first byte rather than part-way through the 5 GB table. Only one file
@@ -430,6 +476,8 @@ def main(argv: list[str] | None = None) -> int:
                     prefix=prefix,
                     dry_run=args.dry_run,
                     spool=spool,
+                    organism_id=organism_id,
+                    top_hit=top_hit,
                 )
                 row["release"] = date
                 row["role"] = f.role

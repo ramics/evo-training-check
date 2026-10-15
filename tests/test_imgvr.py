@@ -115,13 +115,26 @@ def test_the_capture_contains_colliding_date_and_name_pairs_across_directories(c
     assert collisions, "expected at least one (date, name) pair spanning two directories"
 
 
-def test_the_download_url_is_the_hosts_documented_single_file_read():
-    # Pinned because the first version of the staging tool used the search host's
-    # `filedownload/?_id=` form, which answers `Allow: POST, OPTIONS` — a GET there would have
-    # failed on the method once a token existed, and reported itself as an auth failure. The
-    # documented read is a path segment on the download host, and it is the only shape that
-    # survived being checked against the live API.
-    url = imgvr.download_url("632a1b312de7c323533daac5")
-    assert url == "https://files-download.jgi.doe.gov/download_files/632a1b312de7c323533daac5/"
-    assert "?" not in url, "the id is a path segment, not a query parameter"
-    assert url.startswith(imgvr.DOWNLOAD_BASE)
+def test_the_download_request_is_the_route_that_actually_serves_bytes():
+    # Pinned because two earlier versions had this wrong in ways no measurement could catch
+    # without a credential. The search host's `filedownload/?_id=` form answers
+    # `Allow: POST, OPTIONS` (D-060), and the download host's documented single-file
+    # `GET /download_files/<id>/` answers 404 for every IMG/VR file once authenticated — both
+    # of which are indistinguishable from a missing token while unauthenticated (D-062). What
+    # returns bytes is a POST keyed by organism id, verified end to end against the live API.
+    url, body = imgvr.download_request(
+        ["632a1b312de7c323533daac5"], organism_id="Custom_MPI-IMG_VR", top_hit="63a22c8a"
+    )
+    assert url == "https://files-download.jgi.doe.gov/download_files/"
+    assert url == imgvr.DOWNLOAD_BASE
+    assert body == {
+        "ids": {
+            "Custom_MPI-IMG_VR": {
+                "file_ids": ["632a1b312de7c323533daac5"],
+                "top_hit": "63a22c8a",
+            }
+        }
+    }
+    # top_hit is the id string. The search response nests an object there, and posting the
+    # object rather than its `_id` returns HTTP 500.
+    assert isinstance(body["ids"]["Custom_MPI-IMG_VR"]["top_hit"], str)
