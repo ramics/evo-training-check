@@ -124,66 +124,84 @@ records, zero parse failures.
 
 ## Closing it out — 2026-10-15, second session
 
-`review` still. **The work was never merged.** `main` carried this task at `review` while
+**Every Done-when criterion is now demonstrably met and the results regenerate.** Two things had
+to happen first, and neither was in the original list.
+
+**The work was never merged.** `main` carried this task at `review` while
 `src/amazebio/{apply,corpora}.py`, `tools/apply_policies.py`, `metrics/manifests.md` and both
 test files existed only on `ccr-6ecfc2c1-668gtb` — the split AGENTS.md warns about, and already
-biting: A2.1's file and D-059 on `main` both cite `amazebio.apply.route_for`, which `main` has no
-such module for.
+biting: A2.1's file and D-059 on `main` both cite `amazebio.apply.route_for`, which `main` had no
+such module for. Merged onto current `main` as **`claude/kind-brown-78c2qq`**, with no conflicts
+despite A7.2 having rewritten parts of `conformance.py` in between; the shared tables survived
+(`conformance.RULE_INPUTS is policyspec.RULE_INPUTS` still holds, every rule kind still
+declared). `pixi run -e dev check` green at **502 tests**.
 
-**Merged onto current `main` and pushed: `claude/kind-brown-78c2qq`** (commit `e21c1a1`). It
-merged with no conflicts even though A7.2 had since rewritten parts of `conformance.py`, and the
-shared tables survived intact — `conformance.RULE_INPUTS is policyspec.RULE_INPUTS` still holds
-and every rule kind is still declared. `pixi run -e dev check` is green on the merge: lint,
-format, board, policies, specs, models, and **499 tests**.
+**One claim in the outcome note above was false, and it was the note a later worker would have
+trusted** (D-074). It says the cross-check in `tests/test_apply.py` "will fail if the matching
+`Evidence` declaration in `corpora.SOURCES` is not extended" when A7.2 adds IMG/VR to the release
+inventory. A7.2 added `imgvr-v4` and `imgvr-v4.1` and nothing failed: the test named the two
+releases it knew instead of enumerating `RELEASE_INPUTS`, so it caught drift in that pair and was
+structurally blind to an addition. Fixed two ways — `conformance.INPUT_RELEASES` classifies every
+entry as the filter's input or a released output, declared rather than inferred from a missing
+comparison key, because inferring from an absence is what let this through; and the agreement
+check now drives off the inventory itself, joining to a staged source mechanically by
+`f"{release}-{corpus_component}"`. **Confirmed to fire rather than assumed to**: three failure
+modes injected, three fired naming the culprit, where the old guard was silent on all three.
 
-**One claim in the outcome note above is wrong, and it matters.** It says the cross-check in
-`tests/test_apply.py` "will fail if the matching `Evidence` declaration in `corpora.SOURCES` is
-not extended" when A7.2 adds IMG/VR to the release inventory. A7.2 added two keys —
-`imgvr-v4` and `imgvr-v4.1` — and the test did not fail, because
-`test_the_two_release_declarations_agree_on_what_can_be_re_executed` never enumerates
-`RELEASE_INPUTS`: it hard-codes the two sources it knows and checks those. It catches *drift* in
-the pair it names and is blind to an *addition*. So the tripwire D-057 relied on does not cover
-the case it was written for.
+### The regeneration
 
-**The fix is designed and not yet written.** Enumerate `conformance.RELEASE_INPUTS` and require
-every key to be accounted for on both sides, using the distinction A7.2 already introduced:
-a key in `conformance.COMPARISON_KEYS` is a developer's released output, so it must have exactly
-one `corpora.SOURCES` entry (joined mechanically — the keys are `f"{release}-{corpus_component}"`,
-which holds for both: `opengenome-stage2`, `opengenome2-imgvr`) and the kept-rule sets must agree
-for every Evo reading; a key absent from `COMPARISON_KEYS` is the filter's *input* and must have
-no such entry. That makes the two IMG/VR keys explicitly accounted for rather than silently
-tolerated, and it is what would have fired. Keep the existing explicit Evo-2 assertion — that
-`restrict` raises rather than returning an empty pipeline — as its own test; it is a distinct
-claim.
+`tools/apply_policies.py`, 45 minutes in the session container, from a clean tree at commit
+`e21c1a1`, seed `20261015`, 8 inputs and 11 outputs. Seven manifests, `index.json` and
+`run.json` in `artifacts/a1-4/`. Every number the outcome note above recorded reproduces:
 
-**The remaining `done` criterion is regeneration.** Everything else on the Done-when list is
-satisfied (the manifest-consumption half having moved to A2.1 under D-059). `artifacts/` is
-git-ignored and the container is ephemeral, so the headline numbers have to be reproduced on the
-current merge before this goes to `done`:
+| reading | release | records | removed | unresolved |
+|---|---|---|---|---|
+| evo1-literal / charitable / strict | opengenome | 2,653,047 | **95** | 2,652,952 |
+| evo1-literal / charitable / strict | opengenome2 | 2,957,495 | 0 | 2,957,495 |
+| esm3-open-literal | esm3-proxy | not enumerated | — | all four components `undetermined` |
 
-```bash
-export AMAZEBIO_S3_URI=s3://amazebio-corpora-897641797669/corpora
-python3 tools/apply_policies.py --dry-run   # plan only; confirms the inventory check
-python3 tools/apply_policies.py             # ~25-30 min: 28 GB Parquet, then one gzip stream
-```
+Checked as literals rather than read off the output, and the integrity fields checked with them:
 
-A run was launched in this session and did not finish before it ended; the dry run passed and the
-inventory check reported "12 staged objects, all declared", and the pass was mid-way through
-`opengenome/stage2` when the session closed. Nothing was learned from it that contradicts the
-numbers above — it simply has to be re-run. What must reproduce: **2,653,047** records and
-**95** removed for each of the three Evo 1 readings on `opengenome`, **2,957,495** records all
-`unresolved` on `opengenome2`, and seven manifests with a `run.json` refusing a dirty tree.
+- **2,652,947 + 50 + 50 = 2,653,047** across stage 2's three splits, and that total matches
+  A7.1's independent census of the same component exactly.
+- **All 95 removals** are in `train_stage2`, all attributed to `remove-taxonomically-unspecific`,
+  all for `no realm assigned`, and the removed *sets* are identical across the three readings —
+  not merely the counts.
+- **Zero parse failures and zero evidence contradictions** on all three splits, with
+  `one_row_one_record` true on each: the premise every count rests on, re-measured on this pass
+  rather than inherited (D-048).
+- Everything else on Evo 1's release is `unresolved|keep-high-confidence` — the release cannot
+  decide the pipeline's *first* rule, which is A7.1's finding reached from the other direction.
+- ESM3-open's four components are each uniform `undetermined`, both rules undecidable for
+  `source does not state identity_threshold`. Nothing about that reading is determinable from
+  the published words, which is the result rather than a gap in the run.
 
-**Deliberately not done, to avoid widening this task:** D-057's untidy layering — `corpora`
-importing the released-format primitives from `conformance`, which inverts the natural direction
-— is still there. That note assigns it to whoever closes A7.1's review, and A7.1 is still held at
-`review` by the A3.3 gate, so it stays assigned there.
+**Three independent measurements now agree on 95**: A7.1's census of the release, A1.4's
+per-record evidence lattice, and A7.2's re-execution from the input side. One caveat on the
+third, stated because it would otherwise look like a stronger check than it is: Evo 1's release
+carries no accession, so A1.4's record ids are positional (`stage2:<object>#<row>`) and cannot be
+joined to A7.2's family breakdown of the same 95 (73 Bicaudaviridae, 21 Fuselloviridae, 1
+Ovaliviridae). The counts and the attributed rule agree; a record-level identity check between
+the two would need a targeted re-read of 95 row positions, and it belongs to **A3.3**, which
+owns cross-method checking.
 
-**Order for the next session:** push the merge to `main` (it is green and it unbreaks two
-dangling references), write the enumerating tripwire, re-run the pipeline, check the three
-numbers, then flip `status: done` on `main` with the board regenerated. The tripwire fix wants a
-`DECISIONS.md` entry recording that D-057's guard did not cover additions; **D-074** is the next
-free number, but re-check before pushing, per AGENTS.md.
+### Done-when, closed
+
+- *Manifests, reproducible from pinned inputs and seeds* — seven, regenerated above, with
+  `run.json` from a clean tree. The two that are not here are A1.6's (D-043).
+- *Format documented* — `metrics/manifests.md`. The consumption half is A2.1's (D-059).
+- *Record counts reconcile* — against A1.2 on bytes and against A7.1 on records, both exact.
+- *`run.json` pinning inputs, outputs, parameters and seed* — yes, and it refused a dirty tree
+  throughout; this task was the first pipeline to enforce the X1.1 convention end to end (D-003).
+
+**Deliberately not done, to avoid widening a finished task:** D-057's inverted layering —
+`corpora` importing the released-format primitives from `conformance` — is still there. That
+note assigns it to whoever closes A7.1's review, and A7.1 is still held by the A3.3 gate, so it
+stays assigned there. D-074 records why the right fix (one declaration instead of two) was
+declined again, now with the cost measured rather than estimated.
+
+**Waiting on the project owner:** the merge. The branch is pushed and green; `status` moves to
+`done` when it lands, and nothing else is outstanding.
 
 ## Notes
 
