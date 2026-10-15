@@ -1415,3 +1415,38 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `amazebio.survival`. Against that, a detector written before A3.2 runs now has nothing
   enforcing the tag at the point it is written — A2.1, as the first one, should carry the
   convention into the others.
+
+### D-043 — A1.4 covers every reading the releases can answer; the ESM3 alignment pass becomes A1.6
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** A1.4's goal is to run each of the three readings against each staged corpus, which
+  reads as six policy specs over the staged releases. Inspecting the inputs before writing code
+  shows the six are not one kind of work. The Evo readings turn on taxonomy, record attributes and
+  host counts, and the component the policy acts on is staged with an inline lineage tag on every
+  record. ESM3-open's turn on similarity to two denylists: the literal reading's threshold is
+  unpublished, so it evaluates to `undetermined` without touching a sequence; the charitable
+  (0.70) and strict (any hit) readings need both denylists rebuilt from UniProt annotation — ~4M
+  sequences, with the source's "almost exclusively" unquantified — and an aligner run over ~295 GB
+  of staged proxy corpus in region. Nothing has staged a seed set, no aligner is pinned, and the
+  spend has not been priced. Meanwhile A1.4 blocks ten tasks, every A2 detector among them.
+- **Decision:** A1.4 ships the readings whose inputs the staged releases already carry: Evo 1's
+  three readings against both OpenGenome releases, and ESM3-open's literal reading, whose result
+  is that no record's fate is determinable from the published words. The ESM3 charitable and
+  strict readings move to a new task, A1.6, which depends on A1.4 for the evaluator and manifest
+  format and on A1.5 for the staged corpus. A1.4's Done-when count changes from "nine-ish" to
+  seven manifests, and the two that move are named rather than dropped.
+- **Rejected:** Keeping all six in A1.4 — it holds ten downstream tasks behind an unpriced
+  alignment run and an acquisition nobody has approved, and it is exactly the widening the scope
+  rule forbids. Deferring ESM3 entirely, including the literal reading — it would drop a finding
+  that costs nothing to produce and is among the strongest in the audit: the filter as published
+  cannot be re-executed at all, because the one number that sets its reach is not in the source.
+  Supplying a threshold in A1.4 so the ESM3 arm could run — that is what the charitable reading
+  already does under a label, and doing it unlabelled would convert an under-specification finding
+  into a fabricated parameter.
+- **Consequence:** The three-reading spread §A0 asks for is complete for Evo and partial for ESM3
+  until A1.6 runs, so A0.4's report on the ESM3 axis is bounded by A1.6 rather than by A1.4 —
+  whoever picks up A0.4 should check which of the two is actually its blocker. The manifest format
+  A1.4 freezes has to be the format A1.6 writes, which means it must carry a route for a record
+  whose fate is undecidable for want of an aligner result, not only for want of a published
+  parameter. Both land as `unresolved` against different causes, and the manifest records the
+  cause.
