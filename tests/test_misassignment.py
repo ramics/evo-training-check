@@ -326,23 +326,44 @@ def test_per_family_keys_an_order_only_record_by_its_order() -> None:
 # --------------------------------------------------------------------------------------
 
 
-def test_propagate_scales_the_rate_and_its_interval() -> None:
-    escape = mis.rates(_set())["escape"]
-    out = mis.propagate(escape=escape, corpus_records=1_000_000, in_scope_records=10_000)
-    assert out["escaping_records"]["point"] == pytest.approx(0.5 * 10_000)
+def test_propagate_derives_the_in_scope_population_from_the_removals() -> None:
+    """R = N(1-e), so escapees are R*e/(1-e) — not R*e, which understates by (1-e)."""
+    escape = mis.rates(_set())["escape"]  # 2/4 = 0.5
+    out = mis.propagate(escape=escape, corpus_records=1_000_000, removed_records=10_000)
+    assert out["escape_rate"]["point"] == pytest.approx(0.5)
+    assert out["implied_in_scope_records"] == pytest.approx(20_000)
+    assert out["escaping_records"]["point"] == pytest.approx(10_000)
+    # The reflex answer, which this function must not produce.
+    assert out["escaping_records"]["point"] != pytest.approx(0.5 * 10_000)
+
+
+def test_propagate_carries_each_interval_endpoint_through_the_same_derivation() -> None:
+    out = mis.propagate(
+        escape=mis.rates(_set())["escape"], corpus_records=1_000_000, removed_records=10_000
+    )
     assert out["escaping_records"]["ci_lower"] < out["escaping_records"]["point"]
     assert out["escaping_records"]["ci_upper"] > out["escaping_records"]["point"]
 
 
+def test_propagate_is_undefined_when_nothing_in_scope_was_removed() -> None:
+    """At e = 1 the observed removals say nothing about how many there were."""
+    assert mis._implied_population(10_000, 1.0) is None
+    judged = [_classify({"family": "Coronaviridae"}, {})]
+    out = mis.propagate(escape=mis.rates(judged)["escape"], corpus_records=100, removed_records=0)
+    assert out["escaping_records"]["point"] is None
+    assert out["share_of_corpus"]["point"] is None
+
+
 def test_propagate_declares_the_direction_of_its_bias() -> None:
     """The number gets quoted; the caveat has to travel in the artefact, not in a comment."""
-    out = mis.propagate(escape=mis.rates(_set())["escape"], corpus_records=10, in_scope_records=5)
+    out = mis.propagate(escape=mis.rates(_set())["escape"], corpus_records=10, removed_records=5)
     assert out["bound"] == "lower"
     assert "fragment" in out["bound_reason"]
+    assert "R * e / (1 - e)" in out["arithmetic"]
 
 
 def test_propagate_handles_an_empty_corpus_without_dividing_by_zero() -> None:
-    out = mis.propagate(escape=mis.rates(_set())["escape"], corpus_records=0, in_scope_records=0)
+    out = mis.propagate(escape=mis.rates(_set())["escape"], corpus_records=0, removed_records=0)
     assert out["share_of_corpus"]["point"] is None
 
 

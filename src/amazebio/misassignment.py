@@ -495,11 +495,32 @@ def per_family(
     return out
 
 
+def _implied_population(removed: int, escape_rate: float) -> float | None:
+    """The in-scope population implied by the records a rule removed and its escape rate.
+
+    The arithmetic matters and the obvious version is wrong. What the corpus shows is `R`, the
+    records the rule *did* remove. What a leakage figure needs is `N`, the records it *should*
+    have removed — and the escapees are the difference. Since a rule removes the in-scope
+    records it did not miss, `R = N(1 - e)`, so `N = R / (1 - e)` and the escaping count is
+    `R * e / (1 - e)`.
+
+    Multiplying `R` by `e` instead — the reflex — understates leakage by a factor of `1 - e`,
+    because it treats the observed removals as if they were the whole in-scope population when
+    they are precisely that population minus the thing being counted.
+
+    Returns `None` at `e = 1`: if nothing in scope was ever removed, the observed removals
+    carry no information about how many there were.
+    """
+    if escape_rate >= 1.0:
+        return None
+    return removed / (1.0 - escape_rate)
+
+
 def propagate(
     *,
     escape: Mapping[str, Any],
     corpus_records: int,
-    in_scope_records: int,
+    removed_records: int,
     label: str = "",
 ) -> dict[str, Any]:
     """Turn an escape rate into a count of records the filter was meant to remove and did not.
@@ -513,26 +534,44 @@ def propagate(
     :data:`ESCAPE_CAUSES`. The returned dict says so in a field rather than in a comment,
     because the number is what gets quoted.
 
-    `in_scope_records` is the count of corpus records whose true taxon the policy meant to
-    remove. It is not observable — knowing it exactly would require the ground truth this
-    benchmark exists because the corpus lacks — so a caller passes an estimate and the
-    result records it as an input, not as a finding.
+    `removed_records` is what the corpus shows: the count of records the rule actually removed
+    on a label this benchmark covers. The in-scope population is derived from it by
+    :func:`_implied_population` rather than passed in, because it is not observable — knowing
+    it exactly would need the ground truth the corpus lacks, which is why this benchmark exists.
+    Each interval endpoint is carried through the same derivation, so the reported range is the
+    range of implied populations and not an interval around a single one.
     """
     point = float(escape["point"])
     low = float(escape["ci_lower"])
     high = float(escape["ci_upper"])
+
+    def escaping(rate: float) -> float | None:
+        population = _implied_population(removed_records, rate)
+        return None if population is None else population * rate
+
+    implied = _implied_population(removed_records, point)
     return {
         "label": label,
         "escape_rate": {"point": point, "ci_lower": low, "ci_upper": high},
-        "in_scope_records": in_scope_records,
+        "removed_records": removed_records,
+        "implied_in_scope_records": implied,
         "corpus_records": corpus_records,
+        "arithmetic": (
+            "A rule removes the in-scope records it did not miss, so R = N(1 - e) and the "
+            "escaping count is R * e / (1 - e). Multiplying the observed removals by the "
+            "escape rate instead understates leakage by a factor of (1 - e)."
+        ),
         "escaping_records": {
-            "point": point * in_scope_records,
-            "ci_lower": low * in_scope_records,
-            "ci_upper": high * in_scope_records,
+            "point": escaping(point),
+            "ci_lower": escaping(low),
+            "ci_upper": escaping(high),
         },
         "share_of_corpus": {
-            "point": point * in_scope_records / corpus_records if corpus_records else None,
+            "point": (
+                escaping(point) / corpus_records
+                if corpus_records and escaping(point) is not None
+                else None
+            ),
         },
         "bound": "lower",
         "bound_reason": (

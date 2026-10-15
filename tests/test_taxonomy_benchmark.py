@@ -394,8 +394,11 @@ def test_propagation_names_its_coverage_and_its_bound() -> None:
     assert prop["coverage"]["denylist_hits"] == 181_530
     assert prop["coverage"]["unmeasured_share_of_hits"] == pytest.approx(1 - 0.385573)
     assert "A4.4" in prop["coverage"]["unmeasured_reason"]
-    # Escape rate is 1/2 here, applied to the geNomad share of the hits.
-    assert prop["escaping_records"]["point"] == pytest.approx(0.5 * round(181_530 * 0.385573))
+    # Escape rate is 1/2 here. The removals on geNomad labels are 69,993, so the implied
+    # in-scope population is 69,993/(1-0.5) and the escapees are the other half of it.
+    removed = round(181_530 * 0.385573)
+    assert prop["removed_records"] == removed
+    assert prop["escaping_records"]["point"] == pytest.approx(removed)
 
 
 def test_no_propagation_without_the_dependency_pass() -> None:

@@ -379,10 +379,11 @@ def score(
         propagation = misassignment.propagate(
             escape=rates["escape"],
             corpus_records=corpus,
-            in_scope_records=int(round(hits * genomad_share)),
+            removed_records=int(round(hits * genomad_share)),
             label=(
-                "Records the denylist removed on a geNomad-assigned label, scaled by the "
-                "measured escape rate. Covers the geNomad share of the denylist's hits only."
+                "Leakage implied by the measured escape rate, from the records the denylist "
+                "removed on a geNomad-assigned label. Covers the geNomad share of the "
+                "denylist's hits only."
             ),
         )
         propagation["coverage"] = {
