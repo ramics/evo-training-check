@@ -32,6 +32,12 @@ pyyaml = ">=6,<7"
 # does not record. AGENTS.md requires a result to regenerate from pinned inputs, and a
 # transfer is only as reproducible as the thing that performed it. Added by A1.5.
 boto3 = ">=1.43.111,<2"
+# Evo 1's corpus is published as Parquet and nothing else — there is no FASTA tree for
+# OpenGenome v1 — and its viral component is the one staged object carrying the taxonomic
+# lineage the published filter acts on. A1.4 has to read it to evaluate any Evo reading at
+# all. Reading it row-group by row-group over a ranged object-storage reader is also what
+# keeps the pass off local disk, which a 15.8 GiB file in a session container needs.
+pyarrow = ">=17,<22"
 
 # Make `import amazebio` work in every pixi task and shell without a build step
 # or an editable pip install, so a pipeline script and a test see the same package.
