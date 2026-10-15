@@ -2311,3 +2311,38 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Evo 1's words. Both are staged. For anything counted at aggregate level the ambiguity is
   immaterial, since the aggregates are identical; for A7.2's row-level conformance it is not,
   and A7.2 must report both or say which it used and why.
+
+### D-065 — Scope shares are normalised within one representation, which corrects A1.2's published 0.2%
+- **Date:** 2026-10-15
+- **Task:** A4.3
+- **Context:** `opengenome.composition()` divides each component's bytes by the whole release,
+  and an OpenGenome2 release spans two trees — FASTA and JSON — that `policies/evo.md` §7
+  warns are not a strict mirror and must never be summed. A4.3 reports one row per component,
+  choosing the staged representation, so taking `share_of_release` for that row silently uses a
+  denominator that includes the other tree. The symptom was unmissable once the table was
+  assembled: Evo 2's out-of-scope share came out at **49%**, which is not a plausible answer
+  for a policy scoped to a single viral component. A1.2's published figure has the same shape —
+  `policies/evo.md` reports the filtered component as **0.2% of OpenGenome2** by comparing
+  10.4 GiB of IMG/VR FASTA against the 5.0 TiB release total, which is FASTA bytes over a
+  denominator that includes the JSON tree. That is the summing the same document forbids.
+- **Decision:** Normalise within the chosen representation and state the representation in the
+  denominator on every figure. Within the FASTA tree the filtered component is **0.41%** of
+  OpenGenome2 and the out-of-scope share is **99.59%**; for OpenGenome v1, which is parquet
+  only and so unaffected, the filtered component is **11.52%** and the out-of-scope share
+  **88.48%**. Both the within-representation share and the whole-release share are carried in
+  `artifacts/a4-3/scope.json`, so the corrected and published figures can be reconciled rather
+  than one quietly replacing the other.
+- **Note on direction:** the correction makes the filtered component **larger** — 0.41% rather
+  than 0.2% — so it weakens the headline slightly rather than strengthening it. Recording that
+  explicitly because a correction that happens to favour the author's thesis deserves more
+  scrutiny than one that does not, and this one does not. A test asserts the direction, so a
+  regression cannot silently flatter the filter.
+- **Rejected:** Keeping the whole-release denominator for continuity with A1.2's write-up. It
+  is wrong by that document's own rule, and §7's adversarial reader will check it. Also
+  rejected: summing the two trees into a single corpus size — they overlap in content and
+  differ by a factor of two on GTDB alone, so their sum is not a quantity.
+- **Consequence:** `policies/evo.md`'s 0.2% needs amending when A6.1 writes Phase A up; it is
+  not amended here, because A4.3 owns the share and A1.2's prose is A1.2's. The headline this
+  task delivers is unaffected in substance and sharper in form: **the same policy, inherited
+  verbatim by Evo 2 ("As previously described"), covers 11.52% of OpenGenome v1 and 0.41% of
+  OpenGenome2.** The scope gap widened as the corpus grew, which is D-007's claim measured.
