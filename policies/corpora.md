@@ -140,10 +140,23 @@ Stage 1 is differentiated too, by a `record` field carrying accessions — GTDB 
 What this supports and what it does not. The qualitative claim is solid: the released v1 corpus
 contains viral sequence, in stage 2, labelled per record with the taxonomy the filter acts on. No
 proportion from it should be published: 800 of 2.65M rows is 0.03%, the blocks are contiguous
-rather than random so rare categories are under-represented, rows are context windows rather than
-records so one genome may span many, and the sample describes one dated revision. The absence of
-`r__Riboviria` is consistent with a filter that removed eukaryote-infecting lineages but is a
-sample of 800, not a census, and must not be reported as an absence from the corpus.
+rather than random so rare categories are under-represented, and the sample describes one dated
+revision. The absence of `r__Riboviria` is consistent with a filter that removed
+eukaryote-infecting lineages but is a sample of 800, not a census, and must not be reported as an
+absence from the corpus.
+
+**Corrected (D-048, as that entry asks).** This paragraph also gave a fourth reason — "rows are
+context windows rather than records so one genome may span many" — and it was wrong. A7.1's full
+scan and A1.4's independent pass both establish the opposite: **one row is one record**. A record
+longer than 131,072 characters arrives as several `|tag|block` pairs concatenated into *one* row,
+each pair repeating the same tag, rather than as several rows. Over all 2,652,947 rows of the
+training split: 7,574 carry more than one block, none carries more than one distinct tag, none
+ends on a full block, and none carries no tag at all. The refusal to publish a proportion from
+the sample stands on the three reasons left above, which are about the sampling design and are
+undisturbed by this.
+
+The census also settles the `r__Riboviria` caution in the affirmative: there are **6,105**
+Riboviria records, every one of them `c__Leviviricetes` and no deeper (D-051).
 
 **Consequence for A7.1, and it is better than §2 assumed.** The conformance check no longer has to
 borrow Evo 2's release for its output: Evo 1's own procedure can be re-executed against Evo 1's own
