@@ -3615,3 +3615,76 @@ decision has a threshold or parameter in it, the number goes in the entry.
   renames, so a second column would imply a distinction the data does not contain.
   *Leave the discrepancy unrecorded because the result is unchanged* — the check is cheap, the
   objection is obvious, and §7 requires writing for a reviewer who wants the result to be wrong.
+
+---
+
+### D-096 — The IMG/VR v4 paper states the geNomad version and documents the taxonomy methods, so two of A4.2's findings are corrected
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** D-084 and D-085 were written with the IMG/VR v4 paper unretrieved. Four automated
+  access paths refused it (OUP 403; PMC proof-of-work interstitial; the eScholarship and OSTI
+  mirrors HTTP 202 behind a bot challenge), and both entries were scoped accordingly — D-085
+  said in terms that its claim covered "the release note and the publisher's help page, the two
+  sources actually checked". The project owner then supplied the PDF
+  (`S-IMGVR-V4-NAR`, sha256 `06de029f…`), and it answers both questions.
+
+  This entry is a **correction**, and it goes in the direction that costs the audit rather than
+  the filter. §2's commitment cuts both ways and §7 assumes a reviewer who wants the result to
+  be wrong; a finding that survives only because a source was unreachable is exactly the kind
+  that reviewer would overturn.
+- **Decision:**
+
+  **1. The geNomad version is stated, and it is the one A4.2 benchmarked.** The paper's Methods
+  name **geNomad version 1.1.0** twice — once for mining UViGs from IMG/M assemblies retrieved
+  2022-04-10, and once for the marker-based taxonomic assignment specifically — and reference 19
+  is the Zenodo deposit of that release (doi:10.5281/zenodo.7015982). D-085's framing of the
+  version as "a bound, not a statement" and as "unrecoverable from the publisher" is withdrawn:
+  it was unrecoverable from this environment, which is a different claim and the one the audit
+  may make. The pin itself is vindicated — A4.2 derived 1.1.0 from release dates alone, before
+  the paper was in hand, and `genomad.VERSION_EVIDENCE` keeps that argument as independent
+  corroboration precisely so the agreement is checkable rather than circular.
+
+  What survives from D-085 is narrower and still worth reporting: the **release note pins CheckV
+  to v1.0.1 in the same field list and names geNomad with no version**, and the help page carries
+  none either. So the data a user downloads does not carry the version its own labels came from,
+  and recovering it requires the paper. That is a provenance observation about the distribution,
+  not a claim that the publisher withheld anything.
+
+  One residual gap is real and now stated as the only inferred part of the pin: **no source
+  states the marker database version.** The paper gives the package version and the code's
+  Zenodo deposit; the pairing to database v1.1 rests on the publisher's own `releases.txt`
+  mapping. `VERSION_EVIDENCE["residual_gap"]` carries it and the report prints it.
+
+  **2. The "three undocumented taxonomy methods" finding does not survive.** D-084 observed that
+  the help page names four taxonomy approaches while the corpus carries eight method values, and
+  called `RVMT`, `RefSeq` and `GVMAG` undocumented. The paper documents all three: sequences
+  imported from RefSeq "were assigned to their NCBI taxonomy", and UViGs from the RVMT and GVMAG
+  projects "were designated to taxonomic lineages listed in their original studies", with the
+  four-method priority order applying to the remainder. Table 1 lists RVMT and GVMAG as data
+  sources with their own references. **That part of D-084 is withdrawn.**
+
+  What survives, and it is the part that bears on the audit: the **decomposition itself**, which
+  was measured from the corpus and is untouched — geNomad carries 38.56% of the denylist's
+  181,530 removals and RVMT 49.51%. The paper strengthens rather than weakens A4.4's premise by
+  saying where those lineages came from, which is where A4.4 must now look. And the §A0 point
+  survives in reduced form: the methods are documented in a paper behind an access path that
+  refused four automated attempts, not in the release note or help page that ship with the data.
+
+  **3. Two independent pins are confirmed.** The paper states the taxonomy is assigned against
+  **ICTV Taxonomy Release #37**, which is the MSL D-086 pinned, and gives the IMG/M retrieval
+  date as 2022-04-10 — closer to VMR 19 than to VMR 20, which is consistent with D-095's finding
+  that the choice between them changes no denylist-scope decision in the evaluation set.
+
+  **No measured result changes.** The escape rate of 36.23% (33.80–38.72) and the
+  spurious-removal rate of 3.05% (2.27–4.00) were produced by geNomad 1.1.0 against ICTV MSL37
+  and stand exactly as reported; `score` was re-run only so the artefact carries the corrected
+  evidence rather than the superseded bound.
+- **Rejected:** *Amend D-084 and D-085 in place* — `DECISIONS.md` is append-only, and an entry
+  that quietly becomes right is worse than one that is visibly corrected.
+  *Store the paper in `pdfs/` with the committed preprints* — those are bioRxiv CC-BY
+  submissions; this PDF states no redistribution licence, so it is recorded
+  `retrieved_not_stored` with its checksum, as `S-EVO2-NATURE` already is.
+  *Treat the access failure as a finding about the publisher* — it is a finding about this
+  container's network path. Unpaywall reports the article open access, and a person with an
+  ordinary browser retrieved it in one attempt.

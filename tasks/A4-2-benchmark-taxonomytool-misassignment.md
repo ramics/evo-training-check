@@ -114,10 +114,12 @@ Settled from IMG/VR's own per-record method field, not inferred:
 | the denylist's 181,530 hits | **38.56%** | **49.51%** | 4.27% | 5.64% | 2.02% |
 
 The drift has a mechanism: the denylist names eukaryotic RNA-virus taxa and IMG/VR imported
-those labels. **The publisher's help page documents four taxonomy approaches; the corpus
-carries eight**, and three of the extras — RVMT, RefSeq, GVMAG — are described in neither the
-release note nor the help page. §A0's "under-specification is data" applies, and it lands
-precisely on the records the filter removes.
+those labels. The help page documents four taxonomy approaches and the corpus carries eight —
+but the v4 paper documents the other four, so the "three undocumented methods" claim this
+write-up first carried is **withdrawn** (D-096). What survives is narrower: the methods are
+documented in a paper, not in the release note or help page that ship with the data, and the
+paper refused four automated access paths before the project owner supplied it. The
+decomposition itself is measured from the corpus and is untouched.
 
 An internal benchmark was checked for and is thin rather than available: 13,971 records are
 flagged `Reference`, but 97.29% took their lineage from the RefSeq lookup, where label and
@@ -125,12 +127,15 @@ ground truth are one fact. Only 272 carry a geNomad label — and 255 of those c
 
 ### Three things worth a reviewer's attention
 
-1. **The version is a bound, not a statement.** The release note pins CheckV to v1.0.1 in the
-   same field list and leaves geNomad unversioned; the help page contains no version string.
-   geNomad 1.1.0 + marker database v1.1 is the newest pairing that could have produced the
-   labels, from release dates the publisher does not control. The v4 paper could not be
-   retrieved here (OUP 403, PMC proof-of-work), so the claim is scoped to the two sources
-   checked and the paper is flagged for A6.1 (D-085).
+1. **The version is stated, and it is the one benchmarked.** The v4 paper names geNomad
+   **version 1.1.0** in its Methods, twice, once for the marker-based assignment specifically,
+   and cites that release's Zenodo deposit. A4.2 had derived 1.1.0 from release dates alone
+   before the paper was reachable, and the agreement is kept as independent corroboration
+   rather than collapsed into one claim. D-085's "bound, not a statement" framing is withdrawn
+   in D-096. What survives: the release note pins CheckV to v1.0.1 in the same field list and
+   leaves geNomad unversioned, so the downloaded data does not carry the version its own labels
+   came from — and **no source states the marker database version**, which is the one part of
+   the pin still inferred, from the publisher's own `releases.txt` mapping.
 2. **Two near-misses, both of which would have published a flattering number.** Validating
    `score` produced a 100% escape rate — an accession-version join failure, now tolerant with a
    guard that refuses a total mismatch outright. And the first parse read geNomad's lineage
@@ -158,6 +163,14 @@ ground truth are one fact. Only 272 carry a geNomad label — and 255 of those c
 **Not done, deliberately:** the three policy readings are indistinguishable here for the same
 reason as in A1.4, A7.1 and A4.1 — the denylists they share set the scope, and no rule they
 differ over reads a taxonomic label. A0.4 reports the spread.
+
+**Corrected after the fact (D-096).** The project owner supplied the IMG/VR v4 paper, which
+four automated access paths had refused. It confirmed the version pin and the MSL pin, and it
+withdrew two things this write-up had claimed: that the geNomad version was unrecoverable from
+the publisher, and that three of the eight taxonomy methods were undocumented. No measured
+result moved — the rates were produced by geNomad 1.1.0 against ICTV MSL37 either way — and
+`score` was re-run only so the artefact carries the corrected evidence. The corrections cost
+the audit rather than the filter, which is the direction §2 requires them to be taken in.
 
 **Waiting on the project owner:** nothing — the one open judgement is now settled. A4.2
 reports a measured rate for 38.56% of the filter's hazard-relevant removals and an explicit gap
