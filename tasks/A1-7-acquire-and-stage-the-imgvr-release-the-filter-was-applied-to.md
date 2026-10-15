@@ -98,8 +98,14 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 
 ## State — 2026-10-15
 
-`in-progress`, on branch `ccr-2e82b91e-hou4gf`, open as **PR #8** — pushed and green, **not
-merged into `main`**.
+`in-progress`. The acquisition tooling is **merged into `main`** (PR #8, branch
+`ccr-2e82b91e-hou4gf`). Two things sit outside it:
+
+- `claude/upbeat-shannon-wd4its` — current. The disk-spooling transfer path and its tests, and
+  it carries the endpoint fix below so it can run a staging pass on its own.
+- `claude/exciting-sagan-kqlqvf` — the documented-endpoint fix D-060 describes. `main` carries
+  D-060's *decision* but not its *code*, which is why the branch above carries it too. Either
+  branch landing closes that gap; whoever merges second will find it already applied.
 
 Status is `in-progress` and not `blocked` on purpose: `blocked` in this schema means a task
 dependency is unfinished, and `tools/board.py --check` rejects it here because A1.1 is done.
@@ -184,17 +190,52 @@ and its SSO site, because the login service changed on **27 July 2026** and the 
   authentication before method, the old form would have failed as a 401, which is what the
   tool's own guard reports as a missing credential.
 
-**Waiting on the project owner:** a JGI credential that reaches a session. Nothing else.
+**Waiting on the project owner:** a JGI credential that is **not intercepted on the way out**.
+Nothing else.
 
-As of 2026-10-15 it still does not. The project owner reports the token has been added as a
-secret; `JGI_API_TOKEN` is absent from this session's environment, and nothing is reaching JGI
-by another route either — an unauthenticated request and one carrying a deliberately bogus
-`Authorization: Bearer` header get the same `401 {"detail":"Authentication credentials were not
-provided."}`, so the header is not being supplied for us and a client-supplied one does not
-arrive. Two things that would explain it and are worth checking in order: a secret added after a
-session starts is not picked up by that session, so **a new session is the first thing to try**;
-and if it was stored as a network secret for `*.jgi.doe.gov` rather than as an environment
-variable named `JGI_API_TOKEN`, `stage_imgvr.py` will not find it where it looks.
+As of 2026-10-15 the token exists and does not arrive (D-061). `JGI_API_TOKEN` is now in the
+environment and it is a good credential: a three-segment RS256 JWT from
+`auth.jgi.doe.gov/auth/realms/jgi-web`, issued 12:58 UTC and valid for about eleven more hours
+when it was tested. The authenticated download fails anyway, and identically to having no
+credential at all — `401 {"detail":"Authentication credentials were not provided."}`, which is
+the *header absent* message, not the *token rejected* one. So the earlier advice in this file to
+read a mid-run 401 as "expired, re-copy the token" does not apply to this 401, and following it
+would have burned a round trip on a second token that would have been stripped like the first.
+
+Three measurements locate the loss, and the last one settles it:
+
+1. The request shape is the publisher's own. Its download spec declares one security scheme —
+   `apiKey`, name `Authorization`, in `header`, pattern `^Bearer \S+$` — and that is what
+   `amazebio.imgvr.download_url` and `stage_imgvr.py` send (D-060).
+2. The token's **own issuer** also reports no credential: Keycloak's `userinfo` answers `401`
+   with a bare `WWW-Authenticate: Bearer realm="jgi-web"` for the real token and for
+   `Bearer notatoken` alike. A present-but-bad token gets `error="invalid_token"` and a
+   description instead. Two JGI services on two hosts both see nothing.
+3. The client does send it. The same header to a local server on `127.0.0.1` — not proxied —
+   arrives intact at 1540 bytes, `Bearer ` plus the 1533-character token.
+
+The session's egress proxy re-terminates TLS and is configured to inject credentials for
+`*.jgi.doe.gov`. It is the only thing between the tool and the publisher, and the only thing
+documented to rewrite that header for that host. What it injects does not authenticate, and it
+does not pass ours through. **The fix is the project owner's: make the token reachable as the
+plain environment variable `JGI_API_TOKEN` without the proxy also claiming `*.jgi.doe.gov` for
+injection, then start a new session.** Not a different token, and not a different endpoint —
+both of those have been ruled out by measurement rather than by assumption.
+
+Do not attempt to route around it. Unsetting the proxy, disabling TLS verification or reaching
+JGI off-policy are all forbidden by the environment and all wrong on their own terms: a corpus
+acquired by evading the session's egress policy is not one this audit can cite.
+
+**Changed while blocked** (branch `claude/upbeat-shannon-wd4its`): the transfer path is no
+longer the one that was written. `download_verify_upload` accumulated each whole file in memory
+and then joined it, so the 5.0 GB sequence-information table would have peaked at roughly twice
+that against 15 GB of RAM — the first authenticated run would have died on it. Each file now
+spools to disk and is deleted once uploaded, the run refuses to start if the spool filesystem
+cannot hold the largest single file (that file plus headroom, not the 7.9 GB release total,
+because only one is ever on disk), and the upload is `upload_file` rather than a `put_object`
+whose 5 GiB single-PUT ceiling that file sits just under. Tests now cover the step that writes
+to the no-delete bucket: verified bytes upload, an md5 mismatch or a listing/bytes disagreement
+upload nothing, the spool file is removed either way, and a dry run moves nothing.
 
 ## Numbering
 

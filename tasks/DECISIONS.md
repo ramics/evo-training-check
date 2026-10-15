@@ -2111,3 +2111,64 @@ decision has a threshold or parameter in it, the number goes in the entry.
   which is the same condition `file_status: BACKUP_COMPLETE` reports in the listing. The tool
   decides from the listing and never sees the 409; that is fine, and worth knowing if a file is
   ever restored between the listing fetch and the download.
+
+### D-061 — The JGI token is valid and never reaches JGI: the session proxy owns credential injection for that host
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** The project owner supplied a credential and it is now in the session environment
+  as `JGI_API_TOKEN`. It is well-formed and current: a three-segment RS256 JWT issued by
+  `https://auth.jgi.doe.gov/auth/realms/jgi-web`, `iat` 12:58:39 UTC and `exp` 00:01:21 the
+  following day, so roughly eleven hours of validity remained when it was tested. The
+  authenticated download still fails, and it fails the same way it did with no credential at
+  all: `401 {"detail":"Authentication credentials were not provided."}` from
+  `GET /download_files/{jamo_id}/`. That is the message Django REST Framework returns when the
+  `Authorization` header is **absent or does not carry the expected keyword** — not the
+  message for a token that is present and rejected, which is what an expired session token
+  would produce.
+  Three observations isolate where it is lost, and the third is the one that settles it:
+  1. The request is built correctly. The download API's own spec
+     (`files-download.jgi.doe.gov/apidoc/?format=openapi`, version 202610.92006.17) declares one
+     security scheme — `apiKey`, name `Authorization`, in `header` — and types the parameter
+     with pattern `^Bearer \S+$`. That is the shape sent, via `amazebio.imgvr.download_url`
+     (D-060).
+  2. The token's own issuer reports no credential either. `GET
+     /protocol/openid-connect/userinfo` on `auth.jgi.doe.gov` answers `401` with
+     `WWW-Authenticate: Bearer realm="jgi-web"` and an empty body, **identically for the real
+     token and for `Bearer notatoken`**. Keycloak adds `error="invalid_token"` and an
+     `error_description` when a bearer token is present and bad; the bare challenge is its
+     no-token response. So two different JGI services, on two hosts, both see no credential.
+  3. The client does send it. A control request carrying the same header to a local HTTP server
+     on `127.0.0.1` — which is in the proxy's `noProxy` list and therefore not proxied — arrives
+     with `Authorization` present and 1540 bytes long, exactly `Bearer ` plus the 1533-character
+     token. The header is constructed and transmitted; it is removed in transit.
+  The session's outbound HTTPS goes through an agent proxy that re-terminates TLS and is
+  configured to **inject credentials for `*.jgi.doe.gov`**. That is the only element between the
+  client and the publisher, and it is the one element documented to rewrite this exact header
+  for this exact host. Whatever it injects does not satisfy the API, and a client-supplied
+  header does not survive it.
+- **Decision:** Record this as an environment finding and stop probing it. The token is not the
+  problem, the endpoint is not the problem (D-060 settled that), and the tool is not the
+  problem. What is needed from the project owner is that the credential reach JGI in the
+  `Authorization: Bearer <token>` form the publisher's spec requires — in practice, that the
+  token be available to this session as the plain environment variable `JGI_API_TOKEN` **without
+  the proxy also claiming `*.jgi.doe.gov` for credential injection**, since that claim is what
+  strips the header the tool sets. A session started after that change picks it up.
+- **Rejected:** Routing around the proxy — unsetting `HTTPS_PROXY`, disabling TLS verification,
+  or reaching JGI by any path that evades the policy layer. The environment forbids all three and
+  they are the wrong answer to a misconfiguration regardless: a corpus acquired by circumventing
+  the session's egress policy is not a corpus this audit can cite. Also rejected: concluding the
+  token had expired and asking for another. The task file's existing advice is to read a mid-run
+  401 as "expired, re-copy the token" before suspecting permissions, and that advice is right in
+  general and wrong here — the JWT's own `exp` and the shape of the 401 both rule expiry out, and
+  a second token would have been stripped exactly as the first was. Checking the claim before
+  acting on it saved a round trip rather than costing one.
+- **Consequence:** A1.7 stays `in-progress` and its waiting-on line changes from "a credential
+  that reaches a session" to the narrower and more actionable "a credential that is not
+  intercepted". Everything that can be established without the bytes remains established, and
+  one thing was added while blocked: the transfer path is no longer the one that was written.
+  `download_verify_upload` buffered each whole file in memory, so the 5.0 GB
+  sequence-information table would have peaked at about twice that against 15 GB of RAM; it now
+  spools to disk, uploads with `upload_file` rather than a `put_object` whose 5 GiB single-PUT
+  ceiling the file sits just under, and is covered by tests for the no-delete bucket's one
+  real hazard — bytes uploaded that were never verified. So the first authenticated run will
+  exercise a path that has been tested, which it would not have before.
