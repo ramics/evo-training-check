@@ -32,6 +32,9 @@ src/amazebio/         library code
   survival.py         the frozen route taxonomy and headline metrics
   uniref.py           streaming acquisition of a pinned UniRef release, per release
   esm3.py             what ESM3-open states about its corpus, and what does not reconcile
+  ictv.py             the pinned ICTV Virus Metadata Resource — the benchmark ground truth
+  genomad.py          the tool A4.2 benchmarks: version bound, output parser, scope note
+  misassignment.py    taxonomy-tool error by direction, exact intervals, leakage propagation
 metrics/survival.md   FROZEN — the headline metric spec; changing it is a DECISIONS entry
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tools/stage_uniref.py stages a pinned UniRef release into object storage, streaming
@@ -39,6 +42,8 @@ tools/count_clusters.py counts clusters in a staged tier and checks the composit
 tools/stage_opengenome.py stages the pinned Evo nucleotide corpora, by component
 tools/ec2_count.py    runs the count in-region on EC2; see "Running work on EC2"
 tools/esm3_composition.py writes ESM3's stated composition and its reconciliation gaps
+tools/taxonomy_dependency.py which taxonomy tool the denylist's removals actually rest on
+tools/taxonomy_benchmark.py builds the labelled set and scores the tool's error by direction
 tasks/README.md       the task protocol in detail
 tasks/BOARD.md        GENERATED — never hand-edit
 tasks/DECISIONS.md    append-only log of resolved ambiguities
@@ -236,6 +241,13 @@ script.
 launcher refuses to run from a dirty tree and passes the commit in explicitly; keep that. A result
 that cannot be traced to the code that produced it is not citable, which is the whole point of
 `repro`.
+
+**A memory ceiling is not a reason to launch an instance.** A4.2 hit one: reproducing IMG/VR's own
+marker search needs about 24 GB to hold the profile index in a single pass and the session container
+has 16. The test in this section is data movement, and a memory bound is not that — splitting the
+target database (`--splits 8` for geNomad, which is the same thing one rank down) made the search
+fit and changed nothing about the result. Check whether the work can be split before concluding it
+needs a bigger machine.
 
 **Know the parallelism before choosing a size.** A gzip stream cannot be decompressed in parallel,
 so one `.gz` file is one thread however many cores are present. For the UniRef tiers that caps
