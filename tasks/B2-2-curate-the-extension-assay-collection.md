@@ -2,7 +2,7 @@
 id: B2.2
 title: Curate the extension assay collection
 phase: B
-status: blocked
+status: ready
 gate: false
 depends_on: [B2.1]
 blocks: [B2.3, B2.4]
