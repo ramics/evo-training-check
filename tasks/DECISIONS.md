@@ -2597,3 +2597,36 @@ decision has a threshold or parameter in it, the number goes in the entry.
   is unauditable in a way no amount of re-execution fixes. And B1 should not assume that any
   host-based exclusion claim in any model card is backed by host annotation that names the hosts
   it excludes.
+
+### D-073 — Evo 2's conformance result becomes its own Phase A task, and the v4.1 identification is carried into `corpora.md`
+- **Date:** 2026-10-15
+- **Task:** A7.2
+- **Context:** A7.2 produced two things it was not the right task to own. Its Evo 2 arm found
+  264,570 released records that the procedure Evo 2 adopts by reference removes — four orders of
+  magnitude larger than its Evo 1 finding of 95, and a claim about a different artefact, a
+  different release, and a different paper's adoption of someone else's published method. And
+  D-071 identified Evo 1's input as IMG/VR v4.1 from Evo 1's own released corpus, where
+  `policies/corpora.md` §2 and D-052/D-063 all record the release as not determinable.
+- **Decision:** Both put to the project owner, who decided both.
+  **The Evo 2 result gets its own task, A7.3**, rather than a section of A6.1's Phase A write-up.
+  The reasons the owner's choice turns on: reporting the larger finding inside an Evo 1 result
+  would bury it, and it would attach Evo 2's standing to Evo 1's A3.3 reimplementation rather
+  than to its own. A7.3 carries the interpretive work A7.2 deliberately did not do — what the
+  arithmetic licenses in print, the three live alternative explanations as checks rather than
+  sentences, the by-family breakdown within §4's reporting limits, and the repeated accessions.
+  **The v4.1 identification is carried into `policies/corpora.md` with its caveat**: recorded as
+  identified from Evo 1's own output rather than from Evo 1's words, so a later reader cannot
+  mistake an inference for a retrieved fact. D-052, D-063 and D-071 stay as they stand; the
+  earlier entries are the record of what the sources said and are not rewritten.
+- **Rejected:** Folding Evo 2 into A6.1 — considered and declined for the reasons above. Holding
+  the decision until A3.3 runs — the finding's standing depends on the reimplementation, but
+  where it is written up does not, and leaving it unowned until then is how a result becomes a
+  review note nobody owns (which is the mistake A7.2 exists to avoid repeating, per its own
+  "why this is a separate task"). Leaving `corpora.md` ambiguous — the identification is evidence
+  about the audited artefact, and a verdict document that omits it would have A7.2's own claims
+  resting on a release the repo says is unknown.
+- **Consequence:** A7.3 is `blocked` on A7.2, which is `review` behind the A3.3 gate. Phase A now
+  has two conformance findings of very different sizes about two different releases, and the
+  write-ups must not be allowed to blur into one: Evo 1's is a near-clean result with a 95-record
+  exception, Evo 2's is a mismatch across four of six rules. A6.1 should state both and claim
+  neither on the other's evidence.
