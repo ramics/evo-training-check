@@ -222,6 +222,12 @@ plain environment variable `JGI_API_TOKEN` without the proxy also claiming `*.jg
 injection, then start a new session.** Not a different token, and not a different endpoint —
 both of those have been ruled out by measurement rather than by assumption.
 
+**The project owner chose the environment-variable route** (2026-10-15), so the fix above is the
+one to expect: `JGI_API_TOKEN` as a plain environment variable, with no `*.jgi.doe.gov` entry
+claiming credential injection. If a later session still gets the *header absent* 401, check that
+the injection entry is actually gone before suspecting the token — a fresh token changes nothing
+while that entry stands, which is the trap D-061 exists to stop the next worker falling into.
+
 Do not attempt to route around it. Unsetting the proxy, disabling TLS verification or reaching
 JGI off-policy are all forbidden by the environment and all wrong on their own terms: a corpus
 acquired by evading the session's egress policy is not one this audit can cite.
