@@ -98,150 +98,59 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 
 ## State — 2026-10-15
 
-`in-progress`. The acquisition tooling is **merged into `main`** (PR #8, branch
-`ccr-2e82b91e-hou4gf`). Two things sit outside it:
+`in-progress`, and no longer blocked. The credential problem is closed and **the first release
+is staged**. Work branch: `claude/kind-wozniak-ec94y4`.
 
-- `claude/upbeat-shannon-wd4its` — current. The disk-spooling transfer path and its tests, and
-  it carries the endpoint fix below so it can run a staging pass on its own.
-- `claude/exciting-sagan-kqlqvf` — the documented-endpoint fix D-060 describes. `main` carries
-  D-060's *decision* but not its *code*, which is why the branch above carries it too. Either
-  branch landing closes that gap; whoever merges second will find it already applied.
+**The token reaches JGI.** The project owner made `JGI_API_TOKEN` a plain environment variable
+and dropped the proxy's claim on `*.jgi.doe.gov`, which is what D-061 asked for. Settled by the
+shape of the refusals, not by assertion: with the header the download host answers 404 or 405,
+without it the *header absent* 401. D-061 is closed; nothing in it needs revisiting.
 
-Status is `in-progress` and not `blocked` on purpose: `blocked` in this schema means a task
-dependency is unfinished, and `tools/board.py --check` rejects it here because A1.1 is done.
-What holds this task is external, so it belongs in the waiting-on line below, which is what
-the frontmatter contract is for.
+**The endpoint moved once more, and only a credential could show it** (D-062). The publisher's
+documented single-file read `GET /download_files/{jamo_id}/` — what D-060 corrected to —
+answers 404 authenticated for every IMG/VR file, the 4 KB README and the 696 MB host table
+alike, as nginx HTML rather than the API's own JSON. What serves bytes is
+`POST /download_files/` keyed by organism id, returning one `application/zip` stream with a
+manifest. `top_hit` is the id string; posting the object the search response nests there returns
+500. `POST /request_archived_files/` takes the same organism-keyed body, and a flat list of ids
+is refused as a 404 that reads like an absent endpoint.
 
-**Blocked on one thing: a JGI account token.** JGI publishes the IMG/VR *inventory* without
-authentication and withholds the *files*; every download endpoint returns HTTP 401
-`{"detail":"Authentication credentials were not provided."}` (D-054). Registering an account
-accepts a data-use policy on the project's behalf and mints a credential, so it is the project
-owner's to do, not this session's. Everything that can be established without the bytes is
-established and committed.
+**Staged: the 2022-09-20 release, 6 files, 7.92 GB**, under
+`s3://amazebio-corpora-897641797669/corpora/imgvr/2022-09-20/`. Each file was verified against
+the publisher's own md5 — pinned from the public inventory before this project held any of the
+bytes — before its upload began. The three fields this task exists for were then read back out
+of the bucket rather than assumed from the files being present: in the staged
+sequence-information table, `Confidence` is column 9, `vOTU` column 5, and
+`Host taxonomy prediction` column 16; the host table carries `UVIG`, `Prediction method` and
+`Host taxonomy prediction`. Run provenance is in `artifacts/a1-7/run-2022-09-20.json`.
 
-**Done, and reusable by whoever resumes:**
+**What is left:**
 
-- The dataset is `Custom_MPI-IMG_VR`, taken from the portal's own redirect rather than guessed —
-  the documented download page is a JavaScript application with no static links. The full
-  inventory (42 files, 10 dated releases) is captured at
-  `policies/captures/jgi-imgvr-inventory.json` and registered as `S-IMGVR-JGI-INVENTORY`.
-- **All 20 files of the two candidate releases are pinned by the publisher's own md5, before
-  this project holds any of the bytes** (`amazebio.imgvr.RELEASES`). That is the A1.3 standard
-  rather than D-040's weaker self-attestation, and it is only possible because the inventory is
-  public: the figure was recorded before anyone went looking for a match.
-- **"IMG/VR v4" names two releases, not one** — 2022-09-20 and 2022-12-20 (D-052). They are
-  byte-identical in nucleotides and host information and differ in the sequence-information
-  table, which carries the confidence label and the vOTU assignment. They therefore agree on
-  what Evo 1's host-count rule reads and disagree on what its high-confidence gate and vOTU
-  representative read: two of the three rules A7.1 could not run.
-- **The acquisition is 7.9 GB per release, not 128.7 GB** (D-053). Every conformance check is a
-  set operation over accessions and metadata, so no nucleotides or proteins are staged. Both
-  confidence variants are, and the unfiltered one is not optional: a gate that keeps
-  high-confidence records cannot be audited against a file from which every record passes it.
-- A verification of A7.1 fell out of step one (D-055): Evo 1's own Table S3 publishes 2,653,046
-  records, 36,236 M bases and 13,658 mean length for this component, against A7.1's census of
-  2,653,047 / 36,236.0 / 13,658.3. The `+1` is unexplained and reported, not rounded away. The
-  check now runs inside `tools/conformance_diff.py` rather than living in prose.
+- **The 2022-12-20 release.** `BACKUP_COMPLETE` on tape; the restore is asynchronous and can
+  take up to 24 hours. Re-run `python3 tools/stage_imgvr.py --stage --release 2022-12-20` until
+  it picks the files up — the tool requests and polls rather than failing, and a run that ends
+  with files still on tape says so and is not an error. One caveat stands from before: the token
+  is a browser *session* token, so a restore wait longer than its life needs a fresh one copied
+  from the Data Portal avatar menu. Unlike the 401s this task spent two passes on, *that* one
+  really would be expiry.
+- **The composition artefact** — counts per component against the publisher's stated counts.
+  Nothing blocks it for 2022-09-20; it is honest to produce it for both releases at once, since
+  the point of auditing both is the disagreement between them (D-052).
+- **Whether this is the real input or a proxy**, stated as plainly as A1.1 stated it for the
+  corpora. The ingredients are all recorded — D-052 on the two releases, D-056 on auditing both —
+  but the verdict itself is not yet written down in one place.
 
-**Both v4 releases are the audited input** (D-056), chosen by the project owner rather than by
-this task. One of them is on tape: 2022-09-20 is `RESTORED` and downloadable immediately,
-2022-12-20 is `BACKUP_COMPLETE` and needs an asynchronous restore request first, so A1.7
-completes in two passes.
+**Transfer path, as it now stands:** one file is requested per call, so the zip holds one member
+and the spool is bounded by the largest single file rather than by the 7.9 GB release. The member
+is verified by streaming it once and uploaded by streaming it again, so the extracted copy never
+lands on disk. Verification strictly precedes upload — the corpus bucket withholds
+`s3:DeleteObject`, so an object that completes is permanent. A zip that does not hold exactly one
+member with the expected name refuses rather than guessing which member was meant. Tests cover
+the match, the mismatch, the short read, the missing member, the spool cleanup and the dry run.
 
-**What is left — one command, once the token exists:**
-
-```bash
-python3 tools/stage_imgvr.py --inventory   # no token; checks live listing against the pins
-python3 tools/stage_imgvr.py --stage       # both releases, metadata only, verify then upload
-```
-
-`tools/stage_imgvr.py` is written, linted and tested on every path that does not need the
-credential: the inventory check runs clean against the live listing (42 files, 0 problems), the
-token guard reports what to do, and the tape-restore path requests and polls rather than
-failing. What has never executed is the authenticated download itself. Authentication is a
-Bearer token in the `Authorization` header, read from JGI's own API spec rather than guessed.
-
-### Where the token comes from, and one caveat (added from the A1.4 session, 2026-10-15)
-
-Established from JGI's live API spec (`files.jgi.doe.gov/swagger.json`, version 202610.92006.17)
-and its SSO site, because the login service changed on **27 July 2026** and the old
-`signon.jgi.doe.gov` is retired — a URL recalled rather than checked would have been wrong.
-
-- **Getting it:** log in to the Data Portal (`https://data.jgi.doe.gov`), click the avatar in the
-  upper right, then **"Copy My Session Token"**. The API's own parameter is named *SSO session
-  token* with pattern `^Bearer \S+$`, so the value pasted into `JGI_API_TOKEN` is the token
-  alone — `stage_imgvr.py` adds the `Bearer ` prefix itself.
-- **Accounts now need ORCID.** Non-JGI users authenticate through an ORCID iD with 2FA enabled,
-  associated with the JGI account. The project owner has done this.
-- **The caveat: it is a browser *session* token, not a long-lived API key.** This task stages
-  7.9 GB per release across **two passes with an asynchronous tape restore between them**
-  (2022-12-20 is `BACKUP_COMPLETE`). A token that expires during the restore wait will surface as
-  HTTP 401, which this tool's own guard reports as a missing credential. Whoever resumes should
-  read a mid-run 401 as "expired, re-copy the token" before concluding anything about
-  permissions, and consider whether the restore wait should be a separate invocation rather than
-  a poll inside one long-lived run.
-- **The download host is a separate service, and the endpoint did need changing** (corrected
-  2026-10-15, D-060). `files.jgi.doe.gov/filedownload/` answers 401 unauthenticated, which this
-  line first read as "live, no change needed". It answers 401 to *every* method and its `Allow`
-  header reads `POST, OPTIONS`, while this tool was sending a GET. The publisher's download API
-  has its own spec at `files-download.jgi.doe.gov/apidoc/?format=openapi`, and its documented
-  single-file read is `GET /download_files/{jamo_id}/` — `Allow: GET, HEAD, OPTIONS`. The tool
-  now builds that URL through `amazebio.imgvr.download_url`. Because this endpoint checks
-  authentication before method, the old form would have failed as a 401, which is what the
-  tool's own guard reports as a missing credential.
-
-**Waiting on the project owner:** a JGI credential that is **not intercepted on the way out**.
-Nothing else.
-
-As of 2026-10-15 the token exists and does not arrive (D-061). `JGI_API_TOKEN` is now in the
-environment and it is a good credential: a three-segment RS256 JWT from
-`auth.jgi.doe.gov/auth/realms/jgi-web`, issued 12:58 UTC and valid for about eleven more hours
-when it was tested. The authenticated download fails anyway, and identically to having no
-credential at all — `401 {"detail":"Authentication credentials were not provided."}`, which is
-the *header absent* message, not the *token rejected* one. So the earlier advice in this file to
-read a mid-run 401 as "expired, re-copy the token" does not apply to this 401, and following it
-would have burned a round trip on a second token that would have been stripped like the first.
-
-Three measurements locate the loss, and the last one settles it:
-
-1. The request shape is the publisher's own. Its download spec declares one security scheme —
-   `apiKey`, name `Authorization`, in `header`, pattern `^Bearer \S+$` — and that is what
-   `amazebio.imgvr.download_url` and `stage_imgvr.py` send (D-060).
-2. The token's **own issuer** also reports no credential: Keycloak's `userinfo` answers `401`
-   with a bare `WWW-Authenticate: Bearer realm="jgi-web"` for the real token and for
-   `Bearer notatoken` alike. A present-but-bad token gets `error="invalid_token"` and a
-   description instead. Two JGI services on two hosts both see nothing.
-3. The client does send it. The same header to a local server on `127.0.0.1` — not proxied —
-   arrives intact at 1540 bytes, `Bearer ` plus the 1533-character token.
-
-The session's egress proxy re-terminates TLS and is configured to inject credentials for
-`*.jgi.doe.gov`. It is the only thing between the tool and the publisher, and the only thing
-documented to rewrite that header for that host. What it injects does not authenticate, and it
-does not pass ours through. **The fix is the project owner's: make the token reachable as the
-plain environment variable `JGI_API_TOKEN` without the proxy also claiming `*.jgi.doe.gov` for
-injection, then start a new session.** Not a different token, and not a different endpoint —
-both of those have been ruled out by measurement rather than by assumption.
-
-**The project owner chose the environment-variable route** (2026-10-15), so the fix above is the
-one to expect: `JGI_API_TOKEN` as a plain environment variable, with no `*.jgi.doe.gov` entry
-claiming credential injection. If a later session still gets the *header absent* 401, check that
-the injection entry is actually gone before suspecting the token — a fresh token changes nothing
-while that entry stands, which is the trap D-061 exists to stop the next worker falling into.
-
-Do not attempt to route around it. Unsetting the proxy, disabling TLS verification or reaching
-JGI off-policy are all forbidden by the environment and all wrong on their own terms: a corpus
-acquired by evading the session's egress policy is not one this audit can cite.
-
-**Changed while blocked** (branch `claude/upbeat-shannon-wd4its`): the transfer path is no
-longer the one that was written. `download_verify_upload` accumulated each whole file in memory
-and then joined it, so the 5.0 GB sequence-information table would have peaked at roughly twice
-that against 15 GB of RAM — the first authenticated run would have died on it. Each file now
-spools to disk and is deleted once uploaded, the run refuses to start if the spool filesystem
-cannot hold the largest single file (that file plus headroom, not the 7.9 GB release total,
-because only one is ever on disk), and the upload is `upload_file` rather than a `put_object`
-whose 5 GiB single-PUT ceiling that file sits just under. Tests now cover the step that writes
-to the no-delete bucket: verified bytes upload, an md5 mismatch or a listing/bytes disagreement
-upload nothing, the spool file is removed either way, and a dry run moves nothing.
+**Superseded branches.** `claude/upbeat-shannon-wd4its` (the disk-spooling transfer path) is
+carried into the current branch. `claude/exciting-sagan-kqlqvf` holds D-060's code, which D-062
+has since replaced; nothing needs to be merged from it.
 
 ## Numbering
 
