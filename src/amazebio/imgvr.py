@@ -39,6 +39,7 @@ from __future__ import annotations
 import dataclasses
 
 __all__ = [
+    "DOWNLOAD_BASE",
     "FILE_ROLES",
     "RELEASES",
     "V4_CANDIDATES",
@@ -46,6 +47,7 @@ __all__ = [
     "ReleaseFile",
     "conformance_inputs",
     "differs_between",
+    "download_url",
     "release_on",
 ]
 
@@ -329,6 +331,34 @@ def differs_between(a: str, b: str) -> dict[str, bool]:
     fa = {f.name: f.md5 for f in ra.files}
     fb = {f.name: f.md5 for f in rb.files}
     return {name: fa.get(name) != fb.get(name) for name in sorted(set(fa) | set(fb))}
+
+
+#: Where a single file is fetched from, by its JAMO id. Read from the publisher's own download
+#: API spec (`files-download.jgi.doe.gov/apidoc/?format=openapi`, version 202610.92006.17) and
+#: not from the portal's search host, because the two are different services and only this one
+#: serves a single file by id.
+DOWNLOAD_BASE = "https://files-download.jgi.doe.gov/download_files/"
+
+
+def download_url(jamo_id: str) -> str:
+    """The URL for one file, by the `_id` the public listing gives it.
+
+    This is `GET /download_files/{jamo_id}/` on the download host, with the SSO session token as
+    `Authorization: Bearer <token>`. It is recorded here rather than inlined in the staging tool
+    because an earlier pass had it wrong in a way that was invisible without a credential, and
+    the live API is explicit about which shape it accepts:
+
+    * `files.jgi.doe.gov/filedownload/?_id=<id>` — what the first version of `stage_imgvr.py`
+      used — answers `401` to *any* method, and its `Allow` header reads `POST, OPTIONS`. So the
+      401 that pass took as proof the endpoint was live proved only that: a GET there would have
+      failed on the method after a token existed, and reported itself as an auth problem.
+    * `files-download.jgi.doe.gov/download_files/<id>/` answers `401` with `Allow: GET, HEAD,
+      OPTIONS`, which is the documented single-file read and the one this project uses.
+
+    Verified against the live API on 2026-10-15; the authenticated request itself has still never
+    run, because no credential has reached a session yet (D-054).
+    """
+    return f"{DOWNLOAD_BASE}{jamo_id}/"
 
 
 def conformance_inputs(date: str) -> tuple[ReleaseFile, ...]:
