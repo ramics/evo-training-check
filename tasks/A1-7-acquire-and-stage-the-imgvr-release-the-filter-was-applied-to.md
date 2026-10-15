@@ -2,7 +2,7 @@
 id: A1.7
 title: Acquire and stage the IMG/VR release the filter was applied to
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.1]
 blocks: [A7.2]
@@ -98,59 +98,73 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 
 ## State — 2026-10-15
 
-`in-progress`, and no longer blocked. The credential problem is closed and **the first release
-is staged**. Work branch: `claude/kind-wozniak-ec94y4`.
+`review`. **Both releases are staged and verified and every Done-when criterion is met.**
+Work branch: `claude/kind-wozniak-ec94y4`.
 
-**The token reaches JGI.** The project owner made `JGI_API_TOKEN` a plain environment variable
-and dropped the proxy's claim on `*.jgi.doe.gov`, which is what D-061 asked for. Settled by the
-shape of the refusals, not by assertion: with the header the download host answers 404 or 405,
-without it the *header absent* 401. D-061 is closed; nothing in it needs revisiting.
+**Staged:** 12 objects, 15.84 GB, under
+`s3://amazebio-corpora-897641797669/corpora/imgvr/{2022-09-20,2022-12-20}/`. Every file was
+verified against the publisher's own md5 — pinned from the public inventory before this project
+held any of the bytes, the A1.3 standard rather than D-040's weaker self-attestation — before
+its upload began. The December release was on tape; the restore returned in minutes, not the
+24 hours the endpoint's documentation allows for.
 
-**The endpoint moved once more, and only a credential could show it** (D-062). The publisher's
-documented single-file read `GET /download_files/{jamo_id}/` — what D-060 corrected to —
-answers 404 authenticated for every IMG/VR file, the 4 KB README and the 696 MB host table
-alike, as nginx HTML rather than the API's own JSON. What serves bytes is
-`POST /download_files/` keyed by organism id, returning one `application/zip` stream with a
-manifest. `top_hit` is the id string; posting the object the search response nests there returns
-500. `POST /request_archived_files/` takes the same organism-keyed body, and a flat list of ids
-is refused as a 404 that reads like an absent endpoint.
+**The credential problem is closed.** The token reaches JGI, settled by the shape of the
+refusals rather than by assertion: with the header the download host answers 404 or 405,
+without it the *header absent* 401 (D-062). Nothing in D-061 needs revisiting.
 
-**Staged: the 2022-09-20 release, 6 files, 7.92 GB**, under
-`s3://amazebio-corpora-897641797669/corpora/imgvr/2022-09-20/`. Each file was verified against
-the publisher's own md5 — pinned from the public inventory before this project held any of the
-bytes — before its upload began. The three fields this task exists for were then read back out
-of the bucket rather than assumed from the files being present: in the staged
-sequence-information table, `Confidence` is column 9, `vOTU` column 5, and
-`Host taxonomy prediction` column 16; the host table carries `UVIG`, `Prediction method` and
-`Host taxonomy prediction`. Run provenance is in `artifacts/a1-7/run-2022-09-20.json`.
+**The endpoint moved once more and only a credential could show it** (D-062). The publisher's
+documented single-file `GET /download_files/{jamo_id}/` answers 404 authenticated for every
+IMG/VR file, the 4 KB README and the 696 MB host table alike. What serves bytes is
+`POST /download_files/` keyed by organism id, returning one zip stream with a manifest. The
+tape-restore endpoint takes the same organism-keyed body; a flat list of ids is refused as a
+404 that reads like an absent endpoint.
 
-**What is left:**
+**The releases are v4 and v4.1, not two v4s** (D-063). The December README says so in the
+publisher's own words, and says what it corrects: "fixes issues with two files
+(IMGVR_all_proteins.faa and IMGVR_all_Sequence_information.tsv) in which a few sequences/rows
+were incorrect". That is exactly the difference set D-052 derived from md5sums alone, confirmed
+independently by the publisher. Both version strings are now on the releases in
+`amazebio.imgvr`, so no later task re-derives them from a file in a bucket.
 
-- **The 2022-12-20 release.** `BACKUP_COMPLETE` on tape; the restore is asynchronous and can
-  take up to 24 hours. Re-run `python3 tools/stage_imgvr.py --stage --release 2022-12-20` until
-  it picks the files up — the tool requests and polls rather than failing, and a run that ends
-  with files still on tape says so and is not an error. One caveat stands from before: the token
-  is a browser *session* token, so a restore wait longer than its life needs a fresh one copied
-  from the Data Portal avatar menu. Unlike the 401s this task spent two passes on, *that* one
-  really would be expiry.
-- **The composition artefact** — counts per component against the publisher's stated counts.
-  Nothing blocks it for 2022-09-20; it is honest to produce it for both releases at once, since
-  the point of auditing both is the disagreement between them (D-052).
-- **Whether this is the real input or a proxy**, stated as plainly as A1.1 stated it for the
-  corpora. The ingredients are all recorded — D-052 on the two releases, D-056 on auditing both —
-  but the verdict itself is not yet written down in one place.
+**The counts** (D-064, `artifacts/a1-7/composition.json`): 15,677,623 records, 8,606,551
+distinct vOTUs, 5,576,197 high-confidence against 10,101,426 putative, 0 malformed rows —
+identical across both releases, which is what an in-place erratum predicts. The high-confidence
+file matches the confidence label count exactly in both. Against Evo 1's own post-filter figure
+of 2,653,046 (Table S3, D-055), **Evo 1's procedure retained 16.9% of IMG/VR v4**.
 
-**Transfer path, as it now stands:** one file is requested per call, so the zip holds one member
-and the spool is bounded by the largest single file rather than by the 7.9 GB release. The member
-is verified by streaming it once and uploaded by streaming it again, so the extracted copy never
-lands on disk. Verification strictly precedes upload — the corpus bucket withholds
-`s3:DeleteObject`, so an object that completes is permanent. A zip that does not hold exactly one
-member with the expected name refuses rather than guessing which member was meant. Tests cover
-the match, the mismatch, the short read, the missing member, the spool cleanup and the dry run.
+**Against the Done-when list:**
+
+- *Registered and staged at a verified checksum* — yes, both releases, publisher's md5.
+- *Confidence label, vOTU assignment and host taxonomy demonstrated by reading them back* —
+  yes, out of the bucket: columns 9, 5 and 16 of the staged sequence-information table, and the
+  host table's three columns. Not inferred from the files being present.
+- *A composition artefact against stated counts* — `artifacts/a1-7/composition.json`, with the
+  three reconciliations it carries.
+- *Which release Evo 1's procedure was applied to, from Evo 1's own words* — established as far
+  as Evo 1's words allow, which is not all the way, and recorded as a finding rather than
+  smoothed over. Evo 1 cites "IMG/VR v4"; the publisher names one release v4 and the other
+  v4.1; Evo 1's corpus build date is unstated. Both are staged for that reason.
+- *Real input or proxy, stated plainly* — **the real input.** The publisher's own files at the
+  publisher's own checksums. The one qualification is the v4/v4.1 ambiguity above: immaterial
+  for aggregates, which are identical, and material for A7.2's row-level checks.
+
+**What this unblocks:** A7.2 — the converse conformance check, Evo 2's arm, and the three
+published rules no release could test. It becomes `ready` when this reaches `done`.
+
+**One prediction for A7.2, recorded so it can be falsified** (D-064): the high-confidence gate
+leaves 5,576,197 records, of which 2,917,521 are distinct vOTUs, and Evo 1 reports 2,653,046 —
+a further 9.1% down, the order a prokaryotic-host requirement would remove. Suggestive, not
+claimed. A7.2 computes it over joined accessions, not aggregates.
+
+**For the reviewer:** the arithmetic is in `src/amazebio/imgvr.py`, the acquisition in
+`tools/stage_imgvr.py`, the counting in `tools/imgvr_composition.py`, and their tests in
+`tests/test_imgvr.py`, `tests/test_stage_imgvr.py` and `tests/test_imgvr_composition.py`.
+Note that `pytest` on PATH in a fresh container may resolve to a shim without `pyyaml` or
+`boto3`, which fails 39 unrelated tests; the pinned environment is what CI runs.
 
 **Superseded branches.** `claude/upbeat-shannon-wd4its` (the disk-spooling transfer path) is
 carried into the current branch. `claude/exciting-sagan-kqlqvf` holds D-060's code, which D-062
-has since replaced; nothing needs to be merged from it.
+has replaced; nothing needs to be merged from it.
 
 ## Numbering
 
