@@ -98,17 +98,51 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 
 ## State — 2026-10-15
 
-`in-progress`, on branch `ccr-2e82b91e-hou4gf`.
+`in-progress`, on branch `ccr-2e82b91e-hou4gf` — pushed and green, **not merged into `main`**.
 
-Claimed straight after A7.2 was opened, since A7.1 established this is the single blocker for
-all five of A7.2's gaps.
+Status is `in-progress` and not `blocked` on purpose: `blocked` in this schema means a task
+dependency is unfinished, and `tools/board.py --check` rejects it here because A1.1 is done.
+What holds this task is external, so it belongs in the waiting-on line below, which is what
+the frontmatter contract is for.
 
-**What is left:** everything. First question is whether the release is retrievable from this
-environment at all — JGI's own distribution terms and whatever authentication it requires are
-the unknown, and an unretrievable release is a finding to record rather than a failure to work
-around (the A1.1 pattern, D-019 and D-020).
+**Blocked on one thing: a JGI account token.** JGI publishes the IMG/VR *inventory* without
+authentication and withholds the *files*; every download endpoint returns HTTP 401
+`{"detail":"Authentication credentials were not provided."}` (D-054). Registering an account
+accepts a data-use policy on the project's behalf and mints a credential, so it is the project
+owner's to do, not this session's. Everything that can be established without the bytes is
+established and committed.
 
-**Waiting on the project owner:** nothing yet.
+**Done, and reusable by whoever resumes:**
+
+- The dataset is `Custom_MPI-IMG_VR`, taken from the portal's own redirect rather than guessed —
+  the documented download page is a JavaScript application with no static links. The full
+  inventory (42 files, 10 dated releases) is captured at
+  `policies/captures/jgi-imgvr-inventory.json` and registered as `S-IMGVR-JGI-INVENTORY`.
+- **All 20 files of the two candidate releases are pinned by the publisher's own md5, before
+  this project holds any of the bytes** (`amazebio.imgvr.RELEASES`). That is the A1.3 standard
+  rather than D-040's weaker self-attestation, and it is only possible because the inventory is
+  public: the figure was recorded before anyone went looking for a match.
+- **"IMG/VR v4" names two releases, not one** — 2022-09-20 and 2022-12-20 (D-052). They are
+  byte-identical in nucleotides and host information and differ in the sequence-information
+  table, which carries the confidence label and the vOTU assignment. They therefore agree on
+  what Evo 1's host-count rule reads and disagree on what its high-confidence gate and vOTU
+  representative read: two of the three rules A7.1 could not run.
+- **The acquisition is 7.9 GB per release, not 128.7 GB** (D-053). Every conformance check is a
+  set operation over accessions and metadata, so no nucleotides or proteins are staged. Both
+  confidence variants are, and the unfiltered one is not optional: a gate that keeps
+  high-confidence records cannot be audited against a file from which every record passes it.
+- A verification of A7.1 fell out of step one (D-055): Evo 1's own Table S3 publishes 2,653,046
+  records, 36,236 M bases and 13,658 mean length for this component, against A7.1's census of
+  2,653,047 / 36,236.0 / 13,658.3. The `+1` is unexplained and reported, not rounded away. The
+  check now runs inside `tools/conformance_diff.py` rather than living in prose.
+
+**What is left:** with a token in the environment's secrets, stage the six metadata files per
+chosen release, verify each against the pinned md5, read the confidence/vOTU/host fields back,
+and record composition against the publisher's stated counts. The staging path reuses the
+streaming-and-verify pattern of `tools/stage_uniref.py`.
+
+**Waiting on the project owner:** two calls — the JGI credential, and which of the two v4
+releases is the audited one (or both, with the spread reported).
 
 ## Numbering
 

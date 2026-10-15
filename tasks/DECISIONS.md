@@ -1759,3 +1759,145 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `c__Leviviricetes` and no deeper. All are correctly retained by the rule as written, whose
   stop-taxon limb removes a record whose *finest* assignment is a named stop and not one that
   merely sits under `r__Riboviria`. The caution was right and the number is now exact.
+
+### D-052 — "IMG/VR v4" names two releases, and they disagree on exactly the metadata the audit needs
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** Evo 1's data availability section cites "curated prokaryotic viruses from the
+  IMG/VR v4 database (Camargo et al., 2023)" and nothing more specific; Appendix B.2 repeats the
+  same phrase. The publisher ships IMG/VR in folders identified by release *date*, not by version
+  number, and two of them answer to v4: **2022-09-20** and **2022-12-20**. The v4 paper issued in
+  the December. Nothing in either Evo paper distinguishes them.
+- **Decision:** Pin **both**, and treat the choice as unresolved rather than picking the later one
+  because it is later. The comparison that makes this matter is in
+  `amazebio.imgvr.differs_between`, computed from the publisher's own md5sums: the two releases
+  are **byte-identical** in their nucleotide sets (full and high-confidence) and in their
+  host-information tables, and **differ** in their sequence-information tables (both variants)
+  and their protein sets. The sequence-information table is where the **confidence label** and
+  the **vOTU assignment** live. So the two candidate releases agree on precisely what Evo 1's
+  prokaryotic-host rule reads and on the sequences themselves, and disagree on precisely what its
+  high-confidence gate and its vOTU representative read — two of the three rules A7.1 could not
+  run (D-047). A7.2 must therefore either run both releases and report the spread, or be given a
+  release by the project owner; it may not quietly choose one.
+- **Rejected:** Taking 2022-12-20 because it is contemporaneous with the paper Evo 1 cites — a
+  plausible inference, and the kind this project is supposed to log rather than act on, since
+  Evo 1's own corpus was built at an unstated date and the September release was available for
+  three months before the paper issued. Taking 2022-09-20 because it is the first to answer to
+  v4 — same objection in reverse. Treating the difference as immaterial because the sequences are
+  identical — it is immaterial for the sequence set and decisive for two of the three rules this
+  acquisition exists to unblock. Asking the authors — in scope for X3.1's disclosure
+  correspondence, not for an acquisition task, and §4 forbids external circulation before then.
+- **Consequence:** A §A0-shaped under-specification finding with a sharp edge: a published
+  procedure cites a database version, the database distributes by date, two dated releases carry
+  that version, and they differ in the field the procedure gates on. It belongs in A0.4's spread
+  report and in X5.1's disclosure standard as a requirement — a filter spec should name the
+  dated release it was applied to, not the version string, because a version string is not a pin.
+  For A7.2: the host-count rule can be audited against either release, the sequence set is
+  unambiguous, and the confidence and vOTU rules carry this ambiguity into whatever they report.
+
+### D-053 — A conformance re-execution needs IMG/VR's metadata, not its sequence: 7.9 GB, not 128.7 GB
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** The obvious reading of "acquire the filter's input" is to stage the release, and
+  the release is 128.7 GB per dated version — 48.3 GB of nucleotides, 31.5 GB of proteins and
+  the rest metadata. A1.2's precedent is selective staging by component, and the question here is
+  which files any downstream task actually reads.
+- **Decision:** Stage **metadata only**: both sequence-information tables, both host-information
+  tables, and the two READMEs — **7.9 GB of the 128.7 GB**, encoded as
+  `amazebio.imgvr.conformance_inputs` so the scope is a function rather than a habit. No
+  nucleotides and no proteins. The reason is not frugality but that every check A7.2 runs is a
+  set operation over accessions and metadata: the forward diff asks which released records a
+  predicate would have removed, the converse asks which removed records it would have kept, and
+  both are joins on `IMGVR_UViG_*` identifiers against confidence, vOTU, host and taxonomy
+  fields. None of them reads a base.
+  **Both confidence variants are staged, and the unfiltered one is not optional.** Evo 1's first
+  rule *keeps* records labelled High-confidence, so auditing that rule requires records that are
+  not so labelled; JGI's pre-filtered high-confidence file cannot contain one, because every
+  record in it passes the gate by construction. A run against the high-confidence file alone
+  would report a clean gate as a matter of arithmetic. `tests/test_imgvr.py` pins that.
+- **Rejected:** Staging the full release because the bucket is permanent and the decision would
+  not have to be made twice — 241 GB across both candidate releases, for files no task reads, in
+  a bucket with no `s3:DeleteObject`; pixi.toml's rule about unused pinned tools applies to
+  unused pinned data, and permanence is an argument for care rather than for volume. Staging the
+  high-confidence variant only, which is the subset Evo 1's pipeline keeps — it makes the first
+  rule unauditable, which is the opposite of the point. Deferring the sequence until a task needs
+  it *and* not recording why — the next reader would reasonably assume it was an oversight.
+- **Consequence:** A1.7 is a ~7.9 GB acquisition per release rather than a 128.7 GB one, which
+  also means the staging pass is small enough that AGENTS.md's in-region test does not arise at
+  all (contrast D-050). If a later task needs IMG/VR sequence — A2's detectors are the plausible
+  case — it stages the nucleotides then, as its own decision, and this entry is what it argues
+  against.
+
+### D-054 — JGI publishes the inventory and withholds the files; the pin is established before the bytes
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** A1.7's first question was whether the release is retrievable from this environment
+  at all, since an unretrievable release is a finding to record rather than a failure to work
+  around (the A1.1 pattern in D-019 and D-020). The answer is split, and usefully so.
+- **Decision:** Record both halves. **The inventory is public.** JGI's data portal serves a
+  complete file listing for the IMG/VR dataset — every file, its size, its release date and *the
+  publisher's own md5sum* — with no authentication, at
+  `https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR`. The dataset identifier
+  `Custom_MPI-IMG_VR` was not guessed: it came from the portal's own redirect, after the
+  documented download page turned out to be a JavaScript application with no static links. The
+  listing is captured at `policies/captures/jgi-imgvr-inventory.json` (42 files, 10 releases,
+  sha256 recorded in `sources.json`). **The files are not.** Every download endpoint returns
+  HTTP 401 `{"detail":"Authentication credentials were not provided."}`, and the listing marks
+  these records `_es_public_data: false`. A free JGI account exists; this environment has no
+  credential for one.
+  Because the checksums are public, `amazebio.imgvr.RELEASES` pins all 20 files of the two v4
+  releases **before this project holds any of the bytes**. That is a stronger pin than one taken
+  at download time: the figure was recorded before anyone went looking for a match, so a staging
+  pass that verifies against it is checking the publisher's attestation rather than its own
+  (the A1.3 standard in D-026 and D-027, not the weaker self-attestation D-040 had to accept).
+- **Rejected:** Looking for a mirror — a secondary copy of a primary input is exactly what
+  AGENTS.md forbids for factual claims about training data, and a mirror's bytes cannot be
+  attributed to the publisher. Registering an account from this session — it accepts a data-use
+  policy on the project's behalf and creates a credential the project owner did not ask for;
+  that is theirs to do. Reading the 401 as "the data is gone", the error D-020 records in both
+  directions: a status code is not a finding until the content behind it is read.
+- **Consequence:** A1.7 cannot complete here, and stops in the right place: everything that can
+  be established without the bytes is established and committed — the dated releases, the file
+  roles, the full md5 pins, the two-v4 ambiguity, and the 7.9 GB scope. What remains is one
+  credential. The task's own Done-when criteria about reading the metadata back are the only ones
+  outstanding. Whoever resumes it needs a JGI account token in the environment's secrets and
+  should not need to rediscover any of the above.
+
+### D-055 — Evo 1's own Table S3 corroborates A7.1's census to within one record
+- **Date:** 2026-10-15
+- **Task:** A1.7 (verifying A7.1)
+- **Context:** A7.1's headline rests on a denominator — 2,653,047 released records — and on the
+  premise that one released row is one released record, which D-048 established by measuring the
+  release's structure because nobody published it. Reading Evo 1's PDF for A1.7's first step
+  (which IMG/VR release) turned up Table S3, where the authors publish their own statistics for
+  the IMG/VR component of OpenGenome.
+- **Decision:** Record the comparison as a verification of A7.1 rather than folding it into
+  A1.7's own result. Evo 1 Table S3 (p43) publishes, for Prokaryotic Viruses / IMG/VR:
+  **2,653,046** genomes/loci, **36,236** M bases, **13,658** average length. A7.1's census of
+  the released `stage2` files counted **2,653,047** rows, **36,236,025,613** sequence characters
+  and **13,658.3** average. Records agree to **+1**; bases agree to **0.0001%**; average length
+  agrees exactly at the published precision.
+  Two things follow, and the second matters more than the first. The denominator is right. And
+  **the row-is-a-record premise is now corroborated by the developers' own published count**,
+  independently of the structural argument D-048 made from block sizes and tag repetition — a
+  count of context windows could not land within one of a count of genomes. Relatedly, Evo 2
+  p24 states that for IMG/VR "phylogenetic tags are added at the beginning of every IMG/VR
+  sequence" and that GTDB tags are added "every 131 kb", which is the mechanism D-048 measured
+  as a 131,072-character block; cite that as consistent rather than as proof, since the table
+  describes Evo 2's preprocessing and `stage2` is Evo 1's release.
+  The **+1 is not explained** and is recorded as stated-versus-actual rather than rounded away.
+  It is one record out of 2.65M; candidates include their count excluding a record, an
+  off-by-one in the table, or one record present in two splits. The per-file split is train
+  2,652,947 + valid 50 + test 50; train alone is 99 short of the published figure, so the
+  published number is a count of the whole release and not of the training split.
+- **Rejected:** Treating the agreement as exact and dropping the +1 — a conformance audit that
+  rounds its own denominator has no standing to report a 95-record finding. Claiming Table S3
+  as independent confirmation of the *filter's* behaviour — it is their count of their own
+  output, so it corroborates our reading of the artefact and nothing about whether the filter
+  worked. Moving this entry to A7.1 — it was found doing A1.7, and the log records where a
+  thing was established.
+- **Consequence:** A7.1's headline is materially stronger for the adversarial reader §7 calls
+  for: its denominator and its unit of count both now rest on the developers' own published
+  figures as well as on our measurement. A3.3's independent reimplementation gains a free check
+  it should use — any second method whose record count is not 2,653,046 ± 1 has a bug. The
+  unexplained +1 should be named in the Phase A write-up rather than smoothed over.
