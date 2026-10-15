@@ -98,7 +98,8 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 
 ## State — 2026-10-15
 
-`in-progress`, on branch `ccr-2e82b91e-hou4gf` — pushed and green, **not merged into `main`**.
+`in-progress`, on branch `ccr-2e82b91e-hou4gf`, open as **PR #8** — pushed and green, **not
+merged into `main`**.
 
 Status is `in-progress` and not `blocked` on purpose: `blocked` in this schema means a task
 dependency is unfinished, and `tools/board.py --check` rejects it here because A1.1 is done.
@@ -136,13 +137,25 @@ established and committed.
   2,653,047 / 36,236.0 / 13,658.3. The `+1` is unexplained and reported, not rounded away. The
   check now runs inside `tools/conformance_diff.py` rather than living in prose.
 
-**What is left:** with a token in the environment's secrets, stage the six metadata files per
-chosen release, verify each against the pinned md5, read the confidence/vOTU/host fields back,
-and record composition against the publisher's stated counts. The staging path reuses the
-streaming-and-verify pattern of `tools/stage_uniref.py`.
+**Both v4 releases are the audited input** (D-056), chosen by the project owner rather than by
+this task. One of them is on tape: 2022-09-20 is `RESTORED` and downloadable immediately,
+2022-12-20 is `BACKUP_COMPLETE` and needs an asynchronous restore request first, so A1.7
+completes in two passes.
 
-**Waiting on the project owner:** two calls — the JGI credential, and which of the two v4
-releases is the audited one (or both, with the spread reported).
+**What is left — one command, once the token exists:**
+
+```bash
+python3 tools/stage_imgvr.py --inventory   # no token; checks live listing against the pins
+python3 tools/stage_imgvr.py --stage       # both releases, metadata only, verify then upload
+```
+
+`tools/stage_imgvr.py` is written, linted and tested on every path that does not need the
+credential: the inventory check runs clean against the live listing (42 files, 0 problems), the
+token guard reports what to do, and the tape-restore path requests and polls rather than
+failing. What has never executed is the authenticated download itself. Authentication is a
+Bearer token in the `Authorization` header, read from JGI's own API spec rather than guessed.
+
+**Waiting on the project owner:** the `JGI_API_TOKEN` secret. Nothing else.
 
 ## Numbering
 
