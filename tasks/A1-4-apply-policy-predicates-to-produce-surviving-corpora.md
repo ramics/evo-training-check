@@ -122,6 +122,69 @@ records, zero parse failures.
 
 **Waiting on the project owner:** nothing.
 
+## Closing it out — 2026-10-15, second session
+
+`review` still. **The work was never merged.** `main` carried this task at `review` while
+`src/amazebio/{apply,corpora}.py`, `tools/apply_policies.py`, `metrics/manifests.md` and both
+test files existed only on `ccr-6ecfc2c1-668gtb` — the split AGENTS.md warns about, and already
+biting: A2.1's file and D-059 on `main` both cite `amazebio.apply.route_for`, which `main` has no
+such module for.
+
+**Merged onto current `main` and pushed: `claude/kind-brown-78c2qq`** (commit `e21c1a1`). It
+merged with no conflicts even though A7.2 had since rewritten parts of `conformance.py`, and the
+shared tables survived intact — `conformance.RULE_INPUTS is policyspec.RULE_INPUTS` still holds
+and every rule kind is still declared. `pixi run -e dev check` is green on the merge: lint,
+format, board, policies, specs, models, and **499 tests**.
+
+**One claim in the outcome note above is wrong, and it matters.** It says the cross-check in
+`tests/test_apply.py` "will fail if the matching `Evidence` declaration in `corpora.SOURCES` is
+not extended" when A7.2 adds IMG/VR to the release inventory. A7.2 added two keys —
+`imgvr-v4` and `imgvr-v4.1` — and the test did not fail, because
+`test_the_two_release_declarations_agree_on_what_can_be_re_executed` never enumerates
+`RELEASE_INPUTS`: it hard-codes the two sources it knows and checks those. It catches *drift* in
+the pair it names and is blind to an *addition*. So the tripwire D-057 relied on does not cover
+the case it was written for.
+
+**The fix is designed and not yet written.** Enumerate `conformance.RELEASE_INPUTS` and require
+every key to be accounted for on both sides, using the distinction A7.2 already introduced:
+a key in `conformance.COMPARISON_KEYS` is a developer's released output, so it must have exactly
+one `corpora.SOURCES` entry (joined mechanically — the keys are `f"{release}-{corpus_component}"`,
+which holds for both: `opengenome-stage2`, `opengenome2-imgvr`) and the kept-rule sets must agree
+for every Evo reading; a key absent from `COMPARISON_KEYS` is the filter's *input* and must have
+no such entry. That makes the two IMG/VR keys explicitly accounted for rather than silently
+tolerated, and it is what would have fired. Keep the existing explicit Evo-2 assertion — that
+`restrict` raises rather than returning an empty pipeline — as its own test; it is a distinct
+claim.
+
+**The remaining `done` criterion is regeneration.** Everything else on the Done-when list is
+satisfied (the manifest-consumption half having moved to A2.1 under D-059). `artifacts/` is
+git-ignored and the container is ephemeral, so the headline numbers have to be reproduced on the
+current merge before this goes to `done`:
+
+```bash
+export AMAZEBIO_S3_URI=s3://amazebio-corpora-897641797669/corpora
+python3 tools/apply_policies.py --dry-run   # plan only; confirms the inventory check
+python3 tools/apply_policies.py             # ~25-30 min: 28 GB Parquet, then one gzip stream
+```
+
+A run was launched in this session and did not finish before it ended; the dry run passed and the
+inventory check reported "12 staged objects, all declared", and the pass was mid-way through
+`opengenome/stage2` when the session closed. Nothing was learned from it that contradicts the
+numbers above — it simply has to be re-run. What must reproduce: **2,653,047** records and
+**95** removed for each of the three Evo 1 readings on `opengenome`, **2,957,495** records all
+`unresolved` on `opengenome2`, and seven manifests with a `run.json` refusing a dirty tree.
+
+**Deliberately not done, to avoid widening this task:** D-057's untidy layering — `corpora`
+importing the released-format primitives from `conformance`, which inverts the natural direction
+— is still there. That note assigns it to whoever closes A7.1's review, and A7.1 is still held at
+`review` by the A3.3 gate, so it stays assigned there.
+
+**Order for the next session:** push the merge to `main` (it is green and it unbreaks two
+dangling references), write the enumerating tripwire, re-run the pipeline, check the three
+numbers, then flip `status: done` on `main` with the board regenerated. The tripwire fix wants a
+`DECISIONS.md` entry recording that D-057's guard did not cover additions; **D-074** is the next
+free number, but re-check before pushing, per AGENTS.md.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
