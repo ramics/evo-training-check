@@ -2041,3 +2041,34 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the reading is wrong. And one for whoever writes Phase A up: the exact counts in this paper's
   figures are not in its text layer, so anything relying on a figure needs reading, not grepping
   — there may be more of this in the Evo 2 and ESM3 papers, which nobody has checked.
+
+### D-059 — A1.4's "consumed by an A2 task" criterion moves to A2.1, which is the first point it can be shown
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** A1.4's Done-when list required the manifest format to be "documented and consumed
+  by at least one A2 task". The first half is satisfied — `metrics/manifests.md` specifies the
+  format, written to be usable without reading the code, as A3.3's independent-reimplementation
+  requirement needs. The second half cannot be satisfied from inside A1.4: all five A2 tasks
+  depend on A1.4 and none has started, so the criterion makes the task that unblocks them wait
+  on them. That is exactly the phantom-progress D-042 removed from A3.1, for the same structural
+  reason, and leaving A1.4 at `review` for it would park a finished pipeline behind unstarted
+  work while ten tasks stay blocked.
+- **Decision:** Split the criterion the way D-042 did. A1.4 keeps the half it can demonstrate —
+  the format is specified, and the artefacts conform to the specification — and closes. A2.1, as
+  the first detector, picks up the consumption half as a Done-when: it reads the manifests as the
+  shared input rather than re-deriving a surviving set, and it tags its detections with
+  `amazebio.apply.route_for`, which is the point of contact that would catch a format that looks
+  complete and is not usable.
+- **Rejected:** Holding A1.4 at `review` until a detector lands — it misreports the board for as
+  long as that takes and blocks the ten tasks A1.4 gates. Writing a token A2 consumer inside
+  A1.4 to satisfy the criterion — a detector written to validate a format rather than to detect
+  anything is scope creep that proves nothing, and §A2's detectors are substantial tasks with
+  their own thresholds to fix before results are seen. Dropping the criterion — the risk it
+  guards against is real: a format that no downstream task has read is a format nobody has
+  tested, and recording that in a closed task's notes is how it stops being anyone's job.
+- **Consequence:** The format contract is now checked at A2.1 rather than at A1.4, so A2.1 should
+  expect to find gaps in `metrics/manifests.md` and fix them there rather than treating the spec
+  as frozen — it is a data contract this project owns, not a published standard, and A1.6 will
+  write to it too. One concrete thing for A2.1 to verify rather than assume: `route_for` refuses
+  to map a removed record to `conformance_failure`, so a detector meeting a record from a
+  manifest's removed set has to route it through A7.1's evidence rather than tag it in passing.
