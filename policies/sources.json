@@ -635,7 +635,7 @@
    "status": "retrieved_not_stored",
    "sha256": "532643d30649c026eb0962137b05ecbcfd4a78902a5d66aeb6db8785a3852308",
    "bytes": 21208235,
-   "note": "The tool A4.2 benchmarks, described by its authors. Two statements A4.2 relies on: that geNomad produced the data IMG/VR v4 was built from, which corroborates the dependency decomposition from a primary source rather than from the corpus alone; and that its taxonomically informed markers were annotated from ICTV Virus Metadata Resource version 19, which is the ground truth D-086 should have pinned and D-092 shows does not change the result. Retrieved 2026-10-15 and read; not stored because it is publisher content. Re-fetch from url to verify."
+   "note": "The tool A4.2 benchmarks, described by its authors. Two statements A4.2 relies on: that geNomad produced the data IMG/VR v4 was built from, which corroborates the dependency decomposition from a primary source rather than from the corpus alone; and that its taxonomically informed markers were annotated from ICTV Virus Metadata Resource version 19, which is the ground truth D-086 should have pinned and D-095 shows does not change the result. Retrieved 2026-10-15 and read; not stored because it is publisher content. Re-fetch from url to verify."
   },
   {
    "id": "S-IMGVR-V4-NAR",

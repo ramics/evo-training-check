@@ -339,7 +339,7 @@ def test_unknown_release_is_refused() -> None:
 
 
 def test_marker_source_release_is_pinned_and_earlier() -> None:
-    """geNomad's markers were annotated from VMR 19; D-092 checks it changes nothing.
+    """geNomad's markers were annotated from VMR 19; D-095 checks it changes nothing.
 
     Pinned so that sensitivity check is re-runnable rather than a claim in a log entry. It
     must be the same MSL as the benchmark release — a different MSL would make the comparison

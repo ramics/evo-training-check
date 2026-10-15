@@ -158,7 +158,7 @@ RELEASES: dict[str, VMRRelease] = {
         note=(
             "VMR 19, which geNomad's paper (S-GENOMAD-NATBIOTECH) states its taxonomically "
             "informed markers were annotated from. Same MSL as the benchmark release, four "
-            "months earlier. Held as the sensitivity check behind D-092, not as the default: "
+            "months earlier. Held as the sensitivity check behind D-095, not as the default: "
             "scoring against the taxonomy the markers were built from measures the tool "
             "against its own reference, while scoring against the taxonomy in force when the "
             "corpus was built measures what the filter inherited. The two agree on every "
@@ -172,7 +172,7 @@ RELEASES: dict[str, VMRRelease] = {
 BENCHMARK_RELEASE = "MSL37.3"
 
 #: The release geNomad's own markers were annotated from, per its paper, and therefore the
-#: one a purist would score it against. Pinned so the sensitivity check D-092 reports can be
+#: one a purist would score it against. Pinned so the sensitivity check D-095 reports can be
 #: re-run rather than taken on trust: the two differ on 4 of 3,149 scored accessions, all of
 #: them bacteriophage family renames out of the denylist's scope, and on no order and no
 #: in-scope/out-of-scope classification at all.
