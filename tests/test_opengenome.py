@@ -13,6 +13,7 @@ import dataclasses
 import hashlib
 import io
 import json
+import pathlib
 
 import pytest
 
@@ -628,3 +629,55 @@ def test_merging_keeps_files_only_one_pass_saw():
         [{"path": "a", "verified_by": "stream"}], [{"path": "b", "verified_by": "readback"}]
     )
     assert [r["path"] for r in merged] == ["a", "b"]
+
+
+class TestOfflineCompositionForA43:
+    """The composition A4.3 publishes must rebuild from committed bytes, not from an API."""
+
+    CAPTURES = pathlib.Path(__file__).resolve().parent.parent / "policies" / "captures"
+
+    def test_the_capture_rebuilds_the_published_component_shares(self):
+        # The headline A4.3 inherits from A1.2: the filtered component is 0.2% of
+        # OpenGenome2 and 11.5% of OpenGenome v1. A figure that regenerates only while a
+        # third-party API is up and unchanged is not reproducible from pinned inputs.
+        blobs = og.blobs_from_capture(self.CAPTURES / "hf-opengenome2-manifest.json")
+        assert len(blobs) == 1126
+        rows = og.composition(og.RELEASES["opengenome2"], blobs)
+        imgvr = {r["representation"]: r for r in rows if r["component"] == "imgvr"}
+        assert round(imgvr["fasta"]["share_of_release"], 3) == 0.002
+
+        v1 = og.blobs_from_capture(self.CAPTURES / "hf-open-genome-manifest.json")
+        rows_v1 = og.composition(og.RELEASES["opengenome"], v1)
+        stage2 = next(r for r in rows_v1 if r["component"] == "stage2")
+        assert round(stage2["share_of_release"], 3) == 0.115
+
+    def test_the_cards_own_phase_2_percentages_do_not_sum_and_are_kept_as_published(self):
+        # Phase 1's stated column is sound; Phase 2's totals about 252% and gives 104% to a
+        # single component. Recomputing silently would hide a published error that belongs in
+        # the under-specification record, so both columns survive into the table.
+        card = (self.CAPTURES / "hf-opengenome2-README.md").read_text()
+        table = og.token_table(card)
+        assert set(table) == set(og.PHASES)
+
+        def stated_total(phase):
+            return sum(float(r["stated_composition"].rstrip("%")) for r in table[phase])
+
+        assert 99.0 < stated_total("Phase 1: Pretraining") < 101.0
+        assert stated_total("Phase 2: Context Extension") > 200.0
+
+        # Tolerance, not exactness: the shares are rounded to 6dp individually, so a
+        # fourteen-row phase can sum to 1.000001. That is rounding, unlike Phase 2's 252%.
+        for rows in table.values():
+            assert abs(sum(r["computed_share"] for r in rows) - 1.0) < 1e-5
+
+    def test_the_viral_component_token_share_differs_between_the_two_phases(self):
+        # Which phase is the denominator changes the answer by more than four-fold, which is
+        # why `policies/corpora.md` requires A4.3 to name the phase it is quoting.
+        table = og.token_table((self.CAPTURES / "hf-opengenome2-README.md").read_text())
+        viral = {
+            phase: next(r for r in rows if "IMG/VR" in r["dataset"])
+            for phase, rows in table.items()
+        }
+        p1 = viral["Phase 1: Pretraining"]["computed_share"]
+        p2 = viral["Phase 2: Context Extension"]["computed_share"]
+        assert p1 > 4 * p2
