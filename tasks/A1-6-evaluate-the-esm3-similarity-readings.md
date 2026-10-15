@@ -2,13 +2,13 @@
 id: A1.6
 title: Evaluate the ESM3 similarity readings against the proxy corpus
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
 design_ref: "§A0, §A1"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A1.6 — Evaluate the ESM3 similarity readings against the proxy corpus
@@ -74,6 +74,39 @@ Two things that are not fixable by spending more, carried from A1.5: JGI is abou
 ESM3's unique training tokens and cannot be reconstructed at all, and the structure-side
 components were not bought. So no figure of the form "x% of ESM3's corpus" is supportable from
 this task either, however thorough the alignment pass is.
+
+## State — 2026-10-15
+
+`in-progress`. **Branch `ccr-3e0650c5-8fsgiq`** carries the work; `main` has only this file,
+the board and DECISIONS.md D-092 to D-094.
+
+**Done.** The viral seed set is rebuilt and tested — `src/amazebio/seeds.py`,
+`tools/esm3_seeds.py`, `tests/test_seeds.py`, 12 tests, full `check` green. It comes from the
+staged UniRef100 tier rather than from UniProtKB, which D-092 argues and prices: the
+representative-versus-member gap it opens is 2.38% of viral-seeded clusters, measured, and
+travels with the seed count. The taxonomy is pinned to `taxdmp_2023-04-01.zip`, contemporaneous
+with UniRef 2023_02 rather than current. MMseqs2 is pinned at 18.8cc5c (D-093).
+
+**The cost question is answered in part.** Orientation and sharding are settled and measured
+(D-094): seeds as query against sharded corpus targets, because corpus-as-query had not left the
+prefilter after 45 minutes against 335 s the other way round, and because the account's 200 GB
+volume cap makes a single 400 GB+ target database impossible on any permitted instance. The
+*price* is not yet a number — extrapolation from a 1/88,000 slice spans $10 to $1,400 for the
+charitable reading — and the project owner's decision was to calibrate in-region first, about
+$10, before the full pass is authorised.
+
+**Left.** The in-region calibration launcher and run; the select-agent seed set; the charitable
+and strict passes once the calibration prices them; the comparison against the stated 4M.
+
+**Two things the next worker should not rediscover.** The seed-set reconstruction has a
+validation target that works — ESM3 states the viral denylist is roughly 4M sequences — which is
+worth having because D-032 established the reported 10.6M removals cannot validate a
+reconstruction. And a bounded run cannot estimate the viral share of a tier: UniRef is ordered by
+accession, so a prefix is not a sample, and only the full-tier pass produces a seed count.
+
+**Waiting on the project owner:** nothing right now. The spend decision for the full pass comes
+after the calibration reports a figure.
+
 
 ## Notes
 

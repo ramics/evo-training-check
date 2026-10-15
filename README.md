@@ -58,6 +58,26 @@ python3 tools/conformance_diff.py                                      # from th
 python3 tools/conformance_diff.py --scan s3://$BUCKET/corpora/results/a7-1/scan-opengenome-stage2.json
 ```
 
+Benchmarking the taxonomy assignment tool the filter depends on (A4.2). The first pass reads
+IMG/VR's own per-record method field and reports which tool the denylist's removals actually
+rest on; the rest build a labelled set from the pinned ICTV taxonomy, run the 2022 geNomad the
+release could have used, and score the error by direction.
+
+```bash
+python3 tools/taxonomy_dependency.py                  # which tool, over which records (~90 s)
+python3 tools/taxonomy_benchmark.py build              # select the evaluation set from the VMR
+python3 tools/taxonomy_benchmark.py fetch              # retrieve its sequences from NCBI
+pixi run -e genomad genomad annotate \
+    data/ictv/evalset.fna artifacts/a4-2/genomad \
+    data/genomad/db/genomad_db --threads 4 --splits 8 --cleanup
+python3 tools/taxonomy_benchmark.py score              # rates by direction, per family, strata
+```
+
+The `genomad` environment is pinned separately and deliberately: geNomad 1.1.0 is the newest
+version that could have produced IMG/VR v4's labels, and it needs Python 3.10, numpy 1.23 and
+mmseqs2 13 to run at all. `--splits 8` is not tuning — the marker search needs about 24 GB in
+one pass and the container has 16. See DECISIONS.md D-085.
+
 `pixi run -e dev check` is what CI runs, so a green local run means a green CI run.
 
 ## Layout
@@ -73,11 +93,16 @@ src/amazebio/         library code
   models.py           the verified Phase B model inventory (B1.1)
   proteingym.py       the benchmark DMS ingest, schema and metric (B2.1)
   conformance.py      released-tag parsing, policy restriction and the cause taxonomy (A7.1)
+  ictv.py             the pinned ICTV Virus Metadata Resource: the benchmark's ground truth
+  genomad.py          the tool A4.2 benchmarks: version bound, output parser, scope note
+  misassignment.py    taxonomy-tool error by direction, exact intervals, leakage propagation
 metrics/survival.md   the frozen survival metric specification (A3.1)
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tools/stage_proteingym.py  acquires and pins the benchmark DMS release
 tools/proteingym_check.py  reproduces the benchmark's published per-assay numbers
 tools/conformance_scan.py  scans a released corpus for the fields the conformance diff needs
+tools/taxonomy_dependency.py  which taxonomy tool the denylist's removals rest on (A4.2)
+tools/taxonomy_benchmark.py   builds the labelled set, scores geNomad's error (A4.2)
 tools/conformance_diff.py  re-executes the published predicates against that scan
 tasks/                one file per unit of work; BOARD.md is generated
 tests/                tests
