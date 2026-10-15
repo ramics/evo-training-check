@@ -2,13 +2,13 @@
 id: A1.6
 title: Evaluate the ESM3 similarity readings against the proxy corpus
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
 design_ref: "§A0, §A1"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A1.6 — Evaluate the ESM3 similarity readings against the proxy corpus
