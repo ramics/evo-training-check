@@ -158,11 +158,15 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    # 16 vCPU and 32 GB. The corpus pass is one gzip stream and therefore one core however
-    # many are present, so this is sized for the searches; the idle cores during the
-    # two-hour corpus pass are the price of doing both on one instance, and at this hourly
-    # rate that is cheaper than launching twice.
-    ap.add_argument("--instance-type", default="c6i.4xlarge")
+    # 8 vCPU and 64 GB. The account's policy allows the c6i, m6i and r6i families up to
+    # 2xlarge and denies everything above it — probed, because the refusal is a bare
+    # UnauthorizedOperation that reads like having no permission at all. Within that
+    # ceiling the memory-heavy family is the right pick rather than the compute-heavy one:
+    # 64 GB lets the query database and the target shards sit in memory, so MMseqs2 does
+    # not split the target, and an unsplit search is what makes the measured curve a
+    # scaling curve rather than a measurement of split behaviour. The corpus pass is one
+    # gzip stream and therefore one core however many are present.
+    ap.add_argument("--instance-type", default="r6i.2xlarge")
     ap.add_argument("--profile", default="AmazebioStager")
     ap.add_argument("--owner", default=os.environ.get("AMAZEBIO_OWNER", "claude"))
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
@@ -171,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--sample-rate", type=int, default=50)
     ap.add_argument("--buckets", type=int, default=8)
     ap.add_argument("--strict-buckets", type=int, default=3)
-    ap.add_argument("--threads", type=int, default=16)
+    ap.add_argument("--threads", type=int, default=8)
     ap.add_argument(
         "--search-budget-seconds",
         type=float,
