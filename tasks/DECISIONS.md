@@ -3343,3 +3343,61 @@ decision has a threshold or parameter in it, the number goes in the entry.
   excludes everything unlabelled), and it would silently mix two tasks' denominators.
   *Report the escaping count without an implied population* — the derivation is the part a
   reviewer has to check, so hiding it inside one multiplication is the wrong trade.
+
+---
+
+### D-090 — geNomad's lineage is a compacted list, not a positional ladder, and reading it wrong inflated the headline
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** `amazebio.genomad.parse_lineage` originally read geNomad's lineage field by
+  position — `Viruses;<realm>;<kingdom>;<phylum>;<class>;<order>;<family>` — and used the ICTV's
+  mandated rank suffixes only to *check* that read, on the same principle
+  `conformance.parse_lineage_tag` applies to Evo's released tag (D-057). The check fired on 195
+  of 2,329 classified records in the first scored run, and it was right.
+
+  geNomad **omits** a rank it cannot resolve rather than leaving the field empty. Its lineage is
+  therefore a compacted list of the ranks it did resolve. A phage placed at class and family but
+  not order comes back as
+  `Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Caudoviricetes;Ackermannviridae`, where the
+  family sits in what a positional reader calls the order slot.
+
+  The consequence ran in the direction that flatters this audit. Read positionally, such a
+  record has no family at all, so a denylisted family lands in `predicted_order`, matches
+  nothing on the order list, and is scored as an **escape the tool never committed**. It
+  inflated precisely the headline the task reports.
+- **Decision:** Rank comes from the ICTV suffix; position is demoted to nothing. Suffixes are
+  tried longest-first so `-viridae` can never be read as `-virae`. A name carrying no recognised
+  suffix is claimed for nothing rather than guessed at — guessing is how a family becomes an
+  order. Ranks below family (`-virinae`, `-virus`) are skipped knowingly rather than recorded as
+  unreadable. A rank named twice keeps the first and records the collision.
+
+  The corrected run reads all 2,329 lineages with **zero anomalies**, which is the evidence that
+  the suffix is the real signal rather than a second guess at one.
+
+  What it changed, recorded because the superseded figures appear in this session's history and
+  nowhere else — no artefact with the old numbers was ever committed, pushed or cited:
+
+  | quantity | positional read | suffix read |
+  |---|---|---|
+  | escape rate | 40.68% (38.18–43.21) | **36.23% (33.80–38.72)** |
+  | spurious removal | 1.10% (0.65–1.73) | **3.05% (2.27–4.00)** |
+  | escapes at 80–200 kb | 55 of 110 | 1 of 110 |
+  | lineage anomalies | 195 | 0 |
+
+  Both directions moved as the mechanism predicts. Escapes fell because false ones were removed;
+  spurious removals *rose*, because records whose family the tool did place — correctly, into a
+  denylisted family the policy never named — had previously been misread as having no family and
+  so as not removed. The 80–200 kb stratum collapsing from 55 to 1 is the same artefact
+  concentrated: the large insect dsDNA families (`Baculoviridae`, `Nudiviridae`) are the ones
+  geNomad places at family while skipping order.
+- **Rejected:** *Keep the positional read and treat the 195 anomalies as a reported caveat* —
+  the anomalies are not uncertainty about the tool, they are a defect in our reading of it, and
+  §2's commitment cuts both ways: an error in the audit's favour is the same failure as one in
+  the filter's.
+  *Use position where the suffix is absent* — the only names without a suffix are ones no rank
+  can be claimed for, and falling back to position there reintroduces the whole bug for exactly
+  the records that triggered it.
+  *Re-run geNomad* — unnecessary and misleading as a remedy: the tool's output was correct
+  throughout and is unchanged on disk. Only the parse was wrong, so only the scoring step was
+  re-run, against the same pinned `evalset_taxonomy.tsv`.
