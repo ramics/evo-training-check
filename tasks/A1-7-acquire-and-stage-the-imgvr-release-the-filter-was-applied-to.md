@@ -2,13 +2,13 @@
 id: A1.7
 title: Acquire and stage the IMG/VR release the filter was applied to
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.1]
 blocks: [A7.2]
 design_ref: "§A1, §A7"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A1.7 — Acquire and stage the IMG/VR release the filter was applied to
@@ -95,6 +95,20 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
   task which turns out to be two tasks is split rather than quietly widened.
 - **Not an excuse to acquire more than is needed.** One release, the components the published
   rules read. `pixi.toml`'s rule about unused pinned tools applies to unused pinned data too.
+
+## State — 2026-10-15
+
+`in-progress`, on branch `ccr-2e82b91e-hou4gf`.
+
+Claimed straight after A7.2 was opened, since A7.1 established this is the single blocker for
+all five of A7.2's gaps.
+
+**What is left:** everything. First question is whether the release is retrievable from this
+environment at all — JGI's own distribution terms and whatever authentication it requires are
+the unknown, and an unretrievable release is a finding to record rather than a failure to work
+around (the A1.1 pattern, D-019 and D-020).
+
+**Waiting on the project owner:** nothing yet.
 
 ## Numbering
 
