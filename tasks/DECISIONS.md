@@ -2221,3 +2221,45 @@ decision has a threshold or parameter in it, the number goes in the entry.
   refuses rather than guessing which member was meant. The 2022-09-20 release — 6 files,
   7.92 GB — is staged and verified. The 2022-12-20 release is on tape and its restore is
   asynchronous, so A1.7 completes in the second pass D-056 anticipated.
+
+### D-063 — The two releases are not two v4s: the publisher calls the December one v4.1, and says what it corrects
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** D-052 established from the public inventory that two dated releases answer to
+  "IMG/VR v4" — 2022-09-20 and 2022-12-20 — and that they differ in exactly the
+  sequence-information table and the protein set. That was inferred from the publisher's md5sums,
+  because the bytes were not in hand. They now are, and the releases' own READMEs say it
+  outright. The September one opens `### IMG/VR database v4 release Oct. 2022 ###`. The December
+  one opens `### IMG/VR database v4.1 release Dec. 2022 ###` and carries a note:
+  > Note: IMG/VR version 4.1 includes the same sequences as IMG/VR v4, but fixes issues with two
+  > files (IMGVR_all_proteins.faa and IMGVR_all_Sequence_information.tsv) in which a few
+  > sequences/rows were incorrect
+  > Everything else is identical between v4.1 and v4
+
+  Two things follow. D-052's md5-derived difference set is confirmed by the publisher
+  independently and exactly — the same two files, named in the same terms. And the second
+  release is not a rival v4; it is an **erratum** of v4, with a distinct version string.
+- **Decision:** Record the September 2022-09-20 release as **v4** and the December 2022-12-20
+  release as **v4.1**, and keep auditing both (D-056 stands). The naming changes what the
+  disagreement between them *means*, not whether both are needed. Evo 1 cites "IMG/VR v4"; on the
+  publisher's own naming that names the September release and not the December one, which is a
+  narrower reading than D-052 could support. But the content of the erratum is that some rows of
+  the September sequence-information table — the table carrying the confidence label and the vOTU
+  assignment — **were incorrect**. So the reading that best fits Evo 1's citation is also the
+  reading in which Evo 1's high-confidence gate and vOTU rule were applied to rows the publisher
+  has since withdrawn. Auditing both is what measures that, and auditing only the one Evo 1 names
+  would hide it.
+- **Rejected:** Treating the citation as settled and dropping the December release. The version
+  string points at September, but Evo 1's corpus was built at an unstated date and the paper
+  issued after v4.1 did; a citation is not a pin, which is D-052's point and is not weakened by
+  knowing the second release's name. Also rejected: treating v4.1 as strictly superior and
+  auditing it alone. The audit's subject is what Evo 1's filter was applied to, not what the
+  publisher now considers correct — if the filter read withdrawn rows, that is the finding.
+- **Consequence:** D-052's unresolved-ambiguity finding survives with a sharper edge for A0.4 and
+  X5.1: a published procedure cited a version string, the publisher issued a correction under a
+  new version string three months later touching exactly the field the procedure gates on, and
+  the procedure's citation cannot distinguish them. It also gives the conformance work a concrete
+  expectation — the difference between the two sequence-information tables should be a small
+  number of rows, not a structural change, and a diff that shows otherwise means something is
+  wrong with our reading rather than with the publisher. `amazebio.imgvr` should carry the
+  version strings alongside the dates so that no later task has to re-derive this from a README.
