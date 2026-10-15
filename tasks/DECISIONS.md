@@ -1386,3 +1386,32 @@ decision has a threshold or parameter in it, the number goes in the entry.
   than an order of magnitude (1.0GB documented against 43MB served, 4.4GB against 1.91GB); the
   stated-versus-actual record is in `artifacts/b2-1/release/release.json`, and the lesson for
   B2.2 is to size downloads from `content-length` rather than from documentation.
+
+### D-042 — A3.1's conformance criterion moves to A3.2, because a freeze cannot demonstrate it
+- **Date:** 2026-10-15
+- **Task:** A3.1
+- **Context:** A3.1 is the freeze task for the headline metrics and the survival-route taxonomy:
+  `metrics/survival.md` is the specification, `src/amazebio/survival.py` carries the taxonomy and
+  a reference implementation, and the four substantive calls are in D-022. All of that is merged.
+  Its Done-when list, though, also required the taxonomy to be "used by all A2 outputs", which no
+  amount of work inside A3.1 can satisfy: every A2 detector is blocked behind A1.4, so the
+  criterion made a definitional task wait on five detection tasks that depend on it in turn. The
+  board showed A3.1 as live work for as long as that held, which is exactly the phantom-progress
+  the task protocol exists to prevent.
+- **Decision:** Split the criterion by what each task can actually show. A3.1 keeps the freeze —
+  definitions reimplementable from the text alone, every route named and distinguishable, a
+  reference implementation to tag against — and closes. A3.2 picks up conformance: every A2
+  output carries a route from the taxonomy, checked rather than assumed, with the merge failing
+  on an untagged or unknown-route detection. A3.2 already depends on all five A2 tasks and is
+  where their outputs meet, so it is the first point at which the check is possible at all.
+- **Rejected:** Leaving A3.1 in `review` until the first detector lands — correct, but it parks a
+  finished specification behind unstarted work and leaves the board misreporting for weeks.
+  Closing A3.1 with the criterion unmet and unrecorded — that is how a Done-when list stops
+  meaning anything. Bringing A1.4 and A2.1 forward to demonstrate it inside A3.1 — two
+  substantial tasks absorbed into a definitional one, which the scope rule forbids.
+- **Consequence:** The conformance check is now a Done-when criterion on a task that does not
+  yet exist in code, so it has to be built rather than inherited: whoever runs A3.2 writes the
+  check that rejects an untagged detection, and it is not satisfied by detectors merely importing
+  `amazebio.survival`. Against that, a detector written before A3.2 runs now has nothing
+  enforcing the tag at the point it is written — A2.1, as the first one, should carry the
+  convention into the others.

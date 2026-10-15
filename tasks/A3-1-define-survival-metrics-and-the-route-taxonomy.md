@@ -2,7 +2,7 @@
 id: A3.1
 title: Define survival metrics and the route taxonomy
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A0.2]
 blocks: [A3.2, C5.1]
@@ -33,8 +33,12 @@ happens.
 ## Done when
 
 - Metric definitions are written, frozen and reimplementable from the text alone.
-- Route taxonomy is fixed and used by all A2 outputs.
+- Route taxonomy is fixed, with every route named and distinguishable, and a reference
+  implementation A2 detectors tag their output with.
 - Frozen before A3.2 runs.
+
+Conformance — that every A2 output actually carries a route tag — is checked in A3.2, which is
+where all five detectors' outputs meet. See DECISIONS.md D-042.
 
 ## State — 2026-10-15
 
@@ -49,9 +53,9 @@ files named here are in a `main` checkout. Nothing is sitting in a branch.
 - The four substantive calls are in DECISIONS.md D-022, including the project owner's choice to
   report both family registries separately and never pool them.
 
-**Why this is not `done`:** the Done-when criterion "route taxonomy is fixed and used by all A2
-outputs" cannot be demonstrated while no A2 detector exists. Move it to `done` when the first A2
-task emits `amazebio.survival.Detection`.
+**Closed 2026-10-15.** The conformance criterion — every A2 output tagged with a route — moved to
+A3.2, which depends on all five A2 tasks and is where the outputs are merged; a freeze task could
+never have demonstrated it on its own. D-042 records the move and what it costs.
 
 ## Notes
 
