@@ -82,10 +82,7 @@ several GPUs. D-034.
 - D-036 is nearly free to close from B1.2: the checkpoint config is read when the model loads,
   so recording what it says converts a §A0 finding into a verified field.
 
-**Noticed, not fixed.** `tasks/DECISIONS.md` has two entries numbered D-032 — left alone, since
-the IDs are cited from commits and this task does not own them. Two capture files
-(`hf-ESMFold2-README.md`, `hf-esmc-300m-2024-12-README.md`) are stored but unregistered in
-`sources.json`, so they are not quotable; left for whoever needs them.
+**Noticed, and since fixed.** `tasks/DECISIONS.md` had two entries numbered D-032. Correctly left alone by this task; resolved on 2026-10-15 by renumbering A1.2's entry to D-041, which was the one not cited from source code. The convention that prevents a repeat is in AGENTS.md.
 
 ## Notes
 
