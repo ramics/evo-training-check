@@ -5,7 +5,7 @@ phase: A
 status: blocked
 gate: false
 depends_on: [A4.2]
-blocks: []
+blocks: [A6.1]
 design_ref: "§A4"
 deliverable: 1
 owner: unassigned
@@ -19,6 +19,14 @@ owner: unassigned
 
 Measure, or establish that it cannot be measured, the error in the taxonomy sources that
 assign the majority of the records Evo's denylist removes.
+
+## Why this blocks the write-up
+
+The project owner decided on 2026-10-15 that Phase A does not publish a leakage figure
+covering a minority of the filter's hazard-relevant removals (D-091). A4.2 measured geNomad,
+which carries 38.56% of them; this task owns the other 61.44%. Either it measures them, or it
+establishes from primary sources why they cannot be measured — and that statement is itself what
+the write-up needs in place of a number.
 
 ## Why this is its own task
 
