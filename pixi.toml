@@ -45,6 +45,7 @@ pyarrow = ">=18,<22"
 # columns `amazebio.imgvr.uvig_key` produces need an array library to be joined at all. Added
 # by A7.2, which is the first task whose arithmetic is too large for the standard library.
 numpy = ">=2,<3"
+mmseqs2 = ">=17"
 
 # Make `import amazebio` work in every pixi task and shell without a build step
 # or an editable pip install, so a pipeline script and a test see the same package.
