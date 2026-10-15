@@ -81,28 +81,67 @@ def test_empty_interior_field_is_skipped_not_shifted() -> None:
     assert lineage == {"realm": "Riboviria", "phylum": "Pisuviricota"}
 
 
-def test_suffix_mismatch_is_recorded_rather_than_resolved() -> None:
-    """A name at the wrong position means geNomad or our reading is wrong; keep the evidence."""
-    raw = "Viruses;Duplodnaviria;Heunggongvirae;Peploviricota;Herviviricetes;Herpesviridae"
+def test_an_omitted_rank_does_not_shift_the_ones_below_it() -> None:
+    """The bug this parser was rewritten for, injected deliberately.
+
+    geNomad omits a rank it cannot resolve. Read positionally, `Ackermannviridae` lands in the
+    order slot, the record appears to have no family, and a denylisted family is scored as an
+    escape the tool never committed. The real run produced 195 of these.
+    """
+    raw = "Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Caudoviricetes;Ackermannviridae"
     lineage, anomalies = genomad.parse_lineage(raw)
-    # Still read positionally, because that is the format's contract...
-    assert lineage["order"] == "Herpesviridae"
-    # ...but the disagreement is on the record.
-    assert any("virales" in a for a in anomalies)
+    assert lineage["family"] == "Ackermannviridae"
+    assert lineage["class"] == "Caudoviricetes"
+    assert "order" not in lineage
+    assert anomalies == ()
+
+
+def test_family_without_realm_or_kingdom_still_lands_at_family() -> None:
+    lineage, anomalies = genomad.parse_lineage("Viruses;Ampullaviridae")
+    assert lineage == {"family": "Ampullaviridae"}
+    assert anomalies == ()
+
+
+def test_viridae_is_never_read_as_virae() -> None:
+    """Longest suffix first, so family is not mistaken for kingdom."""
+    lineage, _ = genomad.parse_lineage("Viruses;Herpesviridae")
+    assert lineage == {"family": "Herpesviridae"}
+
+
+def test_name_with_no_ictv_suffix_is_claimed_for_nothing() -> None:
+    lineage, anomalies = genomad.parse_lineage("Viruses;Riboviria;Something")
+    assert lineage == {"realm": "Riboviria"}
+    assert any("no recognised ICTV rank suffix" in a for a in anomalies)
+
+
+def test_ranks_below_family_are_skipped_knowingly() -> None:
+    """geNomad does not report these, but a name carrying one is not an anomaly either."""
+    raw = "Viruses;Duplodnaviria;Herpesviridae;Alphaherpesvirinae;Simplexvirus"
+    lineage, anomalies = genomad.parse_lineage(raw)
+    assert lineage == {"realm": "Duplodnaviria", "family": "Herpesviridae"}
+    assert anomalies == ()
+
+
+def test_a_rank_named_twice_is_recorded_and_the_first_wins() -> None:
+    raw = "Viruses;Riboviria;Picornaviridae;Secoviridae"
+    lineage, anomalies = genomad.parse_lineage(raw)
+    assert lineage["family"] == "Picornaviridae"
+    assert any("family named twice" in a for a in anomalies)
 
 
 def test_non_viruses_head_is_recorded() -> None:
     lineage, anomalies = genomad.parse_lineage("Bacteria;Pseudomonadota")
     assert any("does not begin with 'Viruses'" in a for a in anomalies)
-    assert lineage == {}  # Pseudomonadota lacks a realm suffix, so nothing is claimed
-    assert "realm" not in lineage
+    assert lineage == {}
 
 
-def test_overlong_lineage_is_recorded_and_truncated_to_the_ladder() -> None:
+def test_lineage_extending_past_family_keeps_the_ranks_it_can_read() -> None:
     raw = HERPES + ";Simplexvirus;Human alphaherpesvirus 1"
     lineage, anomalies = genomad.parse_lineage(raw)
     assert lineage["family"] == "Herpesviridae"
-    assert any("ranks below domain" in a for a in anomalies)
+    assert lineage["order"] == "Herpesvirales"
+    # `Simplexvirus` is a genus and skipped knowingly; the species binomial has no suffix.
+    assert any("no recognised ICTV rank suffix" in a for a in anomalies)
 
 
 def test_empty_lineage() -> None:
@@ -199,9 +238,11 @@ def test_assigned_to_names_the_finest_filled_rank(tmp_path: Path) -> None:
 
 
 def test_anomalies_travel_with_the_call(tmp_path: Path) -> None:
-    raw = "Viruses;Duplodnaviria;Heunggongvirae;Peploviricota;Herviviricetes;Herpesviridae"
+    raw = "Viruses;Riboviria;Oddname"
     path = _write(tmp_path, [f"odd\t5\t1.0\t1\t{raw}"])
-    assert genomad.read_taxonomy(path)["odd"].anomalies
+    call = genomad.read_taxonomy(path)["odd"]
+    assert call.anomalies
+    assert call.lineage == {"realm": "Riboviria"}
 
 
 # --------------------------------------------------------------------------------------

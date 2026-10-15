@@ -159,10 +159,21 @@ LINEAGE_RANKS: tuple[str, ...] = (
     "family",
 )
 
-#: The ICTV's rank suffixes. Used to *check* the positional read rather than to perform it —
-#: the same discipline `conformance.parse_lineage_tag` applies to the released tag, and for the
-#: same reason: a positional parser that silently mis-ranks a short lineage would turn a
-#: truncation into a misassignment, which is the one distinction this task exists to make.
+#: The ICTV's mandated rank suffixes, and the reason this parser reads by suffix rather than by
+#: position.
+#:
+#: The first version of this module read geNomad's lineage positionally and used these suffixes
+#: only to *check* the read. The check fired 195 times on the real run, and it was right: geNomad
+#: **omits** a rank it cannot resolve rather than leaving the field empty, so the lineage is a
+#: compacted list of the ranks it did resolve, not a fixed ladder. A phage assigned to class and
+#: family but not order comes back as
+#: `Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Caudoviricetes;Ackermannviridae`, where
+#: `Ackermannviridae` sits in what a positional reader calls the order slot.
+#:
+#: Read positionally, that record has no family — so a denylisted family lands in
+#: `predicted_order`, matches nothing on the order list, and is scored as an escape the tool
+#: did not commit. The error inflates exactly the headline this task reports, which is why the
+#: suffix is now the primary signal and position is the corroboration.
 _RANK_SUFFIX: dict[str, str] = {
     "realm": "viria",
     "kingdom": "virae",
@@ -171,6 +182,17 @@ _RANK_SUFFIX: dict[str, str] = {
     "order": "virales",
     "family": "viridae",
 }
+
+#: Suffix -> rank, longest first so that `-viridae` is never matched as `-virae`. The ICTV's
+#: suffixes are mutually exclusive, but the ordering makes that independent of `str.endswith`
+#: being asked in a lucky order.
+_SUFFIX_TO_RANK: tuple[tuple[str, str], ...] = tuple(
+    sorted(((suffix, rank) for rank, suffix in _RANK_SUFFIX.items()), key=lambda kv: -len(kv[0]))
+)
+
+#: Ranks below family that geNomad does not report but the ICTV defines. Recognised so that a
+#: name carrying one of them is skipped knowingly rather than recorded as an unreadable anomaly.
+_BELOW_FAMILY: tuple[tuple[str, str], ...] = (("virinae", "subfamily"), ("virus", "genus"))
 
 _UNCLASSIFIED = re.compile(r"^unclassified\b", re.IGNORECASE)
 
@@ -199,18 +221,19 @@ class TaxonomyCall:
 def parse_lineage(raw: str) -> tuple[dict[str, str], tuple[str, ...]]:
     """Parse a geNomad lineage string into `{rank: name}`, plus anything anomalous.
 
-    Three readings worth stating, because each is a way the count could go quietly wrong.
+    Four readings worth stating, because each is a way the count could go quietly wrong.
+
+    **Rank comes from the ICTV suffix, not from position.** geNomad omits a rank it cannot
+    resolve rather than leaving the field empty, so the lineage is a compacted list of the ranks
+    it did resolve. Reading it positionally puts a family in the order slot whenever the order
+    is missing — and a denylisted family read as an order matches nothing on the order list and
+    is scored as an escape the tool never committed. See :data:`_RANK_SUFFIX`.
 
     **A short lineage is a truncation, not a malformation.** geNomad stops at the rank its
     marker consensus supports, so `Viruses;Riboviria;Orthornavirae` is a well-formed call that
     reaches kingdom and no further. That is the single most important case in this benchmark —
     it is the escape route A4.1 measured the corpus-side shadow of — so it must parse cleanly
     and fill only the ranks it names.
-
-    **Position is checked against the ICTV suffix, and a disagreement is recorded rather than
-    resolved.** Ranks are read by position because that is the format's contract, but every
-    ICTV rank has a mandated suffix, so a mismatch means either geNomad or our reading is
-    wrong, and that is not settled by discarding the evidence.
 
     **A lineage that is not headed `Viruses` yields no ranks at all.** The ladder this parser
     reads is the viral one, so applying it to a row that is not viral would assign a realm to a
@@ -219,6 +242,9 @@ def parse_lineage(raw: str) -> tuple[dict[str, str], tuple[str, ...]]:
     **`unclassified <something>` placeholders fill nothing.** geNomad emits these for ranks it
     cannot resolve; treating the literal string as a taxon name would make every such record a
     confident misassignment instead of an unlabelled one — inverting the finding.
+
+    Anomalies now record what the suffix read *cannot* resolve rather than disagreements with
+    position: a name with no recognised ICTV suffix, and a rank named twice.
     """
     anomalies: list[str] = []
     lineage: dict[str, str] = {}
@@ -232,18 +258,21 @@ def parse_lineage(raw: str) -> tuple[dict[str, str], tuple[str, ...]]:
         # phylum. No rank is claimed from such a row.
         anomalies.append(f"lineage does not begin with 'Viruses': {fields[0]!r}")
         return {}, tuple(anomalies)
-    body = fields[1:]
-    if len(body) > len(LINEAGE_RANKS):
-        anomalies.append(f"{len(body)} ranks below domain, expected at most {len(LINEAGE_RANKS)}")
-    for index, name in enumerate(body[: len(LINEAGE_RANKS)]):
-        if not name:
+
+    for name in fields[1:]:
+        if not name or _UNCLASSIFIED.match(name):
             continue
-        rank = LINEAGE_RANKS[index]
-        if _UNCLASSIFIED.match(name):
+        rank = next((r for suffix, r in _SUFFIX_TO_RANK if name.endswith(suffix)), None)
+        if rank is None:
+            below = next((r for suffix, r in _BELOW_FAMILY if name.endswith(suffix)), None)
+            if below is None:
+                # No recognised ICTV suffix at all. Claimed for nothing: guessing its rank is
+                # how a family ends up counted as an order.
+                anomalies.append(f"{name!r} carries no recognised ICTV rank suffix")
             continue
-        suffix = _RANK_SUFFIX[rank]
-        if not name.endswith(suffix):
-            anomalies.append(f"{name!r} at position {index} ({rank}) lacks the suffix {suffix!r}")
+        if rank in lineage and lineage[rank] != name:
+            anomalies.append(f"{rank} named twice: {lineage[rank]!r} and {name!r}")
+            continue
         lineage[rank] = name
     return lineage, tuple(anomalies)
 

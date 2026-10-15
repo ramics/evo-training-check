@@ -35,7 +35,8 @@ GEMINI = (
     "Geminiviridae"
 )
 TRUNCATED = "Viruses;Riboviria;Orthornavirae"
-MISRANKED = "Viruses;Duplodnaviria;Heunggongvirae;Peploviricota;Herviviricetes;Herpesviridae"
+# A name with no ICTV rank suffix: claimed for nothing, and recorded as an anomaly.
+UNREADABLE = "Viruses;Riboviria;Oddname"
 
 DENYLIST = misassignment.Denylist(
     families=frozenset({"Coronaviridae", "Geminiviridae"}),
@@ -364,7 +365,7 @@ def test_zero_escapes_still_ship_a_non_zero_upper_bound() -> None:
 def test_score_collects_lineage_anomalies() -> None:
     evalset = _evalset([_record("a", "Coronaviridae")])
     fetched = {"lengths": {"a": 30000}, "bases": 30000, "missing": []}
-    result = tool.score(evalset, fetched, _calls({"a": MISRANKED}), DENYLIST)
+    result = tool.score(evalset, fetched, _calls({"a": UNREADABLE}), DENYLIST)
     assert result["lineage_anomalies"]
     assert result["lineage_anomalies"][0]["accession"] == "a"
 
