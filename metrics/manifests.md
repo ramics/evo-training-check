@@ -118,10 +118,28 @@ from that source.
 | `opengenome` | `stage2` | **synthesised**: `stage2:<object>#<row>`, e.g. `stage2:train_stage2.parquet#836` |
 
 The synthesised form is stable and reproducible from pinned inputs, and it is **not an
-accession**. Evo 1's release carries none for this component, and a Parquet row is a *context
-window* rather than a biological record: stage 2 is a 131k-context stage, one genome may span
-several rows, and nothing in the release says which. **No per-genome proportion may be computed
-from these counts** (`policies/corpora.md` §3).
+accession**. Evo 1's release carries none for this component, so **nothing in `stage2` can be
+joined to IMG/VR** — which is why the rules reading IMG/VR metadata cannot be closed for this
+release by a key join (A1.7, A7.2).
+
+**One row is one record** (D-048). A record longer than 131,072 characters — 2¹⁷, counting the
+tag against the budget — arrives as several `|tag|block` pairs concatenated into *one* row, each
+pair carrying the same tag, rather than as several rows. `policies/corpora.md` §3 first read
+these rows as context windows from an 800-row sample and was corrected by a full scan.
+
+Because every count for this component is a count of records, the reading is **re-measured on
+every pass** rather than inherited, and the evidence travels in each source's `structure`:
+
+| field | falsifies one-row-one-record? |
+|---|---|
+| `rows_multi_block` | No — several blocks under one tag are a long genome, chunked |
+| `rows_multi_distinct_tag` | **Yes** — the row would pack several records |
+| `rows_final_block_at_budget` | **Yes** — the record may continue into the next row |
+| `rows_without_tag` | No, but reported: these rows yield no record and are counted as parse failures |
+
+`structure.one_row_one_record` is the conjunction. **If it is false, every count in that
+manifest is a count of rows, not of records**, and the manifest says so in its notes. Do not
+quote a count from a manifest whose structure scan failed.
 
 ## Unstaged components are listed, not omitted
 
@@ -158,6 +176,7 @@ covered only the staged components would read as a verdict on the whole release.
 | `rules_applicable` | rule ids reaching this component, in published order |
 | `rules_undecidable` | rule id to why it could not be decided here |
 | `parse_failures` | records whose lineage tag would not parse. Counted separately, never absorbed into "unlabelled" — that population is one of the audit's own findings |
+| `structure` | evidence that the record unit is what the counts assume; empty where the unit is the publisher's own, as in a FASTA entry |
 | `evidence_contradictions` | records carrying evidence the source declares absent. Non-zero voids the source |
 
 ### `removed-*.jsonl`

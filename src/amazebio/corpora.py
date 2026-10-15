@@ -28,11 +28,14 @@ on the evidence in `policies/corpora.md` §3, which is a documented finding and 
 the path — the release names no viral component at all.
 
 **The record unit.** For `imgvr.fasta.gz` a record is a FASTA entry with the publisher's own
-accession. For `stage2` a record is a Parquet row, which is a *context window* rather than a
-biological record: v1's stage 2 is a 131k-token stage, one genome may span several rows, and
-nothing in the release says which. So the identifier is synthesised from the object key and the
-row index, which is stable and reproducible but is not an accession, and no per-genome proportion
-may be computed from it. `policies/corpora.md` §3 established this and the manifest repeats it.
+accession. For `stage2` a record is a Parquet row — one row is one record (D-048), and a record
+longer than the per-block budget arrives as several `|tag|block` pairs concatenated into that one
+row, all carrying the same tag, rather than as several rows. `policies/corpora.md` §3 first read
+these rows as context windows from an 800-row sample and was corrected by a full scan; this
+module re-measures the claim on every pass (:class:`Stage2Structure`) rather than inherit it,
+because every count published for this component is a count of records. The identifier is still
+synthesised from the object key and the row index: the release carries no accession here, so it
+is stable and reproducible but cannot be joined to IMG/VR at all.
 
 **What is not read.** GTDB is 101 GiB across four tar objects and no rule in any reading reaches
 it, so A1.4 does not enumerate it: the strict reading's verdict on it follows from the policy
@@ -53,6 +56,7 @@ from typing import Any
 from amazebio.policyspec import Evidence, Record
 
 __all__ = [
+    "BLOCK_BUDGET",
     "BUCKET",
     "ESM3_SOURCES",
     "S3_ENDPOINT",
@@ -60,11 +64,13 @@ __all__ = [
     "SOURCES",
     "LineageError",
     "RangedObject",
+    "Stage2Structure",
     "StagedSource",
     "has_lineage_tag",
     "iter_fasta_records",
     "iter_stage2_records",
     "parse_lineage",
+    "scan_row_structure",
     "sources_for",
     "undeclared_objects",
 ]
@@ -230,6 +236,84 @@ LINEAGE_RANKS = (
     ("s", "species"),
 )
 
+#: The per-block character budget of Evo 1's stage 2, from DECISIONS.md D-048: a record longer
+#: than this arrives as several `|tag|block` pairs concatenated into *one* row, each pair
+#: carrying the same tag, rather than as several rows. 2^17, counting the tag against the budget.
+BLOCK_BUDGET = 131_072
+
+
+@dataclass
+class Stage2Structure:
+    """Whether one released row is one released record — measured on every pass, not assumed.
+
+    `policies/corpora.md` §3 first read these rows as context windows, from an 800-row sample.
+    D-048 corrected it from a full scan: the row is the record. Every count A1.4 publishes for
+    this component is a count of records, so the claim is re-measured here rather than
+    inherited — a count of records that is really a count of rows is exactly the error that
+    survives review and then gets quoted.
+
+    Two of these counts would falsify the reading: more than one *distinct* tag in a row, or a
+    final block sitting on :data:`BLOCK_BUDGET`, would mean a row packs several records or a
+    record continues into the next row. Several blocks carrying the *same* tag would not — that
+    is one long genome, chunked.
+    """
+
+    rows: int = 0
+    rows_without_tag: int = 0
+    rows_multi_block: int = 0
+    rows_multi_distinct_tag: int = 0
+    rows_final_block_at_budget: int = 0
+    max_blocks: int = 0
+    longest_row: int = 0
+    block_budget: int = BLOCK_BUDGET
+
+    @property
+    def one_row_one_record(self) -> bool:
+        """True when nothing in the scan contradicts the row being the record."""
+        return self.rows_multi_distinct_tag == 0 and self.rows_final_block_at_budget == 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "rows": self.rows,
+            "rows_without_tag": self.rows_without_tag,
+            "rows_multi_block": self.rows_multi_block,
+            "rows_multi_distinct_tag": self.rows_multi_distinct_tag,
+            "rows_final_block_at_budget": self.rows_final_block_at_budget,
+            "max_blocks": self.max_blocks,
+            "longest_row": self.longest_row,
+            "block_budget": self.block_budget,
+            "one_row_one_record": self.one_row_one_record,
+            "basis": (
+                "A row is one or more `|tag|block` pairs. Several blocks with one tag are a "
+                "single long record, chunked at the budget (D-048). More than one distinct tag, "
+                "or a final block at the budget, would falsify that — both are counted."
+            ),
+        }
+
+
+def scan_row_structure(text: str, structure: Stage2Structure) -> None:
+    """Fold one row's structure into `structure`.
+
+    Sequence data carries no `|`, so splitting on it is exact: the parts alternate tag, block,
+    tag, block. Only multi-block rows need this, and they are the minority.
+    """
+    structure.longest_row = max(structure.longest_row, len(text))
+    parts = text.split("|")
+    tags = parts[1::2]
+    blocks = parts[2::2]
+    if not tags:
+        structure.rows_without_tag += 1
+        return
+    structure.max_blocks = max(structure.max_blocks, len(tags))
+    if len(tags) > 1:
+        structure.rows_multi_block += 1
+        if len(set(tags)) > 1:
+            structure.rows_multi_distinct_tag += 1
+    # `|tag|` costs two delimiters plus the tag itself.
+    if blocks and (2 + len(tags[-1]) + len(blocks[-1])) >= structure.block_budget:
+        structure.rows_final_block_at_budget += 1
+
+
 #: How far into a record to look for the closing `|` of the lineage tag. Eight ranks of taxon
 #: names do not reach 512 bytes; a record whose tag is not closed by then is a parse failure,
 #: not a long lineage. Bounded deliberately: the alternative is materialising 42 kB of sequence
@@ -300,18 +384,24 @@ def iter_stage2_records(
     component: str,
     record_prefix: str,
     on_parse_error: Callable[[str, LineageError], None] | None = None,
+    structure: Stage2Structure | None = None,
 ) -> Iterator[Record]:
     """Yield one :class:`Record` per Parquet row of an Evo 1 stage-2 object.
 
+    One row is one record (D-048). A record longer than :data:`BLOCK_BUDGET` arrives as several
+    `|tag|block` pairs concatenated into that single row, all carrying the same tag, so reading
+    the leading tag reads the record's taxonomy whatever its length.
+
     Only the first :data:`LINEAGE_WINDOW` code units of each row are materialised, sliced in
-    Arrow rather than Python: the column holds ~42 kB of sequence per row and the audit needs a
-    72-byte tag, so decoding whole rows would move about 110 GB through Python strings to read
-    none of it.
+    Arrow rather than Python: the column holds tens of kB of sequence per row and the audit needs
+    a 72-byte tag, so decoding whole rows would move about 110 GB through Python strings to read
+    none of it. Pass `structure` to check the one-row-one-record reading on this pass as well;
+    only rows that could falsify it are materialised in full, which keeps the scan nearly free.
 
     `record_prefix` is the stable-ID stem, normally the object key. The identifier is
     `{record_prefix}#{row}` with `row` the index within the object — reproducible from pinned
-    inputs, and *not* an accession: the release carries none for this component, and a row is a
-    context window rather than a biological record.
+    inputs, and *not* an accession: the release carries none for this component, so no join to
+    IMG/VR is possible from it at all.
 
     A row whose tag will not parse is reported to `on_parse_error` and skipped, so the count of
     such rows lands in the manifest instead of being absorbed into the unlabelled population.
@@ -329,7 +419,32 @@ def iter_stage2_records(
     row = 0
     for group in range(parquet.metadata.num_row_groups):
         table = parquet.read_row_group(group, columns=[column])
-        heads = pc.utf8_slice_codeunits(table.column(column), 0, LINEAGE_WINDOW)
+        text = table.column(column)
+        heads = pc.utf8_slice_codeunits(text, 0, LINEAGE_WINDOW)
+        if structure is not None:
+            # All of this arithmetic is vectorised in Arrow, so it costs nothing in Python, and
+            # only the rows that could falsify one-row-one-record are materialised. Two kinds
+            # can: a row that is not exactly one `|tag|block` pair, and a row long enough to
+            # have been cut at the block budget — which a single-pair row can be, and which is
+            # the case that matters, since such a record may continue into the next row.
+            pipes = pc.count_substring(text, pattern="|")
+            lengths = pc.utf8_length(text)
+            structure.rows += table.num_rows
+            structure.longest_row = max(structure.longest_row, pc.max(lengths).as_py() or 0)
+            structure.max_blocks = max(structure.max_blocks, (pc.max(pipes).as_py() or 0) // 2)
+            suspect = pc.indices_nonzero(
+                pc.fill_null(
+                    pc.or_kleene(
+                        pc.not_equal(pipes, 2),
+                        pc.greater_equal(lengths, structure.block_budget),
+                    ),
+                    # A null row answers neither test, so it is looked at rather than skipped.
+                    True,
+                )
+            )
+            if len(suspect):
+                for full in text.take(suspect).to_pylist():
+                    scan_row_structure(full or "", structure)
         for head in heads.to_pylist():
             record_id = f"{record_prefix}#{row}"
             row += 1

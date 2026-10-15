@@ -23,6 +23,7 @@ from amazebio.corpora import (
     SOURCES,
     LineageError,
     RangedObject,
+    Stage2Structure,
     has_lineage_tag,
     iter_fasta_records,
     iter_stage2_records,
@@ -386,3 +387,109 @@ def test_retries_are_reported_to_the_caller() -> None:
     )
     assert obj.buffered(chunk=32).read() == b"0123456789"
     assert seen == [(1, 2)], "a retry must report the position it resumed from"
+
+
+# --------------------------------------------------------------------------------------
+# The record unit
+# --------------------------------------------------------------------------------------
+
+
+def _structure(rows: list[str], *, row_group_size: int = 2) -> Stage2Structure:
+    from amazebio.corpora import Stage2Structure
+
+    found = Stage2Structure()
+    list(
+        iter_stage2_records(
+            _parquet(rows, row_group_size=row_group_size),
+            component="IMG/VR",
+            record_prefix="p",
+            structure=found,
+            on_parse_error=lambda _rid, _exc: None,
+        )
+    )
+    return found
+
+
+def test_ordinary_rows_confirm_one_row_one_record() -> None:
+    found = _structure([TAG + "ACGT" * 5, TAG + "TTTT", TAG + "GG"])
+    assert found.rows == 3
+    assert found.max_blocks == 1
+    assert found.rows_multi_block == 0
+    assert found.one_row_one_record
+
+
+def test_a_long_record_chunked_under_one_tag_is_still_one_record() -> None:
+    """D-048: over the budget, a record repeats its tag within the same row."""
+    from amazebio.corpora import BLOCK_BUDGET
+
+    long_row = TAG + "A" * (BLOCK_BUDGET - len(TAG)) + TAG + "GGGG"
+    found = _structure([TAG + "ACGT", long_row])
+    assert found.rows_multi_block == 1
+    assert found.rows_multi_distinct_tag == 0
+    assert found.max_blocks == 2
+    assert found.one_row_one_record, "repeating one tag is a chunked genome, not two records"
+
+
+def test_two_distinct_tags_in_a_row_falsify_the_reading() -> None:
+    found = _structure([TAG + "ACGT", "|r__Monodnaviria;;;;;;;|GG" + TAG + "TT"])
+    assert found.rows_multi_distinct_tag == 1
+    assert not found.one_row_one_record
+
+
+def test_a_final_block_on_the_budget_falsifies_the_reading() -> None:
+    """A record that fills its last block may continue into the next row."""
+    from amazebio.corpora import BLOCK_BUDGET
+
+    filled = TAG + "A" * (BLOCK_BUDGET - len(TAG))
+    found = _structure([filled])
+    assert found.rows_final_block_at_budget == 1
+    assert not found.one_row_one_record
+
+
+def test_rows_without_a_tag_are_counted_not_ignored() -> None:
+    found = _structure([TAG + "ACGT", "ACGTACGT"])
+    assert found.rows_without_tag == 1
+
+
+def test_the_structure_scan_does_not_change_which_records_are_yielded() -> None:
+    """The scan is evidence about the pass, and must not perturb it."""
+    rows = [TAG + "ACGT", "no tag", "|r__Monodnaviria;;;;;;;|GG"]
+    plain = [
+        r.id
+        for r in iter_stage2_records(
+            _parquet(rows), component="c", record_prefix="p", on_parse_error=lambda *_: None
+        )
+    ]
+    scanned = [
+        r.id
+        for r in iter_stage2_records(
+            _parquet(rows),
+            component="c",
+            record_prefix="p",
+            structure=Stage2Structure(),
+            on_parse_error=lambda *_: None,
+        )
+    ]
+    assert plain == scanned == ["p#0", "p#2"]
+
+
+def test_a_null_row_is_looked_at_rather_than_skipped() -> None:
+    """A row that answers neither structural test must not pass by default."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    sink = io.BytesIO()
+    pq.write_table(pa.table({"text": [TAG + "ACGT", None]}), sink, row_group_size=2)
+    sink.seek(0)
+    found = Stage2Structure()
+    records = list(
+        iter_stage2_records(
+            sink,
+            component="c",
+            record_prefix="p",
+            structure=found,
+            on_parse_error=lambda *_: None,
+        )
+    )
+    assert [r.id for r in records] == ["p#0"]
+    assert found.rows_without_tag == 1

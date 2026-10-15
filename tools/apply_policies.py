@@ -96,7 +96,12 @@ def check_inventory(client: Any) -> int:
 
 
 def _records(
-    client: Any, source: corpora.StagedSource, *, limit: int | None, on_parse_error: Any
+    client: Any,
+    source: corpora.StagedSource,
+    *,
+    limit: int | None,
+    on_parse_error: Any,
+    structure: corpora.Stage2Structure | None = None,
 ) -> Iterator[Any]:
     """The record stream for one staged source, chosen by its declared reader."""
     # The size pin, checked rather than assumed. A1.2 and A1.5 verified these objects against
@@ -125,6 +130,7 @@ def _records(
             component=source.component,
             record_prefix=source.corpus_component + ":" + Path(source.key).name,
             on_parse_error=on_parse_error,
+            structure=structure,
         )
     elif source.reader == "fasta":
         reader: Any = obj.buffered()
@@ -212,8 +218,12 @@ def enumerate_source(
         if parse_failures["n"] <= 3:
             print(f"    parse failure {record_id}: {exc}", file=sys.stderr)
 
+    # Evo 1's rows need their record unit established; a FASTA entry is the publisher's own.
+    structure = corpora.Stage2Structure() if source.reader == "stage2_parquet" else None
     declares_no_taxonomy = not source.evidence.taxonomy_ranks
-    for record in _records(client, source, limit=limit, on_parse_error=note_parse_error):
+    for record in _records(
+        client, source, limit=limit, on_parse_error=note_parse_error, structure=structure
+    ):
         seen += 1
         head = record.attributes.get("head")
         # Where the source declares it carries no taxonomy, check that rather than trust it.
@@ -238,6 +248,8 @@ def enumerate_source(
         verdict.attribution = dict(attribution[policy.id])
         verdict.parse_failures = parse_failures["n"]
         verdict.evidence_contradictions = contradictions
+        if structure is not None:
+            verdict.structure = structure.to_dict()
         if verdict.uniform:
             verdict.note = (
                 "Enumerated although no rule can be decided here, to verify the declared "
@@ -328,10 +340,17 @@ def build_all(
             path.unlink(missing_ok=True)
         manifest.notes.append(
             "Record identifiers for Evo 1's stage-2 component are synthesised as "
-            "`stage2:<object>#<row>`: the release carries no accession for it, and a row is a "
-            "context window rather than a biological record (policies/corpora.md §3). No "
-            "per-genome proportion may be computed from these counts."
+            "`stage2:<object>#<row>`: the release carries no accession for it, so nothing in it "
+            "can be joined to IMG/VR. One row is one record (D-048), re-measured on this pass "
+            "rather than inherited — see each source's `structure`, whose "
+            "`one_row_one_record` must be true for the counts to be counts of records."
         )
+        if any(s.structure and not s.structure.get("one_row_one_record") for s in manifest.sources):
+            manifest.notes.append(
+                "A source's record-unit scan failed: a row packs several records or a record "
+                "continues past its budget, so every count here is a count of rows and not of "
+                "records. Relabel before quoting any of them."
+            )
         if any(s.evidence_contradictions for s in manifest.sources):
             manifest.notes.append(
                 "An evidence declaration was contradicted by the records — see "

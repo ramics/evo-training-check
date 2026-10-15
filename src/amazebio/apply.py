@@ -230,6 +230,9 @@ class SourceVerdict:
     #: Records carrying evidence the source declares it does not have. Any non-zero value
     #: invalidates the declaration and therefore the verdicts drawn from it.
     evidence_contradictions: int = 0
+    #: Evidence about the record unit itself, where a source's reader measures it. Empty where
+    #: the unit is the publisher's own (a FASTA entry) and needs no establishing.
+    structure: dict[str, Any] = field(default_factory=dict)
     why: str = ""
     note: str = ""
 
@@ -250,6 +253,7 @@ class SourceVerdict:
             "rules_undecidable": dict(sorted(self.rules_undecidable.items())),
             "parse_failures": self.parse_failures,
             "evidence_contradictions": self.evidence_contradictions,
+            "structure": self.structure,
             "why": self.why,
             "note": self.note,
         }
