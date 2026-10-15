@@ -407,3 +407,59 @@ def test_the_two_release_declarations_agree_on_what_can_be_re_executed() -> None
         assert kept_by_evidence(policy, imgvr) == set()
         with pytest.raises(ValueError, match="can re-execute none"):
             cf.restrict(policy, release="opengenome2-imgvr")
+
+
+def test_the_release_declarations_are_checked_for_every_release_not_just_two() -> None:
+    """Enumerate the inventory, which the test above does not.
+
+    `test_the_two_release_declarations_agree_on_what_can_be_re_executed` names the two releases
+    it knows. That catches the pair drifting apart and is blind to a third being added, which is
+    exactly what happened: A7.2 added `imgvr-v4` and `imgvr-v4.1` to
+    `conformance.RELEASE_INPUTS` and nothing failed, although A1.4's own closing note predicted
+    it would. This drives off the table instead, so a release added on one side and forgotten on
+    the other fails here.
+
+    The join is mechanical rather than a second hard-coded map: a `corpora.StagedSource` is
+    addressed by `f"{release}-{corpus_component}"`, which is the key `RELEASE_INPUTS` uses.
+    """
+    from pathlib import Path
+
+    from amazebio import conformance as cf
+    from amazebio import corpora
+    from amazebio.policyspec import load_policy_dir
+
+    specs = load_policy_dir(Path(__file__).resolve().parents[1] / "policies" / "specs")
+    evo = [p for p in specs.values() if p.id.startswith("evo1-")]
+    by_key = {
+        f"{s.release}-{s.corpus_component}": s for s in corpora.SOURCES + corpora.ESM3_SOURCES
+    }
+
+    for key in sorted(cf.RELEASE_INPUTS):
+        if key in cf.INPUT_RELEASES:
+            # The filter's input. A1.4 evaluates released corpora, so it must not claim one.
+            assert key not in by_key, (
+                f"{key} is declared as the filter's input but `corpora` also stages it as a "
+                "released source; one of the two declarations is wrong about what it is"
+            )
+            continue
+        source = by_key.get(key)
+        assert source is not None, (
+            f"{key} is in RELEASE_INPUTS and classified as a released output, but no "
+            f"corpora.StagedSource is addressed by it. Known: {sorted(by_key)}"
+        )
+        for policy in evo:
+            by_evidence = {
+                rule.id
+                for rule in policy.rules
+                if not rule.unspecified_params() and not source.evidence.missing_for(rule)
+            }
+            try:
+                restricted = {r.id for r in cf.restrict(policy, release=key).kept}
+            except ValueError:
+                # `restrict` refuses a release that can re-execute nothing rather than handing
+                # back an empty pipeline a caller could report zero failures from.
+                restricted = set()
+            assert restricted == by_evidence, (
+                f"{policy.id} on {key}: the inventory says {sorted(restricted)}, the staged "
+                f"source's evidence says {sorted(by_evidence)}"
+            )

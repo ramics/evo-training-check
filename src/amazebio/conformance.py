@@ -55,6 +55,7 @@ __all__ = [
     "CAUSES",
     "COMPARISON_KEYS",
     "HOST_UNITS",
+    "INPUT_RELEASES",
     "ORDER_DEPENDENT_KINDS",
     "PRIMARY_HOST_UNIT",
     "RANKS",
@@ -332,6 +333,19 @@ COMPARISON_KEYS = {
     "opengenome-stage2": "lineage_tag",
     "opengenome2-imgvr": "source_accession",
 }
+
+#: The entries in :data:`RELEASE_INPUTS` that are the filter's **input** rather than a corpus
+#: some developer released. They have no comparison key because there is nothing to compare them
+#: against: a predicate is re-executed *over* them and the result is compared against a release.
+#:
+#: Declared rather than inferred from absence, and the reason is a near miss. A1.4 declares the
+#: same fact at a different granularity — per-record `Evidence` on each `corpora.StagedSource` —
+#: and D-057 left both standing with a test pinning their agreement. That test hard-coded the two
+#: releases it knew and never enumerated this table, so when A7.2 added `imgvr-v4` and
+#: `imgvr-v4.1` it did not fire, and the guard the decision rested on did not cover the case it
+#: was written for. Every key here must now be classified as an input or a released output, and
+#: a key in neither set fails a test rather than being silently tolerated.
+INPUT_RELEASES = frozenset({"imgvr-v4", "imgvr-v4.1"})
 
 #: Rule kinds whose result depends on the order records arrive in. One kind, one rule: Evo 1's
 #: vOTU representative. A release or an input can supply every field such a rule reads and still
