@@ -43,7 +43,9 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -56,7 +58,6 @@ from amazebio import imgvr
 from amazebio.repro import run
 
 SEARCH_URL = "https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR&x=50"
-DOWNLOAD_URL = "https://files.jgi.doe.gov/filedownload/"
 RESTORE_URL = "https://files.jgi.doe.gov/request_archived_files/"
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 REGION = "us-east-1"
@@ -240,37 +241,54 @@ def download_verify_upload(
     bucket: str,
     prefix: str,
     dry_run: bool,
+    spool: Path,
 ) -> dict[str, Any]:
     """Stream one file, hashing as it passes, and upload only on an md5 match."""
     key = stage_key(date, file.name, prefix=prefix)
-    url = f"{DOWNLOAD_URL}?_id={file_id}"
+    url = imgvr.download_url(file_id)
     if dry_run:
         return {"key": key, "bytes": file.bytes, "verified": None, "skipped": "dry-run"}
 
+    # Spool to disk rather than to a list of chunks. The largest file staged here is the
+    # 5.0 GB sequence-information table, and accumulating it in memory and then joining it
+    # peaks at roughly twice that — more than the session container has. Disk is the cheap
+    # resource and the file is deleted as soon as it is uploaded.
+    #
     # md5 because that is the digest the publisher publishes; a sha256 of ours is
     # recorded alongside it so later passes can verify without re-deriving theirs.
     md5 = hashlib.md5()
     sha = hashlib.sha256()
     read = 0
-    parts: list[bytes] = []
-    with _request(url, token=token) as resp:
-        while chunk := resp.read(_CHUNK):
-            md5.update(chunk)
-            sha.update(chunk)
-            parts.append(chunk)
-            read += len(chunk)
-    got = md5.hexdigest()
-    if got != file.md5:
-        raise SystemExit(
-            f"{file.name}: md5 {got} does not match the publisher's published {file.md5}. "
-            "Nothing uploaded. The corpus bucket has no s3:DeleteObject, so an object claiming "
-            "to be a release it has not been shown to be is worse than no object at all."
-        )
-    if read != file.bytes:
-        raise SystemExit(
-            f"{file.name}: {read} bytes read, listing says {file.bytes}. Nothing uploaded."
-        )
-    client.put_object(Bucket=bucket, Key=key, Body=b"".join(parts))
+    with tempfile.NamedTemporaryFile(dir=spool, suffix=".part", delete=False) as tmp:
+        spooled = Path(tmp.name)
+        try:
+            with _request(url, token=token) as resp:
+                while chunk := resp.read(_CHUNK):
+                    md5.update(chunk)
+                    sha.update(chunk)
+                    tmp.write(chunk)
+                    read += len(chunk)
+            tmp.flush()
+            got = md5.hexdigest()
+            if got != file.md5:
+                raise SystemExit(
+                    f"{file.name}: md5 {got} does not match the publisher's published "
+                    f"{file.md5}. Nothing uploaded. The corpus bucket has no s3:DeleteObject, "
+                    "so an object claiming to be a release it has not been shown to be is "
+                    "worse than no object at all."
+                )
+            if read != file.bytes:
+                raise SystemExit(
+                    f"{file.name}: {read} bytes read, listing says {file.bytes}. "
+                    "Nothing uploaded."
+                )
+            # upload_file, not put_object: a single PUT is capped at 5 GiB and the largest
+            # file here is within a few hundred megabytes of that ceiling. This splits into
+            # a multipart upload on its own, and an interrupted multipart upload never
+            # becomes a visible object — which is what the no-delete bucket requires.
+            client.upload_file(str(spooled), bucket, key)
+        finally:
+            spooled.unlink(missing_ok=True)
     print(f"[imgvr] staged {key}  {read/1e9:.3f} GB  md5 ok", flush=True)
     return {
         "key": key,
@@ -307,6 +325,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--outdir", default="artifacts/a1-7")
     ap.add_argument("--restore-timeout-minutes", type=float, default=20.0)
     ap.add_argument("--poll-seconds", type=float, default=60.0)
+    ap.add_argument(
+        "--spool-dir",
+        default=os.environ.get("TMPDIR") or "/tmp",
+        help="where each file is spooled while its md5 is checked; needs room for the "
+        "largest single file (5.0 GB), not for the whole release",
+    )
     ap.add_argument("--dry-run", action="store_true", help="resolve and plan; transfer nothing")
     ap.add_argument("--allow-dirty", action="store_true")
     args = ap.parse_args(argv)
@@ -330,8 +354,32 @@ def main(argv: list[str] | None = None) -> int:
     live = fetch_inventory()
     outdir = Path(args.outdir)
 
+    # Fail before the first byte rather than part-way through the 5 GB table. Only one file
+    # is on disk at a time, so the requirement is the largest file plus headroom — not the
+    # 7.9 GB release total.
+    spool = Path(args.spool_dir)
+    spool.mkdir(parents=True, exist_ok=True)
+    if not args.dry_run:
+        need = max(
+            f.bytes
+            for date in releases
+            for f in (
+                imgvr.release_on(date).files
+                if args.include_sequence
+                else imgvr.conformance_inputs(date)
+            )
+        )
+        free = shutil.disk_usage(spool).free
+        if free < need + (1 << 30):
+            raise SystemExit(
+                f"{spool} has {free/1e9:.1f} GB free; the largest single file is "
+                f"{need/1e9:.1f} GB and this spools one at a time. Point --spool-dir at a "
+                "filesystem with room, or free some."
+            )
+
     with run("A1.7", seed=None, outdir=outdir, allow_dirty=args.allow_dirty) as m:
         m.parameter("releases", releases)
+        m.parameter("spool_dir", str(spool))
         m.parameter("include_sequence", args.include_sequence)
         m.parameter("verified_against", "publisher md5 recorded before acquisition (D-054)")
         m.note(
@@ -381,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
                     bucket=bucket,
                     prefix=prefix,
                     dry_run=args.dry_run,
+                    spool=spool,
                 )
                 row["release"] = date
                 row["role"] = f.role
