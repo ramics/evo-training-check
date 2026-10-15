@@ -2,7 +2,7 @@
 id: X1.4
 title: Machine-verify quotations inside the policy specs
 phase: X
-status: review
+status: done
 gate: false
 depends_on: [A0.3]
 blocks: []
@@ -56,10 +56,10 @@ Attribute each quotation to the source of its enclosing rule, and fall back to t
 - The check runs in CI and fails on an unverifiable quotation.
 - A deliberately corrupted quotation is shown to fail, in a test.
 
-## State — 2026-10-14
+## State — 2026-10-15
 
-`review`, on branch `ccr-2956d088-s25hlk` — pushed and green, **not merged into `main`**, so the files named
-here are absent from a `main` checkout.
+`done`. The work merged into `main` in pull request #3 (branch `ccr-2956d088-s25hlk`), so the files
+named here are in a `main` checkout.
 
 - `tools/specquotes.py` verifies every quotation in `policies/specs/*.yaml` against the source its
   rule cites, wired into `specs-check` so CI runs it. 60 quotations pass.
@@ -70,8 +70,9 @@ here are absent from a `main` checkout.
 - DECISIONS.md D-023 records the three calls; the convention a later writer has to follow is in
   `policies/specs/README.md`.
 
-Every Done-when criterion is demonstrably met, so this can move to `done` as soon as it is
-reviewed.
+Every Done-when criterion is demonstrably met: the check covers all 60 quotations, `specs-check`
+runs it in CI, and `tests/test_specquotes.py::test_a_corrupted_quotation_fails` shows a
+deliberately corrupted quotation failing. Reviewed and closed on 2026-10-15.
 
 ## Notes
 

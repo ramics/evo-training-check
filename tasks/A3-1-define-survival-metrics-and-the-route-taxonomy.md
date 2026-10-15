@@ -36,10 +36,10 @@ happens.
 - Route taxonomy is fixed and used by all A2 outputs.
 - Frozen before A3.2 runs.
 
-## State — 2026-10-14
+## State — 2026-10-15
 
-`review`, on branch `ccr-2956d088-s25hlk` — pushed and green, **not merged into `main`**, so the files named
-here are absent from a `main` checkout.
+`review`. The work merged into `main` in pull request #3 (branch `ccr-2956d088-s25hlk`), so the
+files named here are in a `main` checkout. Nothing is sitting in a branch.
 
 - `metrics/survival.md` is the frozen specification, written to be reimplementable from that file
   alone, so A3.3's independent second implementation never has to read the first.
