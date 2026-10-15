@@ -89,6 +89,13 @@ side by side as though it could.
     `tools/esm3_composition.py`, plus a `Release` registry and `ParallelRangeRead` in
     `amazebio.uniref`. `boto3` is now pinned, which no staging tool had. 221 tests pass.
 - **Left:** nothing. Move to `done` on review.
+- **One thing for whoever merges:** the branch conflicts with `main` in
+  `policies/sources.json` only, because this task appended six sources (the UniRef metalink,
+  its three release notes, and MGnify's README and md5sum) while B1.1 and B2.1 appended their
+  own. It is an append-both resolution, not a disagreement; `pixi.toml` and `pixi.lock` merge
+  cleanly even though both sides changed them. Run `pixi run -e dev check` after resolving —
+  `policies-check` verifies every stored source against its recorded checksum, so a botched
+  merge fails loudly rather than quietly.
 - **Waiting on the project owner:** nothing.
 - **For whoever picks up A1.4 or A4.3:** A4.3's ESM3 scope table needs no staging — the
   composition is documentary and the artefact is there. Do not write any figure of the form
