@@ -2999,3 +2999,57 @@ decision has a threshold or parameter in it, the number goes in the entry.
   unclassified. It carries no lineage field at all, and all 2,917,521 of its distinct accessions
   resolve in IMG/VR, so its ranks come from A7.2's join and are labelled as recovered.
   "100% unclassified" would have been the easiest wrong number in this task.
+
+### D-083 — The Pfam viral selection misses families named for a virus taxon, and both wider rules are contaminated
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Numbering:** drafted as D-081, which A4.1 took first; renumbered per `AGENTS.md`. A commit
+  message on branch `ccr-a85b7882-p8ohv8` cites this finding as D-081 and is already pushed, so
+  that citation resolves here.
+- **Context:** D-075 selects the Pfam viral family universe by matching a frozen vocabulary
+  against each family's own ID and description. Writing the tests for it surfaced a class of
+  family the rule cannot see: one **named for a virus taxon** rather than for a viral structure.
+  `Ebola_NP` is described as "Ebola nucleoprotein"; `Rhabdo_ncap` and `Paramyxo_ncap` are the
+  same shape. None of them contains `virus`, `viral`, `capsid`, `nucleocapsid` or anything else
+  in the vocabulary, so all three sit outside the universe — a filovirus nucleoprotein family
+  excluded from an audit of viral content. This was found by a test expecting `Ebola_NP` to be
+  selected, not by inspecting results, so nothing downstream had been computed yet.
+- **Decision:** The universe stays as D-075 defines it — the family-name rule alone, 1,719
+  families — and the gap is **measured and reported per family** rather than closed. Three things
+  make that defensible:
+  **The rule stays crisp.** A denominator assembled from two rules of different reliability
+  cannot be defended family by family, and the per-family artefact is what makes this
+  project's selection auditable at all.
+  **Both wider rules were measured, and both are contaminated.** The clan-level reading is
+  6,698 families with 6,132 not viral (D-075). The *narrowest* widening available — admitting a
+  family whose own clan's **name** names a viral entity — adds 61 families, and inspecting them
+  shows the same defect in miniature: `CL0511` is called `Retroviral_zf` and contributes
+  cellular zinc fingers (`CLIP1_ZNF`, `AIR2-like_ZnK4`), `CL0504` is called `Phage_barrel` and
+  contributes `Alg8_N`. 32 of the 61 come from `Phage_barrel` alone. It would admit `Ebola_NP`,
+  via the `Nucleocapsid` clan, at the price of a third of the addition being cellular.
+  **The other registry covers the gap.** RVDB-prot's membership is its curators' and is built
+  for virus detection; a filovirus nucleoprotein family is in it on their authority, not ours.
+  This is exactly why A2.1 searches two registries whose membership comes from two different
+  authorities and never pools them.
+  `amazebio.profiles.clan_name_additions` computes the addition, and
+  `artifacts/a2-1/registries/pfam-viral-families.json` carries it beside the universe with every
+  family's `selected_by`. A reviewer who disagrees can re-cut from the artefact without
+  re-running a search.
+- **Rejected:** Extending the vocabulary with virus taxon names — `ebola`, `rhabdo`, `paramyxo`,
+  `filo`, `herpes`, and the fifty more it would take to be consistent. It would work, and it
+  would replace one reviewable rule with a long list of this project's own judgements, each of
+  which a reviewer would have to check individually. If a reviewer asks for it, the artefact
+  makes the swap cheap.
+  Adopting the clan-name rule, for the contamination above. Note the direction, though, because
+  it is not symmetric and the write-up should say so: a *cellular* family inside the universe
+  contributes a near-guaranteed zero and pushes the survival fraction **down**, while a missing
+  viral family removes a row from both numerator and denominator. Contamination is the
+  conservative error and omission is the neutral one, which is a further reason not to trade the
+  second for the first.
+- **Consequence:** Every Pfam-registry figure is explicitly "survival among families Pfam's own
+  names identify as viral", and the blind spot is a stated limitation with a number attached
+  rather than a surprise for a reviewer to find. The general lesson is the one to carry into
+  A2.2–A2.5: **the family universe is a denominator, and its membership rule is a finding about
+  the registry, not a detail of the pipeline.** A2.2's fold families and A2.5's problem taxa both
+  face the same question, and both should expect to report their membership rule rather than
+  assume one.
