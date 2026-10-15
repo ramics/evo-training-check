@@ -206,11 +206,19 @@ def check_inventory() -> int:
 # --------------------------------------------------------------------------------------
 
 
-def request_restore(ids: list[str], *, token: str) -> str | None:
-    """Ask JGI to bring files back from tape. Returns a request id, or None if not needed."""
+def request_restore(ids: list[str], *, token: str, organism_id: str, top_hit: str) -> str | None:
+    """Ask JGI to bring files back from tape. Returns a request id, or None if not needed.
+
+    The body is organism-keyed, exactly as the download's is: `{"ids": {<organism_id>:
+    {"file_ids": [...], "top_hit": ...}}}`. A flat list of ids — what this sent first — is
+    refused as HTTP 404 by the search host's nginx, which reads as an absent endpoint rather
+    than a malformed body and sent the previous pass looking for the wrong thing (D-062).
+    """
     if not ids:
         return None
-    body = json.dumps({"ids": ids}).encode()
+    body = json.dumps(
+        {"ids": {organism_id: {"file_ids": ids, "top_hit": top_hit}}, "api_version": "2"}
+    ).encode()
     try:
         with _request(RESTORE_URL, token=token, data=body) as resp:
             payload = json.loads(resp.read())
@@ -291,9 +299,7 @@ def download_verify_upload(
                     tmp.write(chunk)
             tmp.flush()
             with zipfile.ZipFile(spooled) as zf:
-                members = [
-                    n for n in zf.namelist() if PurePosixPath(n).name == file.name
-                ]
+                members = [n for n in zf.namelist() if PurePosixPath(n).name == file.name]
                 if len(members) != 1:
                     raise SystemExit(
                         f"{date}/{file.name}: the download zip holds {len(members)} members "
@@ -443,7 +449,9 @@ def main(argv: list[str] | None = None) -> int:
                 if index.get((date, f.directory, f.name), {}).get("file_status") == ON_TAPE
             ]
             if on_tape and not args.dry_run:
-                rid = request_restore(on_tape, token=token)
+                rid = request_restore(
+                    on_tape, token=token, organism_id=organism_id, top_hit=top_hit
+                )
                 if rid and not wait_for_restore(
                     rid,
                     token=token,
