@@ -44,9 +44,12 @@ same convention `metrics/manifests.md` uses for an empty removed set.
 | `lower_bound` | A sample was searched (D-078). A family detected is detected; a family absent may survive in the records not read. **The survival fraction is a lower bound**, and A3.2 must not pool it with a `population` table. |
 | `not_searched` | No source in this manifest could be searched at all. Every count is zero *by construction* and none of it is evidence of absence. The ESM3-open proxy corpus is the case: its reader is A1.6's. |
 
-A sampled table is the normal case for A2.1, and not because of a budget. A profile search over
-one component of one release against RVDB-prot is on the order of 40,000 core-hours; the
-constraint is arithmetic, and the sample is the method rather than a compromise on it.
+A sampled table is the normal case for A2.1. The cost of not sampling is **measured** rather
+than estimated (D-098, which supersedes D-078's figure): 386 core-seconds per million residues
+against RVDB-prot's 13,679 profiles, so a full census of both Evo releases against both
+registries is about 3,000 core-hours. That is affordable, not out of reach — so a sampled table
+is a first pass whose depth is a decision, and `estimate_kind` is what keeps the distinction
+visible in the artefact.
 
 **`families_without_a_hit`**, which is the other half of the denominator. `families` lists only
 the families that were hit; every other family in the pinned universe is listed by accession in
