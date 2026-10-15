@@ -52,6 +52,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from amazebio.uniref import ResumableRead, S3PartSink, VerificationError
@@ -883,3 +884,79 @@ def stage(
         if manifest_rows is not None:
             manifest_rows.append(staged.as_dict())
         yield staged
+
+
+# --------------------------------------------------------------------------------------
+# Offline composition, for A4.3
+# --------------------------------------------------------------------------------------
+
+
+def blobs_from_capture(path: str | Path) -> list[Blob]:
+    """The per-file manifest from a committed capture, rather than from the dataset API.
+
+    `composition()` was written against :func:`fetch_tree`, which calls HuggingFace. That is
+    right for A1.2, whose job was to establish the pin. It is wrong for A4.3, whose numbers go
+    in a paper: a figure that can only be regenerated while a third-party API is up and
+    unchanged is not reproducible from pinned inputs, which `AGENTS.md` requires. The captures
+    at `policies/captures/hf-*-manifest.json` hold exactly the four fields :class:`Blob` needs
+    and are committed, so the composition rebuilds from bytes in this repository.
+    """
+    raw = json.loads(Path(path).read_text())
+    return [
+        Blob(
+            path=b["path"],
+            size=b["bytes"],
+            sha256=b.get("sha256"),
+            last_commit=b.get("last_commit"),
+        )
+        for b in raw["blobs"]
+    ]
+
+
+#: The training phases the OpenGenome2 card tabulates separately. They weight the components
+#: differently, so a share of "the corpus" is meaningless until one is named — which is why
+#: `policies/corpora.md` tells A4.3 to state its denominator.
+PHASES = ("Phase 1: Pretraining", "Phase 2: Context Extension")
+
+
+def token_table(markdown: str) -> dict[str, list[dict[str, Any]]]:
+    """The dataset card's own token tables, parsed rather than retyped.
+
+    Returns one list of rows per phase, each row carrying the card's dataset label, its token
+    count in billions, the percentage the card states, and the percentage recomputed from the
+    token column. The two are kept apart on purpose: the card's stated column is arithmetically
+    wrong for Phase 2 — it totals about 252% and gives 104% to a single component — and a
+    silent recomputation would hide a published error that belongs in the §A0 record.
+    """
+    out: dict[str, list[dict[str, Any]]] = {}
+    phase: str | None = None
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            heading = stripped.lstrip("#").strip()
+            phase = heading if heading in PHASES else None
+            if phase:
+                out[phase] = []
+            continue
+        if phase is None or not stripped.startswith("|"):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) != 4 or cells[0] in ("Dataset", "") or set(cells[1]) <= set("-: "):
+            continue
+        try:
+            tokens = float(cells[1].replace(",", ""))
+        except ValueError:
+            continue
+        out[phase].append(
+            {
+                "dataset": cells[0],
+                "tokens_b": tokens,
+                "stated_composition": cells[2],
+                "dataloader_weight": cells[3],
+            }
+        )
+    for rows in out.values():
+        total = sum(r["tokens_b"] for r in rows)
+        for row in rows:
+            row["computed_share"] = round(row["tokens_b"] / total, 6) if total else 0.0
+    return out

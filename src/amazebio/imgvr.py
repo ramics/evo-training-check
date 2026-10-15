@@ -37,8 +37,10 @@ treated as a detail, and the citation does not resolve it. See DECISIONS.md D-05
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Sequence
 
 __all__ = [
+    "DOWNLOAD_BASE",
     "FILE_ROLES",
     "RELEASES",
     "V4_CANDIDATES",
@@ -46,6 +48,7 @@ __all__ = [
     "ReleaseFile",
     "conformance_inputs",
     "differs_between",
+    "download_request",
     "release_on",
 ]
 
@@ -125,8 +128,10 @@ RELEASES = {
         date="2022-09-20",
         version="v4",
         note=(
-            "The first release answering to v4, three months before the v4 paper's issue date. "
-            "Its sequence-information table differs from the December one."
+            "v4 proper: its own README reads '### IMG/VR database v4 release Oct. 2022 ###', "
+            "three months before the v4 paper's issue date. This is the release Evo 1's "
+            "citation names on the publisher's own naming. Its sequence-information table "
+            "differs from the December one, and the December one says why (D-063)."
         ),
         files=(
             _f(
@@ -213,11 +218,15 @@ RELEASES = {
     ),
     "2022-12-20": Release(
         date="2022-12-20",
-        version="v4",
+        version="v4.1",
         note=(
-            "The second release answering to v4, the month the v4 paper issued. Identical "
-            "nucleotides and host information to September; different sequence information "
-            "and proteins."
+            "Not a second v4 but an erratum of it. Its README reads '### IMG/VR database v4.1 "
+            "release Dec. 2022 ###' and states that v4.1 'includes the same sequences as "
+            "IMG/VR v4, but fixes issues with two files (IMGVR_all_proteins.faa and "
+            "IMGVR_all_Sequence_information.tsv) in which a few sequences/rows were "
+            "incorrect', everything else being identical. That is exactly the difference set "
+            "D-052 derived from the md5sums alone, confirmed independently by the publisher "
+            "(D-063)."
         ),
         files=(
             _f(
@@ -329,6 +338,42 @@ def differs_between(a: str, b: str) -> dict[str, bool]:
     fa = {f.name: f.md5 for f in ra.files}
     fb = {f.name: f.md5 for f in rb.files}
     return {name: fa.get(name) != fb.get(name) for name in sorted(set(fa) | set(fb))}
+
+
+#: Where a single file is fetched from, by its JAMO id. Read from the publisher's own download
+#: API spec (`files-download.jgi.doe.gov/apidoc/?format=openapi`, version 202610.92006.17) and
+#: not from the portal's search host, because the two are different services and only this one
+#: serves a single file by id.
+DOWNLOAD_BASE = "https://files-download.jgi.doe.gov/download_files/"
+
+
+def download_request(
+    file_ids: Sequence[str], *, organism_id: str, top_hit: str
+) -> tuple[str, dict[str, object]]:
+    """The URL and JSON body that actually return bytes, for files named by listing `_id`.
+
+    `POST /download_files/` with `{"ids": {<organism_id>: {"file_ids": [...], "top_hit": ...}}}`.
+    The response is a single `application/zip` stream holding every requested file under a
+    per-release directory, plus a `Download_<n>_File_Manifest.csv` carrying the publisher's own
+    md5 and size for each. It is recorded here rather than inlined in the staging tool because
+    two earlier passes had the endpoint wrong in ways that were invisible without a credential:
+
+    * `files.jgi.doe.gov/filedownload/?_id=<id>` — the first version — answers `401` to *any*
+      method and its `Allow` header reads `POST, OPTIONS`, so the 401 that pass read as proof the
+      endpoint was live proved only that (D-060).
+    * `files-download.jgi.doe.gov/download_files/<id>/` is the publisher's documented single-file
+      read and is what D-060 corrected to. Authenticated, it answers `404` for every IMG/VR file
+      tried, small and large alike, as nginx HTML rather than the API's own JSON — so the request
+      is authenticated and routed and the file is still not served that way. Unauthenticated the
+      same URL answers `401` with `Allow: GET, HEAD, OPTIONS`, which is why no measurement before
+      a credential existed could distinguish the two (D-062).
+
+    `top_hit` is the `_id` **string** of the organism's top-hit file, not the object the search
+    response nests there; passing the object returns HTTP 500. Verified end to end against the
+    live API on 2026-10-15: the two 2022-09-20 READMEs came back inside the zip at the exact
+    sizes and md5s pinned in `RELEASES`.
+    """
+    return DOWNLOAD_BASE, {"ids": {organism_id: {"file_ids": list(file_ids), "top_hit": top_hit}}}
 
 
 def conformance_inputs(date: str) -> tuple[ReleaseFile, ...]:

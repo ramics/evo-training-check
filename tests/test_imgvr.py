@@ -54,7 +54,14 @@ def test_checksums_are_full_md5_digests_not_truncated():
 
 def test_both_releases_answering_to_v4_are_pinned():
     assert set(imgvr.V4_CANDIDATES) == set(imgvr.RELEASES)
-    assert all(imgvr.release_on(d).version == "v4" for d in imgvr.V4_CANDIDATES)
+    # Both are candidates for Evo 1's "IMG/VR v4" citation; only one of them is called v4.
+    # The publisher's own READMEs name the September release v4 and the December one v4.1,
+    # an erratum of it (D-063). Pinned here because a later task that re-derives the version
+    # from a README is a later task that can get it wrong, and because the asymmetry is the
+    # finding: the citation points at September, and the erratum touches exactly the table
+    # September's confidence and vOTU rules read.
+    assert imgvr.release_on("2022-09-20").version == "v4"
+    assert imgvr.release_on("2022-12-20").version == "v4.1"
 
 
 def test_the_two_v4_releases_agree_on_sequence_and_host_and_differ_on_the_metadata():
@@ -113,3 +120,28 @@ def test_the_capture_contains_colliding_date_and_name_pairs_across_directories(c
         seen.setdefault((f["added_date"], f["file_name"]), set()).add(f["directory"])
     collisions = {k: v for k, v in seen.items() if len(v) > 1}
     assert collisions, "expected at least one (date, name) pair spanning two directories"
+
+
+def test_the_download_request_is_the_route_that_actually_serves_bytes():
+    # Pinned because two earlier versions had this wrong in ways no measurement could catch
+    # without a credential. The search host's `filedownload/?_id=` form answers
+    # `Allow: POST, OPTIONS` (D-060), and the download host's documented single-file
+    # `GET /download_files/<id>/` answers 404 for every IMG/VR file once authenticated — both
+    # of which are indistinguishable from a missing token while unauthenticated (D-062). What
+    # returns bytes is a POST keyed by organism id, verified end to end against the live API.
+    url, body = imgvr.download_request(
+        ["632a1b312de7c323533daac5"], organism_id="Custom_MPI-IMG_VR", top_hit="63a22c8a"
+    )
+    assert url == "https://files-download.jgi.doe.gov/download_files/"
+    assert url == imgvr.DOWNLOAD_BASE
+    assert body == {
+        "ids": {
+            "Custom_MPI-IMG_VR": {
+                "file_ids": ["632a1b312de7c323533daac5"],
+                "top_hit": "63a22c8a",
+            }
+        }
+    }
+    # top_hit is the id string. The search response nests an object there, and posting the
+    # object rather than its `_id` returns HTTP 500.
+    assert isinstance(body["ids"]["Custom_MPI-IMG_VR"]["top_hit"], str)
