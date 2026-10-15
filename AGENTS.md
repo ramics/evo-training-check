@@ -320,3 +320,11 @@ A task is `done` when all of:
 - Do not add models or assays for their own sake — §7 names scope creep as a live risk.
 - Do not trust secondary sources for any factual claim about a model's training data,
   `DESIGN.md` included. §B1 step 0 is explicit: verify from primary sources.
+
+**A database larger than 200 GB cannot be one database.** The policy caps volumes at 200 GB in
+`gp3`/`gp2`, and A1.6's alignment target — UniRef's three tiers plus MGnify90 — is upward of
+400 GB once built. No permitted instance can hold it, so the corpus is sharded and the small
+side of the comparison is queried against each shard in turn. Work out which side of a search is
+the small one before sizing anything: measured on identical data, querying 15,845 seeds against
+a 2M-sequence target took 335 s, and the same comparison with the corpus as the query had not
+left the prefilter after 45 minutes.

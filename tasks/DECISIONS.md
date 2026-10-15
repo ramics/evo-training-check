@@ -3343,3 +3343,218 @@ decision has a threshold or parameter in it, the number goes in the entry.
   excludes everything unlabelled), and it would silently mix two tasks' denominators.
   *Report the escaping count without an implied population* — the derivation is the part a
   reviewer has to check, so hiding it inside one multiplication is the wrong trade.
+
+---
+
+### D-090 — geNomad's lineage is a compacted list, not a positional ladder, and reading it wrong inflated the headline
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** `amazebio.genomad.parse_lineage` originally read geNomad's lineage field by
+  position — `Viruses;<realm>;<kingdom>;<phylum>;<class>;<order>;<family>` — and used the ICTV's
+  mandated rank suffixes only to *check* that read, on the same principle
+  `conformance.parse_lineage_tag` applies to Evo's released tag (D-057). The check fired on 195
+  of 2,329 classified records in the first scored run, and it was right.
+
+  geNomad **omits** a rank it cannot resolve rather than leaving the field empty. Its lineage is
+  therefore a compacted list of the ranks it did resolve. A phage placed at class and family but
+  not order comes back as
+  `Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Caudoviricetes;Ackermannviridae`, where the
+  family sits in what a positional reader calls the order slot.
+
+  The consequence ran in the direction that flatters this audit. Read positionally, such a
+  record has no family at all, so a denylisted family lands in `predicted_order`, matches
+  nothing on the order list, and is scored as an **escape the tool never committed**. It
+  inflated precisely the headline the task reports.
+- **Decision:** Rank comes from the ICTV suffix; position is demoted to nothing. Suffixes are
+  tried longest-first so `-viridae` can never be read as `-virae`. A name carrying no recognised
+  suffix is claimed for nothing rather than guessed at — guessing is how a family becomes an
+  order. Ranks below family (`-virinae`, `-virus`) are skipped knowingly rather than recorded as
+  unreadable. A rank named twice keeps the first and records the collision.
+
+  The corrected run reads all 2,329 lineages with **zero anomalies**, which is the evidence that
+  the suffix is the real signal rather than a second guess at one.
+
+  What it changed, recorded because the superseded figures appear in this session's history and
+  nowhere else — no artefact with the old numbers was ever committed, pushed or cited:
+
+  | quantity | positional read | suffix read |
+  |---|---|---|
+  | escape rate | 40.68% (38.18–43.21) | **36.23% (33.80–38.72)** |
+  | spurious removal | 1.10% (0.65–1.73) | **3.05% (2.27–4.00)** |
+  | escapes at 80–200 kb | 55 of 110 | 1 of 110 |
+  | lineage anomalies | 195 | 0 |
+
+  Both directions moved as the mechanism predicts. Escapes fell because false ones were removed;
+  spurious removals *rose*, because records whose family the tool did place — correctly, into a
+  denylisted family the policy never named — had previously been misread as having no family and
+  so as not removed. The 80–200 kb stratum collapsing from 55 to 1 is the same artefact
+  concentrated: the large insect dsDNA families (`Baculoviridae`, `Nudiviridae`) are the ones
+  geNomad places at family while skipping order.
+- **Rejected:** *Keep the positional read and treat the 195 anomalies as a reported caveat* —
+  the anomalies are not uncertainty about the tool, they are a defect in our reading of it, and
+  §2's commitment cuts both ways: an error in the audit's favour is the same failure as one in
+  the filter's.
+  *Use position where the suffix is absent* — the only names without a suffix are ones no rank
+  can be claimed for, and falling back to position there reintroduces the whole bug for exactly
+  the records that triggered it.
+  *Re-run geNomad* — unnecessary and misleading as a remedy: the tool's output was correct
+  throughout and is unchanged on disk. Only the parse was wrong, so only the scoring step was
+  re-run, against the same pinned `evalset_taxonomy.tsv`.
+
+---
+
+### D-091 — Phase A does not publish a leakage figure covering a minority of the filter's removals, so A4.4 blocks the write-up
+
+- **Date:** 2026-10-15
+- **Task:** A4.2 (decision by the project owner; recorded by A4.2)
+- **Context:** A4.2 measured geNomad's escape rate at 36.23% (33.80–38.72) and established that
+  geNomad carries **38.56%** of the 181,530 records Evo's denylist removes from IMG/VR. The
+  other **61.44%** rest on taxonomies IMG/VR imported from other datasets — RVMT alone supplies
+  49.51% — which are not classifiers this audit can run (D-084). A4.4 was created to own that
+  remainder and, as created, blocked nothing: A6.1 could have written up Phase A on A4.2 alone,
+  reporting the measured component and naming the rest as a bound on the audit.
+
+  That left a real choice, because both readings are defensible. Publishing now gets the
+  headline out and states its own coverage honestly; waiting risks A4.4 concluding that the
+  overlap needed to measure RVMT does not exist by construction, which would hold the write-up
+  on a question that cannot be answered.
+- **Decision:** The project owner's call: **A4.4 blocks A6.1.** Phase A does not publish a
+  quantified leakage figure that covers a minority of the filter's hazard-relevant removals.
+  `A4.4.blocks` gains `A6.1` and `A6.1.depends_on` gains `A4.4`.
+
+  What that does *not* require is worth stating, because it is what keeps the gate from becoming
+  unanswerable. A4.4's Done-when is already satisfied either by measuring a method or by
+  establishing from primary sources why it cannot be measured. So the write-up is blocked on
+  **the statement**, not on a number: "RVMT's labels cannot be scored against ratified taxonomy
+  because its records are metatranscriptome contigs with no ICTV exemplar overlap" is a
+  completed A4.4, and §2's commitment to publishing a null applies to that finding as much as to
+  a clean conformance result.
+
+  The reasoning behind the call, since a later reader will want it: §7 notes Phase A names real
+  labs and must be airtight against a motivated reviewer. "geNomad misses 36% of what the
+  denylist targets" invites the obvious objection that geNomad accounts for a third of the
+  denylist's work, and answering it with a named-but-unmeasured remainder concedes the point.
+- **Rejected:** *Leave A4.4 non-blocking and publish with the coverage gap stated prominently* —
+  the gap is stated in the artefact already and the number would still be quoted without it.
+  *Split A6.1 so the dependency decomposition and conformance results publish early while the
+  leakage figure waits* — defensible, and it needs a new task ID and a second disclosure pass
+  under §4, which buys less than it costs while B and C are still running.
+
+### D-092 — The viral seed set is rebuilt from staged UniRef100, and what that costs is measured
+- **Date:** 2026-10-15
+- **Task:** A1.6
+- **Context:** ESM3-open's filter is similarity-based, so re-executing it needs the two denylists
+  it queries against. Neither is published as a set. The viral one is "sequences that are
+  annotated as viral in UniProt and align almost exclusively to other viral sequences in
+  UniProt", roughly 4M sequences; the select-agent one is "all sequences in UniProt belonging to
+  organisms on the Select Agents and Toxins List". "Annotated as viral in UniProt" is a statement
+  about UniProtKB entries, so the faithful source is UniProtKB.
+- **Decision:** **Build the seed set from the staged UniRef 2023_02 UniRef100 tier, not from
+  UniProtKB, and report the gap that substitution opens rather than closing it.** UniProt serves
+  no 2023_02 viral taxonomic division as a separate file — the previous-releases directory holds
+  whole-release tarballs only, and the per-division files are inside the knowledgebase archive —
+  so using UniProtKB would mean streaming the entire knowledgebase to reach one member of it.
+  UniRef100 covers every UniProtKB entry, is already staged, and carries each member's own NCBI
+  taxonomy id, so viral membership is answerable from bytes this project holds. Three parts of
+  this are commitments.
+  **A cluster is viral-seeded if *any* member is viral, not if its representative is.** Testing
+  the representative would drop clusters that are viral through a member, and dropping them
+  understates the filter's reach, which §2's commitment treats as the same failure as overstating
+  it.
+  **The exactness this costs is measured, not assumed.** UniRef100 merges sub-fragments of 11 or
+  more residues as well as identical sequences, and the release carries only the representative's
+  sequence per cluster, so a cluster can be viral-seeded through a member whose sequence is not
+  the one we hold. On the first 796,477 clusters of the tier: 2.38% of viral-seeded clusters have
+  a non-viral representative and 7.75% are taxonomically mixed. Both counts travel with the seed
+  count in the artefact. The direction is not symmetric and the write-up should say so: an
+  over-long representative makes the seed set over-inclusive, which pushes removal up and
+  survival down, so contamination is the conservative error here exactly as it was in D-083.
+  **The taxonomy is pinned to a dated dump contemporaneous with the corpus.** Whether an organism
+  counted as viral is a property of the taxonomy in force when the filter ran, so the pin is
+  `taxdmp_2023-04-01.zip` (60,742,039 bytes, sha256 `6afaee95…1d07`), against UniRef 2023_02. It
+  matters: that snapshot has 236,541 taxa under Viruses where today's has 291,938. The undated
+  `taxdump.tar.gz` NCBI serves at the top of its taxonomy directory is rewritten daily and pins
+  nothing, which is why it is not the input even though it is the obvious one.
+- **Rejected:** Acquiring UniProtKB 2023_02 to get the annotation exactly — it is the faithful
+  source and it is a whole-release tarball against a question answerable from staged bytes; the
+  2.38% gap is cheaper to report than the acquisition is to buy, and D-033's warning about
+  permanent spend in a bucket with no delete applies. Quantifying "almost exclusively" so the
+  second clause of the definition could be applied — the source attaches no number to it, and
+  inventing one would propagate a fabricated parameter into every ESM3 figure, which is what
+  D-015 refused for the threshold. This module therefore produces the **annotation-only** seed
+  set, the first clause alone, which is a superset of the set described and again overstates
+  removal rather than understating it. Using NCBI's division codes (`VRL`, `PHG`) instead of
+  descent from taxid 10239 — descent is one rule over the tree the annotation is defined on,
+  and it keeps phages in, which nothing in ESM3's description carves out.
+- **Consequence:** `src/amazebio/seeds.py` and `tools/esm3_seeds.py`, with tests, on branch
+  `ccr-3e0650c5-8fsgiq`. Every ESM3 similarity figure is explicitly "against a seed set
+  reconstructed from UniRef100 cluster membership", and carries the representative gap beside it.
+  One thing this buys that D-032 took away: the reconstruction has a **validation target that
+  works**. ESM3 states the viral denylist is roughly 4M sequences, and a seed count can be set
+  against that — unlike the reported 10.6M removals, which D-032 established cannot validate a
+  reconstruction because the stated corpus sizes already miss their own sources by ten times it.
+  Note what a bounded run cannot do: UniRef is ordered by accession, so a prefix of a tier is not
+  a sample of it and no share measured from one estimates the tier's share. The full-tier pass is
+  the only thing that produces a seed count.
+
+### D-093 — MMseqs2 is pinned at 18.8cc5c, against a source that names no version
+- **Date:** 2026-10-15
+- **Task:** A1.6
+- **Context:** `pixi.toml` requires a DECISIONS entry for each tool version it adds, and A1.6 is
+  the first task to need an aligner. ESM3's filter description says "MMseqs" was used to query the
+  training databases and states no version, no sensitivity, no coverage mode and no identity
+  threshold — the threshold being the gap D-015 already reads as a three-point range.
+- **Decision:** Pin `mmseqs2 18.8cc5c` from bioconda, the current release, and record the version
+  gap as one more stated-versus-used entry rather than as a detail. There is nothing to match
+  against: no version is stated, so no version can be reproduced, and choosing an older release to
+  be closer to ESM3's publication date would be picking a number for the same reason D-015
+  refused to pick a threshold — it would look like recovery and be inference.
+- **Rejected:** An MMseqs2 release contemporaneous with ESM3's preprint — defensible-sounding and
+  unfounded, since the paper names no version and the filter may predate the preprint by any
+  amount. Using DIAMOND or BLAST because they are better documented — the source names MMseqs, and
+  substituting a different aligner changes what is being re-executed.
+- **Consequence:** Every ESM3 similarity figure is qualified by the aligner version being ours and
+  the parameters being a reading. The parameter choices themselves are fixed before any output
+  exists, in the entry that records the pass's design, not here.
+
+### D-094 — The pass queries seeds against sharded corpus targets, and the orientation was measured
+- **Date:** 2026-10-15
+- **Task:** A1.6
+- **Context:** A1.6's file says the alignment pass is the one Phase A task whose compute is the
+  cost, and instructs that it be priced and put to the project owner before anything launches.
+  Pricing it needs two things decided first: which way round the search runs, and how a database
+  larger than the account's volume limit is handled.
+- **Decision:** **Seed set as query, corpus as target, with the corpus sharded.** Measured in the
+  session container on 4 cores over an identical 2,058,701-cluster slice: seeds-as-query took 335 s,
+  and corpus-as-query had not left the prefilter after 45 minutes and was abandoned. The cause is
+  that MMseqs2's prefilter does per-query work, so 2M queries against a small target costs far more
+  than 15,845 queries against a large one. Sharding is not a tuning choice: the account's policy
+  caps volumes at 200 GB in gp3/gp2, and a target database over UniRef's three tiers plus MGnify90
+  is upward of 400 GB, so the corpus cannot be one database on any instance the policy permits.
+  Querying the seed set against each shard in turn keeps the cheap orientation and respects the cap,
+  and the per-shard hit lists concatenate because a hit is a property of one corpus record.
+  **Clustering was considered and is the wrong instrument.** `linclust` over the union of seeds and
+  corpus ran in 110 s against `search`'s 335 s on the same slice, and that comparison is a trap: the
+  question is whether a given corpus sequence has a hit to the seed set, which is a search, and
+  cluster membership is global and would change with the shard boundaries. The speed is real and it
+  answers a different question.
+- **The price is not yet a number, and the owner's decision was to make it one.** Extrapolating 335 s
+  from a slice at 1/88,000 of the full target spans roughly 200 to 33,000 core-hours — about $10 to
+  $1,400 for the charitable reading alone — depending on how the prefilter's cost divides between
+  query batching and target scanning, which does not show up at container scale. The strict reading
+  removes on any detected hit and so runs at the sensitivity floor, 10 to 50 times the charitable
+  one. Put to the project owner as four options; the decision was **calibrate in-region first**,
+  about $10, running the real pipeline over one UniRef shard to turn the two-order-of-magnitude
+  range into a measured figure before the full pass is authorised.
+- **Rejected:** Launching the full charitable pass without calibration — the range is too wide to
+  commit to and AGENTS.md gives one shot at `UserData` with no shell, so a script that has never run
+  at scale is the wrong thing to launch large. Running the pass in the session container — 295 GB at
+  the measured 42.5 MB/s out of the bucket is about two hours and roughly $26 of metered egress, and
+  it does not fit the 29 GB of free disk; this is the data-movement case the EC2 section describes,
+  unlike the memory ceiling A4.2 recorded as not being one. Dropping MGnify to halve the residues —
+  it carries no taxonomic annotation at all, which makes it the one component where an alignment
+  filter is the only filter possible, so it is the last thing to cut.
+- **Consequence:** The calibration run is next, and its figure decides the full pass. The sharding
+  requirement is a property of the account's policy rather than of this task, so it belongs in
+  AGENTS.md's EC2 section alongside the parallelism and memory notes.
