@@ -56,15 +56,44 @@ v4 — is independently available at its pinned version from its own publisher. 
 published procedure are therefore in hand, and A7.1 is a diff rather than an inference: apply the
 A0.3 predicates to IMG/VR v4 and compare the survivors against the released component.
 
+**"IMG/VR v4" names two releases, and the input is v4.1 — identified from Evo 1's output, not
+from Evo 1's words.** The publisher ships a v4 (2022-09-20) and a v4.1 erratum (2022-12-20) that
+corrects "a few sequences/rows" of the sequence-information table, which is the table every
+published rule here reads; Evo 1 cites only "IMG/VR v4" and does not date its corpus build, so
+D-052 and D-063 recorded the question as not determinable from the citation. It is determinable
+from the released corpus. The erratum corrects eighteen classifications whose taxon name sits in
+the wrong rank field — `r__Bicaudaviridae;;;;;;;` and `r__Fuselloviridae;;;;;;;` among them, a
+family name in the realm position — and the published unspecificity rule tests for an assigned
+realm, so the two releases predict *different survivor sets*. Re-executed over v4.1 the procedure
+predicts survivors in exactly the 181 lineages Evo 1's release carries and no others; over v4 it
+predicts 43 records in two lineages the release carries none of (A7.2, D-071).
+
+Three qualifications travel with that, and this paragraph is the only place they are stated
+together. **It is an inference from the audited artefact, not a retrieved fact**: no source says
+which release was used, and nothing here should be cited as though one did. **It identifies the
+release the output is consistent with**, which is weaker than identifying what the developers
+ran. And **it is not an inference about awareness** — nothing suggests the developers knew of
+either release or of the erratum. Both releases remain staged and every A7.2 number names the one
+it came from, because the test rests on the asymmetry between them and would be circular if the
+repo pinned only its own answer.
+
 Two consequences for how A7.1 must be run, both knowable now:
 
 - **The vOTU representative is not reproducible.** `keep_one_per` is order-dependent and no input
   order is published, so which record survives a vOTU is undetermined. Compare at vOTU level, not
   record level, or the diff measures our sort order rather than their filter.
-- **Which reading is theirs becomes measurable.** Whichever of the three readings best reproduces
-  the released component is the developers' de facto reading. For Evo this turns A0.4's spread
-  from an interpretive argument into an estimate — and it is an argument against freezing any
-  single reading as canonical before that number exists.
+- **Which reading is theirs does not become measurable, and the reason is a finding.** This
+  paragraph expected that whichever of the three readings best reproduced the released component
+  would be the developers' de facto reading, turning A0.4's spread into an estimate. It does not
+  work, twice over. A7.1 found that every rule the readings differ over reads metadata the release
+  withholds, so they are indistinguishable on anything it can test (D-047). A7.2, with the input
+  in hand, found the spread is **zero** — and not because the readings agree: **IMG/VR v4 asserts
+  no eukaryotic host for any of its 15,677,623 records**, across all four of the publisher's
+  prediction methods, so the eukaryotic-host rules the charitable and strict readings turn on have
+  nothing to fire on (D-072). The release cannot identify the developers' reading because no
+  reading is distinguishable on this input. A0.4 should read D-072 before reporting the Evo
+  spread, and should not generalise the zero to a model whose corpus carries eukaryotic host
+  annotation.
 
 ## 3. Evo 1 — the procedure's source, and a gap in this store
 
