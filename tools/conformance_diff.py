@@ -221,8 +221,52 @@ def summarise(result: dict[str, Any], scan: dict[str, Any]) -> str:
     ]
     for cause, text in result["causes"].items():
         lines.append(f"- **`{cause}`** — {text}")
+    if head["failures"]:
+        depths = {int(d): n for d, n in scan["rank_depth"].items()}
+        modal = max(depths, key=lambda d: depths[d])
+        lines += [
+            "",
+            "## What the failures are",
+            "",
+            f"{head['distinct_failing_tags']} distinct lineage tags account for all "
+            f"{failing:,} failing {unit}s:",
+            "",
+            f"| {unit}s | rule | cause | lineage tag |",
+            "|---|---|---|---|",
+        ]
+        for f in head["failures"]:
+            lines.append(
+                f"| {f[unit + 's']:,} | `{f['rule']}` | `{f['cause']}` | `{f['lineage_tag']}` |"
+            )
+        lines += [
+            "",
+            "Read the ranks these records *do* fill before reading the count. Each is assigned "
+            "at **family** rank and at no rank above it, while the modal released record fills "
+            f"{modal} ranks and stops at class ({depths[modal]:,} of {total:,} records). So the "
+            "rule removes records that are *better* resolved than the ones it keeps, and it does "
+            "so because `require_rank: realm` tests for a particular rank rather than for the "
+            'taxonomic specificity the published sentence is about — "viruses with poor '
+            "taxonomic specificity were excluded, including those with no assigned realm at "
+            'all". A family-level assignment with no realm above it is not poor specificity; '
+            "it is a family whose higher placement the taxonomy has not settled.",
+            "",
+            "That locates the mismatch precisely, and it is worth stating in the developers' "
+            "favour: on this evidence the failure is in the rule's wording rather than in the "
+            f"filter's judgement. A re-execution of their stated rule removes {failing:,} "
+            "records that their own release shows they kept, and the ground for removing them "
+            "is an absent rank above family rather than anything about the records themselves. "
+            "Which hosts these three families infect is not settled here — that needs a "
+            "taxonomy source this project has not retrieved, and A9.1 is where one enters.",
+            "",
+            "This is also the second time the realm/specificity conflation has come up from a "
+            "different direction. DECISIONS.md D-016 and D-018 withdrew a strict reading that "
+            "raised the required rank to family, on the grounds that the authors ceiling their "
+            "enumeration at class; the release now shows the published encoding failing in the "
+            "opposite direction on real records. Both point at the same gap, which is A9.1's "
+            "subject: a static rank test against a taxonomy that keeps changing.",
+            "",
+        ]
     lines += [
-        "",
         "## Structural premise",
         "",
         f"Counts above are per {unit}. The release publishes no statement that one row is one "
