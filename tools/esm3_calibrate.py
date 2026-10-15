@@ -134,6 +134,15 @@ def main(argv: list[str] | None = None) -> int:
         help="build the seed set and shards and stop, for checking the pass without paying "
         "for the timing",
     )
+    ap.add_argument(
+        "--search-budget-seconds",
+        type=float,
+        default=0.0,
+        help="stop starting new searches once this much time has gone into them. The "
+        "shards are timed smallest first, so a budget trades the largest point of the "
+        "curve for a guarantee the run ends and reports. 0 means no budget, which is "
+        "only safe where something else bounds the run.",
+    )
     args = ap.parse_args(argv)
 
     if args.buckets < 1:
@@ -315,9 +324,31 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             "searches": [],
         }
 
+        def publish() -> None:
+            """Write the timing artefact, and upload it if asked.
+
+            Called after every measurement rather than once at the end. There is no shell
+            on the instance and no way to retrieve a partial result from it, so a run that
+            is cut short — by a budget, a timeout, or the launcher's own terminate — has to
+            have already reported everything it measured. A1.3 learned the general version
+            of this the hard way; this is the specific one.
+            """
+            timing_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+            if args.upload_results and client is not None:
+                key = f"{prefix}/results/a1-6/{timing_path.name}"
+                client.put_object(Bucket=bucket, Key=key, Body=timing_path.read_bytes())
+
+        publish()
         if not args.skip_search:
-            payload["searches"] = _time_searches(
-                args, work, seed_fasta, shard_paths, shard_residues, counts
+            _time_searches(
+                args,
+                work,
+                seed_fasta,
+                shard_paths,
+                shard_residues,
+                counts,
+                payload["searches"],
+                publish,
             )
 
         timing_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
@@ -356,17 +387,24 @@ def _time_searches(
     shard_paths: list[Path],
     shard_residues: list[int],
     counts: seeds.SeedCounts,
+    results: list[dict[str, Any]],
+    publish: Any,
 ) -> list[dict[str, Any]]:
-    """Time the charitable reading over nested shards, and the strict one over the small ones."""
+    """Time the charitable reading over nested shards, and the strict one over the small ones.
+
+    Shards are timed smallest first and every measurement is published as it lands, so a
+    run cut short still reports the curve it got. `--search-budget-seconds` trades the
+    largest point for the guarantee that the run ends.
+    """
     db = work / "db"
     db.mkdir(exist_ok=True)
     tmp = work / "tmp"
+    spent = 0.0
 
     print("\nbuilding the query database", flush=True)
     query_seconds = _mmseqs("createdb", str(seed_fasta), str(db / "Q"))
     print(f"  createdb(query) {query_seconds:.1f}s", flush=True)
 
-    results: list[dict[str, Any]] = []
     cumulative = work / "cumulative.faa"
     if cumulative.exists():
         cumulative.unlink()
@@ -384,6 +422,22 @@ def _time_searches(
         for reading, params in (("charitable", CHARITABLE), ("strict", STRICT)):
             if reading == "strict" and k > args.strict_buckets:
                 continue
+            if args.search_budget_seconds and spent >= args.search_budget_seconds:
+                print(
+                    f"  budget of {args.search_budget_seconds:.0f}s spent; "
+                    f"stopping before shards 1..{k} {reading}",
+                    flush=True,
+                )
+                results.append(
+                    {
+                        "shards": k,
+                        "reading": reading,
+                        "residues": residues,
+                        "skipped": "search budget exhausted",
+                    }
+                )
+                publish()
+                return results
             out_db = db / f"R-{reading}-{k}"
             if tmp.exists():
                 shutil.rmtree(tmp, ignore_errors=True)
@@ -407,7 +461,9 @@ def _time_searches(
                 results.append(
                     {"shards": k, "reading": reading, "residues": residues, "error": str(exc)}
                 )
+                publish()
                 continue
+            spent += elapsed
             hits = _hit_count(db / "Q", target, out_db, work)
             core_seconds = elapsed * args.threads
             print(
@@ -428,6 +484,7 @@ def _time_searches(
                     "hit_rows": hits,
                 }
             )
+            publish()
     return results
 
 
