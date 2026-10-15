@@ -134,9 +134,9 @@ class TestTheAssembledTable:
         # that includes the other tree and halves the answer.
         rows = [r for r in scope_map.evo_rows() if r["corpus"] == "opengenome2"]
         literal = [r for r in rows if r["reading"] == "literal"]
-        assert abs(sum(r["share"] for r in literal) - 1.0) < 1e-3, (
-            "one reading's component shares must sum to the whole of its representation"
-        )
+        assert (
+            abs(sum(r["share"] for r in literal) - 1.0) < 1e-3
+        ), "one reading's component shares must sum to the whole of its representation"
         viral = next(r for r in literal if r["component"] == "imgvr")
         assert viral["share"] > viral["share_of_whole_release"], (
             "the within-tree share is the larger one, so the correction does not flatter "
