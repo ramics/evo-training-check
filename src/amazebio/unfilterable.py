@@ -30,7 +30,7 @@ different questions:
 
 * `decidable_share` — where the rule produces its stated outcome. Blunt rules score 1.0.
 * `discriminating_share` — where the rule's own criterion can be evaluated against a label
-  that is actually present. This is the ceiling §A4 asks for.
+  that is actually present. This is the ceiling §A4 asks for (D-081).
 
 The 19-family denylist is the case that matters: it is the only part of Evo's published
 procedure that names a hazard, and it can only act where a family label exists.

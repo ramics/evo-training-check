@@ -18,7 +18,7 @@ and A4.1 should be able to state it from the primary file.
 *The released corpora*, from the pinned scans A7.1 and A7.2 already published to object storage.
 Those two passes read 28 GB of Parquet and gzipped FASTA to produce the lineage histograms this
 needs, the histograms are complete partitions of their components, and re-reading the same bytes
-to recompute the same tallies would buy nothing a cross-check does not already give (D-076). The
+to recompute the same tallies would buy nothing a cross-check does not already give (D-082). The
 sums are verified against each scan's own independently counted record total before use.
 
 **What it deliberately does not measure.** Components the filter was never applied to get a row
@@ -54,7 +54,7 @@ OUTDIR = Path("artifacts/a4-1")
 #: The pinned scans of the two *released* corpora, by the component they describe. Each carries
 #: a classification histogram and its own independently counted record total, and the totals are
 #: what makes the histogram safe to reuse: a partition that sums to the component's record count
-#: cannot be missing a record (D-076).
+#: cannot be missing a record (D-082).
 RELEASED_SCANS = {
     "opengenome/stage2": {
         "key": "results/a7-1/scan-opengenome-stage2.json",
@@ -385,7 +385,7 @@ def released_rows(client: Any, bucket: str, prefix: str) -> list[dict[str, Any]]
                 ranks=ranks,
                 note=(
                     f"Lineage histogram from {meta['task']}'s pinned scan `{meta['key']}`, "
-                    f"verified as a partition of its own count of {total:,} records (D-076). "
+                    f"verified as a partition of its own count of {total:,} records (D-082). "
                     "Post-filter: a ceiling on what the filter could reach is a claim about "
                     "its input, and this row is here to be compared with one, not to carry one."
                 ),
@@ -640,7 +640,7 @@ def caveats() -> list[dict[str, str]]:
                 "The two released-corpus rows are computed from A7.1's and A7.2's pinned scans "
                 "rather than from a fresh pass over 28 GB. Each histogram is verified to sum to "
                 "that scan's own independently counted record total before a share is taken "
-                "from it (D-076)."
+                "from it (D-082)."
             ),
         },
     ]
@@ -785,7 +785,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         m.note(
             "Released-corpus rows reuse A7.1's and A7.2's pinned scans, each verified as a "
-            "partition of that scan's own record count before a share is taken (D-076)."
+            "partition of that scan's own record count before a share is taken (D-082)."
         )
         for date in dates:
             f = next(
