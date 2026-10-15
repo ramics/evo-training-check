@@ -33,6 +33,12 @@ pyyaml = ">=6,<7"
 # transfer is only as reproducible as the thing that performed it. Added by A1.5.
 boto3 = ">=1.43.111,<2"
 pyarrow = ">=18,<22"
+# A7.2 joins 15.7 million IMG/VR accessions against two other sets and groups them by vOTU.
+# Those are sorts, set memberships and bincounts over tens of millions of integers: a dict of
+# 15.7 million strings does not fit the container the pass runs in, and the packed-integer
+# columns `amazebio.imgvr.uvig_key` produces need an array library to be joined at all. Added
+# by A7.2, which is the first task whose arithmetic is too large for the standard library.
+numpy = ">=2,<3"
 
 # Make `import amazebio` work in every pixi task and shell without a build step
 # or an editable pip install, so a pipeline script and a test see the same package.

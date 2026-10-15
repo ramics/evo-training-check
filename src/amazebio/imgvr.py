@@ -37,19 +37,33 @@ treated as a detail, and the citation does not resolve it. See DECISIONS.md D-05
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Sequence
+import hashlib
+from collections.abc import Iterable, Sequence
 
 __all__ = [
     "DOWNLOAD_BASE",
+    "EUKARYOTIC_DOMAINS",
     "FILE_ROLES",
+    "HOST_COLUMNS",
+    "PROKARYOTIC_DOMAINS",
     "RELEASES",
+    "SEQ_COLUMNS",
     "V4_CANDIDATES",
     "Release",
     "ReleaseFile",
+    "UvigNotPackable",
+    "collision_free",
     "conformance_inputs",
     "differs_between",
     "download_request",
+    "host_class",
+    "host_domain",
     "release_on",
+    "split_uvig",
+    "uvig_fallback_key",
+    "uvig_join_key",
+    "uvig_key",
+    "votu_id",
 ]
 
 
@@ -390,3 +404,200 @@ def conformance_inputs(date: str) -> tuple[ReleaseFile, ...]:
     return tuple(
         f for f in rel.files if f.role in ("sequence_information", "host_information", "readme")
     )
+
+
+# --------------------------------------------------------------------------------------
+# Reading the metadata tables
+# --------------------------------------------------------------------------------------
+
+#: The columns of `IMGVR_all_Sequence_information.tsv` A7.2 reads, by header text rather than
+#: by index. The index is stable across both releases today; a header lookup costs nothing and
+#: survives a re-cut, which matters because v4.1 is an erratum of this very file (D-063).
+#:
+#: `Taxonomic classification` is the load-bearing one, and not only because the taxonomy rules
+#: read it: its value is formatted exactly as the inline lineage tag Evo 1's release carries
+#: (`r__...;k__...;p__...;c__...;o__...;f__...;g__...;s__...`, eight `;`-separated fields). That
+#: identity is what makes Evo 1's accession-less release joinable to its own input at all — not
+#: per record, which no field permits, but per lineage, which is the unit the taxonomy rules
+#: act on anyway.
+SEQ_COLUMNS = {
+    "uvig": "UVIG",
+    "votu": "vOTU",
+    "confidence": "Confidence",
+    "classification": "Taxonomic classification",
+    "host": "Host taxonomy prediction",
+}
+
+#: The columns of `IMGVR_all_Host_information.tsv`. One row per host *prediction*, so a UViG
+#: appears as many times as it has predictions — which is why the host rule's counting unit has
+#: to be declared rather than assumed (D-058).
+HOST_COLUMNS = {
+    "uvig": "UVIG",
+    "method": "Prediction method",
+    "host": "Host taxonomy prediction",
+}
+
+#: Host domains that make a host prokaryotic, in the sense Evo 1's published rule uses the word.
+#: Both are named in the publisher's own `d__` vocabulary. Nothing here is inferred from a
+#: secondary source: the rule says "prokaryotic host" and these are the two prokaryotic domains.
+PROKARYOTIC_DOMAINS = frozenset({"Bacteria", "Archaea"})
+
+#: And the domain that makes it eukaryotic, which only the charitable and strict readings act on.
+EUKARYOTIC_DOMAINS = frozenset({"Eukaryota"})
+
+
+def host_domain(value: str) -> str:
+    """The domain rank of a host prediction, or a label for its absence.
+
+    The field is a semicolon-joined lineage beginning at `d__`. An empty field and a field of
+    bare separators both mean no prediction, and they are counted apart from each other because
+    which one the publisher emits is itself under-specified.
+
+    This is the canonical implementation; `tools/imgvr_composition.py` carries its own copy from
+    A1.7 and `tests/test_imgvr.py` asserts the two agree, so a change to either is caught rather
+    than silently splitting the semantics of the word "host" across two passes.
+    """
+    v = value.strip()
+    if not v:
+        return "(empty)"
+    if not v.strip(";"):
+        return "(separators only)"
+    first = v.split(";")[0].strip()
+    if not first.startswith("d__"):
+        return f"(unparsed: {first[:24]})"
+    return first[3:] or "(empty d__)"
+
+
+def host_class(value: str) -> str | None:
+    """The host *class* a prediction falls in — the vocabulary the published rules are written
+    against — or `None` when there is no usable prediction.
+
+    `prokaryotic` and `eukaryotic` are the two classes the three readings of Evo's policy name
+    (`policies/specs/evo1-*.yaml`). A domain the publisher emits that is neither is returned as
+    `other`, rather than being folded into one of the two: a host assignment this audit cannot
+    classify is not the same thing as an absent one, and the strict reading's exclusivity test
+    turns on exactly that difference.
+    """
+    domain = host_domain(value)
+    if domain.startswith("("):
+        return None
+    if domain in PROKARYOTIC_DOMAINS:
+        return "prokaryotic"
+    if domain in EUKARYOTIC_DOMAINS:
+        return "eukaryotic"
+    return "other"
+
+
+class UvigNotPackable(ValueError):
+    """An IMG/VR accession whose middle field is not numeric, and so does not pack.
+
+    Its own exception class because the caller's correct response is not to discard the record.
+    IMG/VR carries two accession shapes: `IMGVR_UViG_<taxon_oid>_<n>`, where the middle field is
+    a numeric IMG taxon object id, and `IMGVR_UViG_GVMAG-<M|S>-<oid>-<n>_<m>`, where it is a
+    giant-virus metagenome-assembled genome identifier carrying letters and hyphens. The second
+    is a small fraction of the database and is exactly the fraction an audit of a
+    eukaryote-infecting-virus filter cannot afford to lose: giant viruses infect eukaryotes.
+
+    So a packed-integer join must carry these records under identifiers of their own rather than
+    skipping the ones that will not fit the packing. Raising a distinct type is what lets a
+    caller do that without catching the same `ValueError` that a genuinely malformed accession
+    raises.
+    """
+
+
+def split_uvig(uvig: str) -> tuple[str, int]:
+    """`IMGVR_UViG_<middle>_<n>` -> `(middle, n)`, whatever shape the middle field has.
+
+    Raises `ValueError` on anything that is not an IMG/VR UViG accession at all. The suffix is
+    required to be numeric because both published shapes have one and because it is what
+    distinguishes the several UViGs cut from a single assembly.
+    """
+    v = uvig.strip()
+    if not v.startswith("IMGVR_UViG_"):
+        raise ValueError(f"not an IMG/VR UViG accession: {uvig!r}")
+    middle, _, n = v[len("IMGVR_UViG_") :].rpartition("_")
+    if not middle or not n.isdigit():
+        raise ValueError(f"not an IMG/VR UViG accession: {uvig!r}")
+    return middle, int(n)
+
+
+def uvig_key(uvig: str) -> int:
+    """Pack an `IMGVR_UViG_<taxon_oid>_<n>` accession into one integer.
+
+    15.7 million accessions are joined twice in this task — once against the host table, once
+    against Evo 2's released FASTA — and a dict of 15.7 million 28-character strings does not
+    fit the budget this pass runs in. For the numeric shape the two fields are the whole
+    identity of the accession, so they pack losslessly into `taxon_oid * 10**7 + n`, and the
+    pair sorts the same way the string does.
+
+    Raises :class:`UvigNotPackable` for the GVMAG shape, which has no numeric middle field, and
+    plain `ValueError` for anything that is not an IMG/VR accession. A silent fallback would be
+    the dangerous option in either case: an accession that does not pack is a record that would
+    drop out of a join, and a join that quietly loses records produces a conformance number that
+    is wrong in the direction of looking clean.
+    """
+    middle, n = split_uvig(uvig)
+    if not middle.isdigit():
+        raise UvigNotPackable(f"non-numeric taxon field in UViG accession: {uvig!r}")
+    if n >= 10**7:
+        raise ValueError(f"UViG suffix wider than the packing allows: {uvig!r}")
+    return int(middle) * 10**7 + n
+
+
+def votu_id(votu: str) -> int:
+    """The integer of a `vOTU_<n>` identifier.
+
+    Same reason as :func:`uvig_key`: 8.6 million vOTU strings are grouped in memory, and the
+    integer is the identifier. Raises rather than falling back, for the same reason.
+    """
+    v = votu.strip()
+    prefix, _, n = v.partition("_")
+    if prefix != "vOTU" or not n.isdigit():
+        raise ValueError(f"not a vOTU identifier: {votu!r}")
+    return int(n)
+
+
+def uvig_fallback_key(uvig: str) -> int:
+    """A stable integer for an accession :func:`uvig_key` cannot pack.
+
+    The GVMAG shape has no numeric field to pack, and the two sides of every join in A7.2 are
+    computed by different passes at different times — so the identifier has to be a function of
+    the accession string alone, with no vocabulary shared between them. A truncated BLAKE2b
+    digest is that function.
+
+    Returned negative, which keeps it disjoint from every packed key by construction:
+    :func:`uvig_key` returns `taxon_oid * 10**7 + n`, which is non-negative. The digest is
+    narrowed to 63 bits before negating so the result is a valid `int64` on any platform.
+
+    A hash is not an injection, so a caller joining on these must check for collisions rather
+    than assume them away: the non-packable accessions are a small vocabulary, so comparing the
+    number of distinct keys against the number of distinct accession strings is cheap and exact.
+    :func:`collision_free` is that check, and both A7.2 passes run it.
+    """
+    digest = hashlib.blake2b(uvig.strip().encode("utf-8"), digest_size=8).digest()
+    return -(int.from_bytes(digest, "big") >> 1) - 1
+
+
+def uvig_join_key(uvig: str) -> int:
+    """The join key for any IMG/VR accession: packed where it packs, hashed where it does not.
+
+    Raises `ValueError` only for something that is not an IMG/VR UViG accession at all, which is
+    a malformed row rather than a second accession shape.
+    """
+    try:
+        return uvig_key(uvig)
+    except UvigNotPackable:
+        return uvig_fallback_key(uvig)
+
+
+def collision_free(accessions: Iterable[str]) -> tuple[bool, int, int]:
+    """Whether :func:`uvig_join_key` is injective on `accessions`.
+
+    Returns `(verdict, n_distinct_accessions, n_distinct_keys)`. A false verdict means two
+    different accessions share a key and any join over them silently merges two records; it is
+    reported with both counts rather than as a bare flag, because the size of the gap is the
+    size of the problem.
+    """
+    seen = set(a.strip() for a in accessions)
+    keys = {uvig_join_key(a) for a in seen}
+    return len(seen) == len(keys), len(seen), len(keys)

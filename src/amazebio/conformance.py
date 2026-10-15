@@ -52,15 +52,21 @@ from amazebio.policyspec import Decision, Outcome, Policy, Record, Rule, evaluat
 __all__ = [
     "BLOCK_CHARS",
     "CAUSES",
+    "COMPARISON_KEYS",
+    "HOST_UNITS",
+    "ORDER_DEPENDENT_KINDS",
+    "PRIMARY_HOST_UNIT",
     "RANKS",
     "RELEASE_INPUTS",
     "RULE_INPUTS",
     "Cause",
     "Coverage",
     "Failure",
+    "HostUnit",
     "LineageTag",
     "Restriction",
     "RowShape",
+    "VotuComparison",
     "classify",
     "diff",
     "parse_lineage_tag",
@@ -68,6 +74,8 @@ __all__ = [
     "record_from_row",
     "restrict",
     "split_row",
+    "votu_bounds",
+    "votu_comparison",
 ]
 
 
@@ -292,10 +300,49 @@ RULE_INPUTS = {
 #: headers carry the IMG/VR accession and no lineage at all, which inverts the problem: its
 #: records are traceable to the filter's input and not testable against the filter's taxonomy
 #: rules without that input in hand.
+#: `imgvr-v4` and `imgvr-v4.1` are not releases of a *filtered* corpus at all: they are the
+#: filter's **input**, staged by A1.7, and they carry every input the published procedure reads
+#: — the confidence label, the vOTU assignment, the taxonomic classification, and the host
+#: predictions the occurrence count is built from. So a policy restricted to them loses no rule
+#: for want of an input, which is what moves A7.2's coverage from A7.1's `3/6` (D-047). The
+#: declaration is what changed; no rule was hand-picked back in.
 RELEASE_INPUTS = {
     "opengenome-stage2": frozenset({"taxonomy"}),
     "opengenome2-imgvr": frozenset({"source_accession"}),
+    "imgvr-v4": frozenset({"taxonomy", "record_attributes", "host_occurrences"}),
+    "imgvr-v4.1": frozenset({"taxonomy", "record_attributes", "host_occurrences"}),
 }
+
+#: What a released record can be *compared* on, which is a different question from what a rule
+#: can be *re-executed* against and has to be kept separate from it.
+#:
+#: Re-executing the published procedure over `imgvr-v4` yields a predicted survivor set. Turning
+#: that into a conformance number means matching it against what the developer actually
+#: released, and the two Evo releases permit that at different units:
+#:
+#: * `opengenome-stage2` carries a lineage tag and no accession, so its records cannot be
+#:   identified individually at all. The comparison is per lineage — the unit the taxonomy rules
+#:   act on anyway — and `imgvr.SEQ_COLUMNS["classification"]` is formatted identically, which is
+#:   what makes it a join key rather than a coincidence.
+#: * `opengenome2-imgvr` carries the IMG/VR accession and no lineage, which is the exact inverse
+#:   (D-049). With the input in hand the accession is a record-level join key and both directions
+#:   open per record.
+#:
+#: A release absent from this mapping can have a predicate re-executed over the input and cannot
+#: have the result compared against it. Those are separate findings and the artefact reports them
+#: separately.
+COMPARISON_KEYS = {
+    "opengenome-stage2": "lineage_tag",
+    "opengenome2-imgvr": "source_accession",
+}
+
+#: Rule kinds whose result depends on the order records arrive in. One kind, one rule: Evo 1's
+#: vOTU representative. A release or an input can supply every field such a rule reads and still
+#: not make it re-executable per record, because what it needs is the *sequence* of records and
+#: no published source states one (D-017, D-049). :func:`restrict` therefore holds these apart
+#: from both the checkable and the uncheckable rules: they are compared at the unit of the
+#: attribute they deduplicate on, by :func:`votu_comparison`, and never at record level.
+ORDER_DEPENDENT_KINDS = frozenset({"keep_one_per"})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -306,16 +353,36 @@ class Restriction:
     published one so that a result traces back to the spec it came from. `dropped` is not a
     footnote: it is the coverage limit the write-up has to state, and it is why
     :attr:`Coverage.rule_coverage` is reported next to every count.
+
+    `deferred` is the third category, and it exists because A7.2 made the second one too coarse.
+    A rule lands there when the input carries every field it reads and the rule still cannot be
+    re-executed per record, which on the published procedures means one thing: it is
+    order-dependent and no input order is published. Folding those into `dropped` would say the
+    input is missing when it is not, and folding them into `kept` would hand :func:`diff` a rule
+    that reports zero removals for a structural reason and reads as conformance. They are
+    compared at their own unit instead, and counted in the coverage denominator either way —
+    a rule nobody can run is not a rule nobody has to mention.
+
+    Note what the restricted pipeline therefore is when `deferred` is non-empty: a
+    **deduplication-free** chain. Every record is put to the remaining rules rather than only
+    the vOTU representatives, which is the right question to ask per record and is not the
+    published procedure's own record count. :func:`votu_bounds` is what puts the dedup back.
     """
 
     policy: Policy
     kept: tuple[Rule, ...]
     dropped: tuple[tuple[Rule, str], ...]
     release: str
+    deferred: tuple[tuple[Rule, str], ...] = ()
+
+    @property
+    def n_rules(self) -> int:
+        return len(self.kept) + len(self.dropped) + len(self.deferred)
 
     @property
     def rule_coverage(self) -> str:
-        return f"{len(self.kept)}/{len(self.kept) + len(self.dropped)}"
+        """Record-level coverage: how many of the published rules this input runs per record."""
+        return f"{len(self.kept)}/{self.n_rules}"
 
 
 def restrict(policy: Policy, *, release: str) -> Restriction:
@@ -334,6 +401,7 @@ def restrict(policy: Policy, *, release: str) -> Restriction:
     available = RELEASE_INPUTS[release]
     kept: list[Rule] = []
     dropped: list[tuple[Rule, str]] = []
+    deferred: list[tuple[Rule, str]] = []
     for rule in policy.rules:
         needed = RULE_INPUTS.get(rule.kind)
         if needed is None:
@@ -341,10 +409,14 @@ def restrict(policy: Policy, *, release: str) -> Restriction:
                 f"rule {rule.id!r} is of kind {rule.kind!r}, which declares no input in "
                 "RULE_INPUTS. Add it there rather than letting it default to checkable."
             )
-        if needed in available:
-            kept.append(rule)
-        else:
+        if needed not in available:
             dropped.append((rule, needed))
+        elif rule.kind in ORDER_DEPENDENT_KINDS:
+            # The input is there; the published input *order* is not. Held out of the
+            # record-level chain and compared at the unit it deduplicates on.
+            deferred.append((rule, f"order-dependent on {rule.params['attribute']}"))
+        else:
+            kept.append(rule)
     if not kept:
         raise ValueError(
             f"release {release!r} can re-execute none of policy {policy.id!r}: it carries "
@@ -357,6 +429,7 @@ def restrict(policy: Policy, *, release: str) -> Restriction:
         kept=tuple(kept),
         dropped=tuple(dropped),
         release=release,
+        deferred=tuple(deferred),
     )
 
 
@@ -374,10 +447,26 @@ class Coverage:
     reading: str
     kept_rules: tuple[str, ...]
     dropped_rules: tuple[tuple[str, str], ...]
+    deferred_rules: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def n_rules(self) -> int:
+        return len(self.kept_rules) + len(self.dropped_rules) + len(self.deferred_rules)
 
     @property
     def rule_coverage(self) -> str:
-        return f"{len(self.kept_rules)}/{len(self.kept_rules) + len(self.dropped_rules)}"
+        """Record-level coverage. A deferred rule counts against it, like a dropped one."""
+        return f"{len(self.kept_rules)}/{self.n_rules}"
+
+    @property
+    def unit_coverage(self) -> str:
+        """Coverage once rules compared at their own unit are counted as run.
+
+        Reported *beside* :attr:`rule_coverage` and never instead of it. The vOTU rule is
+        compared at vOTU level, which is a real check of a real rule and is not a record-level
+        conformance rate; a single number that mixed the two would be neither.
+        """
+        return f"{len(self.kept_rules) + len(self.deferred_rules)}/{self.n_rules}"
 
     @classmethod
     def of(cls, restriction: Restriction, policy: Policy) -> Coverage:
@@ -387,6 +476,7 @@ class Coverage:
             reading=policy.reading,
             kept_rules=tuple(r.id for r in restriction.kept),
             dropped_rules=tuple((r.id, why) for r, why in restriction.dropped),
+            deferred_rules=tuple((r.id, why) for r, why in restriction.deferred),
         )
 
 
@@ -572,3 +662,173 @@ def readings_agree_by_construction(
         p.reading: tuple(r.id for r in restrict(p, release=release).kept) for p in policies.values()
     }
     return len(set(kept.values())) == 1, kept
+
+
+# --------------------------------------------------------------------------------------
+# The input side: the counting unit of the host rule, and the vOTU rule's own unit
+# --------------------------------------------------------------------------------------
+
+
+class HostUnit(Enum):
+    """What "found within a prokaryotic host at least twice" counts two of.
+
+    The published sentence is "keeping only sequences whose assigned taxonomic classification
+    was found within a prokaryotic host at least twice". Two things in it are settled and one is
+    not. Settled: the subject of the count is the **classification**, not the record — D-058
+    establishes that from the developers' own Figure S1B, where 89.5% of retained records carry
+    no host kingdom at all, which a per-record reading cannot produce. Not settled: what one
+    "finding" is, because the publisher's data offers three countable things per classification
+    and the sentence does not say which.
+
+    All three are computed; :data:`PRIMARY_HOST_UNIT` is the one the headline uses, and it was
+    declared before any of them was computed.
+    """
+
+    #: Sequences of this classification carrying a host prediction in the class. One sequence
+    #: found in a host is one finding, which is the reading that takes "found" to be about the
+    #: viral sequence the sentence's own subject ("sequences") is about.
+    RECORDS = "records"
+    #: Rows of the host-prediction table for sequences of this classification. The publisher
+    #: emits one row per prediction and a sequence may have several, so this counts predictions
+    #: rather than sequences — the most literal reading of "found", and the one that inflates
+    #: fastest where a single sequence has many predicted hosts.
+    HOST_ROWS = "host_rows"
+    #: Distinct host taxa this classification was predicted in. The reading that takes "twice"
+    #: to mean corroboration by two different hosts rather than two observations.
+    HOST_TAXA = "host_taxa"
+
+
+#: The reading the headline numbers use. Declared here, before the pass that computes any of
+#: them, which is what AGENTS.md's rule about fixing parameters before inspecting results
+#: requires. The argument for it in one line: the sentence's grammatical subject is "sequences",
+#: so a sequence found in a prokaryotic host is the natural unit of a finding, and it is the
+#: only one of the three that neither inflates with the publisher's prediction-method count
+#: (:attr:`HostUnit.HOST_ROWS`) nor demands two *different* hosts where the text asks only for
+#: two findings (:attr:`HostUnit.HOST_TAXA`). The other two travel with it as a sensitivity,
+#: because the choice is ours and a reader is entitled to see what it cost.
+PRIMARY_HOST_UNIT = HostUnit.RECORDS
+
+#: Human-readable gloss per unit, carried into the artefact so the unit is named where the
+#: number is read rather than in a module nobody opens.
+HOST_UNITS = {
+    HostUnit.RECORDS: (
+        "Sequences of this taxonomic classification that carry a host prediction in the class. "
+        "The primary reading."
+    ),
+    HostUnit.HOST_ROWS: (
+        "Rows of the host-prediction table for sequences of this classification. Counts "
+        "predictions, not sequences: one sequence with three predicted hosts contributes three."
+    ),
+    HostUnit.HOST_TAXA: (
+        "Distinct host taxa this classification was predicted in. Reads 'twice' as two "
+        "different hosts rather than two findings."
+    ),
+}
+
+
+@dataclasses.dataclass(frozen=True)
+class VotuComparison:
+    """How many released records each predicted-surviving vOTU contributed.
+
+    This is the vOTU rule's conformance check and the only one it has. The rule keeps one
+    representative per vOTU; which one depends on an input order nobody published (D-017), so
+    *which* record survives is undetermined and a record-level diff of this rule would measure
+    our sort order rather than their filter. What is determined, and is exactly what the rule
+    claims, is the **count per vOTU**: one. A vOTU contributing two released records is a
+    conformance failure that no order could explain, and a vOTU contributing none is the
+    converse direction.
+
+    `unit` is carried in the artefact next to every number here so that it cannot be read as a
+    record-level rate.
+    """
+
+    unit: str = "vOTU"
+    considered: int = 0
+    exactly_one: int = 0
+    none: int = 0
+    more_than_one: int = 0
+    released_records_in_multi: int = 0
+    histogram: dict[str, int] = dataclasses.field(default_factory=dict)
+
+    @property
+    def conformance_rate(self) -> float | None:
+        """Share of predicted-surviving vOTUs that contributed exactly one released record."""
+        return self.exactly_one / self.considered if self.considered else None
+
+    @property
+    def verdict(self) -> str:
+        if not self.considered:
+            return "No predicted-surviving vOTU could be compared; nothing is claimed."
+        if not self.more_than_one and not self.none:
+            return (
+                f"Every one of {self.considered:,} predicted-surviving vOTUs contributed "
+                "exactly one released record. The vOTU rule conforms at its own unit."
+            )
+        parts = []
+        if self.more_than_one:
+            parts.append(
+                f"{self.more_than_one:,} vOTUs contributed more than one released record "
+                f"({self.released_records_in_multi:,} records between them) — a failure no "
+                "input order can explain"
+            )
+        if self.none:
+            parts.append(
+                f"{self.none:,} contributed none, which is the converse direction and is "
+                "accounted for by the other rules only if they remove the whole vOTU"
+            )
+        return (
+            f"Of {self.considered:,} predicted-surviving vOTUs, {self.exactly_one:,} "
+            f"contributed exactly one released record; " + "; ".join(parts) + "."
+        )
+
+
+def votu_comparison(histogram: Mapping[int, int]) -> VotuComparison:
+    """Summarise a `released records per vOTU -> number of vOTUs` histogram.
+
+    The histogram is computed over the vOTUs the re-executed procedure predicts should survive,
+    so the comparison is against the rule's own claim and not against the whole database.
+    """
+    considered = sum(histogram.values())
+    return VotuComparison(
+        considered=considered,
+        exactly_one=histogram.get(1, 0),
+        none=histogram.get(0, 0),
+        more_than_one=sum(n for k, n in histogram.items() if k > 1),
+        released_records_in_multi=sum(k * n for k, n in histogram.items() if k > 1),
+        histogram={str(k): n for k, n in sorted(histogram.items())},
+    )
+
+
+def votu_bounds(
+    single: Mapping[str, int],
+    mixed: Sequence[tuple[Sequence[str], int]],
+    passes: Mapping[str, bool],
+) -> tuple[int, int]:
+    """Bound the number of vOTUs the published chain retains, given which classifications pass.
+
+    The published order is: keep high-confidence, keep one representative per vOTU, then the
+    host and taxonomy rules. So a vOTU contributes its representative and that record is
+    retained if its own classification passes the later rules — which makes the retained count a
+    function of a choice nobody published. It is therefore an interval and not a number, and
+    reporting it as a number would be reporting our sort order as their result.
+
+    * `single` maps a classification to the number of vOTUs **all** of whose high-confidence
+      records carry it. For these the representative's classification is determined.
+    * `mixed` lists the vOTUs whose high-confidence records carry more than one classification,
+      as `(classifications, n_votus)`. These are where the interval comes from.
+    * `passes` says whether a classification survives the later rules.
+
+    Returns `(lower, upper)`: the lower bound takes every mixed vOTU to pick a failing
+    representative where it can, the upper bound takes every one to pick a passing one. They
+    coincide exactly when no mixed vOTU straddles the predicate — which is the common case, and
+    is why the interval is usually tight enough to compare against a published count.
+    """
+    lower = upper = sum(n for c, n in single.items() if passes.get(c, False))
+    for classifications, n in mixed:
+        verdicts = [passes.get(c, False) for c in classifications]
+        if all(verdicts):
+            lower += n
+            upper += n
+        elif any(verdicts):
+            upper += n
+    return lower, upper
