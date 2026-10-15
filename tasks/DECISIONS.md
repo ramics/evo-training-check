@@ -3053,3 +3053,257 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the registry, not a detail of the pipeline.** A2.2's fold families and A2.5's problem taxa both
   face the same question, and both should expect to report their membership rule rather than
   assume one.
+
+---
+
+### D-084 — The tool A4.2 benchmarks is named by the corpus, and it is not the one with the largest share
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** §A4 says to benchmark "the taxonomy assignment tools the filter relies on". That
+  is a question of fact and IMG/VR answers it per record, in `Taxonomic classification method`.
+  The pass in `tools/taxonomy_dependency.py` read it over the whole of v4.1 and the mix is not
+  what the corpus-wide figure suggests:
+
+  | population | geNomad | RVMT | NR | vOTU consensus | other |
+  |---|---|---|---|---|---|
+  | all 15,677,623 records | **89.97%** | 2.22% | 2.56% | 1.81% | 3.44% |
+  | records labelled at family | **61.74%** | 22.20% | 11.22% | 3.79% | 1.05% |
+  | the denylist's own 181,530 hits | **38.56%** | **49.51%** | 4.27% | 5.64% | 2.02% |
+
+  The direction of that drift has a mechanism rather than being noise. The denylist names
+  eukaryotic RNA-virus taxa — Picornavirales, Durnavirales, Amarillovirales, Flaviviridae,
+  Reoviridae, Picobirnaviridae among them — and the RNA-virus labels in IMG/VR were imported
+  from RVMT, a published metatranscriptome catalogue. So the records the rules actually remove
+  are disproportionately the ones geNomad did not label.
+
+  Two further things the same pass established. The publisher's help page names **four**
+  taxonomy approaches; the corpus carries **eight** method values, and three of the extra ones
+  (`RVMT`, `RefSeq`, `GVMAG`) are described nowhere in the release note or the help page. And
+  an *internal* benchmark — scoring a predictor against records whose ground truth the corpus
+  already carries — is thin rather than available: 13,971 records are flagged `Reference`
+  (NCBI RefSeq, per the release note), but 97.29% of them took their lineage from the RefSeq
+  lookup, where the label and the ground truth are one fact and nothing is tested. Only 272
+  carry a geNomad label.
+- **Decision:** A4.2 benchmarks **geNomad**, at the version contemporaneous with the release
+  (D-085), against external ground truth (D-086), and reports the dependency decomposition
+  above as a result in its own right.
+
+  It does **not** benchmark RVMT, NR, vOTU consensus, RefSeq or GVMAG. Those are not tools this
+  audit can run: they are taxonomies imported from other datasets, so their error is the error
+  of those datasets' own assignments, and measuring it needs a different instrument — an
+  overlap between each catalogue's records and ratified taxonomy, which for metatranscriptome
+  contigs does not exist by construction. Pretending otherwise by scoring their labels against
+  ICTV where they happen to coincide would measure the coincidence.
+
+  The consequence is stated rather than hidden: **A4.2's error rate covers the 38.56% of the
+  denylist's hits that rest on geNomad, and the remaining 61.44% is unmeasured.** That is a
+  gap in the audit and it is named as one. `AGENTS.md` forbids widening a task to absorb an
+  adjacent problem, so the imported catalogues get a new task ID rather than being folded in
+  here — recorded as **A4.4** in the board, blocking nothing that A4.2 blocks, because the
+  Phase A write-up can state the decomposition and the one measured component without it.
+- **Rejected:** *Benchmark whichever method has the largest corpus share* — that is geNomad at
+  89.97%, and it would have produced a precise answer to a question about the database rather
+  than about the filter. The hazard-relevant share is the one that propagates.
+  *Report a single pooled error rate across all eight methods* — it would be a weighted average
+  of one measured quantity and seven unmeasured ones.
+  *Treat the `Reference` records as the evaluation set* — 272 scorable records, selected by the
+  fact that the RefSeq lookup did **not** resolve them, which is not a random subset of
+  anything. They are reported as corroboration with that caveat attached, not as the benchmark.
+
+---
+
+### D-085 — The geNomad version IMG/VR used is unrecoverable, so the benchmark pins the newest one that could have produced the labels
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** `AGENTS.md` requires benchmarking a tool at the version the filter relies on, and
+  requires that where a stated version is unrecoverable the stated-versus-used gap be recorded
+  explicitly as a finding. This is that case, and the gap is specific rather than general:
+
+  - The v4 release note **pins CheckV to v1.0.1** by name, in the same field list, and names
+    geNomad with no version at all.
+  - The publisher's help page (`https://img.jgi.doe.gov/docs/IMG-VR.pdf`, 13 pages, retrieved
+    2026-10-15) describes geNomad's role in detail and contains no version string anywhere —
+    the strings `version` and `v1.` do not occur in it.
+  - The IMG/VR v4 paper could not be retrieved in this environment: OUP returns 403 and PMC
+    serves a proof-of-work interstitial rather than the PDF. So the claim this audit may make
+    is **"no version is stated in the release note or the publisher's help page"**, scoped to
+    the two primary sources actually checked, and not "no version is stated anywhere". The
+    paper is registered `unretrieved` and the gap is flagged for A6.1.
+
+  What *can* be established is a bound, from dates the publisher does not control. geNomad's
+  first public release is 1.0.0 (2022-07-30) and the next is 1.1.0 (2022-08-22); 1.2.0 did not
+  exist until 2022-11-15. The v4 release files are dated 2022-09-20. So the labels were
+  produced by geNomad ≤ 1.1.0 — or by a pre-release build, since geNomad and IMG/VR come from
+  the same group and the geNomad preprint postdates v4 by a year. The marker database pairs
+  with the code by the publisher's own `releases.txt`, which maps package 1.1 to database v1.1;
+  the v1.1 database's files are dated 2022-08-22, three days after the ICTV release D-086 pins.
+- **Decision:** Benchmark **geNomad 1.1.0 with marker database v1.1** — the newest pairing that
+  could have produced the labels — and record in the artefact that the version is a bound, not
+  a statement by the publisher. Reporting an error rate against 1.1.0 and calling it "the
+  version IMG/VR used" would be the overclaim; reporting it against the current 1.12.0 would
+  measure a tool the filter cannot have touched.
+
+  Four environment pins are part of the decision, not incidental, because without them the 2022
+  tool does not run in 2026 at all. They live in a `genomad` pixi environment with
+  `no-default-feature`, so the project's own Python stack is not held back to 2022:
+  - **Python 3.10** and **numpy <1.24**: geNomad 1.1.0's `marker_classification` calls
+    `np.warnings`, removed in numpy 1.24, so the tool does not import against a current numpy;
+    numpy 1.23 is the last series built for 3.10.
+  - **mmseqs2 13.45111**, the series geNomad 1.1.0's own recipe floors at. The current 18.x
+    dies in the prefilter against the 2022 profile database however far the search is split.
+  - **`--splits 8`**. mmseqs needs ~24 GB to hold the 227,900-profile index in one pass and the
+    session container has 16 GB; splitting the target database is what makes the search fit.
+    Recorded because it changes nothing about the result and everything about whether there is
+    one.
+
+  One provenance trap is recorded because it would silently falsify a manifest: **`genomad
+  --version` reports the wrong version in this environment.** geNomad 1.1.0 calls
+  `click.version_option()` with no package name, and a modern click resolves the distribution
+  by walking the call frame, finding `rich-click` instead — so the CLI prints `1.9.8`. The
+  pipeline records the version from the installed distribution's own metadata
+  (`genomad.__version__`, `genomad-1.1.0.dist-info`), never from `--version`, and
+  `repro.tool_version(["genomad", "--version"])` must not be used for it.
+- **Rejected:** *Benchmark 1.0.0 as well, to bracket* — worth doing and not free; the two
+  releases are three weeks apart and the marker databases differ (v1.0 vs v1.1), so a
+  difference between them would be a finding about geNomad's own churn rather than about the
+  filter. Deferred to A4.4 rather than dropped.
+  *Ask the publisher* — correct in the long run and outside this task's timeline; §4's
+  disclosure process (X3.1) is where contact with the developers is handled, and A4.2 must not
+  pre-empt it.
+
+---
+
+### D-086 — Ground truth is the ICTV taxonomy in force when the corpus was built, so revision stays A9.1's subject
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** Measuring a classifier's error needs labels that did not come from a classifier.
+  For viral family there is one such source: the ICTV, which does not predict family membership
+  but defines it, and publishes per species the ratified lineage and the GenBank accession of
+  the exemplar isolate. Which ICTV release to use is the live choice, because the taxonomy moves
+  — §A9 is a whole task about that — and a later release would score geNomad as wrong wherever
+  the ICTV has since reclassified a taxon.
+- **Decision:** Pin **VMR_20-190822_MSL37.3** (sha256
+  `66791e9bfea59ff051b5098d67d6a7406f972ee8ab0c759076c5e8b8f059bf32`), the taxonomy in force
+  when IMG/VR v4 was built. VMR_20 is dated 2022-08-19: three days before the geNomad marker
+  database D-085 pins, and a month before the v4 release files. Revision `.3` is the last
+  correction to that same VMR_20 content, so it renders the taxonomy of the time as accurately
+  as the ICTV ever did without advancing to a later MSL.
+
+  The division of labour this protects is the point. **A4.2 measures what the tool got wrong
+  about the taxonomy of its own day; A9.1 measures what the taxonomy did afterwards.** Using
+  MSL41 here would sum the two and attribute the total to the tool, which would overstate
+  A4.2's finding — and §2's commitment to a publishable null cuts both ways, so an error in the
+  audit's favour is the same failure as one in the filter's.
+  `ictv.release()` refuses an unpinned release and a test asserts the pin predates 2022-09-20,
+  so the property is enforced rather than remembered.
+- **Rejected:** *The current VMR (MSL41)* — conflates tool error with taxonomic revision.
+  *VMR_21-221122_MSL37 (Nov 2022)* — same MSL, but published after the corpus was built, so it
+  can contain decisions the tool could not have known; it is the natural sensitivity check and
+  is noted for A4.4 rather than used here.
+  *NCBI Taxonomy instead of the VMR* — it is the taxonomy geNomad's own database is keyed on, so
+  scoring geNomad against it would be partly self-referential, and it carries no exemplar
+  designation.
+
+---
+
+### D-087 — The evaluation set: one sequence is one record, complete genomes only, capped per family and sampled by hash
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** The VMR's 10,434 exemplars do not become an evaluation set without four choices,
+  each of which moves the result. All are fixed here, before any error rate has been computed.
+- **Decision:**
+  **The unit is the sequence, not the species.** A filter acts on one record at a time, and a
+  metagenomic assembly yields the segments of a segmented virus as separate contigs. Five of
+  the nineteen denylisted families are segmented, so scoring per species would hide exactly the
+  case where a short segment carries too few marker genes to be placed — which a five-sequence
+  pilot already showed, with an influenza A segment 7 (Orthomyxoviridae, denylisted) receiving
+  no lineage at all while four complete genomes in the same run were assigned correctly. Each
+  segment is scored as its own record and remembers the species it came from.
+
+  **Complete genomes only** for the primary arm: the VMR's `Complete genome` and `Complete
+  coding genome` wordings both count, `Partial genome` and `No entry in Genbank` are excluded.
+  This is the condition under which ground truth is trustworthy, and it is deliberately the
+  *easiest* case for the tool — which is why the headline rate is a **lower bound** (D-088).
+
+  **Capped at 40 exemplars per in-scope family and 8 per control family.** Uncapped, the
+  in-scope set is 2,723 exemplars of which Geminiviridae alone is 520, so a pooled rate would be
+  weighted by how many species the ICTV has ratified in each family — a fact about taxonomic
+  effort, not about the tool. The caps give 1,111 in-scope and 928 control exemplars across 44
+  and 189 families, which keeps every family's own interval reportable and the whole run inside
+  the session container.
+
+  **Sampling within a family is a deterministic function of the accession** — `sha256` of the
+  accession, lowest first — following D-078. The same set is selected on every run from the
+  pinned VMR, with no seed to lose and no reliance on dict ordering.
+
+  **Controls are the other direction, not filler.** The 928 out-of-scope exemplars are what the
+  spurious-removal rate is measured over; without them the benchmark could only see leakage, and
+  §2 forbids a pipeline built so that one direction is easier to find than the other.
+- **Rejected:** *All 9,870 complete exemplars* — ~5× the compute for a pooled figure dominated by
+  the largest families, and no better per-family precision where it matters.
+  *A flat random sample* — reproduces the taxonomic-effort weighting the caps exist to remove,
+  and leaves small denylisted families with single-digit counts.
+  *Partial genomes included in the primary arm* — a weaker ground truth mixed into the headline;
+  the length dependence is measured by strata instead (D-088).
+
+---
+
+### D-088 — The analysis is fixed here: two directions, six causes, exact intervals, per family before pooled
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** `AGENTS.md` requires that thresholds, parameters and analysis specifications be
+  fixed before results are inspected, and that the choice be recorded with its timestamp. At the
+  time of writing, the evaluation set has been defined and sized but geNomad has been run only
+  on the five-sequence pilot named in D-087; no error rate over the evaluation set exists.
+- **Decision:** The reported quantities, and the form they take:
+
+  **Two rates, never one accuracy figure, each over the population it is a rate of.** *Escape* —
+  the record's true taxon is denylisted and the tool's label does not put it there, so it
+  survives a filter written to remove it — is a proportion of the records the policy meant to
+  remove. *Spurious removal* — the true taxon is not denylisted and the label says it is — is a
+  proportion of the records the policy meant to keep. The two have opposite consequences and are
+  not recoverable from each other, and `misassignment.rates` divides each by its own denominator
+  so that neither moves when the control set is resized. No pooled accuracy is offered by the
+  module at all.
+
+  **Six escape causes**, reported underneath the rate: absent at the rule's ranks, shallower
+  than the rule, misassigned family, misassigned order, unclassified, and not called viral. The
+  split matters because only under-assignment is visible in the corpus as a missing field —
+  which is what A4.1 already measured as the filter's ceiling — so the quantity A4.2 *adds* is
+  the confidently-and-wrongly-labelled part that A4.1 could not see. `not_viral` is kept
+  separate from `unclassified` so that an escape occurring one stage earlier is not charged to
+  the taxonomy step.
+
+  **Exact (Clopper-Pearson) intervals at 95%, on every rate, with no point estimate shipped
+  without one.** Exact rather than normal-approximate because several per-family counts will be
+  zero, and a normal interval puts a zero-error family's upper bound at zero — reporting a
+  certainty the data does not contain. A rate over an empty denominator raises rather than
+  returning `(0, 1)`, so an untested family cannot appear in a results table as though it had
+  been tested.
+
+  **Per family before pooled**, which `AGENTS.md` makes the default presentation everywhere.
+
+  **Length strata**, over the edges `tools/taxonomy_dependency.py` already measured the corpus
+  against. This is what makes the result transferable at all: the evaluation set is complete
+  genomes and the corpus is 84.7% `Genome fragment`, so the honest way to carry one onto the
+  other is to show how the rate moves as the evidence shrinks.
+
+  **Propagation is reported as a lower bound, with the bound's direction in the artefact rather
+  than in prose.** `misassignment.propagate` multiplies the escape rate and both interval
+  endpoints by an estimate of the in-scope corpus population, and carries a `bound: "lower"`
+  field with its reason: a fragment carries fewer marker genes than the genome it came from, and
+  a marker-based classifier given less evidence assigns a shallower lineage, which is itself an
+  escape route. The in-scope population is recorded as an **input**, not a finding, because
+  knowing it exactly would need the ground truth the corpus lacks.
+- **Rejected:** *A single accuracy or F-score* — collapses the two directions, and the filter's
+  behaviour is not symmetric in them.
+  *Wilson intervals* — adequate in the middle, wrong at the zero-count families this set will
+  contain.
+  *Bootstrap intervals* — no advantage over the exact method for a binomial, and they would put
+  a seed where a closed form does.
+  *Pooling across families as the headline* — reports the ICTV's species-ratification effort.
