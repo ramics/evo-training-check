@@ -5,7 +5,7 @@ phase: A
 status: in-progress
 gate: false
 depends_on: [A1.4]
-blocks: [A5.1, A6.1]
+blocks: [A5.1, A6.1, A4.4]
 design_ref: "§A4"
 deliverable: 1
 owner: claude
@@ -36,18 +36,33 @@ class that matters for this audit.
 
 ## In flight — 2026-10-15
 
-**Branch:** `ccr-bcc7b994-9ycpzn`. Claimed; nothing landed yet.
+**Branch:** `ccr-bcc7b994-9ycpzn`. Pre-registration is on `main` (D-084..D-088); the input-side
+pass and the error vocabulary are committed on the branch; the benchmark run is next.
 
-The tool under test is **geNomad** — IMG/VR v4/v4.1 assigns every taxonomic classification the
-Evo denylist rules read, and publishes the assigning method per record in
-`Taxonomic classification method`. So "the taxonomy assignment tools the filter relies on" is a
-question with a published answer on this corpus, and A4.1 already read that field.
+**Finished.** The tool under test is named from the corpus rather than inferred.
+`tools/taxonomy_dependency.py` read IMG/VR v4.1's own `Taxonomic classification method` field
+over all 15,677,623 records and the mix is not what the headline figure suggests: geNomad
+assigns 89.97% of classifications, 61.74% of the family-rank labels, and **38.56% of the
+denylist's own 181,530 hits** — against RVMT's 49.51%, because the denylist names eukaryotic
+RNA-virus taxa and those labels were imported. The publisher documents four taxonomy
+approaches; the corpus carries eight. Also committed: the pinned ICTV VMR ingest, the error
+vocabulary (two directions, six escape causes, exact intervals, propagation carrying its own
+bound direction), and 84 tests. `pixi run -e dev check` is green.
 
-**Left:** establish the method mix from the primary table, pin the ground-truth set and its
-provenance, benchmark at the version IMG/VR used, report rates by direction with intervals, and
-state the propagation into leakage against A4.1's ceiling.
+The 2022 toolchain runs: geNomad 1.1.0 with marker database v1.1, Python 3.10, numpy 1.23.5,
+mmseqs2 13.45111, search split 8 ways to fit 16 GB. A five-sequence pilot assigned four
+complete genomes correctly and gave an influenza A segment — Orthomyxoviridae, denylisted — no
+lineage at all, which is the escape route the benchmark is built to count.
 
-**Waiting on the project owner:** nothing yet.
+**Left.** Build the 2,039-exemplar evaluation set from the pinned VMR, fetch its sequences,
+run geNomad over it, and score: rates by direction with intervals, per family, by length
+stratum, and the propagation into leakage as a lower bound.
+
+**Waiting on the project owner:** nothing.
+
+**One thing a reviewer should know now:** A4.2 will report a measured error rate for 38.56% of
+the denylist's hits and an explicit gap for the rest. The imported catalogues are not runnable
+tools, so closing that gap is **A4.4**, created for the purpose — not folded in here.
 
 ## Notes
 
