@@ -3401,3 +3401,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
   *Re-run geNomad* — unnecessary and misleading as a remedy: the tool's output was correct
   throughout and is unchanged on disk. Only the parse was wrong, so only the scoring step was
   re-run, against the same pinned `evalset_taxonomy.tsv`.
+
+---
+
+### D-091 — Phase A does not publish a leakage figure covering a minority of the filter's removals, so A4.4 blocks the write-up
+
+- **Date:** 2026-10-15
+- **Task:** A4.2 (decision by the project owner; recorded by A4.2)
+- **Context:** A4.2 measured geNomad's escape rate at 36.23% (33.80–38.72) and established that
+  geNomad carries **38.56%** of the 181,530 records Evo's denylist removes from IMG/VR. The
+  other **61.44%** rest on taxonomies IMG/VR imported from other datasets — RVMT alone supplies
+  49.51% — which are not classifiers this audit can run (D-084). A4.4 was created to own that
+  remainder and, as created, blocked nothing: A6.1 could have written up Phase A on A4.2 alone,
+  reporting the measured component and naming the rest as a bound on the audit.
+
+  That left a real choice, because both readings are defensible. Publishing now gets the
+  headline out and states its own coverage honestly; waiting risks A4.4 concluding that the
+  overlap needed to measure RVMT does not exist by construction, which would hold the write-up
+  on a question that cannot be answered.
+- **Decision:** The project owner's call: **A4.4 blocks A6.1.** Phase A does not publish a
+  quantified leakage figure that covers a minority of the filter's hazard-relevant removals.
+  `A4.4.blocks` gains `A6.1` and `A6.1.depends_on` gains `A4.4`.
+
+  What that does *not* require is worth stating, because it is what keeps the gate from becoming
+  unanswerable. A4.4's Done-when is already satisfied either by measuring a method or by
+  establishing from primary sources why it cannot be measured. So the write-up is blocked on
+  **the statement**, not on a number: "RVMT's labels cannot be scored against ratified taxonomy
+  because its records are metatranscriptome contigs with no ICTV exemplar overlap" is a
+  completed A4.4, and §2's commitment to publishing a null applies to that finding as much as to
+  a clean conformance result.
+
+  The reasoning behind the call, since a later reader will want it: §7 notes Phase A names real
+  labs and must be airtight against a motivated reviewer. "geNomad misses 36% of what the
+  denylist targets" invites the obvious objection that geNomad accounts for a third of the
+  denylist's work, and answering it with a named-but-unmeasured remainder concedes the point.
+- **Rejected:** *Leave A4.4 non-blocking and publish with the coverage gap stated prominently* —
+  the gap is stated in the artefact already and the number would still be quoted without it.
+  *Split A6.1 so the dependency decomposition and conformance results publish early while the
+  leakage figure waits* — defensible, and it needs a new task ID and a second disclosure pass
+  under §4, which buys less than it costs while B and C are still running.

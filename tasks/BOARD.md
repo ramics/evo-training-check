@@ -65,7 +65,7 @@ Gates block their downstream tasks regardless of how convenient that is. Do not 
 | [A4.3](A4-3-map-filter-scope-against-corpus-composition.md) | Map filter scope against corpus composition | `done` | — | §A4, §2 HA, §6 weekend 2 |
 | [A4.4](A4-4-benchmark-the-imported-taxonomy-catalogues.md) | Benchmark the imported taxonomy catalogues the denylist depends on | `blocked` | A4.2 | §A4 |
 | [A5.1](A5-1-package-the-filteraudit-tool.md) | Package the filter-audit tool | `blocked` | A3.2, A4.1, A4.2 | §5 deliverable 1 |
-| [A6.1](A6-1-write-up-phase-a-results.md) | Write up Phase A results | `blocked` | A0.4, A3.3, A4.1, A4.2 | §6 weekend 2, §7 |
+| [A6.1](A6-1-write-up-phase-a-results.md) | Write up Phase A results | `blocked` | A0.4, A3.3, A4.1, A4.2, A4.4 | §6 weekend 2, §7 |
 | [A7.1](A7-1-reexecute-published-predicates-against-released-corpora.md) | Re-execute published predicates against released corpora | `review` | — | §A7 |
 | [A7.2](A7-2-close-the-conformance-gaps-the-releases-could-not-answer.md) | Close the conformance gaps the releases could not answer | `review` | — | §A7 |
 | [A7.3](A7-3-audit-evo-2s-released-viral-component-against-the-procedure-it-adopts.md) | Audit Evo 2's released viral component against the procedure it adopts | `blocked` | A7.2 | §A7 |
@@ -132,7 +132,6 @@ Longest dependency chain to each deliverable-bearing endpoint, by task count:
 - **X4.1** (11): A0.1 → A0.2 → A0.3 → A1.4 → B3.1 → B3.5 → B5.1 → B5.2 → B5.4 → X3.1 → X4.1
 - **X1.3** (10): A0.1 → A0.2 → A0.3 → A1.4 → B3.1 → B3.5 → B5.1 → B5.2 → B5.4 → X1.3
 - **B5.3** (9): A0.1 → A0.2 → A0.3 → A1.4 → B3.1 → B3.5 → B5.1 → B5.2 → B5.3
-- **A4.4** (6): A0.1 → A0.2 → A0.3 → A1.4 → A4.2 → A4.4
 - **A1.6** (5): A0.1 → A0.2 → A0.3 → A1.4 → A1.6
 - **A7.3** (5): A0.1 → A1.1 → A1.7 → A7.2 → A7.3
 - **X5.1** (5): A0.1 → A0.2 → A0.3 → A7.1 → X5.1

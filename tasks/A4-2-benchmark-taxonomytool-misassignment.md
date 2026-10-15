@@ -159,11 +159,11 @@ ground truth are one fact. Only 272 carry a geNomad label — and 255 of those c
 reason as in A1.4, A7.1 and A4.1 — the denylists they share set the scope, and no rule they
 differ over reads a taxonomic label. A0.4 reports the spread.
 
-**Waiting on the project owner:** nothing. One judgement is worth confirming rather than
-assuming, though: A4.2 now reports a measured rate for 38.56% of the filter's hazard-relevant
-removals and an explicit gap for the rest. If the Phase A write-up needs that gap closed before
-publication, **A4.4 becomes a blocker for A6.1** and should be re-wired; as created, it blocks
-nothing.
+**Waiting on the project owner:** nothing — the one open judgement is now settled. A4.2
+reports a measured rate for 38.56% of the filter's hazard-relevant removals and an explicit gap
+for the rest, and the project owner decided that Phase A does not publish on that basis:
+**A4.4 blocks A6.1** (D-091). So this task's result is final as a component, and the write-up
+waits on the other 61.44% being measured or shown unmeasurable.
 
 **For whoever picks up A5.1 or A6.1:** quote the escape rate with its population and its bound
 — 36.23% of the denylisted genomes geNomad was asked to place, on complete genomes, a lower
