@@ -283,3 +283,45 @@ full. If it holds, it is a fourth instance of the pattern in `corpora.md` §8 �
 artefact describing the release more generously than the release supports — and it is the one
 instance with a direct cost to reproducibility, because the tag is the field the taxonomy rules
 act on.
+
+## 9. Settled by A1.4: the lineage tags are absent from Evo 2's release, as a census
+
+§8 left its central observation as a four-file sample and named the pass that would settle it.
+A1.4 read Evo 2's viral component in full — `imgvr.fasta.gz`, 11,220,266,895 bytes, **2,957,495
+records** — checking every record's header and the start of its sequence for a tag in the
+rank-prefix scheme Evo 1's rule uses. **Not one record carries one.** Zero contradictions, zero
+parse failures, over the whole component rather than over 0.4% of it.
+
+So §8's qualitative observation can now be stated as a fact about the release: the lineage
+labelling that makes Evo 1's corpus checkable against its own filter did not survive into Evo 2's
+release. The OpenGenome2 card's "phylogenetic tags" (quoted in `corpora.md` §1) describes
+something the released viral FASTA does not contain.
+
+**What that costs, measured.** None of the six published rules can be re-executed against Evo 2's
+release at all. Each one needs an input the records do not carry:
+
+| rule | input it reads | in Evo 2's release |
+|---|---|---|
+| `keep-high-confidence` | `record_attributes:confidence` | absent |
+| `keep-one-per-votu` | `record_attributes:vOTU` | absent |
+| `keep-prokaryotic-host-twice` | `host_occurrences:prokaryotic` | absent |
+| `remove-denylisted-families` | `taxonomy:family` | absent |
+| `remove-denylisted-orders` | `taxonomy:order` | absent |
+| `remove-taxonomically-unspecific` | all eight ranks | absent |
+
+Every record is therefore `unresolved`: the filter's output is published, and its own stated
+procedure cannot be checked against it. Evo 1's release answers three of the six (A7.1's `3/6`
+coverage); Evo 2's answers none. The audited *procedure* is Evo 1's and this audited *output* is
+Evo 2's, which is why the two releases are reported separately and never merged (D-019).
+
+**The two releases' viral components are not the same artefact.** Evo 1's stage 2 holds 2,653,047
+records and Evo 2's IMG/VR component holds 2,957,495 — about 304,000 more. No proportion should
+be drawn from that difference without knowing what Evo 2 re-derived: the point here is only that
+"the OpenGenome dataset was used in its entirety" (quoted in `corpora.md` §2) does not make the
+two components interchangeable as evidence.
+
+**A note on what is complementary rather than merely missing.** Evo 1's release carries the
+taxonomy and no accession; Evo 2's carries the accession and no taxonomy. Neither carries the
+IMG/VR metadata three of the rules read. The accession is the more valuable of the two for A7.2,
+because it is a join key to the filter's input and a lineage tag is not — which is why A1.7's
+acquisition opens both directions on Evo 2's release and only one on Evo 1's.

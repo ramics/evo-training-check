@@ -47,6 +47,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum
 
+from amazebio import policyspec
 from amazebio.policyspec import Decision, Outcome, Policy, Record, Rule, evaluate
 
 __all__ = [
@@ -279,16 +280,12 @@ def record_from_row(row: str, *, record_id: str, component: str) -> tuple[Record
 #: once and every policy written against these kinds is restricted the same way. Keyed by the
 #: kinds frozen in :data:`~amazebio.policyspec.RULE_KINDS`; a new kind there needs an entry
 #: here, and :func:`restrict` refuses a kind it does not know rather than assuming it checkable.
-RULE_INPUTS = {
-    "keep_if_attribute_in": "record_attributes",
-    "keep_one_per": "record_attributes",
-    "keep_if_host_occurrence_at_least": "host_occurrences",
-    "remove_if_host_class_in": "host_occurrences",
-    "keep_if_host_evidence_exclusive": "host_occurrences",
-    "remove_if_taxon_in": "taxonomy",
-    "remove_if_unspecific": "taxonomy",
-    "remove_if_similar_to": "alignment_to_seed_set",
-}
+#: Which input each frozen rule kind reads. **Re-exported from `amazebio.policyspec`, which is
+#: now the single declaration** — A1.4's record-level evaluator derives its `Evidence` checks
+#: from the same table (D-057). It was duplicated here and there until they were unified, and
+#: they agreed; that they did was luck, and this mapping decides which of an author's rules we
+#: hold them to, so one copy is the point. The names and semantics are unchanged.
+RULE_INPUTS = policyspec.RULE_INPUTS
 
 #: What each audited release carries per record, by the input names above. This is the
 #: declaration the whole restriction hangs on, so it records a property of the published

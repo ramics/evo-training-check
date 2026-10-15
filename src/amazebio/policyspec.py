@@ -49,10 +49,13 @@ import dataclasses
 from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 __all__ = [
+    "CHANNELS",
+    "RULE_INPUTS",
     "Decision",
+    "Evidence",
     "Outcome",
     "Policy",
     "PolicyError",
@@ -60,6 +63,7 @@ __all__ = [
     "Rule",
     "Scope",
     "Unspecified",
+    "decide",
     "describe",
     "evaluate",
     "load_policy",
@@ -151,6 +155,19 @@ class Outcome(Enum):
     #: A rule that applies could not be decided, because a value it needs is unspecified in
     #: the published source. Never collapse this into retained or removed.
     UNDETERMINED = "undetermined"
+    #: A rule that applies could not be decided, because the *corpus* does not carry the
+    #: evidence it reads — not because the policy failed to state a value. Added by A1.4
+    #: (DECISIONS.md D-044) once the staged releases turned out not to carry the metadata
+    #: their own published filters key on: Evo 1's release drops the high-confidence flag, the
+    #: vOTU and the host count, and Evo 2's drops the taxonomic lineage entirely.
+    #:
+    #: Kept separate from :attr:`UNDETERMINED` for the same reason D-007 keeps
+    #: `Route.OUT_OF_SCOPE` separate: the two have different causes, different owners and
+    #: different remedies. `UNDETERMINED` is a gap in what a developer published about the
+    #: filter; `UNRESOLVED` is a gap in what they published about the corpus. One is fixed by
+    #: stating a parameter, the other by shipping metadata with the records. Collapsing them
+    #: would report an audit limitation as a specification defect, or the reverse.
+    UNRESOLVED = "unresolved"
     #: The policy does not act on this record's corpus component at all. Distinct from
     #: retained: the filter was never pointed at it. This is the distinction A4.3 measures.
     OUT_OF_SCOPE = "out_of_scope"
@@ -180,6 +197,145 @@ RULE_KINDS = {
 }
 
 
+#: The evidence channels a record can carry. A rule reads one or more of them, and a corpus
+#: either carries a channel or does not — which is what makes `Outcome.UNRESOLVED` decidable
+#: without guessing. `ANY_KEY` is the wildcard for a rule that needs a whole channel rather
+#: than one key in it: an exclusivity rule has to see *every* host class to know a record has
+#: no other, so partial host evidence cannot decide it.
+#: Which input each frozen rule kind reads. **The single declaration of this fact**, consumed
+#: both by A1.4's evaluator (through :class:`Evidence`) and by A7.1's restriction mechanism
+#: (`amazebio.conformance.RULE_INPUTS` re-exports this, and derives its `kept/dropped` coverage
+#: from it). The two were written independently and agreed, which is luck rather than a
+#: guarantee: this mapping decides which of an author's rules we hold them to, so two copies of
+#: it drifting apart would silently change what the audit claims. Unified by A1.4, D-057.
+#:
+#: The names are A7.1's, because its artefacts and write-up already report them.
+RULE_INPUTS = {
+    "keep_if_attribute_in": "record_attributes",
+    "keep_one_per": "record_attributes",
+    "keep_if_host_occurrence_at_least": "host_occurrences",
+    "remove_if_host_class_in": "host_occurrences",
+    "keep_if_host_evidence_exclusive": "host_occurrences",
+    "remove_if_taxon_in": "taxonomy",
+    "remove_if_unspecific": "taxonomy",
+    "remove_if_similar_to": "alignment_to_seed_set",
+}
+
+CHANNELS = tuple(dict.fromkeys(RULE_INPUTS.values()))
+ANY_KEY = "*"
+
+
+def _required_evidence(kind: str, params: Mapping[str, Any]) -> tuple[tuple[str, str], ...]:
+    """The (channel, key) pairs a rule of this kind reads from a record.
+
+    The channel comes from :data:`RULE_INPUTS`; what this adds is the *key* within it, which the
+    restriction mechanism does not need and the record-level evaluator does. The difference is
+    load-bearing in one place: an exclusivity rule needs every host class, not one, so it asks
+    for the whole channel and partial host evidence cannot decide it.
+
+    Derived from the kind and its params rather than declared per rule, so a spec author cannot
+    get it wrong and a new kind cannot be added without saying what it reads.
+    """
+    if any(isinstance(v, Unspecified) for v in params.values()):
+        # A rule the source left undetermined reads nothing, because it cannot run at all.
+        # This also fixes the precedence between the two "cannot decide" outcomes: a missing
+        # published parameter is reported as UNDETERMINED even on a corpus that would not have
+        # been able to answer the rule either. The policy gap is the finding; the corpus gap is
+        # only reachable once someone states the parameter.
+        return ()
+    match kind:
+        case "keep_if_attribute_in" | "keep_one_per":
+            return ((RULE_INPUTS[kind], params["attribute"]),)
+        case "keep_if_host_occurrence_at_least":
+            return ((RULE_INPUTS[kind], params["host_class"]),)
+        case "keep_if_host_evidence_exclusive" | "remove_if_host_class_in":
+            # Needs the whole channel: "in no other host class" is a claim about every class.
+            return ((RULE_INPUTS[kind], ANY_KEY),)
+        case "remove_if_taxon_in":
+            return ((RULE_INPUTS[kind], params["rank"]),)
+        case "remove_if_unspecific":
+            ranks = (params["require_rank"], *params["ranks"])
+            return tuple((RULE_INPUTS[kind], r) for r in dict.fromkeys(ranks))
+        case "remove_if_similar_to":
+            return ((RULE_INPUTS[kind], params["seed_set"]),)
+        case _:  # pragma: no cover - guarded by Rule.from_dict
+            raise PolicyError(
+                f"rule kind {kind!r} declares no evidence requirement. Adding a kind means "
+                "saying which record channels it reads, or a corpus missing them would be "
+                "silently evaluated as though it carried them."
+            )
+
+
+@dataclasses.dataclass(frozen=True)
+class Evidence:
+    """What a record source can actually answer, per channel.
+
+    A corpus-scale evaluator needs this because the reference evaluator's assumption — that an
+    absent value means the record fails the test — is wrong at scale and fails in the unsafe
+    direction. Evo 1's released records carry no `confidence` attribute, so
+    `keep_if_attribute_in` would read `None`, find it not in `["High-confidence"]`, and report
+    every record in the corpus as removed by a rule whose input nobody can see. That is not a
+    conservative error: it would manufacture a filter far stronger than the published one and
+    make the audit's headline look like a clean pass.
+
+    So a source declares what it carries, and a rule reading a channel the source does not
+    carry yields :attr:`Outcome.UNRESOLVED`.
+
+    An empty set means the channel is absent. Absence of a *key* inside a carried channel is
+    not missing evidence — it is data: Evo 1's lineage tag carries all eight rank slots with
+    most of them empty, and "no family assigned" is exactly what the denylist rules must see.
+    """
+
+    attributes: frozenset[str] = frozenset()
+    taxonomy_ranks: frozenset[str] = frozenset()
+    host_classes: frozenset[str] = frozenset()
+    seed_sets: frozenset[str] = frozenset()
+    note: str = ""
+
+    _BY_CHANNEL: ClassVar[dict[str, str]] = {
+        "record_attributes": "attributes",
+        "taxonomy": "taxonomy_ranks",
+        "host_occurrences": "host_classes",
+        "alignment_to_seed_set": "seed_sets",
+    }
+
+    @classmethod
+    def everything(cls) -> Evidence:
+        """Evidence that answers every channel — the reference evaluator's implicit assumption.
+
+        Used as the default so existing behaviour is unchanged, and named so that a caller
+        asserting it is making a claim about its corpus rather than skipping a check.
+        """
+        any_key = frozenset({ANY_KEY})
+        return cls(
+            attributes=any_key,
+            taxonomy_ranks=any_key,
+            host_classes=any_key,
+            seed_sets=any_key,
+            note="every channel assumed present",
+        )
+
+    def carries(self, channel: str, key: str) -> bool:
+        if channel not in self._BY_CHANNEL:
+            raise PolicyError(f"unknown evidence channel {channel!r}; known: {CHANNELS}")
+        have: frozenset[str] = getattr(self, self._BY_CHANNEL[channel])
+        if not have:
+            return False
+        if ANY_KEY in have:
+            return True
+        # A rule needing the whole channel is only satisfied by a source declaring the
+        # wildcard. A source listing specific keys cannot rule out a class it never heard of.
+        return key != ANY_KEY and key in have
+
+    def missing_for(self, rule: Rule) -> list[str]:
+        """The channel:key pairs `rule` reads that this source cannot answer."""
+        return [
+            f"{channel}:{key}"
+            for channel, key in rule.required_evidence()
+            if not self.carries(channel, key)
+        ]
+
+
 @dataclasses.dataclass
 class Rule:
     """One step of a filter policy, traceable to the text it came from."""
@@ -198,6 +354,10 @@ class Rule:
 
     def unspecified_params(self) -> list[str]:
         return sorted(k for k, v in self.params.items() if isinstance(v, Unspecified))
+
+    def required_evidence(self) -> tuple[tuple[str, str], ...]:
+        """The (channel, key) pairs this rule reads. See :func:`_required_evidence`."""
+        return _required_evidence(self.kind, self.params)
 
     def applies_to(self, component: str, *, scope: Scope) -> bool:
         if self.components is None:
@@ -394,8 +554,33 @@ class Decision:
         return self.outcome is Outcome.REMOVED
 
 
-def _decide(rule: Rule, record: Record, *, kept_values: dict[str, set]) -> Decision | None:
-    """Apply one rule. Returns a Decision to stop on, or None to continue the pipeline."""
+def decide(
+    rule: Rule,
+    record: Record,
+    *,
+    kept_values: dict[str, set],
+    evidence: Evidence | None = None,
+) -> Decision | None:
+    """Apply one rule to one record. Returns a Decision, or None if the rule does not fire.
+
+    This is the single implementation of every rule kind's semantics, and the corpus-scale
+    evaluator (`amazebio.apply`) and the conformance diff (A7.1) are expected to call it rather
+    than restate the predicates. What those callers may differ on is how a *sequence* of rule
+    outcomes resolves into one verdict per record — see :func:`evaluate` here for the reference
+    strategy and `amazebio.apply.resolve` for the corpus one.
+
+    `evidence` declares what the record's source can answer. The default assumes everything,
+    which preserves the behaviour this module's tests pin; a corpus-scale caller passes the
+    real thing so a rule reading an absent channel yields `Outcome.UNRESOLVED` instead of
+    being silently decided against the record.
+    """
+    if missing := (evidence or Evidence.everything()).missing_for(rule):
+        return Decision(
+            record.id,
+            Outcome.UNRESOLVED,
+            rule.id,
+            f"rule {rule.id!r} reads {', '.join(missing)}, which this corpus does not carry",
+        )
     if unspecified := rule.unspecified_params():
         return Decision(
             record.id,
@@ -500,6 +685,13 @@ def evaluate(policy: Policy, records: Iterable[Record]) -> list[Decision]:
     Rules run as a pipeline in the order written, which is how the published procedures read.
     `keep_one_per` is order-dependent by nature, so records are processed in the order given;
     callers who need a deterministic representative must sort before calling.
+
+    **Resolution strategy: the first rule to decide wins, and the pipeline stops there.** That
+    is the reference semantics, and it mirrors a filter implementation that drops a record and
+    moves on. It is deliberately *not* what the corpus-scale evaluator does, because on a real
+    release some rules cannot be decided at all: stopping at the first undecidable rule would
+    report a record as unknown even when a later rule removes it beyond doubt.
+    `amazebio.apply.resolve` runs every applicable rule and resolves the set; see D-044.
     """
     kept_values: dict[str, set] = {}
     decisions: list[Decision] = []
@@ -519,7 +711,7 @@ def evaluate(policy: Policy, records: Iterable[Record]) -> list[Decision]:
         for rule in policy.rules:
             if not rule.applies_to(record.component, scope=policy.scope):
                 continue
-            decision = _decide(rule, record, kept_values=kept_values)
+            decision = decide(rule, record, kept_values=kept_values)
             if decision is not None:
                 break
         decisions.append(
