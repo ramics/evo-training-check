@@ -174,11 +174,27 @@ and its SSO site, because the login service changed on **27 July 2026** and the 
   read a mid-run 401 as "expired, re-copy the token" before concluding anything about
   permissions, and consider whether the restore wait should be a separate invocation rather than
   a poll inside one long-lived run.
-- **The download host did not move.** The spec points at `files-download.jgi.doe.gov/apidoc/` for
-  the `download_files` documentation, but `files.jgi.doe.gov/filedownload/` — what this tool
-  uses — still answers (401 unauthenticated), so the endpoint is live and no change is needed.
+- **The download host is a separate service, and the endpoint did need changing** (corrected
+  2026-10-15, D-060). `files.jgi.doe.gov/filedownload/` answers 401 unauthenticated, which this
+  line first read as "live, no change needed". It answers 401 to *every* method and its `Allow`
+  header reads `POST, OPTIONS`, while this tool was sending a GET. The publisher's download API
+  has its own spec at `files-download.jgi.doe.gov/apidoc/?format=openapi`, and its documented
+  single-file read is `GET /download_files/{jamo_id}/` — `Allow: GET, HEAD, OPTIONS`. The tool
+  now builds that URL through `amazebio.imgvr.download_url`. Because this endpoint checks
+  authentication before method, the old form would have failed as a 401, which is what the
+  tool's own guard reports as a missing credential.
 
-**Waiting on the project owner:** the `JGI_API_TOKEN` secret. Nothing else.
+**Waiting on the project owner:** a JGI credential that reaches a session. Nothing else.
+
+As of 2026-10-15 it still does not. The project owner reports the token has been added as a
+secret; `JGI_API_TOKEN` is absent from this session's environment, and nothing is reaching JGI
+by another route either — an unauthenticated request and one carrying a deliberately bogus
+`Authorization: Bearer` header get the same `401 {"detail":"Authentication credentials were not
+provided."}`, so the header is not being supplied for us and a client-supplied one does not
+arrive. Two things that would explain it and are worth checking in order: a secret added after a
+session starts is not picked up by that session, so **a new session is the first thing to try**;
+and if it was stored as a network secret for `*.jgi.doe.gov` rather than as an environment
+variable named `JGI_API_TOKEN`, `stage_imgvr.py` will not find it where it looks.
 
 ## Numbering
 

@@ -2072,3 +2072,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
   write to it too. One concrete thing for A2.1 to verify rather than assume: `route_for` refuses
   to map a removed record to `conformance_failure`, so a detector meeting a record from a
   manifest's removed set has to route it through A7.1's evidence rather than tag it in passing.
+
+### D-060 — The download endpoint A1.7 was pointed at does not accept a GET; the publisher's own spec names the one that does
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** A session was told the `JGI_API_TOKEN` secret had been added, and found no such
+  variable in its environment and no credential reaching JGI: every request to
+  `files.jgi.doe.gov` still answers `401 {"detail":"Authentication credentials were not
+  provided."}`, and a request carrying a deliberately bogus `Authorization: Bearer` header gets
+  the same answer rather than an invalid-token one. So the authenticated path still has not run.
+  Probing it did, however, settle a question the previous pass had closed on weaker evidence.
+  That pass recorded the download host as unmoved because
+  `files.jgi.doe.gov/filedownload/` "still answers (401 unauthenticated), so the endpoint is
+  live and no change is needed". It answers 401 to *every* method, and its `Allow` header reads
+  `POST, OPTIONS`. `stage_imgvr.py` was sending a GET.
+- **Decision:** Take the shape from the publisher's download API spec, which is a separate
+  service from the portal search API and has its own document:
+  `files-download.jgi.doe.gov/apidoc/?format=openapi` (version 202610.92006.17, the same version
+  string `files.jgi.doe.gov/swagger.json` reports). It declares two operations,
+  `POST /download_files/` for a zipped multi-file stream and
+  `GET /download_files/{jamo_id}/` for one file by the `_id` the public listing gives it. The
+  single-file read is what this task needs — each file is verified against its own published md5
+  before upload, which a zip of ten files does not allow — so `amazebio.imgvr.download_url`
+  builds that URL and `stage_imgvr.py` uses it. Unauthenticated, that path answers 401 with
+  `Allow: GET, HEAD, OPTIONS`.
+- **Rejected:** Leaving the GET in place and discovering this when a token arrived — the failure
+  mode is the expensive one. This endpoint checks authentication before method, so a GET to the
+  POST-only path returns 401, which is exactly what `stage_imgvr.py`'s own guard reports as a
+  missing credential. A worker with a valid token would have read "the token is not working",
+  re-copied it, and had the same thing happen again. Guessing the shape from the search API's
+  query-parameter form instead of reading the download API's own spec — D-019 and D-020 are both
+  records of a guessed URL answering in a way that looked like data.
+- **Consequence:** Two things for whoever resumes with a credential. **A mid-run 401 is now
+  ambiguous in one fewer way but not unambiguous** — it still means either an expired session
+  token or a file whose `_id` has changed, and the task file's existing advice to re-copy the
+  token before concluding anything about permissions stands. **The 409 is the tape signal.** The
+  download spec documents 409 as "files that are currently on tape and need to be restored",
+  which is the same condition `file_status: BACKUP_COMPLETE` reports in the listing. The tool
+  decides from the listing and never sees the 409; that is fine, and worth knowing if a file is
+  ever restored between the listing fetch and the download.
