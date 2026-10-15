@@ -2,7 +2,7 @@
 id: A7.1
 title: Re-execute published predicates against released corpora
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A0.3, A1.1, A1.2]
 blocks: [X5.1]
@@ -66,20 +66,47 @@ D-019 and D-020.
 
 ## State — 2026-10-15
 
-`in-progress`, on branch `ccr-2e82b91e-hou4gf`.
+`review`, on branch `ccr-2e82b91e-hou4gf` — pushed and green, **not merged into `main`**, so the
+files named here are absent from a `main` checkout.
 
-Both ends of the forward check are already staged in `us-east-1`, which is what makes this
-runnable now:
+**The result.** Of 2,653,047 records in Evo 1's own released viral component, **95 (0.004%)
+survive a rule Evo 1 published**, and **not one record assigned to any of the 19 denylisted
+families or 12 denylisted orders survives**. On the three rules this release can test, the filter
+removed everything its own denylists name — the positive finding §A7 anticipated, and the first
+external confirmation of it. The 95 failures are a single mechanism, recorded as D-046: the
+published rule removes records with no assigned realm, and all 95 are assigned at family rank
+and no rank above it, against a modal released record that stops at class.
 
-- `corpora/opengenome/84369c05…/stage2/train_stage2.parquet` — 16.92 GB, Evo 1's own released
-  viral component, with the inline lineage tag the taxonomy rules consume (D-020).
-- `corpora/opengenome2/84d2a7e6…/fasta/plasmids_phage/imgvr.fasta.gz` — 11.22 GB, Evo 2's
-  release of the same component, headers carrying IMG/VR accessions and no lineage.
+**What ran.** `tools/conformance_scan.py` reads the 16.92 GB staged Parquet in about two and a
+half minutes and emits lineage tags and counts only — no genomic sequence is held or
+transferred — and `tools/conformance_diff.py` recomputes the headline numbers from that artefact
+in a second, from a local path or straight from the store. The scan and its manifest are at
+`s3://…/corpora/results/a7-1/`; `artifacts/a7-1/` holds the diff and is regenerable from the
+stored scan alone.
 
-**What is left:** the in-region pass that turns those two files into a small auditable
-intermediate, then the conformance diff computed locally from it.
+**What this does not cover,** each with its decision entry:
 
-**Waiting on the project owner:** nothing yet.
+- **Three of the six published rules are not checkable from the release** (D-042). The
+  high-confidence gate, the vOTU representative and the prokaryotic-host count all read IMG/VR
+  metadata that does not travel with the released records, so coverage is `3/6` and is reported
+  next to every count.
+- **The reading spread is unmeasurable here** (D-042), because every rule the three readings
+  differ over reads one of those absent inputs. This also defeats the argument in
+  `policies/corpora.md` §2 that the release could identify the developers' de facto reading.
+- **The converse direction is not run** (D-044). Over-removal needs the filter's input, IMG/VR
+  v4, which this project has not acquired — it is not in `sources.json` and nothing stages it.
+- **Evo 2's release has no conformance arm at all** (D-044): its IMG/VR FASTA headers carry
+  accessions and no lineage, so no published rule can be re-executed against it. Established
+  from a bounded 2,000-header read rather than a full pass.
+
+**Why this is not `done`:** the last Done-when criterion is "headline numbers independently
+reproduced via A3.3", and A3.3 is a holding gate blocked on A3.2. Nothing in this task can
+discharge it. Move A7.1 to `done` when A3.3 has reproduced the 95 and the zero by a second
+method. Until then, per §4 and X3.1, these numbers do not circulate outside the project.
+
+**Waiting on the project owner:** one call, in the branch's report — whether acquiring IMG/VR v4
+becomes its own Phase A task now, since it is the single blocker for the converse check, for
+Evo 2's arm, and for the three rules D-042 records as unrunnable.
 
 
 ## Notes
