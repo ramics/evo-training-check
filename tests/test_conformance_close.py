@@ -532,3 +532,56 @@ def test_an_input_with_no_eukaryotic_host_evidence_says_what_that_means(close_to
     assert "the cause is in the data" in spread["why_it_is_zero"]
     text = close_tool.summarise(result)
     assert "## What the input asserts about hosts" in text
+
+
+def test_the_release_determination_names_the_input_the_output_is_consistent_with(
+    close_tool, scan, result
+):
+    # The question Evo 1's citation cannot answer: the publisher ships a v4 and a v4.1 erratum,
+    # and Evo 1 cites only "IMG/VR v4". A re-execution over the wrong input predicts survivors
+    # in lineages the release carries none of; over the right one it does not. This asserts the
+    # test exists and discriminates, on a pair built to discriminate.
+    other = json.loads(json.dumps(scan))
+    # Give the second release a classification the rule retains and the release omits, which is
+    # exactly the shape the real v4 produces and the real v4.1 does not.
+    other["by_classification"][AT_REALM] = {
+        "records": 8,
+        "records_hc": 2,
+        "seq_column_host": {"prokaryotic": 2, "none": 6},
+        "host_findings": {"prokaryotic": {"records": 2, "host_rows": 2, "host_taxa": 2}},
+        "votus_owned_outright": 2,
+    }
+    other["release"], other["version"] = "2022-12-20", "v4.1"
+    # A release that carries every lineage the first input predicts, so the only lineage
+    # predicted-but-absent is the one the second input adds. Otherwise both inputs fail the
+    # test for the same unrelated reason and it discriminates nothing.
+    released = dict(RELEASED_BY_EVO1) | {MIXED_HOST: 2}
+    first = close_tool.analyse(scan, released)
+    second = close_tool.analyse(other, released)
+    cross = close_tool.cross_release({"2022-09-20": first, "2022-12-20": second})
+    which = cross["which_release_the_output_is_consistent_with"]
+    assert which["releases_leaving_no_predicted_lineage_absent_from_the_release"] == ["2022-09-20"]
+    assert which["detail"]["2022-12-20"]["lineages_predicted_but_absent"] == 1
+    assert "its own released corpus does" in which["verdict"]
+    assert cross["identical_across_releases"] is False
+
+
+def test_the_duplicate_released_accessions_are_reported_and_not_folded_into_the_votu_rule(
+    close_tool, scan
+):
+    # Evo 2's FASTA carries more sequence records than distinct accessions. A repeated accession
+    # may be a duplicated entry or a second piece of one record, and the header cannot say — so
+    # it is reported beside the vOTU comparison rather than counted inside it, where it would
+    # read as a deduplication failure this evidence cannot establish.
+    report = {
+        "headers": 2_957_495,
+        "distinct_accessions": 2_917_521,
+        "duplicate_accessions": 39_974,
+    }
+    result = close_tool.analyse(scan, RELEASED_BY_EVO1, report)
+    released_file = result["per_reading"]["literal"]["evo2"]["released_file"]
+    assert released_file["accessions_appearing_more_than_once"] == 39_974
+    assert "distinct accessions" in released_file["note"]
+    # And the vOTU verdict is unchanged by it: the comparison is over distinct accessions.
+    assert result["per_reading"]["literal"]["evo2"]["votu_level"]["contributed_more_than_one"] == 1
+    assert "39,974 accessions appear more than once" in close_tool.summarise(result)

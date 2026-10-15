@@ -524,7 +524,12 @@ def evo1_arm(
     }
 
 
-def evo2_arm(scan: dict[str, Any], run_: dict[str, Any], totals: dict[str, Any]) -> dict[str, Any]:
+def evo2_arm(
+    scan: dict[str, Any],
+    run_: dict[str, Any],
+    totals: dict[str, Any],
+    report: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Compare the re-executed chain against Evo 2's released component, per record.
 
     Evo 2's release carries the IMG/VR accession and no lineage — the exact inverse of Evo 1's
@@ -626,6 +631,23 @@ def evo2_arm(scan: dict[str, Any], run_: dict[str, Any], totals: dict[str, Any])
             "verdict": comparison.verdict,
         },
         "released_host_classes": evo2.get("released_host_classes", {}),
+        "released_file": (
+            {
+                "sequence_records": report["headers"],
+                "distinct_accessions": report["distinct_accessions"],
+                "accessions_appearing_more_than_once": report["duplicate_accessions"],
+                "note": (
+                    "The join, and therefore every count in this arm, is over **distinct "
+                    "accessions**. The released FASTA carries more sequence records than "
+                    "distinct accessions, and whether a repeated accession is a duplicated "
+                    "entry or a second piece of one record cannot be told from the header. "
+                    "Counted and reported rather than folded into the vOTU comparison, where it "
+                    "would read as a deduplication failure this evidence cannot establish."
+                ),
+            }
+            if report
+            else None
+        ),
     }
 
 
@@ -832,7 +854,11 @@ def host_unit_sensitivity(
 # --------------------------------------------------------------------------------------
 
 
-def analyse(scan: dict[str, Any], released: dict[str, int]) -> dict[str, Any]:
+def analyse(
+    scan: dict[str, Any],
+    released: dict[str, int],
+    evo2_report: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     policies = {k: v for k, v in load_policy_dir(SPECS).items() if k.startswith(POLICY_PREFIX)}
     if not policies:
         raise SystemExit(f"no policies matching {POLICY_PREFIX!r} in {SPECS}")
@@ -844,7 +870,7 @@ def analyse(scan: dict[str, Any], released: dict[str, int]) -> dict[str, Any]:
         totals = record_level_totals(run_)
         interval = votu_interval(scan, totals["passing"])
         coverage = run_["coverage"]
-        evo2 = evo2_arm(scan, run_, totals)
+        evo2 = evo2_arm(scan, run_, totals, evo2_report)
         per_reading[policy.reading] = {
             "policy_id": policy.id,
             "rule_coverage_record_level": coverage.rule_coverage,
@@ -1049,6 +1075,19 @@ def summarise(result: dict[str, Any]) -> str:
             )
         lines.append("")
     norm = head["rank_normalisation"]
+    explained = norm["records_the_rule_retains_under_another_rank"]
+    lines += [
+        f"Against A7.1, which found the same failures from the release alone: "
+        f"{evo1['forward']['records']:,} released records fail a rule on re-execution from the "
+        f"input side, and **{evo1['forward']['records'] - explained:,}** of them have nothing "
+        "in either artefact to account for them"
+        + (
+            f" — the other {explained:,} are explained by the rank mismatch below."
+            if explained
+            else ", with no rank mismatch to explain any of them."
+        ),
+        "",
+    ]
     if norm["groups"]:
         lines += [
             "#### One taxon at two ranks: what accounts for the forward failures",
@@ -1105,6 +1144,18 @@ def summarise(result: dict[str, Any]) -> str:
             f"{evo2['released_accessions_joined_to_the_input']:,} join to the staged input and "
             f"{evo2['released_accessions_absent_from_the_input']:,} do not.",
             "",
+            *(
+                [
+                    f"The released FASTA carries {evo2['released_file']['sequence_records']:,} "
+                    f"sequence records under "
+                    f"{evo2['released_file']['distinct_accessions']:,} distinct accessions: "
+                    f"{evo2['released_file']['accessions_appearing_more_than_once']:,} "
+                    f"accessions appear more than once. {evo2['released_file']['note']}",
+                    "",
+                ]
+                if evo2.get("released_file")
+                else []
+            ),
             f"- **forward** — released records the published rule removes: "
             f"**{evo2['forward']['records']:,}**, exactly, per record.",
             f"- **converse** — vOTUs the rule retains that contributed no released record: "
@@ -1238,6 +1289,12 @@ def main(argv: list[str] | None = None) -> int:
         default="artifacts/a7-1/opengenome-stage2/scan-opengenome-stage2.json",
         help="A7.1's scan of Evo 1's released component, local or s3://",
     )
+    ap.add_argument(
+        "--evo2-report",
+        default="artifacts/a7-2/evo2/evo2-accessions.json",
+        help="the accession report from tools/evo2_accessions.py, which carries the counts the "
+        "packed inventory cannot: sequence records against distinct accessions",
+    )
     ap.add_argument("--outdir", default="artifacts/a7-2")
     ap.add_argument("--allow-dirty", action="store_true")
     args = ap.parse_args(argv)
@@ -1271,6 +1328,13 @@ def main(argv: list[str] | None = None) -> int:
             m.input_file(spec, role="policy-spec")
 
         released = release_scan["tag_counts"]
+        evo2_report = None
+        if args.evo2_report and (
+            args.evo2_report.startswith("s3://") or Path(args.evo2_report).exists()
+        ):
+            evo2_report = _load(args.evo2_report, outdir)
+            if not args.evo2_report.startswith("s3://"):
+                m.input_file(Path(args.evo2_report), role="evo2-accession-report")
         per_input: dict[str, Any] = {}
         for path in scans:
             scan = _load(path, outdir)
@@ -1278,7 +1342,7 @@ def main(argv: list[str] | None = None) -> int:
                 m.input_file(Path(path), role="input-scan")
             else:
                 m.input_url(path, role="input-scan", verified=False)
-            result = analyse(scan, released)
+            result = analyse(scan, released, evo2_report)
             per_input[scan["release"]] = result
             sub = outdir / scan["release"]
             sub.mkdir(parents=True, exist_ok=True)
@@ -1345,6 +1409,42 @@ def cross_release(per_input: dict[str, Any]) -> dict[str, Any]:
         if None not in v
     )
     out["identical_across_releases"] = identical
+    # Which release the developer's own output is *consistent with*, which is a question Evo 1's
+    # words cannot answer and its release can. A re-execution over the wrong input predicts
+    # survivors in lineages the release carries none of; over the right one it does not.
+    consistent = [
+        d
+        for d in dates
+        if per_input[d]["per_reading"]["literal"]["evo1"]["converse"]["lineages_absent_entirely"]
+        == 0
+    ]
+    out["which_release_the_output_is_consistent_with"] = {
+        "releases_leaving_no_predicted_lineage_absent_from_the_release": consistent,
+        "detail": {
+            d: {
+                "version": per_input[d]["input_version"],
+                "lineages_predicted_but_absent": per_input[d]["per_reading"]["literal"]["evo1"][
+                    "converse"
+                ]["lineages_absent_entirely"],
+                "records_in_them": per_input[d]["per_reading"]["literal"]["evo1"]["converse"][
+                    "records_in_lineages_absent_entirely"
+                ],
+            }
+            for d in dates
+        },
+        "verdict": (
+            f"Re-executed over {consistent[0]}, the published procedure predicts survivors in "
+            "exactly the lineages the release carries and no others. Over the other release it "
+            "predicts survivors in lineages the release carries none of. Evo 1's citation does "
+            "not say which release it used (D-052, D-063); its own released corpus does."
+            if len(consistent) == 1
+            else "Both releases are equally consistent with the output on this test, so it does "
+            "not discriminate between them and the citation's ambiguity stands."
+            if len(consistent) == 2
+            else "Neither release leaves the converse direction empty, so this test does not "
+            "identify the input and every claim must name the release it came from."
+        ),
+    }
     out["verdict"] = (
         "Every conformance number is identical across v4 and v4.1, so the ambiguity in Evo 1's "
         "citation is immaterial to this result. Both are still reported."
