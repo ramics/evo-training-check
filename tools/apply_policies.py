@@ -108,15 +108,9 @@ def _records(
         yield record
 
 
-def evaluate_source(
-    policy: Policy,
-    source: corpora.StagedSource,
-    *,
-    client: Any,
-    limit: int | None,
-    on_removed: Any,
-) -> SourceVerdict:
-    """Apply one policy to one staged source, enumerating it only if a rule can discriminate."""
+def _shell(policy: Policy, source: corpora.StagedSource) -> SourceVerdict:
+    """The part of a verdict that needs no reading: which rules reach here, and which cannot
+    be decided here, and why."""
     rules = applicable_rules(policy, source.component)
     undecidable = {
         rule.id: (
@@ -127,8 +121,7 @@ def evaluate_source(
         for rule in rules
         if rule.unspecified_params() or source.evidence.missing_for(rule)
     }
-    uniform = is_uniform(policy, source.component, source.evidence)
-    verdict = SourceVerdict(
+    return SourceVerdict(
         key=source.key,
         component=source.component,
         corpus_component=source.corpus_component,
@@ -136,34 +129,49 @@ def evaluate_source(
         bytes=source.bytes,
         records=None,
         enumerated=False,
-        uniform=uniform,
+        uniform=is_uniform(policy, source.component, source.evidence),
         rules_applicable=[r.id for r in rules],
         rules_undecidable=undecidable,
         why=source.why,
     )
 
-    if uniform and not (source.readable and source.verify_evidence):
-        decision = uniform_verdict(policy, source.component, source.evidence)
-        verdict.uniform_outcome = decision.outcome.value
-        verdict.note = decision.why
-        if not source.readable:
-            verdict.note += (
-                " — not enumerated: no reader, and the verdict does not need one"
-                if source.reader == "none"
-                else ""
-            )
-        for key, value in source.extra.items():
-            if key == "counted_clusters":
-                verdict.note += f" Record counts available per tier: {value}."
-        return verdict
-    if not source.readable:  # pragma: no cover - SOURCES has no such row
-        raise ValueError(f"{source.key}: a rule discriminates here but there is no reader")
 
-    parse_failures: Counter[str] = Counter()
+def uniform_source(policy: Policy, source: corpora.StagedSource) -> SourceVerdict:
+    """A verdict for a component no rule can discriminate within. Nothing is read."""
+    verdict = _shell(policy, source)
+    decision = uniform_verdict(policy, source.component, source.evidence)
+    verdict.uniform_outcome = decision.outcome.value
+    verdict.note = decision.why
+    if source.extra.get("staged") is False:
+        verdict.note += " Not staged, so no record count exists for it here."
+    if "counted_clusters" in source.extra:
+        verdict.note += (
+            f" Counted per tier by A1.5: {source.extra['counted_clusters']}; which tier the "
+            "source used is unstated, so no single count applies."
+        )
+    return verdict
+
+
+def enumerate_source(
+    source: corpora.StagedSource,
+    policies: list[Policy],
+    *,
+    client: Any,
+    limit: int | None,
+    sinks: dict[str, Any],
+) -> dict[str, SourceVerdict]:
+    """Read one staged source once and resolve every policy against each record.
+
+    One pass, not one per policy. The three Evo readings differ in their rules, not in the bytes
+    they read, and re-reading 28 GB per reading would triple both the wall clock and the egress
+    this task is costed on for nothing.
+    """
+    verdicts = {p.id: _shell(p, source) for p in policies}
+    counts: dict[str, Counter[str]] = {p.id: Counter() for p in policies}
+    attribution: dict[str, Counter[str]] = {p.id: Counter() for p in policies}
+    kept: dict[str, dict[str, set]] = {p.id: {} for p in policies}
+    parse_failures = Counter[str]()
     contradictions = 0
-    counts: Counter[str] = Counter()
-    attribution: Counter[str] = Counter()
-    kept: dict[str, set] = {}
     seen = 0
 
     def note_parse_error(record_id: str, exc: Exception) -> None:
@@ -171,98 +179,134 @@ def evaluate_source(
         if parse_failures["n"] <= 3:
             print(f"    parse failure {record_id}: {exc}", file=sys.stderr)
 
+    declares_no_taxonomy = not source.evidence.taxonomy_ranks
     for record in _records(client, source, limit=limit, on_parse_error=note_parse_error):
         seen += 1
         head = record.attributes.get("head")
         # Where the source declares it carries no taxonomy, check that rather than trust it.
-        declares_no_taxonomy = not source.evidence.taxonomy_ranks
         if head is not None and declares_no_taxonomy and corpora.has_lineage_tag(head):
             contradictions += 1
-        decision = resolve(policy, record, evidence=source.evidence, kept_values=kept)
-        counts[decision.outcome.value] += 1
-        attribution[f"{decision.outcome.value}|{decision.rule_id or '-'}"] += 1
-        if decision.outcome is Outcome.REMOVED:
-            on_removed(decision)
-        if seen % 500_000 == 0:
+        for policy in policies:
+            decision = resolve(
+                policy, record, evidence=source.evidence, kept_values=kept[policy.id]
+            )
+            counts[policy.id][decision.outcome.value] += 1
+            attribution[policy.id][f"{decision.outcome.value}|{decision.rule_id or '-'}"] += 1
+            if decision.outcome is Outcome.REMOVED:
+                sinks[policy.id](decision)
+        if seen % 250_000 == 0:
             print(f"    {source.corpus_component}: {seen:,} records", file=sys.stderr)
 
-    verdict.records = seen
-    verdict.enumerated = True
-    verdict.counts = dict(counts)
-    verdict.attribution = dict(attribution)
-    verdict.parse_failures = parse_failures["n"]
-    verdict.evidence_contradictions = contradictions
-    if uniform:
-        verdict.note = (
-            "Enumerated although every rule is undecidable here, to verify the declared "
-            "absence of taxonomy over the whole component rather than a sample."
-        )
-    return verdict
+    for policy in policies:
+        verdict = verdicts[policy.id]
+        verdict.records = seen
+        verdict.enumerated = True
+        verdict.counts = dict(counts[policy.id])
+        verdict.attribution = dict(attribution[policy.id])
+        verdict.parse_failures = parse_failures["n"]
+        verdict.evidence_contradictions = contradictions
+        if verdict.uniform:
+            verdict.note = (
+                "Enumerated although no rule can be decided here, to verify the declared "
+                "absence of taxonomy over the whole component rather than a sample."
+            )
+    return verdicts
 
 
-def build(
-    policy: Policy,
-    release: str,
+def build_all(
+    policies: list[Policy],
     *,
+    releases: dict[str, tuple[str, ...]],
     client: Any,
     outdir: Path,
     limit: int | None,
-) -> PolicyManifest:
-    """One model x reading x release manifest, with its removed set beside it."""
-    manifest = PolicyManifest(
-        policy_id=policy.id,
-        model=policy.model,
-        reading=policy.reading,
-        release=release,
-        scope=list(policy.scope.components),
-    )
-    removed_name = f"removed-{policy.id}-{release}.jsonl"
-    removed_path = outdir / removed_name
-    removed_path.parent.mkdir(parents=True, exist_ok=True)
-    count = 0
+) -> list[PolicyManifest]:
+    """Every manifest, reading each staged source exactly once."""
+    outdir.mkdir(parents=True, exist_ok=True)
+    manifests: dict[tuple[str, str], PolicyManifest] = {}
+    files: dict[tuple[str, str], Any] = {}
+    counts: Counter[tuple[str, str]] = Counter()
 
-    with removed_path.open("w") as sink:
+    for policy in policies:
+        for release in releases[policy.id]:
+            manifests[policy.id, release] = PolicyManifest(
+                policy_id=policy.id,
+                model=policy.model,
+                reading=policy.reading,
+                release=release,
+                scope=list(policy.scope.components),
+            )
+            files[policy.id, release] = (outdir / f"removed-{policy.id}-{release}.jsonl").open("w")
 
-        def on_removed(decision: Any) -> None:
-            nonlocal count
-            count += 1
-            sink.write(
-                json.dumps(
-                    {
-                        "record_id": decision.record_id,
-                        "policy": policy.id,
-                        "release": release,
-                        "rule_id": decision.rule_id,
-                        "why": decision.why,
-                    },
-                    sort_keys=True,
+    try:
+        for release in sorted({r for p in policies for r in releases[p.id]}):
+            here = [p for p in policies if release in releases[p.id]]
+            sinks = {}
+            for policy in here:
+                key = (policy.id, release)
+
+                def sink(decision: Any, key: tuple[str, str] = key) -> None:
+                    counts[key] += 1
+                    files[key].write(
+                        json.dumps(
+                            {
+                                "record_id": decision.record_id,
+                                "policy": key[0],
+                                "release": key[1],
+                                "rule_id": decision.rule_id,
+                                "why": decision.why,
+                            },
+                            sort_keys=True,
+                        )
+                        + "\n"
+                    )
+
+                sinks[policy.id] = sink
+
+            for source in corpora.sources_for(release):
+                read = source.readable and (
+                    source.verify_evidence
+                    or any(not is_uniform(p, source.component, source.evidence) for p in here)
                 )
-                + "\n"
-            )
+                print(
+                    f"  {release}/{source.corpus_component}: "
+                    f"{'reading' if read else 'uniform verdict'} for {len(here)} reading(s)",
+                    file=sys.stderr,
+                )
+                if read:
+                    produced = enumerate_source(
+                        source, here, client=client, limit=limit, sinks=sinks
+                    )
+                else:
+                    produced = {p.id: uniform_source(p, source) for p in here}
+                for policy_id, verdict in produced.items():
+                    manifests[policy_id, release].sources.append(verdict)
+    finally:
+        for handle in files.values():
+            handle.close()
 
-        for source in corpora.sources_for(release):
-            print(f"  {policy.id} <- {source.corpus_component}", file=sys.stderr)
-            manifest.sources.append(
-                evaluate_source(policy, source, client=client, limit=limit, on_removed=on_removed)
-            )
-
-    manifest.removed_records = count
-    manifest.removed_file = removed_name if count else None
-    if not count:
-        removed_path.unlink()
-    manifest.notes.append(
-        "Record identifiers for Evo 1's stage-2 component are synthesised as "
-        "`stage2:<object>#<row>`: the release carries no accession for it, and a row is a "
-        "context window rather than a biological record (policies/corpora.md §3). No "
-        "per-genome proportion may be computed from these counts."
-    )
-    if any(s.evidence_contradictions for s in manifest.sources):
+    built = []
+    for (policy_id, release), manifest in manifests.items():
+        removed = counts[policy_id, release]
+        path = outdir / f"removed-{policy_id}-{release}.jsonl"
+        manifest.removed_records = removed
+        manifest.removed_file = path.name if removed else None
+        if not removed:
+            path.unlink(missing_ok=True)
         manifest.notes.append(
-            "An evidence declaration was contradicted by the records — see "
-            "`evidence_contradictions`. Every verdict drawn from that source is void until the "
-            "declaration is corrected."
+            "Record identifiers for Evo 1's stage-2 component are synthesised as "
+            "`stage2:<object>#<row>`: the release carries no accession for it, and a row is a "
+            "context window rather than a biological record (policies/corpora.md §3). No "
+            "per-genome proportion may be computed from these counts."
         )
-    return manifest
+        if any(s.evidence_contradictions for s in manifest.sources):
+            manifest.notes.append(
+                "An evidence declaration was contradicted by the records — see "
+                "`evidence_contradictions`. Every verdict drawn from that source is void until "
+                "the declaration is corrected."
+            )
+        built.append(manifest)
+    return built
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -334,30 +378,30 @@ def main(argv: list[str] | None = None) -> int:
                 )
 
         index: list[dict[str, Any]] = []
-        for policy_id in sorted(wanted):
-            policy = policies[policy_id]
-            for release in RELEASES[policy_id]:
-                if args.release and release not in args.release:
-                    continue
-                built = build(policy, release, client=client, outdir=outdir, limit=args.limit)
-                name = f"manifest-{policy_id}-{release}.json"
-                built.write(outdir / name)
-                manifest.output_file(outdir / name, role="manifest")
-                if built.removed_file:
-                    manifest.output_file(outdir / built.removed_file, role="removed-set")
-                index.append(
-                    {
-                        "policy": policy_id,
-                        "release": release,
-                        "manifest": name,
-                        "totals": built.totals(),
-                        "removed_records": built.removed_records,
-                    }
-                )
-                print(
-                    f"  -> {name}: {built.totals()} removed={built.removed_records}",
-                    file=sys.stderr,
-                )
+        chosen = [policies[p] for p in sorted(wanted)]
+        releases = {
+            p.id: tuple(r for r in RELEASES[p.id] if not args.release or r in args.release)
+            for p in chosen
+        }
+        chosen = [p for p in chosen if releases[p.id]]
+        for built in build_all(
+            chosen, releases=releases, client=client, outdir=outdir, limit=args.limit
+        ):
+            name = f"manifest-{built.policy_id}-{built.release}.json"
+            built.write(outdir / name)
+            manifest.output_file(outdir / name, role="manifest")
+            if built.removed_file:
+                manifest.output_file(outdir / built.removed_file, role="removed-set")
+            index.append(
+                {
+                    "policy": built.policy_id,
+                    "release": built.release,
+                    "manifest": name,
+                    "totals": built.totals(),
+                    "removed_records": built.removed_records,
+                }
+            )
+            print(f"  -> {name}: {built.totals()} removed={built.removed_records}", file=sys.stderr)
 
         index_path = outdir / "index.json"
         index_path.write_text(
