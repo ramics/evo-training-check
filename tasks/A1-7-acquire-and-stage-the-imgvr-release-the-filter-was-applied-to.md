@@ -5,7 +5,7 @@ phase: A
 status: ready
 gate: false
 depends_on: [A1.1]
-blocks: []
+blocks: [A7.2]
 design_ref: "§A1, §A7"
 deliverable: 1
 owner: unassigned
@@ -107,10 +107,13 @@ push that first created this file calls it A1.6; this section is how that commit
 
 ## Notes
 
-`blocks` is empty on purpose. A7.1 shipped one-directional and sits at `review`, so wiring this
-task into its `depends_on` would mark a reviewed task as depending on unfinished work and
-`tools/board.py --check` would — correctly — reject it. The dependency is real and forward-facing
-rather than backward: it is the follow-on conformance work that needs this, and that work does
-not have a task file yet. Whoever opens one should add `A1.7` to its `depends_on` and regenerate.
+`blocks` names **A7.2**, which is the task that consumes this one: the converse conformance
+check, Evo 2's arm, and the three published rules no release can test. A7.2 was opened on
+2026-10-15, after this file; an earlier version of this section said the follow-on work had no
+task file yet, which is no longer true.
+
+A7.2 depends on this task alone and not on A7.1, even though it builds on A7.1's code. A7.1 is
+held at `review` by the A3.3 gate, which has nothing to do with whether A7.2 can start — so
+A7.2 becomes `ready` the moment this task reaches `done`, and nothing else gates it.
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
