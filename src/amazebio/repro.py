@@ -274,6 +274,7 @@ def run(
     outdir: str | Path | None = None,
     allow_dirty: bool = False,
     repo: Path | None = None,
+    manifest_name: str = MANIFEST_NAME,
 ) -> Iterator[RunManifest]:
     """Wrap a pipeline run: seed RNGs, check the tree is clean, write provenance.
 
@@ -284,6 +285,10 @@ def run(
         allow_dirty: permit a run on an uncommitted tree. For local iteration only;
             never for an artefact that will be cited.
         repo: repository root for the git check. Defaults to the current directory.
+        manifest_name: filename for the manifest inside `outdir`. Pass a distinct name
+            where more than one pipeline writes to the same directory — otherwise the
+            second run silently overwrites the first one's provenance, which A1.5 hit
+            with two staging passes running at once.
 
     Raises:
         ReproError: if the git tree is dirty and ``allow_dirty`` is False.
@@ -312,4 +317,4 @@ def run(
     finally:
         manifest.finished_at = datetime.now(UTC).isoformat()
         if manifest.outdir is not None:
-            manifest.write()
+            manifest.write(Path(manifest.outdir) / manifest_name)

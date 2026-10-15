@@ -256,7 +256,8 @@
         "ESM3"
       ],
       "status": "unretrieved",
-      "blocker": "science.org returns 403 directly and via doi.org; not deposited in PMC. Likely paywalled. The preprint is stored and carries the filter description; the version of record should be checked before quoting in a publication."
+      "blocker": "science.org returns 403 directly and via doi.org; not deposited in PMC. Likely paywalled. The preprint is stored and carries the filter description; the version of record should be checked before quoting in a publication.",
+      "note": "Checked for a correction on 2026-10-15 (A1.5): Crossref returns no work registered as updating this DOI, bioRxiv has only v1 and v2 of the preprint, and the Europe PMC record is closed access with no supplementary material listed. No published correction exists. The version of record itself is still unread, so its supplementary materials may restate the pretraining-data appendix that A1.5's findings quote; that needs institutional access."
     },
     {
       "id": "S-BIOHUB-PLATFORM-RESOURCES",
@@ -389,6 +390,84 @@
       "status": "unretrieved",
       "blocker": "science.org is paywalled and returns HTTP 403, as it does for S-EVO1-SCIENCE.",
       "note": "The version of record for ESM-2. Same standing as S-ESM3-SCIENCE and S-EVO1-SCIENCE: quotes come from the preprint once that is retrieved, and anything load-bearing should be checked against this version before publication."
+    },
+    {
+      "id": "S-UNIREF-2023-02-METALINK",
+      "kind": "file_listing",
+      "title": "UniProt release 2023_02 UniRef metalink (sizes and md5 per file)",
+      "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/RELEASE.metalink",
+      "licence": "CC-BY 4.0",
+      "status": "retrieved",
+      "capture": "policies/captures/uniref-2023_02-RELEASE.metalink",
+      "retrieved_date": "2026-10-14",
+      "note": "The publisher's own verification for the archive A1.5 stages as ESM3-open's UniRef proxy: 211,819,312,677 bytes, md5 353681f464572bb199fa032f714d4669. Also carries an md5 for each release note below, all three of which the stored captures match.",
+      "sha256": "5f4dd537cdae4dad325de3a9f5baa28fd01620bcecdba0b890502d6d0c62da24",
+      "bytes": 2641
+    },
+    {
+      "id": "S-UNIREF-2023-02-RELNOTE-50",
+      "kind": "dataset_card",
+      "title": "UniRef50 release note, UniProt release 2023_02",
+      "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref50.release_note",
+      "licence": "CC-BY 4.0",
+      "status": "retrieved",
+      "capture": "policies/captures/uniref-2023_02-uniref50.release_note",
+      "retrieved_date": "2026-10-14",
+      "note": "Authority on UniRef50 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
+      "sha256": "a1d65f41c8a685d83aa06695e7a63e4f91207924553805bff72bd42baf134cf4",
+      "bytes": 311
+    },
+    {
+      "id": "S-UNIREF-2023-02-RELNOTE-90",
+      "kind": "dataset_card",
+      "title": "UniRef90 release note, UniProt release 2023_02",
+      "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref90.release_note",
+      "licence": "CC-BY 4.0",
+      "status": "retrieved",
+      "capture": "policies/captures/uniref-2023_02-uniref90.release_note",
+      "retrieved_date": "2026-10-14",
+      "note": "Authority on UniRef90 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
+      "sha256": "0f9c88e7d6e101c8770ddf8a6f02fd4836c7ebb07f33b2d440a292e0908d4db6",
+      "bytes": 311
+    },
+    {
+      "id": "S-UNIREF-2023-02-RELNOTE-100",
+      "kind": "dataset_card",
+      "title": "UniRef100 release note, UniProt release 2023_02",
+      "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref100.release_note",
+      "licence": "CC-BY 4.0",
+      "status": "retrieved",
+      "capture": "policies/captures/uniref-2023_02-uniref100.release_note",
+      "retrieved_date": "2026-10-14",
+      "note": "Authority on UniRef100 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
+      "sha256": "2df027655bacabcef1c254d652a8c57401cc759350a15642ece450a8f0450304",
+      "bytes": 312
+    },
+    {
+      "id": "S-MGNIFY-2023-02-README",
+      "kind": "dataset_card",
+      "title": "MGnify protein database 2023_02 README (statistics and file descriptions)",
+      "url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02/README.txt",
+      "licence": "CC0 1.0",
+      "status": "retrieved",
+      "capture": "policies/captures/mgnify-2023_02-README.txt",
+      "retrieved_date": "2026-10-14",
+      "note": "Authority on the release ESM3 names as MGnify90: 2,973,257,435 sequences and 729,215,663 clusters at 90%, clustered with MMseqs/linclust. Also states that the records carry MGYP accessions, assembly and biome metadata and no taxonomy.",
+      "sha256": "e0908bba1dc86c49e8f0305aa6adfa936257b5f2c5caad67a915745da15c6117",
+      "bytes": 4661
+    },
+    {
+      "id": "S-MGNIFY-2023-02-MD5SUM",
+      "kind": "file_listing",
+      "title": "MGnify protein database 2023_02 md5sum.txt",
+      "url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02/md5sum.txt",
+      "licence": "CC0 1.0",
+      "status": "retrieved",
+      "capture": "policies/captures/mgnify-2023_02-md5sum.txt",
+      "retrieved_date": "2026-10-14",
+      "note": "Published md5 per file for the MGnify component of the proxy, which is what lets a staging run verify before it writes to a bucket with no delete.",
+      "sha256": "b0c38cdf8f0a32c1cf86a6189d844535b498163720459eda3e0350b61231e51b",
+      "bytes": 4324
     },
     {
       "id": "S-ESM2-HF-650M",

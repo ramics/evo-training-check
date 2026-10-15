@@ -39,6 +39,8 @@ from amazebio.repro import ReproError, run
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 S3_REGION = "us-east-1"
 DEFAULT_TIERS = ("uniref50", "uniref90")
+# See tools/stage_uniref.py: a manifest has to name the task the release belongs to.
+TASK_BY_RELEASE = {"2021_04": "A1.3", "2023_02": "A1.5"}
 
 
 def human(n: float) -> str:
@@ -53,13 +55,24 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--tier", action="append", choices=list(DEFAULT_TIERS))
+    ap.add_argument(
+        "--release",
+        choices=sorted(uniref.RELEASES),
+        default=uniref.UNIREF_2021_04.release,
+        help="which staged release to count (default: %(default)s)",
+    )
+    ap.add_argument("--tier", action="append", choices=["uniref50", "uniref90", "uniref100"])
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
     ap.add_argument(
         "--source",
         help="local .xml.gz to count instead of S3 — for testing the path end to end",
     )
-    ap.add_argument("--outdir", type=Path, default=Path("artifacts/a1-3"))
+    ap.add_argument(
+        "--outdir",
+        type=Path,
+        default=None,
+        help="default: artifacts/<task owning this release>",
+    )
     ap.add_argument(
         "--upload-results",
         action="store_true",
@@ -105,7 +118,8 @@ def _open_tier(args: argparse.Namespace, client: Any, bucket: str, prefix: str, 
     """Return (reader, label). The reader is forward-only with .read(n)."""
     if args.source:
         return open(args.source, "rb"), args.source
-    key = f"{prefix}/uniref/{uniref.RELEASE}/{tier}.tar/{tier}.xml.gz"
+    rel = uniref.RELEASES[args.release]
+    key = f"{prefix}/uniref/{rel.release}/{tier}.tar/{tier}.xml.gz"
     reader = uniref.S3RangeRead(
         client,
         bucket,
@@ -121,12 +135,16 @@ def _execute(
     args: argparse.Namespace, tiers: tuple[str, ...], client: Any, bucket: str, prefix: str
 ) -> int:
     report: dict[str, Any] = {}
+    rel = uniref.RELEASES[args.release]
+    task = TASK_BY_RELEASE[rel.release]
+    if args.outdir is None:
+        args.outdir = Path("artifacts") / task.lower().replace(".", "-")
     out = args.outdir / "composition.json"
-    with run("A1.3", seed=None, outdir=args.outdir, allow_dirty=args.allow_dirty) as manifest:
-        manifest.parameter("release", uniref.RELEASE)
+    with run(task, seed=None, outdir=args.outdir, allow_dirty=args.allow_dirty) as manifest:
+        manifest.parameter("release", rel.release)
         manifest.parameter("tiers", list(tiers))
         manifest.parameter("markers", {k: v.decode() for k, v in uniref.MARKERS.items()})
-        manifest.parameter("stated_clusters", uniref.STATED_CLUSTERS)
+        manifest.parameter("stated_clusters", rel.stated_clusters)
         if args.code_commit:
             manifest.parameter("code_commit", args.code_commit)
         elif not manifest.git.get("available"):
@@ -185,13 +203,13 @@ def _execute(
                 f"root says version {attrs.get('version', '?')}",
                 flush=True,
             )
-            if attrs.get("version") and attrs["version"] != uniref.RELEASE:
+            if attrs.get("version") and attrs["version"] != rel.release:
                 manifest.note(
                     f"{tier} XML root declares version {attrs['version']!r}, not "
-                    f"{uniref.RELEASE!r} — the staged bytes are not the pinned release"
+                    f"{rel.release!r} — the staged bytes are not the pinned release"
                 )
 
-        composition = uniref.composition_check(counted)
+        composition = uniref.composition_check(counted, rel)
         for row in composition:
             tier = row["tier"]
             verdict = (
@@ -212,12 +230,18 @@ def _execute(
                     "the gap between stated and observed is a finding."
                 )
 
+        # One run counts the tiers it was asked for, and this report is written per run,
+        # so a field named for *all* tiers was true whenever the one tier counted agreed
+        # — which reads, wrongly, as the whole release verified. A1.5 counts three tiers
+        # in three processes and would have published three such reports.
+        counted = [r for r in composition if r["agrees"] is not None]
         report = {
-            "release": uniref.RELEASE,
+            "release": rel.release,
             "tiers": per_tier,
             "composition": composition,
-            "all_tiers_agree": all(r["agrees"] for r in composition if r["agrees"] is not None)
-            and any(r["agrees"] is not None for r in composition),
+            "tiers_counted": [r["tier"] for r in counted],
+            "tiers_not_counted": [r["tier"] for r in composition if r["agrees"] is None],
+            "counted_tiers_agree": bool(counted) and all(r["agrees"] for r in counted),
         }
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
@@ -235,11 +259,11 @@ def _execute(
             if not path.exists():
                 print(f"not uploaded (absent): {path}")
                 continue
-            key = f"{prefix}/results/{uniref.RELEASE}/{role}-{suffix}.json"
+            key = f"{prefix}/results/{rel.release}/{role}-{suffix}.json"
             client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
             print(f"uploaded s3://{bucket}/{key}")
 
-    return 0 if report["all_tiers_agree"] else 1
+    return 0 if report["counted_tiers_agree"] else 1
 
 
 if __name__ == "__main__":
