@@ -207,7 +207,7 @@ RULE_KINDS = {
 #: (`amazebio.conformance.RULE_INPUTS` re-exports this, and derives its `kept/dropped` coverage
 #: from it). The two were written independently and agreed, which is luck rather than a
 #: guarantee: this mapping decides which of an author's rules we hold them to, so two copies of
-#: it drifting apart would silently change what the audit claims. Unified by A1.4, D-056.
+#: it drifting apart would silently change what the audit claims. Unified by A1.4, D-057.
 #:
 #: The names are A7.1's, because its artefacts and write-up already report them.
 RULE_INPUTS = {

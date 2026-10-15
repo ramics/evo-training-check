@@ -226,7 +226,7 @@ class RangedObject(io.RawIOBase):
 # reached the released format first and reads it more carefully than this module first did:
 # prefix wins over position, a disagreement is recorded rather than resolved, and a short tag
 # is a formatting variation rather than a finding. Two parsers of the same bytes disagree
-# exactly on the records that matter — the malformed ones — so there is one (D-056).
+# exactly on the records that matter — the malformed ones — so there is one (D-057).
 
 
 @dataclass

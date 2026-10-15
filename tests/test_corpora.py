@@ -82,7 +82,7 @@ def test_an_unclosed_tag_is_an_error() -> None:
 
 
 def test_a_short_tag_is_a_formatting_variation_not_a_finding() -> None:
-    """A7.1's reading, adopted here so one parser serves both (D-056)."""
+    """A7.1's reading, adopted here so one parser serves both (D-057)."""
     tag = parse_lineage_tag(tag_of("|r__Duplodnaviria;k__Heunggongvirae|ACGT"))
     assert tag.taxonomy == {"realm": "Duplodnaviria", "kingdom": "Heunggongvirae"}
     assert not tag.is_malformed

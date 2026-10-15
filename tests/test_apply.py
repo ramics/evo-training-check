@@ -351,7 +351,7 @@ def test_totals_count_only_enumerated_sources() -> None:
 
 
 def test_rule_inputs_is_one_table_not_two() -> None:
-    """A1.4 reads it through Evidence, A7.1 through its restriction. One table (D-056)."""
+    """A1.4 reads it through Evidence, A7.1 through its restriction. One table (D-057)."""
     from amazebio import conformance as cf
     from amazebio.policyspec import RULE_INPUTS
 
@@ -369,7 +369,7 @@ def test_every_rule_kind_is_declared_in_it() -> None:
 
 def test_the_two_release_declarations_agree_on_what_can_be_re_executed() -> None:
     """The inventory A7.1 restricts by and the evidence A1.4 checks per record are different
-    granularities of the same fact, and D-056 left both standing rather than refactor a module
+    granularities of the same fact, and D-057 left both standing rather than refactor a module
     under review. This is the guard that makes that safe: if they ever disagree about which
     rules a release can re-execute, the audit is claiming two different things about the same
     rules, and the one that drifted is whichever this test names.

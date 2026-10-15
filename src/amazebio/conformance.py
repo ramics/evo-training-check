@@ -274,7 +274,7 @@ def record_from_row(row: str, *, record_id: str, component: str) -> tuple[Record
 #: here, and :func:`restrict` refuses a kind it does not know rather than assuming it checkable.
 #: Which input each frozen rule kind reads. **Re-exported from `amazebio.policyspec`, which is
 #: now the single declaration** — A1.4's record-level evaluator derives its `Evidence` checks
-#: from the same table (D-056). It was duplicated here and there until they were unified, and
+#: from the same table (D-057). It was duplicated here and there until they were unified, and
 #: they agreed; that they did was luck, and this mapping decides which of an author's rules we
 #: hold them to, so one copy is the point. The names and semantics are unchanged.
 RULE_INPUTS = policyspec.RULE_INPUTS
