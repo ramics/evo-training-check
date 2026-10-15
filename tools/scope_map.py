@@ -108,7 +108,15 @@ def evo_rows() -> list[dict[str, Any]]:
             keep = by_component.get(row["component"])
             if keep is None or row["representation"] == staged_rep:
                 by_component[row["component"]] = row
+        # Renormalise within the chosen representation. `composition()` divides by the whole
+        # release, which spans both the FASTA and the JSON tree, so a share taken from it for
+        # one representation silently uses a denominator that includes the other — the very
+        # summing across representations `policies/evo.md` §7 warns against. A1.2's published
+        # "0.2% of OpenGenome2" is that figure; within the FASTA tree alone the filtered
+        # component is about twice that, and the corrected number is the larger one.
+        rep_total = sum(r["bytes"] for r in by_component.values())
         for component, comp_row in sorted(by_component.items()):
+            within = round(comp_row["bytes"] / rep_total, 6) if rep_total else 0.0
             for policy in [policies[k] for k in sorted(policies)]:
                 cell = scope.classify(policy, component, family="evo")
                 rows.append(
@@ -120,7 +128,8 @@ def evo_rows() -> list[dict[str, Any]]:
                         role_note=comp_row["role_note"],
                         bytes_=comp_row["bytes"],
                         representation=comp_row["representation"],
-                        share=comp_row["share_of_release"],
+                        share=within,
+                        share_of_whole_release=comp_row["share_of_release"],
                     )
                 )
     return rows
@@ -199,7 +208,9 @@ def _coverage_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "components": dict.fromkeys(scope.STATES, 0),
                 "share": dict.fromkeys(scope.STATES, 0.0),
                 "denominator": (
-                    "bytes of the staged representation of this release"
+                    f"bytes within the {row['representation']} tree of this "
+                    "release (not the whole release: the trees are not a mirror and "
+                    "must not be summed)"
                     if row["bytes_"] is not None
                     else "unique training tokens as stated in ESM3's Table S4"
                 ),
@@ -310,15 +321,16 @@ def summarise(doc: dict[str, Any]) -> str:
         "see the note at the foot.",
         "",
         "| corpus | reading | out of scope | reached, no rule | not addressed | in scope | "
-        "share out of scope | denominator |",
-        "|---|---|---|---|---|---|---|---|",
+        "share out of scope | share not addressed | denominator |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for acc in doc["coverage_by_reading"]:
         c = acc["components"]
         lines.append(
             f"| {acc['corpus_label']} | {acc['reading']} | {c[scope.OUT_OF_SCOPE]} | "
             f"{c[scope.REACHED_NO_RULE]} | {c[scope.NOT_ADDRESSED]} | {c[scope.IN_SCOPE]} | "
-            f"{acc['share'][scope.OUT_OF_SCOPE]:.4f} | {acc['denominator']} |"
+            f"{acc['share'][scope.OUT_OF_SCOPE]:.4f} | "
+            f"{acc['share'][scope.NOT_ADDRESSED]:.4f} | {acc['denominator']} |"
         )
 
     lines += ["", "## The filtered component's token share, by training phase", ""]
