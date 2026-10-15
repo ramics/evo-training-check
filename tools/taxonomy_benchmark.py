@@ -540,12 +540,18 @@ def render(result: dict[str, Any]) -> str:
             f"- The denylist removed {cov['denylist_hits']:,} records; "
             f"{cov['genomad_share_of_hits']:.2%} of them on a geNomad-assigned label."
         )
-        out(
-            f"- Applying the escape rate to that population: "
-            f"{prop['escaping_records']['point']:,.0f} records "
-            f"({prop['escaping_records']['ci_lower']:,.0f}-"
-            f"{prop['escaping_records']['ci_upper']:,.0f})."
-        )
+        if prop["escaping_records"]["point"] is None:
+            out("- Escaping records are undefined at an escape rate of 1: nothing in scope was")
+            out("  removed, so the removals carry no information about how many there were.")
+        else:
+            out(
+                f"- That implies an in-scope population of "
+                f"{prop['implied_in_scope_records']:,.0f} records, of which "
+                f"{prop['escaping_records']['point']:,.0f} escaped "
+                f"({prop['escaping_records']['ci_lower']:,.0f}-"
+                f"{prop['escaping_records']['ci_upper']:,.0f})."
+            )
+            out(f"- Arithmetic: {prop['arithmetic']}")
         out(f"- **This is a {prop['bound']} bound.** {prop['bound_reason']}")
         out(
             f"- {cov['unmeasured_share_of_hits']:.2%} of the hits are unmeasured. "
