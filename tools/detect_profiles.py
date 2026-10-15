@@ -91,17 +91,26 @@ SAMPLE_RATES = {
 
 #: Why each unsearched component is unsearched, by corpus component. Reported per manifest rather
 #: than omitted, so a table is never read as a verdict on a release it only partly covers.
+_PROPHAGE = (
+    "bacterial and archaeal genomes: viral content there is prophage, and the instruments for "
+    "it are A2.4's (D-080)"
+)
+_ESM3_READER = "protein corpus with no reader yet: the ESM3 proxy is read by A1.6 (D-043)"
 NOT_SEARCHED = {
-    "gtdb": (
-        "bacterial and archaeal genomes: viral content there is prophage, and the instruments "
-        "for it are A2.4's (D-080)"
-    ),
+    "gtdb_v220": _PROPHAGE,
+    "stage1_gtdb": _PROPHAGE,
+    "stage1_imgpr": "Evo 1's plasmid/phage component: not staged as its own object (A1.2)",
     "ncrna": "non-coding RNA: a protein-profile search has nothing to find in it by construction",
     "organelles": "organelle genomes: host-side, which is A2.3 (D-080)",
     "promoters": "promoter sequence, not coding: no genes to call",
-    "eukaryotic": "not staged (A1.2): 2.17 TB, and the component with no published viral screen",
-    "uniref_2023_02": "protein corpus with no reader yet: the ESM3 proxy is read by A1.6 (D-043)",
-    "mgnify_2023_02": "protein corpus with no reader yet: the ESM3 proxy is read by A1.6 (D-043)",
+    "mrna": "mRNA: host-side transcript sequence, which is A2.3 (D-080)",
+    "metagenomes": "not staged (A1.2)",
+    "ncbi_eukaryotic_genomes": (
+        "not staged (A1.2): 2.17 TB, and the component with no published viral screening step"
+    ),
+    "eukaryotic_genic_windows": "not staged (A1.2); endogenous elements in host genomes are A2.3",
+    "uniref_2023_02": _ESM3_READER,
+    "mgnify_2023_02": _ESM3_READER,
     "pdb": "not staged (D-033)",
     "jgi": "cannot be reconstructed at all (A1.5)",
 }
@@ -322,9 +331,31 @@ def removed_ids(manifest_dir: Path, manifest: dict[str, Any]) -> set[str]:
 # --------------------------------------------------------------------------------------
 
 
-def searched_sources(manifest: dict[str, Any]) -> list[dict[str, Any]]:
-    """The manifest's sources A2.1 searches, in manifest order."""
-    return [s for s in manifest["sources"] if s["corpus_component"] in SAMPLE_RATES]
+def searched_sources(
+    manifest: dict[str, Any], release: str
+) -> list[tuple[corpora.StagedSource, dict[str, Any]]]:
+    """The staged objects A2.1 searches for one manifest, each with its manifest row.
+
+    Per *object*, not per component: Evo 1 publishes stage 2 as three splits — train, valid and
+    test — under one component name, and a loop over components would read the first and report
+    counts as if it had read all three. `corpora.undeclared_objects` exists because that same
+    three-for-two mistake was caught once already in A1.4.
+    """
+    rows = {s["key"]: s for s in manifest["sources"] if s.get("key")}
+    chosen = []
+    for source in corpora.sources_for(release):
+        if source.corpus_component not in SAMPLE_RATES or not source.readable:
+            continue
+        row = rows.get(source.key)
+        if row is None:
+            raise SystemExit(
+                f"{source.key} is a staged object A2.1 would search, and the manifest for "
+                f"{manifest['policy']['id']} does not list it. The manifest is the surviving "
+                "set; searching an object it does not account for would report a figure over a "
+                "corpus nothing declared."
+            )
+        chosen.append((source, row))
+    return chosen
 
 
 def stream_source(client: Any, source: corpora.StagedSource, *, rate: float):
@@ -442,14 +473,10 @@ def main(argv: list[str] | None = None) -> int:
             sampled_records: dict[str, Any] = {}
             manifest0 = entries[0]["manifest"]
 
-            for row in searched_sources(manifest0):
-                source = next(
-                    s
-                    for s in corpora.sources_for(release)
-                    if s.corpus_component == row["corpus_component"]
-                )
+            for source, row in searched_sources(manifest0, release):
                 rate = SAMPLE_RATES[source.corpus_component]
-                print(f"\n{release}/{source.corpus_component}: sampling at {rate}", flush=True)
+                label = f"{source.corpus_component}/{Path(source.key).name}"
+                print(f"\n{release}/{label}: sampling at {rate}", flush=True)
                 started = time.time()
                 batch: list[Any] = []
                 for sampled in stream_source(client, source, rate=rate):
@@ -501,6 +528,7 @@ def main(argv: list[str] | None = None) -> int:
                 manifest = entry["manifest"]
                 policy = policies[manifest["policy"]["id"]]
                 removed = removed_ids(args.manifests, manifest)
+                searched_keys = {r["key"] for r in per_source}
                 unsearched = [
                     {
                         "component": s["component"],
@@ -509,7 +537,7 @@ def main(argv: list[str] | None = None) -> int:
                         "why": NOT_SEARCHED.get(s["corpus_component"], "not searched by A2.1"),
                     }
                     for s in manifest["sources"]
-                    if s["corpus_component"] not in SAMPLE_RATES
+                    if s.get("key") not in searched_keys or not s.get("key")
                 ]
                 ref = ManifestRef(
                     policy_id=manifest["policy"]["id"],
