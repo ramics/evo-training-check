@@ -33,12 +33,13 @@ reported per-assay first, which `AGENTS.md` requires anyway.
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import dataclasses
 import hashlib
 import io
 import zipfile
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from enum import Enum
 from pathlib import Path
 
@@ -227,14 +228,22 @@ def load_reference(path: str | Path) -> tuple[Assay, ...]:
     return tuple(assays)
 
 
-def _read_csv_member(archive: str | Path, member: str) -> list[dict[str, str]]:
+@contextlib.contextmanager
+def _open_csv_member(archive: str | Path, member: str) -> Iterator[csv.DictReader]:
+    """Stream one CSV member of a zip archive.
+
+    Streamed rather than read whole because it has to be: the largest member of the score
+    archive is 1.15 GB uncompressed, and materialising it as a list of dicts peaked at over
+    5 GB of resident memory — enough to fail on the instance sizes this account can launch.
+    Both callers make a single pass, so nothing is lost by handing back a reader.
+    """
     with zipfile.ZipFile(archive) as z:
         try:
             handle = z.open(member)
         except KeyError as exc:
             raise ProteinGymError(f"{member!r} is not in {archive}") from exc
         with handle as fh:
-            return list(csv.DictReader(io.TextIOWrapper(fh, encoding="utf-8")))
+            yield csv.DictReader(io.TextIOWrapper(fh, encoding="utf-8"))
 
 
 def load_assay(archive: str | Path, assay: Assay) -> dict[str, float]:
@@ -244,13 +253,13 @@ def load_assay(archive: str | Path, assay: Assay) -> dict[str, float]:
     "standard split" means in the zero-shot setting.
     """
     member = f"DMS_ProteinGym_substitutions/{assay.filename}"
-    rows = _read_csv_member(archive, member)
     out: dict[str, float] = {}
-    for row in rows:
-        try:
-            out[row["mutant"]] = float(row["DMS_score"])
-        except (KeyError, ValueError) as exc:
-            raise ProteinGymError(f"{assay.dms_id}: bad row {row!r}") from exc
+    with _open_csv_member(archive, member) as reader:
+        for row in reader:
+            try:
+                out[row["mutant"]] = float(row["DMS_score"])
+            except (KeyError, ValueError) as exc:
+                raise ProteinGymError(f"{assay.dms_id}: bad row {row!r}") from exc
     if not out:
         raise ProteinGymError(f"{assay.dms_id}: no variants in {member}")
     return out
@@ -270,21 +279,21 @@ def load_model_scores(
     # a directory. Not symmetrical, and not worth normalising away: the member path is what it
     # is in each release, and hard-coding the wrong one fails loudly rather than silently.
     member = member or assay.filename
-    rows = _read_csv_member(archive, member)
-    if rows and model_column not in rows[0]:
-        raise ProteinGymError(
-            f"{assay.dms_id}: no column {model_column!r} in {member}. "
-            f"Available: {sorted(rows[0])[:8]}..."
-        )
     out: dict[str, float] = {}
-    for row in rows:
-        raw = (row.get(model_column) or "").strip()
-        if not raw:
-            continue
-        try:
-            out[row["mutant"]] = float(raw)
-        except ValueError:
-            continue
+    with _open_csv_member(archive, member) as reader:
+        for row in reader:
+            if model_column not in row:
+                raise ProteinGymError(
+                    f"{assay.dms_id}: no column {model_column!r} in {member}. "
+                    f"Available: {sorted(row)[:8]}..."
+                )
+            raw = (row.get(model_column) or "").strip()
+            if not raw:
+                continue
+            try:
+                out[row["mutant"]] = float(raw)
+            except ValueError:
+                continue
     return out
 
 

@@ -58,11 +58,17 @@ MODEL_COLUMNS = {
     "ESM3 open (1.4B)": "ESM3",
     "ESM-C (600M)": "ESMC-600M",
     "ESM-C (300M)": "ESMC-300M",
-    "Site-Independent": "Site-Independent",
+    # The leaderboard writes a hyphen, the score archive an underscore. Verified against
+    # the staged archive by tests/test_proteingym.py rather than assumed.
+    "Site-Independent": "Site_Independent",
 }
 
-# Three decimals is the precision the published file carries.
+# Three decimals is the precision the published file carries, so the largest deviation that
+# rounding alone can produce is exactly 0.0005. Comparing at exactly that bound would call a
+# value differing by 0.00050000001 a disagreement, which is a float artefact rather than a
+# finding — hence the epsilon.
 TOLERANCE = 0.0005
+EPSILON = 1e-9
 
 
 def check_model(published_name: str) -> dict:
@@ -98,9 +104,11 @@ def check_model(published_name: str) -> dict:
         }
         if entry["published"] is not None:
             entry["deviation"] = round(abs(rho - entry["published"]), 6)
-            entry["agrees"] = entry["deviation"] <= TOLERANCE
+            entry["agrees"] = entry["deviation"] <= TOLERANCE + EPSILON
         rows.append(entry)
 
+    errored = [r for r in rows if "error" in r]
+    missing_published = [r for r in rows if "error" not in r and r.get("published") is None]
     compared = [r for r in rows if r.get("published") is not None]
     agree = [r for r in compared if r["agrees"]]
     worst = max(compared, key=lambda r: r["deviation"], default=None)
@@ -109,6 +117,8 @@ def check_model(published_name: str) -> dict:
         "model_score_column": score_column,
         "assays": len(rows),
         "compared": len(compared),
+        "errored": errored,
+        "no_published_value": [r["dms_id"] for r in missing_published],
         "agree_at_3dp": len(agree),
         "disagree": [r for r in compared if not r["agrees"]],
         "max_deviation": worst["deviation"] if worst else None,
@@ -120,6 +130,17 @@ def check_model(published_name: str) -> dict:
         "assays_with_unscored_variants": sum(1 for r in rows if r.get("n_unscored")),
         "per_assay": rows,
     }
+
+
+def exit_code(result: dict) -> int:
+    """Non-zero if anything is unaccounted for, on either path.
+
+    A disagreement, an assay whose metric raised, and an assay with no published value to
+    compare against are all reasons the ingest is not validated. Returning 0 for the last two
+    would let a silent drop read as a clean run.
+    """
+    unaccounted = result["disagree"] or result["errored"] or result["no_published_value"]
+    return 1 if unaccounted else 0
 
 
 def main() -> int:
@@ -140,6 +161,15 @@ def main() -> int:
             f"mean {result['mean_deviation']}"
         )
         print(f"variants:  {result['total_variants_scored']:,} scored")
+        if result["errored"]:
+            print(f"\nerrored ({len(result['errored'])}): the metric could not be computed")
+            for r in result["errored"][:10]:
+                print(f"  {r['dms_id']:44} {r['error']}")
+        if result["no_published_value"]:
+            print(
+                f"\nno published value ({len(result['no_published_value'])}): "
+                f"{', '.join(result['no_published_value'][:6])}"
+            )
         if result["disagree"]:
             print(f"\ndisagreements ({len(result['disagree'])}):")
             for r in result["disagree"][:10]:
@@ -149,8 +179,9 @@ def main() -> int:
                 )
 
     if args.print_only:
-        report(check_model(args.model))
-        return 0
+        result = check_model(args.model)
+        report(result)
+        return exit_code(result)
 
     with run("B2.1", outdir=OUTDIR, allow_dirty=args.allow_dirty, repo=REPO) as m:
         m.parameter("version", RELEASE.version)
@@ -174,7 +205,7 @@ def main() -> int:
 
     report(result)
     print(f"wrote {path.relative_to(REPO)}")
-    return 0 if not result["disagree"] else 1
+    return exit_code(result)
 
 
 if __name__ == "__main__":

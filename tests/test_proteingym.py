@@ -24,12 +24,14 @@ from amazebio.proteingym import (
     Assay,
     ProteinGymError,
     Taxon,
+    _ranks,
     by_taxon,
     load_assay,
     load_model_scores,
     load_reference,
     paired,
     spearman,
+    verify_release,
 )
 
 REPO = Path(__file__).resolve().parents[1]
@@ -59,21 +61,34 @@ def test_spearman_is_rank_based_not_value_based():
     assert spearman(x, y) == pytest.approx(spearman([v**3 for v in x], y))
 
 
-def test_spearman_averages_ties():
-    """Ties take the mean of the ranks they span — scipy's "average" convention.
+def test_ranks_average_ties():
+    """Ties take the mean of the ranks they span — scipy's `rankdata` "average" convention.
 
-    Worth pinning rather than trusting: a different tie rule (ordinal, min, max) gives a
-    different correlation on real DMS data, where measured scores tie constantly, and the
-    published values this ingest reproduces were computed with this one.
+    Pinned against literal expected values rather than against another call of the same
+    function: an identity assertion passes under every tie convention, which is how a
+    self-comparison here survived the first review.
     """
-    # Two tied y values against distinct x: the tie must not impose an order.
-    assert spearman([1, 2, 3, 4], [10, 20, 20, 30]) == pytest.approx(
-        spearman([1, 2, 3, 4], [10, 20, 20, 30])
+    assert _ranks([10, 20, 20, 30]) == [1.0, 2.5, 2.5, 4.0]
+    assert _ranks([5, 5, 5]) == [2.0, 2.0, 2.0]
+    assert _ranks([3, 1, 2]) == [3.0, 1.0, 2.0]
+    assert _ranks([1, 1, 2, 2]) == [1.5, 1.5, 3.5, 3.5]
+
+
+def test_spearman_averages_ties():
+    """The tie rule changes the answer, so the expected value is computed by hand.
+
+    x = [1,2,3,4], y = [10,20,20,30]. Average ranks: rx = [1,2,3,4], ry = [1,2.5,2.5,4].
+    Centred, that is dx = [-1.5,-0.5,0.5,1.5] and dy = [-1.5,0,0,1.5], giving
+    cov = 2.25+0+0+2.25 = 4.5 over sqrt(5 * 4.5) = sqrt(22.5), i.e. 0.9486832980505138.
+    An ordinal or min/max tie rule gives a different number, so this pins the convention
+    the published values were computed with.
+    """
+    assert spearman([1, 2, 3, 4], [10, 20, 20, 30]) == pytest.approx(0.9486832980505138)
+    # Swapping the tied pair's x values cannot change the result, because the tie carries no
+    # order of its own.
+    assert spearman([1, 3, 2, 4], [5, 7, 7, 9]) == pytest.approx(
+        spearman([1, 2, 3, 4], [5, 7, 7, 9])
     )
-    # With y fully tied except the ends, rho is symmetric under swapping the tied pair.
-    a = spearman([1, 2, 3, 4], [5, 7, 7, 9])
-    b = spearman([1, 3, 2, 4], [5, 7, 7, 9])
-    assert a == pytest.approx(b)
 
 
 @pytest.mark.parametrize(
@@ -263,3 +278,73 @@ def test_staged_assay_counts_match_the_reference():
         pytest.skip("substitutions archive not staged")
     for assay in assays[:5]:
         assert len(load_assay(archive, assay)) == assay.n_variants
+
+
+# --- the pin ---------------------------------------------------------------------------
+
+
+def test_verify_release_detects_a_changed_file(tmp_path):
+    """The negative case, because a check that cannot fail is not a check.
+
+    `verify_release` had no caller at all until a review found it: the staging tool recorded
+    fresh hashes and never compared them, while two READMEs claimed a check was happening.
+    """
+    import dataclasses
+
+    (tmp_path / "a.bin").write_bytes(b"the staged bytes")
+    good = "0dc1b7b1b5b1d8b2dcf0c4e3b3b8c1a0f2a7bb1a2f8a1b0f7a1ca2dc5f7bd1ab"
+    release = dataclasses.replace(
+        RELEASE, files={"a.bin": good}, unversioned={}, reference_file="a.bin"
+    )
+    assert verify_release(tmp_path, release) == {"a.bin": "CHECKSUM MISMATCH"}
+
+
+def test_verify_release_reports_missing_and_unpinned(tmp_path):
+    import dataclasses
+
+    (tmp_path / "present.bin").write_bytes(b"x")
+    release = dataclasses.replace(
+        RELEASE,
+        files={"present.bin": "", "absent.bin": "deadbeef"},
+        unversioned={},
+        reference_file="present.bin",
+    )
+    assert verify_release(tmp_path, release) == {
+        "present.bin": "unpinned",
+        "absent.bin": "missing",
+    }
+
+
+def test_verify_release_passes_on_the_real_bytes(tmp_path):
+    """A file whose recorded hash is its own must verify, or the comparison is inverted."""
+    import dataclasses
+
+    from amazebio.proteingym import sha256_file
+
+    path = tmp_path / "a.bin"
+    path.write_bytes(b"the staged bytes")
+    release = dataclasses.replace(
+        RELEASE, files={"a.bin": sha256_file(path)}, unversioned={}, reference_file="a.bin"
+    )
+    assert verify_release(tmp_path, release) == {"a.bin": "ok"}
+
+
+@needs_data
+def test_every_mapped_model_column_exists_in_the_archive():
+    """The bug this catches shipped: the leaderboard writes `Site-Independent` and the score
+    archive writes `Site_Independent`, so that model choice raised on every assay."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "pg_check", REPO / "tools" / "proteingym_check.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    archive = DATA / "zero_shot_substitutions_scores.zip"
+    if not archive.exists():
+        pytest.skip("score archive not staged")
+    assays = load_reference(REFERENCE)
+    for published, column in mod.MODEL_COLUMNS.items():
+        scores = load_model_scores(archive, assays[0], column)
+        assert scores, f"{published} -> {column} returned nothing"

@@ -34,7 +34,7 @@ from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio.proteingym import RELEASE, load_reference, sha256_file
+from amazebio.proteingym import RELEASE, load_reference, sha256_file, verify_release
 from amazebio.repro import run
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -129,10 +129,31 @@ def main() -> int:
     if missing:
         raise SystemExit(f"not staged: {', '.join(missing)} — run without --verify")
 
+    # Compare against the hashes pinned in amazebio.proteingym, which is the point of having
+    # them. Until this call existed the tool recorded fresh hashes and never checked them, so
+    # an upstream re-cut or a corrupted stage would have passed silently while the READMEs
+    # claimed a check was happening. `unpinned` is a warning rather than a failure: it is the
+    # expected state when staging a version whose hashes are not in the code yet.
+    verdicts = verify_release(DATA)
+    bad = {n: v for n, v in verdicts.items() if v not in ("ok", "unpinned")}
+    unpinned = sorted(n for n, v in verdicts.items() if v == "unpinned")
+    for name, verdict in sorted(verdicts.items()):
+        print(f"  {verdict:8} {name}")
+    if bad:
+        raise SystemExit(
+            "staged files do not match the pinned checksums: "
+            + ", ".join(f"{n} ({v})" for n, v in sorted(bad.items()))
+            + ". Either the publisher re-cut the release or the download is damaged; "
+            "do not use this stage for a result until it is resolved."
+        )
+    if unpinned:
+        print(f"  WARNING: no pinned checksum for {', '.join(unpinned)} — record one")
+
     with run("B2.1", outdir=OUTDIR, allow_dirty=args.allow_dirty, repo=REPO) as m:
         m.parameter("version", RELEASE.version)
         m.parameter("base_url", RELEASE.base_url)
         m.parameter("github_raw", GITHUB_RAW)
+        m.parameter("checksum_verdicts", verdicts)
         m.note(
             "The publisher ships no checksums for these archives, so the recorded hashes are "
             "this acquisition's own: they show the bytes have not changed since staging, not "
@@ -175,6 +196,7 @@ def main() -> int:
                     "variants": sum(a.n_variants for a in assays),
                     "assays_by_taxon": counts,
                     "publisher_checksums_available": False,
+                    "checksum_verdicts": verdicts,
                 },
                 indent=1,
             )
