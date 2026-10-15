@@ -58,8 +58,8 @@ class FakeClient:
     def __init__(self, objects):
         self.objects = objects
 
-    def get_object(self, Bucket, Key):  # noqa: N803 - botocore's own parameter names
-        return {"Body": io.BytesIO(self.objects[Key])}
+    def get_object(self, **kw):
+        return {"Body": io.BytesIO(self.objects[kw["Key"]])}
 
 
 BACTERIA = "d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria"
