@@ -66,8 +66,8 @@ D-019 and D-020.
 
 ## State — 2026-10-15
 
-`review`, on branch `ccr-2e82b91e-hou4gf` — pushed and green, **not merged into `main`**, so the
-files named here are absent from a `main` checkout.
+`review`, on branch `ccr-2e82b91e-hou4gf`, open as **PR #8** — pushed and green, **not merged
+into `main`**, so the files named here are absent from a `main` checkout.
 
 **The result.** Of 2,653,047 records in Evo 1's own released viral component, **95 (0.004%)
 survive a rule Evo 1 published**, and **not one record assigned to any of the 19 denylisted

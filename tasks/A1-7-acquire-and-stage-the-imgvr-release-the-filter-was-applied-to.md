@@ -98,7 +98,8 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 
 ## State — 2026-10-15
 
-`in-progress`, on branch `ccr-2e82b91e-hou4gf` — pushed and green, **not merged into `main`**.
+`in-progress`, on branch `ccr-2e82b91e-hou4gf`, open as **PR #8** — pushed and green, **not
+merged into `main`**.
 
 Status is `in-progress` and not `blocked` on purpose: `blocked` in this schema means a task
 dependency is unfinished, and `tools/board.py --check` rejects it here because A1.1 is done.
