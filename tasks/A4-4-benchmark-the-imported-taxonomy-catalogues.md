@@ -2,7 +2,7 @@
 id: A4.4
 title: Benchmark the imported taxonomy catalogues the denylist depends on
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A4.2]
 blocks: [A6.1]

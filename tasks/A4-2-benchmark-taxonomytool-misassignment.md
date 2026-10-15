@@ -2,7 +2,7 @@
 id: A4.2
 title: Benchmark taxonomy-tool misassignment
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4]
 blocks: [A5.1, A6.1, A4.4]
@@ -34,12 +34,15 @@ class that matters for this audit.
 - Evaluation-set provenance and bias documented.
 - Propagation into leakage stated quantitatively where possible.
 
-## Outcome — 2026-10-15 — review
+## Outcome — 2026-10-15 — done
 
-**Branch:** `ccr-bcc7b994-9ycpzn`. `src/amazebio/{ictv,genomad,misassignment}.py`,
-`tools/taxonomy_dependency.py`, `tools/taxonomy_benchmark.py`, 143 new tests. Artefacts
-`artifacts/a4-2/{dependency,misassignment}.json` and `misassignment.md`, with one run manifest
-per step pinning a clean tree. Pre-registration D-084..D-088 and the corrections D-089, D-090.
+**Merged** from `ccr-bcc7b994-9ycpzn` in two pull requests: #15 (the dependency pass, the error
+vocabulary and the benchmark pipeline) and #16 (the version correction the v4 paper forced).
+`src/amazebio/{ictv,genomad,misassignment}.py`, `tools/taxonomy_dependency.py`,
+`tools/taxonomy_benchmark.py`, 146 tests. Artefacts `artifacts/a4-2/{dependency,misassignment}.json`
+and `misassignment.md`, with one run manifest per step pinning a clean tree — the scan and the
+evaluation-set build at `0aff76d`, the scoring at `1065328`. Pre-registration D-084..D-088;
+corrections D-089, D-090, D-096; the ground-truth sensitivity check D-095.
 
 ### The headline
 
