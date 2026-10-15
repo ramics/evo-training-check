@@ -2,7 +2,7 @@
 id: A7.2
 title: Close the conformance gaps the releases could not answer
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.7]
 blocks: []
@@ -112,22 +112,99 @@ something unrelated to whether it can start. It can start the moment A1.7 lands.
 
 ## State — 2026-10-15
 
-`in-progress`. Work branch: `claude/kind-wozniak-ec94y4`, restarted from `main` after PR #11.
+`review`. Work branch: **`claude/kind-brown-78c2qq`** (not `claude/kind-wozniak-ec94y4`, which
+this file named when the task was claimed — that branch was A1.7's and A7.2's work never went
+there). Every Done-when criterion is met except the last, which is the A3.3 gate: the headline
+numbers need a second method before any external circulation, exactly as A7.1 is held.
 
-Picked up because A1.7 landed and this is the task that consumes it. Nothing else is
-outstanding from this session: A1.7 and A4.3 are both `done`.
+**All five gaps are closed, and one of them closed the other way up.**
 
-Two numbers are already on the table as checks this task must hit rather than produce:
+**Coverage.** Record-level coverage moves from A7.1's `3/6` to **`5/6`**, and `6/6` counting the
+vOTU rule at its own unit. The declaration changed — `RELEASE_INPUTS` gained the input's own
+inventory — and `restrict` did the rest; no rule was hand-picked back in (D-047).
 
-- **D-058's target for the host rule.** Evo 1's Figure S1B puts 2,374,733 of 2,653,046 retained
-  records at host kingdom *Unknown*. A re-execution that does not land near that has the
-  counting unit wrong, whatever else it reproduces.
-- **D-064's prediction for the chain.** IMG/VR v4 holds 15,677,623 records, of which 5,576,197
-  are high-confidence, spanning 2,917,521 distinct vOTUs, against Evo 1's stated 2,653,046
-  retained — a further 9.1% down, which is the order a prokaryotic-host requirement would
-  remove. Recorded in A1.7 as falsifiable, and this is the task that falsifies or confirms it.
+**Evo 1 conforms to its own published procedure, to 95 records in 2.65 million.** Re-executed
+over IMG/VR v4.1, the procedure retains **2,651,599 to 2,653,756** records — an interval, not a
+point, because the vOTU representative depends on an input order nobody published (D-067).
+Evo 1's own Table S3 figure of **2,653,046 is inside it**, which confirms the prediction A1.7
+recorded as falsifiable (D-064). The converse direction is **empty**: not one record the rule
+retains is missing from the release. The forward direction is **95 records**, all failing the
+unspecificity rule, in three families assigned at family rank with no realm — the identical 95
+A7.1 found from the release alone, now reproduced from the opposite direction.
 
-Nothing started yet beyond the claim.
+**Which IMG/VR release Evo 1 used is now determined, from its own corpus** (D-071). A1.7 recorded
+that Evo 1's citation does not say and staged both. Re-executed over v4.1 the procedure predicts
+survivors in exactly the 181 lineages the release carries; over v4 it predicts 43 records in two
+lineages the release carries none of, because v4 puts eighteen taxon names in the wrong rank field
+and v4.1's erratum corrects exactly those. So the input is **v4.1 (2022-12-20)**. Note the
+direction this cuts: under v4, 43 of A7.1's 95 would have been explained away as an
+input-versus-output taxonomy mismatch; under the release the evidence identifies, all 95 stand.
+
+**Evo 2's released viral component is the output of the procedure's first two steps and not of
+its last four.** 2,917,521 distinct accessions — exactly the number of distinct high-confidence
+vOTUs in IMG/VR v4 — every one of which joins to the input. **264,570 of them are records the
+published procedure removes**: 217,078 by the prokaryotic-host rule, 23,523 taxonomically
+unspecific, 21,867 from denylisted orders, and **2,102 from the 19 denylisted families**. The
+procedure is Evo 1's, adopted by reference in Evo 2 ("As previously described"); the output is Evo
+2's own (D-019). No intent is claimed — what is claimed is the arithmetic.
+
+**The vOTU rule conforms exactly, at vOTU level.** Every one of 2,651,376 predicted-surviving
+vOTUs contributed exactly one released record to Evo 2's release; none contributed two, none
+contributed none. Reported at vOTU level with the unit printed beside every number, never as a
+record-level rate (D-067). Separately, the released FASTA carries 2,957,495 sequence records under
+2,917,521 distinct accessions — 39,974 accessions appear more than once, which the header cannot
+explain and which is reported beside the comparison rather than inside it.
+
+**The reading spread is a number for the first time, and the number is zero** (D-072). A7.1 could
+only report it unmeasurable, because every rule the readings differ over reads host occurrences
+the release withholds. Measured, it is zero on every quantity — and the cause is in the data:
+**IMG/VR v4 asserts no eukaryotic host for any of its 15,677,623 records**, across all four
+prediction methods and all 18,859 distinct host taxa. A filter whose stated aim is excluding
+eukaryote-infecting viruses is implemented against a field that never names a eukaryote, which is
+why the published procedure reaches that aim through a prokaryotic-host count and a clade
+enumeration instead. A0.4 should read D-072 before reporting the Evo spread.
+
+**Against the Done-when list:**
+
+- *Conformance diff per model × reading × direction, reproducible from pinned inputs, coverage per
+  count* — yes. `artifacts/a7-2/{2022-09-20,2022-12-20}/close-*.{json,md}`, recomputed in a second
+  from the two reduced artefacts, with coverage beside every count.
+- *The reading spread as a number* — yes, zero, with its cause measured and reported beside it.
+- *The vOTU rule compared at vOTU level, unit named* — yes, in the artefact and the write-up.
+- *Converse reported separately from forward* — yes, never summed, and forward is itself split by
+  which rule the excess belongs to (D-069).
+- *Evo 2's arm run, provenance split stated* — yes.
+- *A7.1's forward numbers reproduce or the difference is explained* — reproduce **unchanged**: 95.
+- *Causes from the frozen taxonomy, nothing added after counting* — yes; `annotation_missing`
+  accounts for all 95 and `unexplained` for the bulk of Evo 2's.
+- *Headline numbers independently reproduced via A3.3* — **outstanding.** This is the only open
+  criterion and it is the A3.3 gate, not work inside this task.
+
+**What is waiting on the project owner:** nothing to unblock this task. Two things worth a
+decision elsewhere: whether D-071's identification of v4.1 should be carried back into
+`policies/corpora.md`, which still records the release as ambiguous; and whether Evo 2's 264,570
+figure is a Phase A headline in its own right or belongs inside A6.1's write-up.
+
+**Reproducing it** (about 20 minutes end to end, all in the session container — the EC2 test was
+applied and declined, D-070):
+
+```bash
+python3 tools/evo2_accessions.py --upload-results                  # 18 min, one gzip stream
+python3 tools/imgvr_conformance_scan.py --release 2022-12-20 --workers 12 \
+    --evo2-accessions artifacts/a7-2/evo2/evo2-imgvr-accessions.npy --upload-results
+python3 tools/conformance_close.py \
+    --release-scan s3://$BUCKET/corpora/results/a7-1/scan-opengenome-stage2.json
+```
+
+**For the reviewer:** the arithmetic is in `src/amazebio/conformance.py` (the restriction's third
+category, the host units, the vOTU bounds) and `src/amazebio/imgvr.py` (the two accession shapes,
+the host vocabulary); the passes are the three tools above; the tests are
+`tests/test_conformance_close.py`, which runs both passes over a synthetic release whose expected
+counts are worked out from the fixture rather than recorded from a run, plus
+`tests/test_objectstore.py`, which pins the one property every sharded count rests on. Two bugs
+were caught there rather than in review: a shard starting exactly on a line boundary dropped that
+line, and the vOTU histogram was keyed by a per-pass index while the diff joined it by
+classification string. Neither would have raised.
 
 ## Notes
 
