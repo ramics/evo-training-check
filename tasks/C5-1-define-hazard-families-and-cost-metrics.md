@@ -2,7 +2,7 @@
 id: C5.1
 title: Define hazard families and cost metrics
 phase: C
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.3, A3.1]
 blocks: [C5.2]

@@ -1,5 +1,5 @@
 ---
-id: A1.6
+id: A1.7
 title: Acquire and stage the IMG/VR release the filter was applied to
 phase: A
 status: ready
@@ -11,7 +11,7 @@ deliverable: 1
 owner: unassigned
 ---
 
-# A1.6 — Acquire and stage the IMG/VR release the filter was applied to
+# A1.7 — Acquire and stage the IMG/VR release the filter was applied to
 
 **Design reference:** DESIGN.md §A1, §A7 · **Deliverable 1**
 
@@ -25,7 +25,7 @@ published predicates against that output and found the input missing: `policies/
 states IMG/VR v4 is independently available at its pinned version, which is true and is not the
 same as acquired. It is not in `policies/sources.json`, no tool stages it, and nothing in the
 corpus bucket holds it. This task closes that gap, and it is a corpus acquisition on the scale of
-A1.2 and A1.3 rather than an item inside another task (DECISIONS.md D-044).
+A1.2 and A1.3 rather than an item inside another task (DECISIONS.md D-049).
 
 ## Why this is worth its own task
 
@@ -38,7 +38,7 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 2. **Evo 2's conformance arm.** Its released IMG/VR FASTA carries `IMGVR_UViG_<taxon_oid>_<n>`
    accessions and no taxonomic lineage, so no published rule can be re-executed against it at
    all. With the input in hand the accessions become a join key and that arm opens.
-3. **The three rules no release can test** (D-042): the high-confidence gate, the vOTU
+3. **The three rules no release can test** (D-047): the high-confidence gate, the vOTU
    representative, and the prokaryotic-host count. All three read IMG/VR metadata — confidence
    label, vOTU id, host assignment — which travels with the database and not with either
    release. They are two thirds of the published procedure.
@@ -70,7 +70,7 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
   size downloads from `content-length`, not from documentation (D-040).
 - Measure before deciding where to run the pass. A7.1's own measurement declined an EC2 launch
   because the format was splittable and the container managed 178 MB/s across sixteen readers
-  (D-045); a gzip stream cannot be split and the answer may differ here. AGENTS.md's test is the
+  (D-050); a gzip stream cannot be split and the answer may differ here. AGENTS.md's test is the
   one to apply, not the precedent to copy.
 
 ## Done when
@@ -96,12 +96,21 @@ It is the single blocker for four distinct things, three of which A7.1 had to de
 - **Not an excuse to acquire more than is needed.** One release, the components the published
   rules read. `pixi.toml`'s rule about unused pinned tools applies to unused pinned data too.
 
+## Numbering
+
+Opened as **A1.6** on 2026-10-15 and renumbered to **A1.7** the same day, before any other
+file referenced it. The A1.4 track had already created an A1.6 — the ESM3 similarity-reading
+pass, split out by their D-043 — and it reached `main` first. AGENTS.md forbids reusing a task
+ID, so the collision had to be resolved one way or the other; theirs is the one cited from
+`main`'s commits and from their D-043, which makes this the cheaper of the two to move. The
+push that first created this file calls it A1.6; this section is how that commit resolves.
+
 ## Notes
 
 `blocks` is empty on purpose. A7.1 shipped one-directional and sits at `review`, so wiring this
 task into its `depends_on` would mark a reviewed task as depending on unfinished work and
 `tools/board.py --check` would — correctly — reject it. The dependency is real and forward-facing
 rather than backward: it is the follow-on conformance work that needs this, and that work does
-not have a task file yet. Whoever opens one should add `A1.6` to its `depends_on` and regenerate.
+not have a task file yet. Whoever opens one should add `A1.7` to its `depends_on` and regenerate.
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

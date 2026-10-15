@@ -1387,9 +1387,171 @@ decision has a threshold or parameter in it, the number goes in the entry.
   stated-versus-actual record is in `artifacts/b2-1/release/release.json`, and the lesson for
   B2.2 is to size downloads from `content-length` rather than from documentation.
 
-### D-042 — What a conformance re-execution can test against Evo 1's release, and why the reading spread is unmeasurable
+### D-042 — A3.1's conformance criterion moves to A3.2, because a freeze cannot demonstrate it
+- **Date:** 2026-10-15
+- **Task:** A3.1
+- **Context:** A3.1 is the freeze task for the headline metrics and the survival-route taxonomy:
+  `metrics/survival.md` is the specification, `src/amazebio/survival.py` carries the taxonomy and
+  a reference implementation, and the four substantive calls are in D-022. All of that is merged.
+  Its Done-when list, though, also required the taxonomy to be "used by all A2 outputs", which no
+  amount of work inside A3.1 can satisfy: every A2 detector is blocked behind A1.4, so the
+  criterion made a definitional task wait on five detection tasks that depend on it in turn. The
+  board showed A3.1 as live work for as long as that held, which is exactly the phantom-progress
+  the task protocol exists to prevent.
+- **Decision:** Split the criterion by what each task can actually show. A3.1 keeps the freeze —
+  definitions reimplementable from the text alone, every route named and distinguishable, a
+  reference implementation to tag against — and closes. A3.2 picks up conformance: every A2
+  output carries a route from the taxonomy, checked rather than assumed, with the merge failing
+  on an untagged or unknown-route detection. A3.2 already depends on all five A2 tasks and is
+  where their outputs meet, so it is the first point at which the check is possible at all.
+- **Rejected:** Leaving A3.1 in `review` until the first detector lands — correct, but it parks a
+  finished specification behind unstarted work and leaves the board misreporting for weeks.
+  Closing A3.1 with the criterion unmet and unrecorded — that is how a Done-when list stops
+  meaning anything. Bringing A1.4 and A2.1 forward to demonstrate it inside A3.1 — two
+  substantial tasks absorbed into a definitional one, which the scope rule forbids.
+- **Consequence:** The conformance check is now a Done-when criterion on a task that does not
+  yet exist in code, so it has to be built rather than inherited: whoever runs A3.2 writes the
+  check that rejects an untagged detection, and it is not satisfied by detectors merely importing
+  `amazebio.survival`. Against that, a detector written before A3.2 runs now has nothing
+  enforcing the tag at the point it is written — A2.1, as the first one, should carry the
+  convention into the others.
+
+### D-043 — A1.4 covers every reading the releases can answer; the ESM3 alignment pass becomes A1.6
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** A1.4's goal is to run each of the three readings against each staged corpus, which
+  reads as six policy specs over the staged releases. Inspecting the inputs before writing code
+  shows the six are not one kind of work. The Evo readings turn on taxonomy, record attributes and
+  host counts, and the component the policy acts on is staged with an inline lineage tag on every
+  record. ESM3-open's turn on similarity to two denylists: the literal reading's threshold is
+  unpublished, so it evaluates to `undetermined` without touching a sequence; the charitable
+  (0.70) and strict (any hit) readings need both denylists rebuilt from UniProt annotation — ~4M
+  sequences, with the source's "almost exclusively" unquantified — and an aligner run over ~295 GB
+  of staged proxy corpus in region. Nothing has staged a seed set, no aligner is pinned, and the
+  spend has not been priced. Meanwhile A1.4 blocks ten tasks, every A2 detector among them.
+- **Decision:** A1.4 ships the readings whose inputs the staged releases already carry: Evo 1's
+  three readings against both OpenGenome releases, and ESM3-open's literal reading, whose result
+  is that no record's fate is determinable from the published words. The ESM3 charitable and
+  strict readings move to a new task, A1.6, which depends on A1.4 for the evaluator and manifest
+  format and on A1.5 for the staged corpus. A1.4's Done-when count changes from "nine-ish" to
+  seven manifests, and the two that move are named rather than dropped.
+- **Rejected:** Keeping all six in A1.4 — it holds ten downstream tasks behind an unpriced
+  alignment run and an acquisition nobody has approved, and it is exactly the widening the scope
+  rule forbids. Deferring ESM3 entirely, including the literal reading — it would drop a finding
+  that costs nothing to produce and is among the strongest in the audit: the filter as published
+  cannot be re-executed at all, because the one number that sets its reach is not in the source.
+  Supplying a threshold in A1.4 so the ESM3 arm could run — that is what the charitable reading
+  already does under a label, and doing it unlabelled would convert an under-specification finding
+  into a fabricated parameter.
+- **Consequence:** The three-reading spread §A0 asks for is complete for Evo and partial for ESM3
+  until A1.6 runs, so A0.4's report on the ESM3 axis is bounded by A1.6 rather than by A1.4 —
+  whoever picks up A0.4 should check which of the two is actually its blocker. The manifest format
+  A1.4 freezes has to be the format A1.6 writes, which means it must carry a route for a record
+  whose fate is undecidable for want of an aligner result, not only for want of a published
+  parameter. Both land as `unresolved` against different causes, and the manifest records the
+  cause.
+
+### D-044 — corpus-scale evaluation runs every applicable rule, rather than stopping at the first to decide
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** The reference evaluator in `policyspec.evaluate` applies rules as a pipeline and
+  stops at the first one that decides a record, which is how a filter implementation behaves and
+  is the right reference semantics. Against the actual releases it gives an answer that is not
+  merely imprecise but empty. Three of Evo's six published rules read metadata the release does
+  not carry — the high-confidence flag, the vOTU, the prokaryotic-host count — and all three run
+  *before* the denylist rules in the published order. Stopping at the first undecidable rule
+  therefore reports every record in the viral component as undecidable, including records the
+  family denylist removes beyond any doubt, which are exactly the records the audit is looking
+  for.
+- **Decision:** The corpus-scale evaluator (`apply.resolve`) evaluates every rule that reaches a
+  record and resolves the set by precedence: `removed` > `undetermined` > `unresolved` >
+  `retained`. Removal wins because it is the only definite verdict — if any rule removes a
+  record then the record does not survive, whatever an earlier rule could not decide. Retention
+  loses because it is contingent: "no rule removed it" is only true if every rule was actually
+  checked. Between the two undecidable outcomes the policy gap (`undetermined`, a parameter
+  never published) outranks the corpus gap (`unresolved`, metadata the release does not ship),
+  because stating the parameter is a precondition for the corpus question arising at all. A
+  removal is attributed to the first removing rule in published order, since that is the rule a
+  conformance claim would cite. Both strategies stay, named and documented against each other,
+  and a test pins the difference so neither is silently turned into the other.
+- **Rejected:** Changing `evaluate` to match — it pins the published pipeline's own semantics
+  with tests and A0.2's schema is version-pinned against them. Treating an undecidable rule as
+  passing, so later rules still run and the record ends up retained — that is the unsafe
+  direction: it reports a record as examined-and-kept when nobody can say whether the filter's
+  first three steps would have dropped it. Treating it as removed — the other unsafe direction,
+  and it would have manufactured a filter that removed Evo's entire viral component.
+- **Consequence:** A1.4's counts are not comparable with a naive re-run of `evaluate` over the
+  same records, and A7.1 must use `apply.resolve` or restate the precedence. The `unresolved`
+  population is now a first-class result rather than an error bar: for Evo's releases it is most
+  of the corpus, and the number is a measurement of what the release's own metadata permits, not
+  of what the filter did.
+
+### D-045 — manifests carry the removed set record by record and everything else by count
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** A1.4's output is the shared input for every A2 detector and for B3.*, so its shape
+  is a contract. Two forces pull against each other. Record-level detail is what a conformance
+  claim and a detector's exclusion list need; but the released corpora run to billions of
+  records, the strict reading's scope is all of them, and a manifest enumerating every retained
+  record would be a multi-gigabyte restatement of the corpus that no downstream task would read.
+  There is also a mismatch to resolve: A1.4 distinguishes two causes of undecidability, while
+  the frozen route taxonomy (D-022) has a single `unresolved` route.
+- **Decision:** A manifest names records only where a reading *removes* them, written as JSONL
+  beside a JSON summary. Everything else is reported by count, per component, with the verdict
+  stated once. A component is read record by record only where some applicable rule can
+  discriminate between its records; otherwise the verdict is uniform, is recorded as such, and
+  its record count is `null` rather than `0` — nothing counted it, and zero would read as an
+  empty component. Unstaged components are listed with their reason rather than omitted, so a
+  wildcard-scope reading's manifest cannot be mistaken for a verdict on the staged subset. Both
+  undecidable outcomes map to the frozen `unresolved` route, with the cause kept in the
+  manifest's own field. The published-methods component name (`IMG/VR`) and the corpus component
+  name (`stage2`) are both recorded per row, from an explicit mapping rather than string
+  normalisation; Evo 1's mapping rests on `policies/corpora.md` §3, where the release names no
+  viral component but stage 2 is established to be it. The format is `metrics/manifests.md`.
+- **Rejected:** Widening the route taxonomy with a second undecidable route — it is frozen
+  precisely so that counts stay comparable, and the distinction is not about why a sequence
+  survived, which is what a route answers. Emitting `conformance_failure` for a removed record
+  that is present in the release — `metrics/survival.md` reserves that route for A7.1 with
+  record-level evidence and §7 requires it airtight, so `apply.route_for` raises on a removal
+  instead of returning a route, and the removed set is documented as candidates. Enumerating
+  every component for symmetry — 101 GiB of GTDB read to write one verdict a billion times.
+- **Consequence:** A reader cannot sum a manifest's `totals` to get a corpus-wide figure,
+  because the uniform verdicts are deliberately not in it; the per-source rows are the unit of
+  reporting, which is also what §4's reporting limits want. A2 tasks get their exclusion list
+  from the removed JSONL and must treat it as candidates, not findings. And whoever needs a
+  record count for an unenumerated component adds one pass for it rather than finding a
+  plausible number already in the manifest.
+
+### D-046 — the A1.4 pass runs in the session container, not on an instance
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** `AGENTS.md` weighs an in-region instance against reading staged corpora from
+  outside the region, where a full pass is "tens of gigabytes" of metered transfer. A1.4 needs
+  three objects read in full: Evo 1's stage-2 Parquet (16.9 GB), its validation split, and Evo
+  2's IMG/VR FASTA (11.2 GB) — 28.1 GB once the build reads each source once for all three
+  readings rather than once per reading. Measured throughput on the Parquet was 12.9 MB/s single
+  stream, so the pass is tens of minutes, and nothing is written to local disk.
+- **Decision:** Run it here. 28.1 GB of egress is a couple of dollars, against an instance that
+  cannot be inspected once running, gets one shot at its `UserData`, needs provenance passed in
+  by hand, and leaves a resource that can be forgotten. The deciding factor is not the price but
+  that this pass needed three iterations to get right — a schema assertion, a chunk-boundary
+  bug and the policy-outer loop that tripled the read — and each would have cost a full launch
+  cycle to discover on an instance.
+- **Rejected:** An in-region instance for the whole pass — the honest reading of `AGENTS.md` is
+  that its test binds on GTDB's 101 GiB, which A1.4 deliberately does not read, and A1.3's own
+  note says a small instance is often the right answer precisely because the parallelism is not
+  there: a gzip stream is one thread, so Evo 2's FASTA is single-threaded wherever it runs.
+  Sampling instead of a full pass — the component is the filter's own output and the headline is
+  a count over it; a sample would also have left A1.2's four-file observation about the missing
+  lineage tags a sample.
+- **Consequence:** The threshold is now stated for whoever comes next: a pass that reads GTDB,
+  the metagenomes or the eukaryotic genomes is the in-region case and should be planned as one,
+  with `tools/ec2_count.py` as the worked example. A1.4's own numbers regenerate with one
+  command here, which is what X1.2 wants.
+### D-047 — What a conformance re-execution can test against Evo 1's release, and why the reading spread is unmeasurable
 - **Date:** 2026-10-15
 - **Task:** A7.1
+- **Numbering:** appended as D-042 and renumbered to D-047 on 2026-10-15. The A3.1/A1.4 track took D-042 through D-046 first and all five of this task's entries collided with them: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically, exactly as D-041 records. Their five are already on `main` and cited from its commits, so this block is the cheaper of the two to move. Commit `2c8c18c` and the A7.1 push cite the old numbers; these lines are how they resolve.
 - **Context:** §A7 says to execute each reading's predicate over the released dataset and to
   report the spread across readings, which "matters as much as any single number". Evo 1's
   published procedure has six steps reading four kinds of input: IMG/VR confidence labels, vOTU
@@ -1439,9 +1601,10 @@ decision has a threshold or parameter in it, the number goes in the entry.
   procedure turns on made two thirds of their stated filter unauditable from their own release.
   That belongs in the filter disclosure standard as a requirement, not as a complaint.
 
-### D-043 — One released row is one released record; D-020's "context windows" is corrected
+### D-048 — One released row is one released record; D-020's "context windows" is corrected
 - **Date:** 2026-10-15
 - **Task:** A7.1
+- **Numbering:** appended as D-043 and renumbered to D-048 on 2026-10-15; see D-047's note.
 - **Context:** Every count A7.1 publishes is a count of records, and nothing published about
   `LongSafari/open-genome` states what one row of `stage2` contains. D-020, sampling 800 rows
   through the HuggingFace rows API, recorded the opposite of what is true: "rows are context
@@ -1475,9 +1638,10 @@ decision has a threshold or parameter in it, the number goes in the entry.
   will read the same component: the release's record identity is the row, there is no accession
   on it, and no join to IMG/VR is possible from `stage2` at all.
 
-### D-044 — A7.1 runs the forward direction only; the converse and Evo 2's arm both need IMG/VR v4
+### D-049 — A7.1 runs the forward direction only; the converse and Evo 2's arm both need IMG/VR v4
 - **Date:** 2026-10-15
 - **Task:** A7.1
+- **Numbering:** appended as D-044 and renumbered to D-049 on 2026-10-15; see D-047's note.
 - **Context:** The task calls for the converse check as well as the forward one — records removed
   that the predicate does not call for, since an over-broad filter is also a mismatch between
   rule and practice — and for running the diff against OpenGenome2's IMG/VR component as well as
@@ -1506,14 +1670,15 @@ decision has a threshold or parameter in it, the number goes in the entry.
   rate as the conformance rate without qualification.
 - **Consequence:** An IMG/VR v4 acquisition is the blocker for three things, and should be its
   own Phase A task rather than an item inside A7.1: the converse check, the forward check for
-  Evo 2's release, and the three rules D-042 records as unrunnable, all of which the input
+  Evo 2's release, and the three rules D-047 records as unrunnable, all of which the input
   supplies. Until it exists, A7.1's result is one-directional and `X5.1` inherits the stronger
   of the two findings anyway — that two thirds of a published filter cannot be audited from the
   release that filter produced.
 
-### D-045 — The release pass runs in the session container, and the EC2 test is applied and declined
+### D-050 — The release pass runs in the session container, and the EC2 test is applied and declined
 - **Date:** 2026-10-15
 - **Task:** A7.1
+- **Numbering:** appended as D-045 and renumbered to D-050 on 2026-10-15; see D-047's note.
 - **Context:** AGENTS.md sets a test for launching an instance: whether the work is bound by data
   movement that is free inside `us-east-1` and metered outside it, with "reading the staged
   corpora" named as the case that qualifies because a full pass is tens of gigabytes. A7.1's
@@ -1538,15 +1703,21 @@ decision has a threshold or parameter in it, the number goes in the entry.
   and the risk of a forgotten resource are the real terms. Applying the Arrow-native fast path
   that would have cut the Python per-row cost — the pass is network-bound at four processes, so
   it would buy nothing and the naive path is the one the tests cover.
+- **Converging independently:** the A1.4 track applied the same AGENTS.md test to a different
+  pass and also declined to launch (their D-046, on `main`). Two tracks reading the same
+  paragraph and both measuring first is some evidence the paragraph is doing its job; it also
+  means the EC2 note in AGENTS.md now has two worked declines against A1.3's one launch, and
+  should probably say so the next time that file is touched.
 - **Consequence:** A7.1 leaves no AWS resource behind, and the scan tool runs anywhere with
   credentials rather than only in-region. For the next task weighing this: measure the three
   numbers before copying `ec2_count.py` — streams, format parallelism, rows per second — because
   a splittable format changes the answer that a gzip stream forced. The in-region route stays
   right for the gzip corpora, which cannot be split at all.
 
-### D-046 — The published realm test is not a specificity test, and the release proves it on 95 records
+### D-051 — The published realm test is not a specificity test, and the release proves it on 95 records
 - **Date:** 2026-10-15
 - **Task:** A7.1
+- **Numbering:** appended as D-046 and renumbered to D-051 on 2026-10-15; see D-047's note.
 - **Context:** Evo 1's last exclusion step is encoded as `require_rank: realm`, from "viruses with
   poor taxonomic specificity were excluded, including those with no assigned realm at all" and
   the eight named stop-taxa. A0.3 debated the required rank twice — D-016 and D-018 withdrew a

@@ -28,6 +28,8 @@ Merge all detection outputs into the headline quantification, broken down by sur
 
 ## Done when
 
+- Every A2 output carries a route from the A3.1 taxonomy, checked rather than assumed, and the
+  merge fails on an untagged or unknown-route detection. (Moved here from A3.1 — see D-042.)
 - Full metric tables exist per model × reading, with route breakdown.
 - De-duplication rules documented and tested.
 - Results reproducible from pinned inputs and seeds.
