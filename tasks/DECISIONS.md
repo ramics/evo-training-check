@@ -2263,3 +2263,51 @@ decision has a threshold or parameter in it, the number goes in the entry.
   number of rows, not a structural change, and a diff that shows otherwise means something is
   wrong with our reading rather than with the publisher. `amazebio.imgvr` should carry the
   version strings alongside the dates so that no later task has to re-derive this from a README.
+
+### D-064 — The IMG/VR denominator is 15,677,623 records, and Evo 1 kept 16.9% of it
+- **Date:** 2026-10-15
+- **Task:** A1.7
+- **Context:** With both releases staged and verified, the counts A1.7 exists to supply are
+  measured rather than cited. Streaming the four metadata tables out of the corpus bucket
+  (`tools/imgvr_composition.py`, artefact `artifacts/a1-7/composition.json`):
+
+  | | v4 (2022-09-20) | v4.1 (2022-12-20) |
+  |---|---|---|
+  | records | 15,677,623 | 15,677,623 |
+  | distinct vOTUs | 8,606,551 | 8,606,551 |
+  | High-confidence | 5,576,197 | 5,576,197 |
+  | Putative | 10,101,426 | 10,101,426 |
+  | high-confidence file records | 5,576,197 | 5,576,197 |
+  | distinct vOTUs, high-confidence only | 2,917,521 | 2,917,521 |
+  | malformed rows | 0 | 0 |
+
+  Three things fall out. The high-confidence file matches the `High-confidence` label count in
+  the unfiltered file **exactly**, in both releases, so the publisher's two files are internally
+  consistent and either can be used as the gate's output. The two releases agree on **every**
+  aggregate counted here while differing in md5 — which is exactly what D-063's erratum note
+  predicts: v4.1 corrects the content of a few rows in place, it does not add or remove any.
+  And the pre-filter population is **15,677,623** against Evo 1's own stated post-filter figure
+  of 2,653,046 (Table S3, D-055): Evo 1's procedure retained **16.9%** of IMG/VR v4.
+- **Decision:** Record 15,677,623 as the audited denominator for the Evo 1 viral component, and
+  state the retained fraction as 16.9% against Evo 1's own published count rather than against
+  A7.1's census of the release, which exceeds it by one record for reasons D-055 leaves open.
+  Both numbers travel together in the artefact so neither is silently substituted for the other.
+- **Not claimed here:** that the three published rules reconcile to 2,653,046. They are close
+  enough to be suggestive — the high-confidence gate leaves 5,576,197, of which 2,917,521 are
+  distinct vOTUs, and Evo 1 reports 2,653,046, a further 9.1% down, which is the order of
+  magnitude a prokaryotic-host requirement would remove. That is **A7.2's** computation, over
+  joined accessions and not over aggregates, and stating it as a result here would be exactly
+  the scope widening AGENTS.md forbids. It is recorded as a prediction A7.2 can falsify.
+- **Rejected:** Reporting the retained fraction against the high-confidence subset (47.6%)
+  rather than against the full release. The published procedure's input is IMG/VR v4, and the
+  high-confidence gate is the procedure's own first step — using its output as the denominator
+  would credit the filter with a reduction and then exclude that reduction from the measurement.
+  Also rejected: treating the identical aggregates as evidence the releases are interchangeable.
+  They disagree at row level by construction, and A7.2's checks are row-level.
+- **Consequence:** A1.7's last open criteria close. **This is the real input, not a proxy** —
+  the publisher's own files, at the publisher's own checksums, pinned from a public inventory
+  before this project held any bytes. The one qualification, and it is the same one D-052 and
+  D-063 record: *which* of v4 and v4.1 Evo 1 applied its procedure to is not determinable from
+  Evo 1's words. Both are staged. For anything counted at aggregate level the ambiguity is
+  immaterial, since the aggregates are identical; for A7.2's row-level conformance it is not,
+  and A7.2 must report both or say which it used and why.
