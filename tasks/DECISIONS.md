@@ -1450,3 +1450,101 @@ decision has a threshold or parameter in it, the number goes in the entry.
   whose fate is undecidable for want of an aligner result, not only for want of a published
   parameter. Both land as `unresolved` against different causes, and the manifest records the
   cause.
+
+### D-044 — corpus-scale evaluation runs every applicable rule, rather than stopping at the first to decide
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** The reference evaluator in `policyspec.evaluate` applies rules as a pipeline and
+  stops at the first one that decides a record, which is how a filter implementation behaves and
+  is the right reference semantics. Against the actual releases it gives an answer that is not
+  merely imprecise but empty. Three of Evo's six published rules read metadata the release does
+  not carry — the high-confidence flag, the vOTU, the prokaryotic-host count — and all three run
+  *before* the denylist rules in the published order. Stopping at the first undecidable rule
+  therefore reports every record in the viral component as undecidable, including records the
+  family denylist removes beyond any doubt, which are exactly the records the audit is looking
+  for.
+- **Decision:** The corpus-scale evaluator (`apply.resolve`) evaluates every rule that reaches a
+  record and resolves the set by precedence: `removed` > `undetermined` > `unresolved` >
+  `retained`. Removal wins because it is the only definite verdict — if any rule removes a
+  record then the record does not survive, whatever an earlier rule could not decide. Retention
+  loses because it is contingent: "no rule removed it" is only true if every rule was actually
+  checked. Between the two undecidable outcomes the policy gap (`undetermined`, a parameter
+  never published) outranks the corpus gap (`unresolved`, metadata the release does not ship),
+  because stating the parameter is a precondition for the corpus question arising at all. A
+  removal is attributed to the first removing rule in published order, since that is the rule a
+  conformance claim would cite. Both strategies stay, named and documented against each other,
+  and a test pins the difference so neither is silently turned into the other.
+- **Rejected:** Changing `evaluate` to match — it pins the published pipeline's own semantics
+  with tests and A0.2's schema is version-pinned against them. Treating an undecidable rule as
+  passing, so later rules still run and the record ends up retained — that is the unsafe
+  direction: it reports a record as examined-and-kept when nobody can say whether the filter's
+  first three steps would have dropped it. Treating it as removed — the other unsafe direction,
+  and it would have manufactured a filter that removed Evo's entire viral component.
+- **Consequence:** A1.4's counts are not comparable with a naive re-run of `evaluate` over the
+  same records, and A7.1 must use `apply.resolve` or restate the precedence. The `unresolved`
+  population is now a first-class result rather than an error bar: for Evo's releases it is most
+  of the corpus, and the number is a measurement of what the release's own metadata permits, not
+  of what the filter did.
+
+### D-045 — manifests carry the removed set record by record and everything else by count
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** A1.4's output is the shared input for every A2 detector and for B3.*, so its shape
+  is a contract. Two forces pull against each other. Record-level detail is what a conformance
+  claim and a detector's exclusion list need; but the released corpora run to billions of
+  records, the strict reading's scope is all of them, and a manifest enumerating every retained
+  record would be a multi-gigabyte restatement of the corpus that no downstream task would read.
+  There is also a mismatch to resolve: A1.4 distinguishes two causes of undecidability, while
+  the frozen route taxonomy (D-022) has a single `unresolved` route.
+- **Decision:** A manifest names records only where a reading *removes* them, written as JSONL
+  beside a JSON summary. Everything else is reported by count, per component, with the verdict
+  stated once. A component is read record by record only where some applicable rule can
+  discriminate between its records; otherwise the verdict is uniform, is recorded as such, and
+  its record count is `null` rather than `0` — nothing counted it, and zero would read as an
+  empty component. Unstaged components are listed with their reason rather than omitted, so a
+  wildcard-scope reading's manifest cannot be mistaken for a verdict on the staged subset. Both
+  undecidable outcomes map to the frozen `unresolved` route, with the cause kept in the
+  manifest's own field. The published-methods component name (`IMG/VR`) and the corpus component
+  name (`stage2`) are both recorded per row, from an explicit mapping rather than string
+  normalisation; Evo 1's mapping rests on `policies/corpora.md` §3, where the release names no
+  viral component but stage 2 is established to be it. The format is `metrics/manifests.md`.
+- **Rejected:** Widening the route taxonomy with a second undecidable route — it is frozen
+  precisely so that counts stay comparable, and the distinction is not about why a sequence
+  survived, which is what a route answers. Emitting `conformance_failure` for a removed record
+  that is present in the release — `metrics/survival.md` reserves that route for A7.1 with
+  record-level evidence and §7 requires it airtight, so `apply.route_for` raises on a removal
+  instead of returning a route, and the removed set is documented as candidates. Enumerating
+  every component for symmetry — 101 GiB of GTDB read to write one verdict a billion times.
+- **Consequence:** A reader cannot sum a manifest's `totals` to get a corpus-wide figure,
+  because the uniform verdicts are deliberately not in it; the per-source rows are the unit of
+  reporting, which is also what §4's reporting limits want. A2 tasks get their exclusion list
+  from the removed JSONL and must treat it as candidates, not findings. And whoever needs a
+  record count for an unenumerated component adds one pass for it rather than finding a
+  plausible number already in the manifest.
+
+### D-046 — the A1.4 pass runs in the session container, not on an instance
+- **Date:** 2026-10-15
+- **Task:** A1.4
+- **Context:** `AGENTS.md` weighs an in-region instance against reading staged corpora from
+  outside the region, where a full pass is "tens of gigabytes" of metered transfer. A1.4 needs
+  three objects read in full: Evo 1's stage-2 Parquet (16.9 GB), its validation split, and Evo
+  2's IMG/VR FASTA (11.2 GB) — 28.1 GB once the build reads each source once for all three
+  readings rather than once per reading. Measured throughput on the Parquet was 12.9 MB/s single
+  stream, so the pass is tens of minutes, and nothing is written to local disk.
+- **Decision:** Run it here. 28.1 GB of egress is a couple of dollars, against an instance that
+  cannot be inspected once running, gets one shot at its `UserData`, needs provenance passed in
+  by hand, and leaves a resource that can be forgotten. The deciding factor is not the price but
+  that this pass needed three iterations to get right — a schema assertion, a chunk-boundary
+  bug and the policy-outer loop that tripled the read — and each would have cost a full launch
+  cycle to discover on an instance.
+- **Rejected:** An in-region instance for the whole pass — the honest reading of `AGENTS.md` is
+  that its test binds on GTDB's 101 GiB, which A1.4 deliberately does not read, and A1.3's own
+  note says a small instance is often the right answer precisely because the parallelism is not
+  there: a gzip stream is one thread, so Evo 2's FASTA is single-threaded wherever it runs.
+  Sampling instead of a full pass — the component is the filter's own output and the headline is
+  a count over it; a sample would also have left A1.2's four-file observation about the missing
+  lineage tags a sample.
+- **Consequence:** The threshold is now stated for whoever comes next: a pass that reads GTDB,
+  the metagenomes or the eukaryotic genomes is the in-region case and should be planned as one,
+  with `tools/ec2_count.py` as the worked example. A1.4's own numbers regenerate with one
+  command here, which is what X1.2 wants.
