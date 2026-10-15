@@ -1543,3 +1543,48 @@ decision has a threshold or parameter in it, the number goes in the entry.
   numbers before copying `ec2_count.py` — streams, format parallelism, rows per second — because
   a splittable format changes the answer that a gzip stream forced. The in-region route stays
   right for the gzip corpora, which cannot be split at all.
+
+### D-046 — The published realm test is not a specificity test, and the release proves it on 95 records
+- **Date:** 2026-10-15
+- **Task:** A7.1
+- **Context:** Evo 1's last exclusion step is encoded as `require_rank: realm`, from "viruses with
+  poor taxonomic specificity were excluded, including those with no assigned realm at all" and
+  the eight named stop-taxa. A0.3 debated the required rank twice — D-016 and D-018 withdrew a
+  strict reading that raised it to family, because the authors ceiling their own enumeration at
+  class — and both times the argument was textual. The re-execution supplies data.
+- **Decision:** Record the conflation as a finding in its own right, separate from the
+  conformance count that exposed it. Of 2,653,047 released records, **95 carry no assigned realm
+  and are therefore removed by the rule as published**, and all 95 are assigned at **family**
+  rank: 73 `f__Bicaudaviridae`, 21 `f__Fuselloviridae`, 1 `f__Ovaliviridae`. The modal released
+  record fills four ranks and stops at **class** — 2,543,536 of 2,653,047. So the published rule
+  removes records that are better resolved than the overwhelming majority it keeps, because rank
+  of assignment and taxonomic specificity are different axes and the encoding tests the first
+  while the sentence is about the second. A family with no realm above it is not a poorly
+  specified virus; it is a family whose higher placement the taxonomy has not settled.
+  Two things this entry deliberately does **not** claim. It does not say which hosts those three
+  families infect — that needs a taxonomy source this project has not retrieved, and A9.1 is
+  where one enters. And it does not revise the spec: `require_rank: realm` stays, because it is
+  the conservative encoding of the published words and A7.1's job is to re-execute what was
+  published, not to improve it.
+- **Rejected:** Classifying the 95 as `predicate_ambiguous` — the realm limb is stated outright
+  and fires unambiguously; the ambiguity is in the *other* limb, the unquantified "including",
+  and conflating the two would hide a clean failure behind a vague one. Reporting the 95 as a
+  filter defect without the rank context — true as a conformance statement and misleading as a
+  finding, since the filter's judgement looks better than its stated rule. Amending
+  `require_rank` to something that reproduces the release — that is fitting the spec to the
+  data, which is the one thing a conformance audit may not do. Treating 0.004% as too small to
+  report: the rate is small and the mechanism is not, and §2 commits this project to publishing
+  what it finds either way.
+- **Consequence:** Three downstream uses. **A9.1 gains its sharpest case**: this is a static rank
+  test decaying against a live taxonomy, measured on real records rather than argued from the
+  text. **A0.4 gains a worked example** of under-specification with a count attached, which is
+  what §A0 asks for. **X5.1 gains a disclosure requirement** that follows from the mechanism
+  rather than from a preference: a filter spec should state the property it tests for, not the
+  rank it happens to read, because the two diverge exactly where a taxonomy is unsettled — which
+  is where the records nobody has placed live.
+  Also recorded, because it closes an open caution rather than opening one: D-020 found no
+  `r__Riboviria` in an 800-row sample and was careful to say that must not be reported as absence
+  from the corpus. The census settles it — **6,105 Riboviria records**, every one of them
+  `c__Leviviricetes` and no deeper. All are correctly retained by the rule as written, whose
+  stop-taxon limb removes a record whose *finest* assignment is a named stop and not one that
+  merely sits under `r__Riboviria`. The caution was right and the number is now exact.

@@ -46,6 +46,18 @@ python3 tools/model_inventory.py --check     # validate the Phase B model invent
 python3 tools/ec2_capability.py --print      # what this account may launch; launches nothing
 ```
 
+Re-executing a developer's own filter against their own release (A7.1). The scan reads 16.9 GB
+of staged Parquet and emits lineage tags and counts only — no genomic sequence — in about two
+and a half minutes; the diff then recomputes the headline numbers from that artefact in a
+second, from a local path or straight out of the store.
+
+```bash
+python3 tools/conformance_scan.py --release opengenome-stage2 --workers 12 --upload-results
+python3 tools/conformance_scan.py --release opengenome2-imgvr --max-headers 2000  # cheap probe
+python3 tools/conformance_diff.py                                      # from the local scan
+python3 tools/conformance_diff.py --scan s3://$BUCKET/corpora/results/a7-1/scan-opengenome-stage2.json
+```
+
 `pixi run -e dev check` is what CI runs, so a green local run means a green CI run.
 
 ## Layout
@@ -60,10 +72,13 @@ src/amazebio/         library code
   survival.py         the frozen route taxonomy and headline metrics
   models.py           the verified Phase B model inventory (B1.1)
   proteingym.py       the benchmark DMS ingest, schema and metric (B2.1)
+  conformance.py      released-tag parsing, policy restriction and the cause taxonomy (A7.1)
 metrics/survival.md   the frozen survival metric specification (A3.1)
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tools/stage_proteingym.py  acquires and pins the benchmark DMS release
 tools/proteingym_check.py  reproduces the benchmark's published per-assay numbers
+tools/conformance_scan.py  scans a released corpus for the fields the conformance diff needs
+tools/conformance_diff.py  re-executes the published predicates against that scan
 tasks/                one file per unit of work; BOARD.md is generated
 tests/                tests
 data/                 pinned inputs (git-ignored)

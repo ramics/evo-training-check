@@ -300,15 +300,38 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument(
-        "--scan", default="artifacts/a7-1/opengenome-stage2/scan-opengenome-stage2.json"
+        "--scan",
+        default="artifacts/a7-1/opengenome-stage2/scan-opengenome-stage2.json",
+        help="local path or s3:// URI of the scan artefact",
     )
     ap.add_argument("--outdir", default="artifacts/a7-1")
     ap.add_argument("--allow-dirty", action="store_true")
     args = ap.parse_args(argv)
 
-    scan_path = Path(args.scan)
-    if not scan_path.exists():
-        raise SystemExit(f"no scan artefact at {scan_path}; run tools/conformance_scan.py first")
+    # The scan may be read from object storage, which is how this stays reproducible without a
+    # re-run: the expensive pass uploads its artefact, and anyone with credentials recomputes
+    # the headline numbers from it in a second. A3.3's second implementation needs exactly that.
+    if args.scan.startswith("s3://"):
+        import boto3
+
+        bucket, _, key = args.scan[5:].partition("/")
+        body = (
+            boto3.client(
+                "s3", region_name="us-east-1", endpoint_url="https://s3.us-east-1.amazonaws.com"
+            )
+            .get_object(Bucket=bucket, Key=key)["Body"]
+            .read()
+        )
+        scan_path = Path(args.outdir) / "scan-from-store.json"
+        scan_path.parent.mkdir(parents=True, exist_ok=True)
+        scan_path.write_bytes(body)
+    else:
+        scan_path = Path(args.scan)
+        if not scan_path.exists():
+            raise SystemExit(
+                f"no scan artefact at {scan_path}; run tools/conformance_scan.py first, or pass "
+                "an s3:// URI for one already in the store"
+            )
     scan = json.loads(scan_path.read_text())
     outdir = Path(args.outdir)
 
