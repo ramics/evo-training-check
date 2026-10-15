@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import io
 import re
+import time
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -77,6 +78,17 @@ S3_REGION = "us-east-1"
 READ_CHUNK = 8 << 20
 
 
+#: Errors a ranged read retries. `botocore` raises its streaming failures as `BotoCoreError`
+#: subclasses rather than as `OSError`, so catching the socket errors alone would miss the one
+#: that actually killed a 28 GB pass (`ResponseStreamingError`, an `IncompleteRead` underneath).
+try:  # pragma: no cover - exercised whenever boto3 is installed, which is always in dev
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    _RETRYABLE: tuple[type[BaseException], ...] = (OSError, BotoCoreError, ClientError)
+except ImportError:  # pragma: no cover - keeps the module importable without boto3
+    _RETRYABLE = (OSError,)
+
+
 class LineageError(ValueError):
     """Raised when a record's inline lineage tag cannot be parsed.
 
@@ -105,7 +117,17 @@ class RangedObject(io.RawIOBase):
     corpus, so every pass over a staged object has to be a stream.
     """
 
-    def __init__(self, client: Any, *, bucket: str, key: str, size: int | None = None) -> None:
+    def __init__(
+        self,
+        client: Any,
+        *,
+        bucket: str,
+        key: str,
+        size: int | None = None,
+        attempts: int = 8,
+        sleep: Callable[[float], None] = time.sleep,
+        on_retry: Callable[[int, int, BaseException], None] | None = None,
+    ) -> None:
         self._client = client
         self._bucket = bucket
         self._key = key
@@ -115,8 +137,12 @@ class RangedObject(io.RawIOBase):
             if size is not None
             else int(client.head_object(Bucket=bucket, Key=key)["ContentLength"])
         )
+        self._attempts = attempts
+        self._sleep = sleep
+        self._on_retry = on_retry
         self.gets = 0
         self.bytes_read = 0
+        self.reconnects = 0
 
     @property
     def size(self) -> int:
@@ -137,18 +163,49 @@ class RangedObject(io.RawIOBase):
         return self._pos
 
     def readinto(self, buffer: Any) -> int:  # type: ignore[override]
-        want = len(buffer)
-        if want == 0 or self._pos >= self._size:
+        """Fill `buffer` from the current position, resuming across a broken connection.
+
+        A ranged GET over tens of gigabytes does not survive on first principles: a 28 GB pass
+        died on `IncompleteRead` partway through Evo 1's Parquet, which is why
+        `amazebio.uniref.ResumableRead` exists for the HTTP case. The same applies here, with
+        one addition — bytes already delivered into the buffer are kept and the retry resumes
+        from where the stream broke, rather than re-fetching a window to discard most of it.
+        """
+        want = min(len(buffer), self._size - self._pos)
+        if want <= 0:
             return 0
-        end = min(self._pos + want, self._size) - 1
-        body = self._client.get_object(
-            Bucket=self._bucket, Key=self._key, Range=f"bytes={self._pos}-{end}"
-        )["Body"].read()
-        buffer[: len(body)] = body
-        self._pos += len(body)
-        self.gets += 1
-        self.bytes_read += len(body)
-        return len(body)
+        view = memoryview(buffer)
+        got = 0
+        attempt = 0
+        while got < want:
+            end = self._pos + want - 1
+            try:
+                body = self._client.get_object(
+                    Bucket=self._bucket, Key=self._key, Range=f"bytes={self._pos}-{end}"
+                )["Body"]
+                self.gets += 1
+                while got < want:
+                    chunk = body.read(want - got)
+                    if not chunk:
+                        break
+                    view[got : got + len(chunk)] = chunk
+                    got += len(chunk)
+                    self._pos += len(chunk)
+                    self.bytes_read += len(chunk)
+            except _RETRYABLE as exc:
+                attempt += 1
+                self.reconnects += 1
+                if attempt >= self._attempts:
+                    raise
+                if self._on_retry is not None:
+                    self._on_retry(attempt, self._pos, exc)
+                self._sleep(min(2.0**attempt, 30.0))
+                continue
+            if got < want:
+                # A clean end of body short of the window. Treated as the object ending early
+                # rather than retried, so a wrong size pin surfaces as a short read.
+                break
+        return got
 
     def buffered(self, *, chunk: int = READ_CHUNK) -> io.BufferedReader:
         """The reader wrapped so small reads do not become small GETs."""

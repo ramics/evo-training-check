@@ -312,3 +312,77 @@ def test_zero_byte_objects_never_fail_a_run() -> None:
     from amazebio.corpora import undeclared_objects
 
     assert undeclared_objects([("corpora/opengenome2/rev/.probe", 0)]) == []
+
+
+# --------------------------------------------------------------------------------------
+# Resuming a broken read
+# --------------------------------------------------------------------------------------
+
+
+class _BreakingBody:
+    """A response body that delivers a few bytes and then drops the connection."""
+
+    def __init__(self, data: bytes, after: int) -> None:
+        self.data = data
+        self.after = after
+        self.sent = False
+
+    def read(self, size: int = -1) -> bytes:
+        if not self.sent:
+            self.sent = True
+            return self.data[: self.after]
+        raise OSError("connection broken: IncompleteRead")
+
+
+class _FlakyS3(_FakeS3):
+    """Serves ranges, but breaks the body mid-stream the first `breaks` times.
+
+    Models what ended a 28 GB pass: botocore delivered six of the eight megabytes asked for and
+    then raised, so a reader that discards partial progress makes no headway, and one that
+    refetches the whole window does several times the I/O it needs to.
+    """
+
+    def __init__(self, blob: bytes, *, breaks: int, after: int = 3) -> None:
+        super().__init__(blob)
+        self.breaks = breaks
+        self.after = after
+
+    def get_object(self, **kw: object) -> dict[str, object]:
+        served = super().get_object(**kw)
+        if self.breaks <= 0:
+            return served
+        self.breaks -= 1
+        whole = served["Body"].read()  # type: ignore[union-attr]
+        return {"Body": _BreakingBody(whole, self.after)}
+
+
+def test_a_broken_stream_resumes_from_where_it_stopped() -> None:
+    blob = bytes(range(256)) * 8
+    client = _FlakyS3(blob, breaks=2, after=5)
+    obj = RangedObject(client, bucket="b", key="k", sleep=lambda _: None)
+    assert obj.buffered(chunk=512).read() == blob
+    assert obj.reconnects == 2
+    # Resumed rather than restarted: no byte is fetched twice.
+    assert obj.bytes_read == len(blob)
+
+
+def test_a_read_gives_up_after_its_attempt_budget() -> None:
+    client = _FlakyS3(b"abcdefgh", breaks=99, after=1)
+    obj = RangedObject(client, bucket="b", key="k", attempts=3, sleep=lambda _: None)
+    with pytest.raises(OSError, match="connection broken"):
+        obj.buffered(chunk=64).read()
+    assert obj.reconnects == 3
+
+
+def test_retries_are_reported_to_the_caller() -> None:
+    seen: list[tuple[int, int]] = []
+    client = _FlakyS3(b"0123456789", breaks=1, after=2)
+    obj = RangedObject(
+        client,
+        bucket="b",
+        key="k",
+        sleep=lambda _: None,
+        on_retry=lambda attempt, pos, _exc: seen.append((attempt, pos)),
+    )
+    assert obj.buffered(chunk=32).read() == b"0123456789"
+    assert seen == [(1, 2)], "a retry must report the position it resumed from"

@@ -109,7 +109,16 @@ def _records(
             f"{source.key}: staged object is {live} bytes, the pin says {source.bytes}. "
             "A1.2/A1.5 verified the pinned bytes; re-verify before trusting any count from it."
         )
-    obj = corpora.RangedObject(client, bucket=corpora.BUCKET, key=source.key, size=source.bytes)
+    obj = corpora.RangedObject(
+        client,
+        bucket=corpora.BUCKET,
+        key=source.key,
+        size=source.bytes,
+        on_retry=lambda attempt, pos, exc: print(
+            f"    reconnect {attempt} at byte {pos:,} of {source.corpus_component}: {exc}",
+            file=sys.stderr,
+        ),
+    )
     if source.reader == "stage2_parquet":
         stream: Iterator[Any] = corpora.iter_stage2_records(
             obj.buffered(),
