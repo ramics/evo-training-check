@@ -55,7 +55,7 @@ DECISIONS.md D-017, D-019, D-020.
   - **Staged, checksummed, version-pinned.** 12 objects, 134.2 GiB, under
     `s3://amazebio-corpora-897641797669/corpora/{opengenome,opengenome2}/<revision>/`.
     Every object is verified against the SHA-256 its release publishes per file: four by
-    reading the object back out of the bucket, eight by hashing in flight (D-032 — the
+    reading the object back out of the bucket, eight by hashing in flight (D-041 — the
     readback for those rides along with A7.1's in-region pass). Both pins reconcile exactly:
     22 files / 146,886,935,899 bytes and 1,126 files / 5,523,240,795,932 bytes.
   - **Composition with provenance per component.** `artifacts/a1-2/composition.json`, one row
@@ -64,7 +64,8 @@ DECISIONS.md D-017, D-019, D-020.
   - **Proxy substitutions documented.** There are none — these are the only two corpora in the
     audit needing no acquisition qualifier. Stated explicitly in `policies/evo.md` §7, with
     A1.1's byte-level-identity limit carried forward.
-- **Decisions:** D-031 (staging scope and representation), D-032 (verification method per object).
+- **Decisions:** D-031 (staging scope and representation), D-041 (verification method per object,
+  appended as D-032 and renumbered).
 - **Two findings for the Phase A write-up**, both in `policies/evo.md` §7-8:
   - The published procedure's subject is **0.2%** of Evo 2's corpus — 10.4 GiB of IMG/VR
     against 5.02 TiB — while **82%** is eukaryotic genomes added after the filter was designed.

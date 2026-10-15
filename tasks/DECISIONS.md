@@ -1096,9 +1096,10 @@ decision has a threshold or parameter in it, the number goes in the entry.
   match. Both are findings about the published description, not measurements; A2 would need the
   structure-side components staged to measure either, which nothing has authorised.
 
-### D-032 — eight of the twelve staged objects are verified in flight, not by readback
+### D-041 — eight of the twelve staged objects are verified in flight, not by readback
 - **Date:** 2026-10-14
 - **Task:** A1.2
+- **Numbering:** appended as D-032 and renumbered to D-041 on 2026-10-15. A1.5 took D-032 first and this entry collided with it: both tracks chose a number at append time and the two appends merged cleanly while clashing semantically. A1.5's entry is cited from `src/amazebio/esm3.py` and `uniref.py`, so this is the cheaper of the two to move. Commit `d6473bb` and PR #7 cite the old number; this line is how they resolve.
 - **Context:** Each object is hashed as it streams and the upload completes only on a match
   against the SHA-256 the release publishes, so all twelve are verified. But an in-flight hash
   checks the bytes that went past, and a readback checks the bytes the bucket holds — which is

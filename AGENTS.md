@@ -274,6 +274,20 @@ alternatives you rejected and why.
 This is not bureaucracy. §A0 and §B1 both say under-specification is itself a finding — the
 log is what turns scattered judgement calls into a paper appendix instead of lost context.
 
+**Take the number when you append, then check it again before you push.** Two tracks appending
+at once both pick the next free number, and because they are appends to different parts of the
+file they merge cleanly while colliding semantically — the log ends up with two entries sharing an
+ID, which makes every citation of it ambiguous. Pulling first does not prevent this: the other
+track's append can land between your pull and your push. So re-read the headings after the pull
+that precedes your push, and if your number has been taken, renumber yours to the next free one.
+
+When renumbering, two rules. **Move the entry that is cited from fewer places** — an entry already
+referenced from `src/` or from a merged write-up is the expensive one to move, and which entry was
+committed first is the tie-breaker, not the deciding factor. And **leave a `Numbering:` line in the
+renumbered entry** recording what it used to be: commit messages and pull requests citing the old
+number are already published and cannot be rewritten, so that line is the only thing that makes
+them resolve. This happened once, between A1.2 and A1.5 at D-032; D-041 is the worked example.
+
 ## Definition of done
 
 A task is `done` when all of:
