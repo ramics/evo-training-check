@@ -37,7 +37,6 @@ aligner. This measures what running them costs.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import shutil
@@ -73,15 +72,9 @@ def human(n: float) -> str:
     return f"{n:.1f} PB"
 
 
-def bucket_of(cluster_id: str, buckets: int) -> int:
-    """Which shard a cluster belongs to, from a stable hash of its id.
-
-    `hash()` is salted per process and would put the same cluster in different shards on
-    two runs, which would make the sample unreproducible — the one thing a pinned pipeline
-    cannot have. blake2b is stable across runs, machines and versions.
-    """
-    digest = hashlib.blake2b(cluster_id.encode("ascii"), digest_size=8).digest()
-    return int.from_bytes(digest, "big") % buckets
+#: Lives in the library because the worker processes need it too, and a sampling rule that
+#: differed between the parent and a worker would put the same cluster in two shards.
+bucket_of = seeds.bucket_of
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -117,6 +110,22 @@ def main(argv: list[str] | None = None) -> int:
         "that end costs 10-50x the charitable one, so it is measured small (default: %(default)s)",
     )
     ap.add_argument("--threads", type=int, default=os.cpu_count() or 4)
+    ap.add_argument(
+        "--workers",
+        type=int,
+        default=max(1, (os.cpu_count() or 4) - 1),
+        help="processes parsing entries. Decompression stays in this process because a "
+        "gzip stream cannot be split, and measured it runs at 218 MB/s against the "
+        "43.6 MB/s the whole pass managed single-threaded: the parsing is the bottleneck, "
+        "not the decompression, and the parsing is what this spreads. One worker keeps "
+        "the serial path (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--batch-bytes",
+        type=int,
+        default=8 << 20,
+        help="entry bytes per unit of work handed to a worker (default: %(default)s)",
+    )
     ap.add_argument(
         "--limit-bytes",
         type=int,
@@ -253,6 +262,8 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             ("buckets", args.buckets),
             ("strict_buckets", args.strict_buckets),
             ("threads", args.threads),
+            ("workers", args.workers),
+            ("batch_bytes", args.batch_bytes),
             ("limit_bytes", args.limit_bytes),
             ("charitable_params", " ".join(CHARITABLE)),
             ("strict_params", " ".join(STRICT)),
@@ -275,21 +286,27 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         started = time.monotonic()
         stream = uniref.GunzipStream(reader)
         handles = [p.open("wb") for p in shard_paths]
+        # The sample and the seed set are independent: a viral cluster can be in both, and
+        # must be, or the target would be missing exactly the records the filter is
+        # supposed to remove.
+        config = seeds.ScanConfig(
+            viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
+        )
         try:
             with seed_fasta.open("wb") as seedfh:
-                for entry in seeds.iter_entries(
-                    _chunks(stream, args.limit_bytes, args.progress_seconds)
+                for batch in seeds.scan_parallel(
+                    _chunks(stream, args.limit_bytes, args.progress_seconds),
+                    config,
+                    workers=args.workers,
+                    batch_bytes=args.batch_bytes,
                 ):
-                    if counts.observe(entry, viral):
-                        seeds.write_fasta(seedfh, entry.cluster_id, entry.sequence)
-                    # The sample and the seed set are independent: a viral cluster can be
-                    # in both, and must be, or the target would be missing exactly the
-                    # records the filter is supposed to remove.
-                    if bucket_of(entry.cluster_id, args.sample_rate) == 0:
-                        idx = bucket_of(entry.cluster_id + "#shard", args.buckets)
-                        seeds.write_fasta(handles[idx], entry.cluster_id, entry.sequence)
-                        shard_counts[idx] += 1
-                        shard_residues[idx] += len(entry.sequence)
+                    counts.merge(batch.counts)
+                    for cluster_id, sequence in batch.seeds:
+                        seeds.write_fasta(seedfh, cluster_id, sequence)
+                    for shard, cluster_id, sequence in batch.samples:
+                        seeds.write_fasta(handles[shard], cluster_id, sequence)
+                        shard_counts[shard] += 1
+                        shard_residues[shard] += len(sequence)
         finally:
             for handle in handles:
                 handle.close()

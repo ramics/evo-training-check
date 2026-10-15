@@ -189,3 +189,95 @@ def test_an_entry_with_no_taxids_at_all_is_not_viral() -> None:
     assert entry.is_viral_seeded(set()) is False
     assert entry.is_mixed(set()) is False
     assert UniRefEntry("x", "MKV", None, ()).is_viral_seeded({10239}) is False
+
+
+# --- the parallel path -------------------------------------------------------------
+#
+# A faster pass that returns different results is not a faster pass. The risks are
+# specific: a batch boundary that swallows an entry, a per-process hash that puts the
+# same cluster in different shards in different workers, and results arriving in
+# completion order rather than read order, which would make the artefact depend on how
+# the scheduler interleaved things.
+
+from amazebio.seeds import (  # noqa: E402
+    ScanConfig,
+    bucket_of,
+    iter_entry_blocks,
+    scan_parallel,
+)
+
+MANY = b"".join(ENTRY.replace(b"X1", f"X{i:05d}".encode()) for i in range(400))
+
+
+def _config() -> ScanConfig:
+    return ScanConfig(
+        viral=frozenset(_taxonomy().descendants(VIRAL_ROOT)), sample_rate=3, buckets=4
+    )
+
+
+def _reduce(results: list) -> tuple:
+    counts = SeedCounts()
+    seeds_out: list = []
+    samples_out: list = []
+    for batch in results:
+        counts.merge(batch.counts)
+        seeds_out.extend(batch.seeds)
+        samples_out.extend(batch.samples)
+    return counts.to_dict(), seeds_out, samples_out
+
+
+def test_entry_blocks_cover_every_entry_at_any_batch_size() -> None:
+    for batch_bytes in (1, 500, 5000, len(MANY)):
+        blocks = [b for batch in iter_entry_blocks([MANY], batch_bytes) for b in batch]
+        parsed = [e.cluster_id for b in blocks if (e := _parse_one(b)) is not None]
+        assert len(parsed) == 400, f"lost entries at batch size {batch_bytes}"
+
+
+def _parse_one(block: bytes):
+    found = list(iter_entries([block + b"</entry>"]))
+    return found[0] if found else None
+
+
+def test_parallel_matches_serial_exactly() -> None:
+    cfg = _config()
+    chunks = [MANY[i : i + 777] for i in range(0, len(MANY), 777)]
+    serial = _reduce(list(scan_parallel(chunks, cfg, workers=1, batch_bytes=4096)))
+    parallel = _reduce(list(scan_parallel(chunks, cfg, workers=4, batch_bytes=4096)))
+    assert serial == parallel
+
+
+def test_parallel_preserves_read_order() -> None:
+    """Order is what makes the output byte-identical rather than merely equivalent."""
+    cfg = _config()
+    chunks = [MANY[i : i + 1024] for i in range(0, len(MANY), 1024)]
+    ids = [
+        s[0]
+        for batch in scan_parallel(chunks, cfg, workers=4, batch_bytes=2048)
+        for s in batch.seeds
+    ]
+    assert ids == sorted(ids, key=lambda cid: int(cid.rsplit("X", 1)[1]))
+
+
+def test_parallel_is_bounded_in_flight() -> None:
+    """A huge stream must not be submitted all at once; memory is the whole reason."""
+    cfg = _config()
+    chunks = [MANY] * 4
+    out = list(scan_parallel(chunks, cfg, workers=2, batch_bytes=512, max_in_flight=3))
+    assert sum(b.counts.clusters for b in out) == 1600
+
+
+def test_sampling_and_shard_hashes_agree_across_processes() -> None:
+    """The same cluster must land in the same shard wherever it is parsed."""
+    cfg = _config()
+    out = list(scan_parallel([MANY], cfg, workers=4, batch_bytes=1024))
+    placed: dict[str, int] = {}
+    for batch in out:
+        for shard, cid, _seq in batch.samples:
+            assert placed.setdefault(cid, shard) == shard
+            assert shard == bucket_of(cid + "#shard", 4)
+
+
+def test_counts_merge_is_additive() -> None:
+    a, b = SeedCounts(clusters=3, viral_seeded=1), SeedCounts(clusters=4, viral_seeded=2)
+    a.merge(b)
+    assert (a.clusters, a.viral_seeded) == (7, 3)
