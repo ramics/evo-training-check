@@ -2,7 +2,7 @@
 id: A1.4
 title: Apply policy predicates to produce surviving corpora
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A0.3, A1.2, A1.3, A1.5]
 blocks: [A1.6, A2.1, A2.2, A2.3, A2.4, A2.5, A4.1, A4.2, A5.1, B3.1, B3.2, B3.3]
@@ -200,8 +200,22 @@ note assigns it to whoever closes A7.1's review, and A7.1 is still held by the A
 stays assigned there. D-074 records why the right fix (one declaration instead of two) was
 declined again, now with the cost measured rather than estimated.
 
-**Waiting on the project owner:** the merge. The branch is pushed and green; `status` moves to
-`done` when it lands, and nothing else is outstanding.
+**`done`.** PR #13 merged, so `src/amazebio/{apply,corpora}.py`, `tools/apply_policies.py`,
+`metrics/manifests.md` and both test suites are on `main` and the two dangling references are
+live: `amazebio.apply.route_for`, cited by A2.1's file and by D-059, now resolves. Nothing is
+outstanding and nothing is left on a branch.
+
+**What this unblocks:** eight tasks move from `blocked` to `ready` — A1.6, all five A2
+detectors, A4.1 and A4.2. A5.1 and B3.1 through B3.3 also name A1.4 but have other blockers
+still. A2.1 is the first consumer and owns the manifest-format check that moved to it under
+D-059.
+
+**And it identifies the real bottleneck, which is not what it looked like.** A3.2 does not
+become ready: it depends on A3.1 — done — *and on all five A2 detectors*. So the path to the
+A3.3 gate, which holds A7.1, A7.2 and the Phase A write-up, runs
+A2.1–A2.5 → A3.2 → A3.3, and every one of those five has to land before A3.2 can start. They
+are independent of each other and all five are ready now, so they are the one place in Phase A
+where parallel tracks buy anything. Nothing closer to the gate can be worked on first.
 
 ## Notes
 

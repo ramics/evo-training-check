@@ -2,7 +2,7 @@
 id: A2.2
 title: Structure-based detection of surviving folds
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]

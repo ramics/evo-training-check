@@ -2,7 +2,7 @@
 id: A2.3
 title: Detect endogenous elements in surviving host genomes
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]

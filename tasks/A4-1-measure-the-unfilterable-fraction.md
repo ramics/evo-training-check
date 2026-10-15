@@ -2,7 +2,7 @@
 id: A4.1
 title: Measure the unfilterable fraction
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A1.4]
 blocks: [A5.1, A6.1]

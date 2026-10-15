@@ -2,7 +2,7 @@
 id: A2.5
 title: Sweep known problem taxa
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
