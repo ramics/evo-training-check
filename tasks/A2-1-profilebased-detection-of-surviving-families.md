@@ -2,18 +2,20 @@
 id: A2.1
 title: Profile-based detection of surviving families
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
 design_ref: "§A2"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A2.1 — Profile-based detection of surviving families
 
 **Design reference:** DESIGN.md §A2 · **Deliverable 1**
+
+**Branch:** `ccr-a85b7882-p8ohv8`. Project management on `main` as usual.
 
 ## Goal
 
