@@ -2,13 +2,13 @@
 id: A4.1
 title: Measure the unfilterable fraction
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4]
 blocks: [A5.1, A6.1]
 design_ref: "§A4"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A4.1 — Measure the unfilterable fraction
@@ -32,6 +32,12 @@ taxonomic filter's reach in principle.
 - Unclassified fraction measured per corpus component.
 - Result framed as an in-principle ceiling, with the definition stated.
 - Unlabelled vs out-of-scope distinction preserved.
+
+## State — 2026-10-15
+
+`in-progress`, owner `claude`. Work on branch `ccr-f17b9af4-4rp5eq`.
+
+Nothing finished yet, nothing waiting on the project owner.
 
 ## Notes
 
