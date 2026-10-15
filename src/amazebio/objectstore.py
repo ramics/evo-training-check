@@ -182,6 +182,13 @@ def shard_lines(
     partial line its own `start` landed inside — except the shard starting at byte 0, which has
     no partial line and instead drops the header when asked to.
 
+    "Landed inside" is decided by looking, not by assuming. A shard whose `start` falls exactly
+    on the first byte of a line owns that line and must not drop it, and that case is common
+    rather than exotic: byte shards of a file with short fixed-width rows land on a boundary
+    often. Getting it wrong loses one line per shard, which looks like the data rather than like
+    the reader — so the byte before `start` is read, one byte, and the line is dropped only if it
+    is not a newline.
+
     Reading past `end` is bounded by the length of one line, not by the next shard: the extra
     read stops at the first newline it finds.
     """
@@ -189,6 +196,13 @@ def shard_lines(
     size = reader.size
     if start >= size:
         return
+    if start > 0:
+        preceding = client.get_object(
+            Bucket=bucket, Key=key, Range=f"bytes={start - 1}-{start - 1}"
+        )["Body"].read()
+        drop_first = preceding != b"\n"
+    else:
+        drop_first = skip_header
     reader.seek(start)
     tail = b""
     pos = start
@@ -201,7 +215,7 @@ def shard_lines(
         tail += block
         *complete, tail = tail.split(b"\n")
         for line in complete:
-            if first and (start > 0 or skip_header):
+            if first and drop_first:
                 # Either a line this shard landed inside — which belongs to the shard before
                 # it — or the header.
                 first = False
@@ -214,13 +228,13 @@ def shard_lines(
     while tail:
         if b"\n" in tail:
             line, _, tail = tail.partition(b"\n")
-            if not (first and (start > 0 or skip_header)):
+            if not (first and drop_first):
                 yield line.decode("utf-8", "replace")
             first = False
             break
         block = reader.read(chunk)
         if not block:
-            if tail and not (first and (start > 0 or skip_header)):
+            if tail and not (first and drop_first):
                 yield tail.decode("utf-8", "replace")
             break
         tail += block

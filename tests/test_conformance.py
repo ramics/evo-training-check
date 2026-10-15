@@ -344,16 +344,44 @@ def test_every_cause_is_documented(evo_policies):
     )
 
 
-def test_an_order_dependent_rule_is_refused_rather_than_reported_as_zero_removals(
+def test_an_order_dependent_rule_is_deferred_rather_than_evaluated_per_record(
     evo_policies, monkeypatch
 ):
-    # If a release ever carried vOTU identifiers, `keep_one_per` would become "checkable" and
-    # this diff would retain every record as its own representative — zero removals, reading as
-    # conformance. D-017 records that the rule is not reproducible for want of a published input
-    # order; the guard is what stops that becoming a number.
+    # If a release carries vOTU identifiers, `keep_one_per` becomes "checkable" by input and
+    # would retain every record as its own representative — zero removals, reading as
+    # conformance. D-017 records that the rule is not reproducible for want of a published
+    # input order. A7.2 holds it out of the record-level chain instead, and still counts it in
+    # the coverage denominator, because a rule nobody can run per record is not a rule nobody
+    # has to mention.
     monkeypatch.setitem(
         cf.RELEASE_INPUTS, "opengenome-stage2", frozenset({"taxonomy", "record_attributes"})
     )
+    r = cf.restrict(evo_policies["evo1-literal"], release="opengenome-stage2")
+    assert [rule.id for rule in r.kept] == [
+        "keep-high-confidence",
+        "remove-denylisted-families",
+        "remove-denylisted-orders",
+        "remove-taxonomically-unspecific",
+    ]
+    assert [rule.id for rule, _ in r.deferred] == ["keep-one-per-votu"]
+    assert r.rule_coverage == "4/6", "a deferred rule counts against record-level coverage"
+    failures, coverage = cf.diff(
+        evo_policies["evo1-literal"], _rows(CAUDO), release="opengenome-stage2"
+    )
+    assert coverage.deferred_rules == (("keep-one-per-votu", "order-dependent on vOTU"),)
+    assert coverage.unit_coverage == "5/6"
+
+
+def test_the_diff_still_refuses_an_order_dependent_rule_handed_to_it_directly(
+    evo_policies, monkeypatch
+):
+    # The guard inside `diff` is unreachable through `restrict` now that the rule is deferred,
+    # and it stays anyway: it is the thing that stops a future kind of order-dependent rule
+    # from reporting the zero removals that read as conformance.
+    monkeypatch.setitem(
+        cf.RELEASE_INPUTS, "opengenome-stage2", frozenset({"taxonomy", "record_attributes"})
+    )
+    monkeypatch.setattr(cf, "ORDER_DEPENDENT_KINDS", frozenset())
     with pytest.raises(ValueError, match="order-dependent"):
         cf.diff(evo_policies["evo1-literal"], _rows(CAUDO), release="opengenome-stage2")
 
@@ -398,3 +426,103 @@ def test_the_malformed_archaea_label_is_recorded_as_printed():
 
     assert mod.PUBLISHED_HOST_KINGDOMS["archaea_label_as_printed"] == "17,44"
     assert mod.PUBLISHED_HOST_KINGDOMS["counts"]["Archaea"] == 1_744
+
+
+# --------------------------------------------------------------------------------------
+# A7.2 — the input side
+# --------------------------------------------------------------------------------------
+
+
+def test_the_input_re_executes_five_of_six_rules_per_record_and_defers_the_sixth(evo_policies):
+    # The number A7.2 exists to move, and the reason it moved: the declaration of what the
+    # audited artefact carries changed. Not one rule was hand-picked back in, which is the
+    # property D-047 built `restrict` to guarantee.
+    r = cf.restrict(evo_policies["evo1-literal"], release="imgvr-v4")
+    assert [rule.id for rule in r.kept] == [
+        "keep-high-confidence",
+        "keep-prokaryotic-host-twice",
+        "remove-denylisted-families",
+        "remove-denylisted-orders",
+        "remove-taxonomically-unspecific",
+    ]
+    assert [rule.id for rule, _ in r.deferred] == ["keep-one-per-votu"]
+    assert r.dropped == ()
+    assert r.rule_coverage == "5/6"
+
+
+def test_both_staged_input_releases_carry_the_same_inventory(evo_policies):
+    # v4 and v4.1 differ in the content of a few rows, never in which columns exist (D-063).
+    # A coverage number that differed between them would mean the inventory was read off a
+    # file rather than declared.
+    for release in ("imgvr-v4", "imgvr-v4.1"):
+        r = cf.restrict(evo_policies["evo1-literal"], release=release)
+        assert r.rule_coverage == "5/6"
+
+
+def test_the_three_readings_become_distinguishable_against_the_input(evo_policies):
+    # A7.1's finding was that the spread is unmeasurable against the release, because every
+    # rule the readings differ over reads an input the release does not carry (D-047). The
+    # whole point of A7.2 is that this stops being true, so it is asserted from the specs
+    # rather than inferred from three output columns that happen to differ.
+    agree, kept = cf.readings_agree_by_construction(evo_policies, release="imgvr-v4")
+    assert agree is False, "the readings must differ on what the input can test"
+    assert "remove-eukaryotic-host-evidence" in kept["charitable"]
+    assert "keep-only-exclusively-prokaryotic-hosts" in kept["strict"]
+    assert "keep-prokaryotic-host-twice" in kept["literal"]
+
+
+def test_the_primary_host_unit_is_declared_and_documented():
+    # AGENTS.md requires a parameter fixed before results are inspected. The test cannot prove
+    # when it was chosen; it can prove that there is exactly one primary, that it is one of the
+    # three computed, and that every one of them carries a definition into the artefact.
+    assert cf.PRIMARY_HOST_UNIT in cf.HostUnit
+    assert set(cf.HOST_UNITS) == set(cf.HostUnit)
+    assert all(text.strip() for text in cf.HOST_UNITS.values())
+
+
+def test_votu_bounds_coincide_when_no_votu_straddles_the_predicate():
+    # The common case, and the one that makes the interval tight enough to compare against a
+    # published count: where every high-confidence record of a vOTU agrees about taxonomy, the
+    # undetermined representative does not matter.
+    single = {"keep": 10, "drop": 5}
+    mixed = [(("keep", "keep"), 3)]
+    assert cf.votu_bounds(single, mixed, {"keep": True, "drop": False}) == (13, 13)
+
+
+def test_a_votu_straddling_the_predicate_widens_the_interval_rather_than_picking_a_side():
+    # The failure this guards against is reporting a point estimate that is really our sort
+    # order. A vOTU with one passing and one failing classification survives under one input
+    # order and not another, and D-017 is explicit that no published source settles which.
+    single = {"keep": 10}
+    mixed = [(("keep", "drop"), 4)]
+    lower, upper = cf.votu_bounds(single, mixed, {"keep": True, "drop": False})
+    assert (lower, upper) == (10, 14)
+
+
+def test_votu_comparison_counts_both_directions_and_names_its_unit():
+    # The vOTU rule claims one representative per vOTU. Two released records from one vOTU is a
+    # failure no input order explains; none is the converse direction. Both have to be visible,
+    # and neither may be reported as a record-level rate.
+    c = cf.votu_comparison({0: 7, 1: 100, 2: 3, 5: 1})
+    assert c.unit == "vOTU"
+    assert (c.considered, c.exactly_one, c.none, c.more_than_one) == (111, 100, 7, 4)
+    assert c.released_records_in_multi == 2 * 3 + 5 * 1
+    assert c.conformance_rate == 100 / 111
+    assert "more than one released record" in c.verdict and "contributed none" in c.verdict
+
+
+def test_a_clean_votu_comparison_says_so_rather_than_going_quiet():
+    # DESIGN.md §2 commits this project to publishing a null. There is no code path on which
+    # conformance produces a quieter artefact than a failure would.
+    c = cf.votu_comparison({1: 2_917_521})
+    assert c.more_than_one == 0 and c.none == 0
+    assert "conforms at its own unit" in c.verdict
+
+
+def test_an_input_release_declares_no_comparison_key_of_its_own():
+    # Re-executing a predicate over the input and comparing the result against an output are
+    # different questions, and conflating them is how a join key that does not exist gets
+    # assumed. The input is not something a developer released.
+    assert "imgvr-v4" not in cf.COMPARISON_KEYS
+    assert cf.COMPARISON_KEYS["opengenome-stage2"] == "lineage_tag"
+    assert cf.COMPARISON_KEYS["opengenome2-imgvr"] == "source_accession"

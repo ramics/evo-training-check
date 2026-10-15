@@ -145,3 +145,114 @@ def test_the_download_request_is_the_route_that_actually_serves_bytes():
     # top_hit is the id string. The search response nests an object there, and posting the
     # object rather than its `_id` returns HTTP 500.
     assert isinstance(body["ids"]["Custom_MPI-IMG_VR"]["top_hit"], str)
+
+
+# --------------------------------------------------------------------------------------
+# A7.2 — reading the metadata tables
+# --------------------------------------------------------------------------------------
+
+
+def test_the_canonical_host_domain_agrees_with_a1_7s_own_copy():
+    # `tools/imgvr_composition.py` carries its own `_host_domain` from A1.7 and this module now
+    # carries the canonical one. Two implementations of the word "host" across two passes is how
+    # a composition artefact and a conformance artefact come to disagree about the same column,
+    # so the agreement is asserted rather than assumed. If this ever fails, the fix is one
+    # implementation, not two adjusted ones.
+    import importlib.util
+    import pathlib
+
+    spec = importlib.util.spec_from_file_location(
+        "imgvr_composition_for_agreement",
+        pathlib.Path(__file__).resolve().parent.parent / "tools" / "imgvr_composition.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    battery = [
+        "",
+        "   ",
+        ";;;",
+        ";",
+        "d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria",
+        "d__Archaea;p__Thermoproteota",
+        "d__Eukaryota;p__Chordata",
+        "d__",
+        "p__Proteobacteria;c__Gammaproteobacteria",
+        "Bacteria",
+        "d__Bacteria",
+    ]
+    for value in battery:
+        assert imgvr.host_domain(value) == mod._host_domain(value), value
+
+
+def test_host_class_keeps_an_unclassifiable_assignment_apart_from_an_absent_one():
+    # The strict reading's exclusivity test turns on exactly this difference: a record with host
+    # evidence this audit cannot classify is not a record with no host evidence, and folding the
+    # first into the second would retain records the reading removes.
+    assert imgvr.host_class("d__Bacteria;p__Proteobacteria") == "prokaryotic"
+    assert imgvr.host_class("d__Archaea;p__Thermoproteota") == "prokaryotic"
+    assert imgvr.host_class("d__Eukaryota;p__Chordata") == "eukaryotic"
+    assert imgvr.host_class("d__Viruses") == "other"
+    assert imgvr.host_class(";;;") is None
+    assert imgvr.host_class("") is None
+
+
+def test_both_published_accession_shapes_survive_the_join_key():
+    # IMG/VR ships two accession shapes and the second one is the population a
+    # eukaryote-infecting-virus filter is judged on: GVMAG is a giant-virus
+    # metagenome-assembled genome. An earlier version of the packing dropped them from every
+    # join silently, which would have removed exactly those records from the converse direction.
+    numeric = "IMGVR_UViG_2504643025_000001"
+    gvmag = "IMGVR_UViG_GVMAG-M-2140918012-1_000001"
+    assert imgvr.uvig_key(numeric) == 2504643025 * 10**7 + 1
+    with pytest.raises(imgvr.UvigNotPackable):
+        imgvr.uvig_key(gvmag)
+    assert imgvr.uvig_join_key(numeric) > 0
+    assert imgvr.uvig_join_key(gvmag) < 0, "the fallback space must not collide with packed keys"
+    assert imgvr.split_uvig(gvmag) == ("GVMAG-M-2140918012-1", 1)
+
+
+def test_the_join_key_is_stable_across_passes_rather_than_a_local_id():
+    # The two sides of every join in A7.2 are computed by different passes at different times,
+    # so a vocabulary-assigned id would not match across them. The key has to be a function of
+    # the accession alone, and this is what would catch it being replaced by a counter.
+    gvmag = "IMGVR_UViG_GVMAG-S-3300000115-46_000001"
+    assert imgvr.uvig_join_key(gvmag) == imgvr.uvig_fallback_key(gvmag)
+    assert imgvr.uvig_fallback_key(gvmag) == imgvr.uvig_fallback_key(f"  {gvmag}  ")
+
+
+def test_a_malformed_accession_raises_rather_than_being_carried_as_a_record():
+    # A second accession shape and an unreadable row are different findings. The first is
+    # carried under a hashed key; the second is counted and excluded, and must not be able to
+    # masquerade as the first.
+    for bad in ("", "IMGVR_UViG_", "IMGVR_UViG_2504643025", "scaffold_12345", "IMGVR_2504_1"):
+        with pytest.raises(ValueError) as caught:
+            imgvr.uvig_join_key(bad)
+        assert not isinstance(caught.value, imgvr.UvigNotPackable), bad
+
+
+def test_collision_free_reports_both_counts_rather_than_a_bare_flag():
+    accessions = [
+        "IMGVR_UViG_GVMAG-M-2140918012-1_000001",
+        "IMGVR_UViG_GVMAG-M-2140918012-2_000001",
+        "IMGVR_UViG_GVMAG-S-3300000101-140_000001",
+    ]
+    assert imgvr.collision_free(accessions) == (True, 3, 3)
+    assert imgvr.collision_free(accessions + accessions) == (True, 3, 3)
+
+
+def test_votu_identifiers_become_their_own_integer():
+    assert imgvr.votu_id("vOTU_00000001") == 1
+    assert imgvr.votu_id("vOTU_8606551") == 8606551
+    for bad in ("", "vOTU", "OTU_1", "vOTU_abc"):
+        with pytest.raises(ValueError):
+            imgvr.votu_id(bad)
+
+
+def test_the_columns_the_rules_read_are_named_not_indexed():
+    # v4.1 is an in-place erratum of the sequence-information table (D-063), so a column index
+    # is a guess about a file that has already been re-cut once.
+    assert imgvr.SEQ_COLUMNS["classification"] == "Taxonomic classification"
+    assert imgvr.SEQ_COLUMNS["confidence"] == "Confidence"
+    assert imgvr.SEQ_COLUMNS["votu"] == "vOTU"
+    assert set(imgvr.HOST_COLUMNS) == {"uvig", "method", "host"}

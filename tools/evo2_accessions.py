@@ -184,9 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             verified=False,
         )
 
-        result = scan(
-            bucket, key, progress=args.progress_seconds, max_headers=args.max_headers
-        )
+        result = scan(bucket, key, progress=args.progress_seconds, max_headers=args.max_headers)
         keys = result.pop("_keys")
         result["release"] = "opengenome2-imgvr"
         result["partial"] = bool(args.max_headers)

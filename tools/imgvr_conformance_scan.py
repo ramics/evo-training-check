@@ -123,9 +123,7 @@ def _scan_seq_shard(
     host_domains: collections.Counter = collections.Counter()
 
     client = objectstore.client()
-    for line in objectstore.shard_lines(
-        client, bucket, key, start, end, skip_header=(start == 0)
-    ):
+    for line in objectstore.shard_lines(client, bucket, key, start, end, skip_header=(start == 0)):
         if not line:
             continue
         fields = line.split("\t")
@@ -195,9 +193,7 @@ def _scan_host_shard(
     methods: collections.Counter = collections.Counter()
 
     client = objectstore.client()
-    for line in objectstore.shard_lines(
-        client, bucket, key, start, end, skip_header=(start == 0)
-    ):
+    for line in objectstore.shard_lines(client, bucket, key, start, end, skip_header=(start == 0)):
         if not line:
             continue
         fields = line.split("\t")
@@ -257,9 +253,7 @@ def _run_shards(fn: Any, bucket: str, key: str, args: Any, extra: tuple, label: 
     out: list[dict] = []
     started = last = time.time()
     with ProcessPoolExecutor(max_workers=min(args.workers, len(shards))) as pool:
-        futures = {
-            pool.submit(fn, bucket, key, s, e, header, *extra): (s, e) for s, e in shards
-        }
+        futures = {pool.submit(fn, bucket, key, s, e, header, *extra): (s, e) for s, e in shards}
         for fut in as_completed(futures):
             out.append(fut.result())
             if time.time() - last >= args.progress_seconds:
@@ -322,9 +316,7 @@ def _accession_shapes(shards: list[dict]) -> dict[str, Any]:
     }
 
 
-def merge(
-    seq_shards: list[dict], host_shards: list[dict], evo2_keys: Any | None
-) -> dict[str, Any]:
+def merge(seq_shards: list[dict], host_shards: list[dict], evo2_keys: Any | None) -> dict[str, Any]:
     """Assemble the per-classification sufficient statistic from the shard results."""
     np = _np()
 
@@ -378,21 +370,23 @@ def merge(
             # both are counts of unique pairs, which is what makes them different readings of
             # the same sentence rather than the same number twice.
             pairs = np.unique(np.stack([h_cid[sel], h_tid[sel]], axis=1), axis=0)
-            host_taxa_by_class[name] = np.bincount(
-                pairs[:, 0], minlength=n_class
-            ) if len(pairs) else np.zeros(n_class, dtype=np.int64)
+            host_taxa_by_class[name] = (
+                np.bincount(pairs[:, 0], minlength=n_class)
+                if len(pairs)
+                else np.zeros(n_class, dtype=np.int64)
+            )
             rec_pairs = np.unique(np.stack([h_cid[sel], h_uvig[sel]], axis=1), axis=0)
-            host_records_by_class[name] = np.bincount(
-                rec_pairs[:, 0], minlength=n_class
-            ) if len(rec_pairs) else np.zeros(n_class, dtype=np.int64)
+            host_records_by_class[name] = (
+                np.bincount(rec_pairs[:, 0], minlength=n_class)
+                if len(rec_pairs)
+                else np.zeros(n_class, dtype=np.int64)
+            )
 
     # ---- the vOTU structure over high-confidence records ------------------------------
     hv, hcid = votu[hc].astype(np.int64), cid[hc]
     pairs = np.unique(np.stack([hv, hcid], axis=1), axis=0)
     votus_hc = np.unique(hv)
-    per_votu = np.bincount(
-        np.searchsorted(votus_hc, pairs[:, 0]), minlength=len(votus_hc)
-    )
+    per_votu = np.bincount(np.searchsorted(votus_hc, pairs[:, 0]), minlength=len(votus_hc))
     single_mask = per_votu == 1
     single_votus = votus_hc[single_mask]
     single_pairs = pairs[np.isin(pairs[:, 0], single_votus)]
@@ -431,27 +425,36 @@ def merge(
         # `pairs` comes back from np.unique lexicographically sorted, and votus_hc is sorted,
         # so the single-classification pairs already line up with votus_hc[single_mask].
         single_class_of[single_mask] = single_pairs[:, 1]
-        hist_single: dict[int, collections.Counter] = collections.defaultdict(
-            collections.Counter
-        )
+        hist_single: dict[int, collections.Counter] = collections.defaultdict(collections.Counter)
         for c, n in zip(single_class_of[single_mask], rel_per_votu[single_mask], strict=True):
             hist_single[int(c)][int(n)] += 1
         hist_mixed: collections.Counter = collections.Counter()
         for n in rel_per_votu[~single_mask]:
             hist_mixed[int(n)] += 1
+        # The host class of each released record, exactly. Evo 1's own Figure S1B puts 89.5% of
+        # its retained records at an unknown host kingdom, which is what forced the host rule's
+        # unit to be the classification rather than the record (D-058). Evo 1's release carries
+        # no accession, so that distribution cannot be recomputed for it; Evo 2's can, and it is
+        # the only exact check of the same phenomenon available anywhere in this audit.
+        released_host = {
+            name: int((released & (hclass == i)).sum()) for i, name in enumerate(HOST_CLASSES)
+        }
         evo2 = {
+            "released_host_classes": released_host,
             "released_records_joined": int(released.sum()),
             "released_accessions": int(len(evo2_keys)),
             "released_accessions_found_in_imgvr": int(in_imgvr.sum()),
             "released_accessions_absent_from_imgvr": int((~in_imgvr).sum()),
             "released_by_classification": released_by_class,
             "released_hc_by_classification": released_hc_by_class,
+            # Keyed by the classification itself, not by its index in this pass's vocabulary:
+            # the diff joins these against rule verdicts keyed by classification, and an index
+            # would silently match nothing and report a clean vOTU comparison.
             "votu_released_histogram_single": {
-                str(c): {str(k): v for k, v in sorted(h.items())} for c, h in hist_single.items()
+                classifications[c]: {str(k): v for k, v in sorted(h.items())}
+                for c, h in hist_single.items()
             },
-            "votu_released_histogram_mixed": {
-                str(k): v for k, v in sorted(hist_mixed.items())
-            },
+            "votu_released_histogram_mixed": {str(k): v for k, v in sorted(hist_mixed.items())},
         }
 
     def per_class(name: str, vec: Any) -> dict[str, int]:
@@ -470,9 +473,7 @@ def merge(
             sum((collections.Counter(s["confidence"]) for s in seq_shards), collections.Counter())
         ),
         "host_domains": dict(
-            sum(
-                (collections.Counter(s["host_domains"]) for s in seq_shards), collections.Counter()
-            )
+            sum((collections.Counter(s["host_domains"]) for s in seq_shards), collections.Counter())
         ),
         "host_table": {
             "rows": sum(s["rows"] for s in host_shards),
@@ -581,13 +582,9 @@ def main(argv: list[str] | None = None) -> int:
     release = imgvr.release_on(args.release)
 
     seq = next(
-        f
-        for f in release.files
-        if f.role == "sequence_information" and not f.high_confidence
+        f for f in release.files if f.role == "sequence_information" and not f.high_confidence
     )
-    host = next(
-        f for f in release.files if f.role == "host_information" and not f.high_confidence
-    )
+    host = next(f for f in release.files if f.role == "host_information" and not f.high_confidence)
     keys = {
         "sequence_information": f"{prefix}/imgvr/{args.release}/{seq.name}",
         "host_information": f"{prefix}/imgvr/{args.release}/{host.name}",
