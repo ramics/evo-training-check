@@ -480,9 +480,16 @@ def write_cache(
 
 
 def read_cache(
-    directory: Path, *, component: str, lo: float, hi: float
+    directory: Path, *, component: str, object_name: str, lo: float, hi: float
 ) -> tuple[list[Any], dict[str, Any], dict[str, int]]:
-    """Load cached proteins for one component, keeping only records in the band `[lo, hi)`.
+    """Load cached proteins for one staged *object*, keeping only records in band `[lo, hi)`.
+
+    Keyed by the object, not the component, for the same reason `cache_stem` is: Evo 1's three
+    stage-2 splits share a component name. Globbing on the component alone made each of the
+    three load the whole component's cache, so the band's records were searched once per split
+    and the part would have carried three copies of every detection — inflating each family's
+    hit count threefold while leaving its record count right, which is the kind of error that
+    survives a glance at the table.
 
     Band membership is recomputed from the record identifier rather than trusted from the file
     the cache was written by, which is what makes a cache unable to change what a run searched
@@ -499,7 +506,7 @@ def read_cache(
     stats = Counter({"records": 0, "genes": 0, "residues": 0, "records_without_genes": 0})
     seen: set[str] = set()
 
-    for meta_path in sorted(directory.glob(f"{component}--*.records.jsonl")):
+    for meta_path in sorted(directory.glob(f"{component}--{object_name}--*.records.jsonl")):
         for line in meta_path.read_text().splitlines():
             if not line:
                 continue
@@ -511,7 +518,7 @@ def read_cache(
                 component=row["component"],
                 taxonomy=tuple(row["taxonomy"]) or None,
             )
-    for faa_path in sorted(directory.glob(f"{component}--*.faa.gz")):
+    for faa_path in sorted(directory.glob(f"{component}--{object_name}--*.faa.gz")):
         with gzip.open(faa_path, "rt") as handle:
             name = None
             for raw in handle:
@@ -879,16 +886,19 @@ def main(argv: list[str] | None = None) -> int:
                     proteins, cached_records, stats = read_cache(
                         cache_dir(release, root=args.cache_dir),
                         component=source.corpus_component,
+                        object_name=Path(source.key).name,
                         lo=lo,
                         hi=hi,
                     )
                     sampled_records.update(cached_records)
                     read_seconds = time.time() - started
-                    if not proteins:
+                    stem = cache_stem(source.corpus_component, Path(source.key).name, lo, hi)
+                    cached_file = cache_dir(release, root=args.cache_dir) / f"{stem}.faa.gz"
+                    if not proteins and not cached_file.exists():
                         raise SystemExit(
-                            f"{label}: the cache holds no proteins for band [{lo}, {hi}). Run "
-                            "--collect for this band first; searching nothing would write a "
-                            "part that silently covers no records."
+                            f"{label}: no cache for band [{lo}, {hi}). Run --collect for this "
+                            "band first; searching nothing would write a part that silently "
+                            "covers no records."
                         )
                     print(
                         f"  {stats['records']:,} records from cache in "
