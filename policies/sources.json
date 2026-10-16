@@ -662,6 +662,40 @@
    "sha256": "9f8efb1d7d934a659848db2c23f7dc83331e1046b1d8fdc78e6e1854795d90a5",
    "bytes": 6529173,
    "note": "RVMT, the catalogue IMG/VR imported the taxonomy of. A4.2's dependency pass found it supplies 49.51% of the records Evo's denylist removes — more than geNomad — and the IMG/VR method field cites it by its preprint doi (10.1101/2022.02.15.480533). Retrieved 2026-10-15 for A4.4, which owns benchmarking it. Not stored because it is publisher content; the version of record was fetched from the UEA repository copy because biorxiv.org rate-limited. Re-fetch from url to verify."
+  },
+  {
+   "id": "S-ESM3-SCIENCE-SM",
+   "kind": "supplementary",
+   "title": "Hayes et al. 2025 — Simulating 500 million years of evolution with a language model: supplementary materials (version of record)",
+   "url": "https://www.science.org/doi/suppl/10.1126/science.ads0018",
+   "licence": "all rights reserved (subscription)",
+   "models": [
+    "ESM3",
+    "ESM3-open"
+   ],
+   "doi": "10.1126/science.ads0018",
+   "status": "retrieved",
+   "capture": "pdfs/science.ads0018_sm.pdf",
+   "sha256": "65237c470f048aad9c46378f6a346bec9d0e2c7105b455f67331db8dd806c9f2",
+   "bytes": 9345286,
+   "note": "101 pages, supplied by the project owner 2026-10-16. This is the version of record of the appendix the preprint calls A.6, and it is what settles D-106: the filter sentence on p47 is word-for-word identical to the preprint and still carries no number. Licence note: the other captures here are CC-BY-family preprints; this is a subscription article's supplementary file, committed by the project owner. Worth revisiting before the repository is made public."
+  },
+  {
+   "id": "S-ESM3-SCIENCE-MDAR",
+   "kind": "supplementary",
+   "title": "Hayes et al. 2025 — MDAR reproducibility checklist (version of record)",
+   "url": "https://www.science.org/doi/suppl/10.1126/science.ads0018",
+   "licence": "all rights reserved (subscription)",
+   "models": [
+    "ESM3",
+    "ESM3-open"
+   ],
+   "doi": "10.1126/science.ads0018",
+   "status": "retrieved",
+   "capture": "pdfs/science.ads0018_mdar_reproducibility_checklist.pdf",
+   "sha256": "b0308c0f68083718c2769e8209fb47ced063a0ceea21717bb4c7abc96caaa406",
+   "bytes": 155471,
+   "note": "Journal reproducibility checklist accompanying the version of record. Registered for completeness; not yet examined for data-availability statements bearing on A1.1."
   }
  ]
 }
