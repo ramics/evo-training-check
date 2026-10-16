@@ -154,3 +154,29 @@ def test_a_capacity_refusal_says_to_retry_instead() -> None:
 def test_an_unrecognised_launch_failure_is_not_dressed_up_as_a_spot_problem() -> None:
     """Returning None re-raises the original, which is what an unknown failure deserves."""
     assert tool.spot_refusal("UnauthorizedOperation: you are not authorized") is None
+
+
+class _Args:
+    def __init__(self, hard_stop_minutes: int | None) -> None:
+        self.hard_stop_minutes = hard_stop_minutes
+
+
+def test_a_launching_watcher_names_the_timer_it_armed() -> None:
+    msg = tool._shutdown_bound(_Args(260))
+    assert "260 min" in msg and "armed by this launch" in msg
+
+
+def test_an_attached_watcher_does_not_invent_a_shutdown_figure() -> None:
+    """Measured 2026-10-16: an --attach watcher reported a 400-minute bound on an instance
+    launched with 260. Someone reads that line later to decide whether the instance is gone,
+    and ec2:ModifyInstanceAttribute is denied so no later process can read the real value."""
+    msg = tool._shutdown_bound(_Args(None))
+    assert "400" not in msg and "260" not in msg
+    assert "cannot read it back" in msg
+
+
+def test_the_launch_still_arms_a_timer_when_none_is_given() -> None:
+    """Dropping the argparse default must not mean launching without a dead man's switch."""
+    assert isinstance(tool.DEFAULT_HARD_STOP_MINUTES, int)
+    assert tool.DEFAULT_HARD_STOP_MINUTES > 0
+    assert "{hard_stop_minutes}" in tool.USER_DATA

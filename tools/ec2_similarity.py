@@ -60,6 +60,12 @@ MMSEQS_SHA256 = "bd9b0234da5949ad528d5b5f9ea4cda9c1e23dce14b46c0791d4d919a76e61c
 #: cap truncates and it scales with the target.
 SAMPLE_RATES = {"curve": 2000, "caps": 50}
 
+#: Used when --hard-stop-minutes is not given. Not an argparse default, because a watcher
+#: attaching to a running instance must be able to tell "I armed this" from "someone else
+#: did": the timer is written into UserData at launch and ec2:ModifyInstanceAttribute is
+#: denied, so no later process can change it or read it back.
+DEFAULT_HARD_STOP_MINUTES = 400
+
 #: Where each measurement's result lands, matching `esm3_calibrate.ARTEFACT_NAMES`. The
 #: watcher polls this key, so a mismatch reads as a run that produced nothing.
 RESULT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
@@ -227,10 +233,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--hard-stop-minutes",
         type=int,
-        default=400,
-        help="a shutdown timer armed on the instance at boot, before anything that can "
-        "fail. Independent of the script reaching its own shutdown and of the launcher "
-        "surviving to run its terminate (default: %(default)s)",
+        default=None,
+        help=f"a shutdown timer armed on the instance at boot, before anything that can "
+        f"fail. Independent of the script reaching its own shutdown and of the launcher "
+        f"surviving to run its terminate (default: {DEFAULT_HARD_STOP_MINUTES}). Has no "
+        f"effect with --attach: the timer was armed by the launch, and ec2:"
+        f"ModifyInstanceAttribute is denied, so no later process can change or read it",
     )
     ap.add_argument("--poll-seconds", type=float, default=120.0)
     ap.add_argument(
@@ -338,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
         threads=args.threads,
         workers=args.workers,
         budget=args.search_budget_seconds,
-        hard_stop_minutes=args.hard_stop_minutes,
+        hard_stop_minutes=args.hard_stop_minutes or DEFAULT_HARD_STOP_MINUTES,
         mmseqs_url=MMSEQS_URL,
         mmseqs_sha256=MMSEQS_SHA256,
         taxdump_url=seeds.TAXDUMP_2023_04.url,
@@ -422,8 +430,7 @@ def _run_and_collect(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args
         if timed_out and state == "running" and not args.terminate_on_timeout:
             print(
                 f"\nwatch window expired and {iid} is still running — leaving it alone.\n"
-                f"  the instance's own shutdown timer ({args.hard_stop_minutes} min from "
-                f"boot) bounds it.\n"
+                f"  {_shutdown_bound(args)}\n"
                 f"  reattach:  python3 tools/ec2_similarity.py --attach {iid}"
             )
         else:
@@ -433,6 +440,27 @@ def _run_and_collect(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args
             except Exception as exc:
                 print(f"terminate: {type(exc).__name__}: {str(exc)[:120]}")
     return outcome
+
+
+def _shutdown_bound(args: Any) -> str:
+    """What bounds the instance once this watcher gives up — without inventing a number.
+
+    The first version of this printed `args.hard_stop_minutes` unconditionally, which is a
+    figure the launching process knows and an attaching one does not. On 2026-10-16 a watcher
+    attached with `--attach` and reported a 400-minute bound on an instance launched with 260,
+    which is exactly the sort of line someone later reads as fact when deciding whether an
+    instance has already gone.
+    """
+    if args.hard_stop_minutes is not None:
+        return (
+            f"the instance's own shutdown timer ({args.hard_stop_minutes} min from boot, "
+            f"armed by this launch) bounds it."
+        )
+    return (
+        "the instance's own shutdown timer, armed at launch, bounds it — this process did "
+        "not set it and cannot read it back, so check the launch that created the instance "
+        "for the figure."
+    )
 
 
 def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> tuple[int, bool]:
