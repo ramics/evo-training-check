@@ -103,6 +103,20 @@ def main(argv: list[str] | None = None) -> int:
         "valid sample, which is what makes the scaling curve one pass (default: %(default)s)",
     )
     ap.add_argument(
+        "--query-fractions",
+        type=lambda s: [int(x) for x in s.split(",")],
+        default=[1000, 100, 10, 1],
+        help="denominators for the query-size sweep: 1000 means a 1-in-1000 subsample of "
+        "the seed set, 1 means all of it. Swept because the first in-region run showed "
+        "the query side dominates (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--shard-points",
+        type=lambda s: [int(x) for x in s.split(",")],
+        default=[1, 2, 4, 8],
+        help="which cumulative shard counts to time, rather than every one (default: %(default)s)",
+    )
+    ap.add_argument(
         "--strict-buckets",
         type=int,
         default=2,
@@ -261,6 +275,8 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             ("sample_rate", args.sample_rate),
             ("buckets", args.buckets),
             ("strict_buckets", args.strict_buckets),
+            ("query_fractions", ",".join(str(x) for x in args.query_fractions)),
+            ("shard_points", ",".join(str(x) for x in args.shard_points)),
             ("threads", args.threads),
             ("workers", args.workers),
             ("batch_bytes", args.batch_bytes),
@@ -403,6 +419,33 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
     return 0
 
 
+def _subsample_fasta(src: Path, dst: Path, denom: int) -> tuple[int, int]:
+    """Keep one FASTA record in `denom`, chosen by a stable hash of the identifier.
+
+    The query side has to be swept, not held fixed. The first in-region run searched the
+    whole 3,159,223-sequence seed set against one 334 M-residue shard and had not finished
+    after 61 minutes, which says the query side dominates and says nothing about by how
+    much. One target-size curve at fixed query size cannot separate the two; a grid can.
+
+    Hash rather than head: the seed set comes out in corpus order, so its first n records
+    are the low-accession end of UniProt rather than a sample of viral protein space.
+    """
+    kept = residues = 0
+    with src.open("rb") as handle, dst.open("wb") as out:
+        emit = False
+        for line in handle:
+            if line.startswith(b">"):
+                ident = line[1:].split()[0].decode("ascii", "replace")
+                emit = denom <= 1 or seeds.bucket_of(ident, denom) == 0
+                if emit:
+                    kept += 1
+            if emit:
+                out.write(line)
+                if not line.startswith(b">"):
+                    residues += len(line.strip())
+    return kept, residues
+
+
 def _time_searches(
     args: argparse.Namespace,
     work: Path,
@@ -413,101 +456,116 @@ def _time_searches(
     results: list[dict[str, Any]],
     publish: Any,
 ) -> list[dict[str, Any]]:
-    """Time the charitable reading over nested shards, and the strict one over the small ones.
+    """Time a grid of query size against target size, cheapest corner first.
 
-    Shards are timed smallest first and every measurement is published as it lands, so a
-    run cut short still reports the curve it got. `--search-budget-seconds` trades the
-    largest point for the guarantee that the run ends.
+    Both axes move because the first run established that holding the query at its full
+    3.16M sequences makes even a small target unaffordable, so a single-axis curve would
+    have measured one expensive point and nothing else. Sweeping both gives the two
+    coefficients the extrapolation actually needs: cost per residue of target, and cost
+    per sequence of query.
+
+    Order is sparsest query first and smallest target first, so `--search-budget-seconds`
+    spends the budget on the cheap, numerous points that constrain the fit and drops the
+    one expensive corner — which is the corner that killed the previous run.
     """
     db = work / "db"
     db.mkdir(exist_ok=True)
     tmp = work / "tmp"
     spent = 0.0
 
-    print("\nbuilding the query database", flush=True)
-    query_seconds = _mmseqs("createdb", str(seed_fasta), str(db / "Q"))
-    print(f"  createdb(query) {query_seconds:.1f}s", flush=True)
-
+    # Target databases, built once and shared across every query size.
+    targets: list[tuple[int, int, Path]] = []
     cumulative = work / "cumulative.faa"
     if cumulative.exists():
         cumulative.unlink()
-
+    wanted = sorted({min(k, args.buckets) for k in args.shard_points})
     for k in range(1, args.buckets + 1):
         with cumulative.open("ab") as out, shard_paths[k - 1].open("rb") as src:
             shutil.copyfileobj(src, out)
+        if k not in wanted:
+            continue
         residues = sum(shard_residues[:k])
         if residues == 0:
             print(f"  shards 1..{k}: empty, skipped", flush=True)
             continue
         target = db / f"T{k}"
         build = _mmseqs("createdb", str(cumulative), str(target))
+        print(
+            f"  createdb(target 1..{k}) {build:.1f}s, {residues / 1e6:.0f} M residues", flush=True
+        )
+        targets.append((k, residues, target))
 
-        for reading, params in (("charitable", CHARITABLE), ("strict", STRICT)):
-            if reading == "strict" and k > args.strict_buckets:
-                continue
-            if args.search_budget_seconds and spent >= args.search_budget_seconds:
+    for denom in sorted(args.query_fractions, reverse=True):
+        qpath = work / f"query-{denom}.faa"
+        qseqs, qres = _subsample_fasta(seed_fasta, qpath, denom)
+        if qseqs == 0:
+            print(f"  query 1/{denom}: empty, skipped", flush=True)
+            continue
+        qdb = db / f"Q{denom}"
+        _mmseqs("createdb", str(qpath), str(qdb))
+        print(f"\n  query 1/{denom}: {qseqs:,} sequences, {qres / 1e6:.0f} M residues", flush=True)
+
+        for k, residues, target in targets:
+            for reading, params in (("charitable", CHARITABLE), ("strict", STRICT)):
+                if reading == "strict" and k > args.strict_buckets:
+                    continue
+                point = {
+                    "shards": k,
+                    "reading": reading,
+                    "residues": residues,
+                    "query_denominator": denom,
+                    "query_sequences": qseqs,
+                    "query_residues": qres,
+                }
+                if args.search_budget_seconds and spent >= args.search_budget_seconds:
+                    print(
+                        f"  budget of {args.search_budget_seconds:.0f}s spent; stopping "
+                        f"before query 1/{denom} x shards 1..{k} {reading}",
+                        flush=True,
+                    )
+                    results.append({**point, "skipped": "search budget exhausted"})
+                    publish()
+                    return results
+                out_db = db / f"R-{reading}-{denom}-{k}"
+                if tmp.exists():
+                    shutil.rmtree(tmp, ignore_errors=True)
+                tmp.mkdir(parents=True, exist_ok=True)
+                try:
+                    elapsed = _mmseqs(
+                        "search",
+                        str(qdb),
+                        str(target),
+                        str(out_db),
+                        str(tmp),
+                        *params,
+                        "--threads",
+                        str(args.threads),
+                    )
+                except RuntimeError as exc:
+                    # A failure at one grid point is a datum. Losing the points already
+                    # measured to an exception at a later one would waste the instance.
+                    print(f"  query 1/{denom} x 1..{k} {reading}: FAILED {exc}", flush=True)
+                    results.append({**point, "error": str(exc)})
+                    publish()
+                    continue
+                spent += elapsed
+                hits = _hit_count(qdb, target, out_db, work)
+                core_seconds = elapsed * args.threads
                 print(
-                    f"  budget of {args.search_budget_seconds:.0f}s spent; "
-                    f"stopping before shards 1..{k} {reading}",
+                    f"  query 1/{denom} x shards 1..{k} {reading}: {elapsed:.1f}s wall, "
+                    f"{core_seconds:.0f} core-s, {residues / 1e6:.0f} M target residues, "
+                    f"{hits:,} hits",
                     flush=True,
                 )
                 results.append(
                     {
-                        "shards": k,
-                        "reading": reading,
-                        "residues": residues,
-                        "skipped": "search budget exhausted",
+                        **point,
+                        "search_wall_seconds": round(elapsed, 1),
+                        "search_core_seconds": round(core_seconds, 1),
+                        "hit_rows": hits,
                     }
                 )
                 publish()
-                return results
-            out_db = db / f"R-{reading}-{k}"
-            if tmp.exists():
-                shutil.rmtree(tmp, ignore_errors=True)
-            tmp.mkdir(parents=True, exist_ok=True)
-            try:
-                elapsed = _mmseqs(
-                    "search",
-                    str(db / "Q"),
-                    str(target),
-                    str(out_db),
-                    str(tmp),
-                    *params,
-                    "--threads",
-                    str(args.threads),
-                )
-            except RuntimeError as exc:
-                # A failure on one shard is a datum, not the end of the run: the smaller
-                # shards already measured are what the fit needs, and losing them to an
-                # exception on the largest would waste the whole instance.
-                print(f"  shards 1..{k} {reading}: FAILED {exc}", flush=True)
-                results.append(
-                    {"shards": k, "reading": reading, "residues": residues, "error": str(exc)}
-                )
-                publish()
-                continue
-            spent += elapsed
-            hits = _hit_count(db / "Q", target, out_db, work)
-            core_seconds = elapsed * args.threads
-            print(
-                f"  shards 1..{k} {reading}: {elapsed:.1f}s wall, "
-                f"{core_seconds:.0f} core-s over {residues / 1e9:.3f} G residues, {hits:,} hits",
-                flush=True,
-            )
-            results.append(
-                {
-                    "shards": k,
-                    "reading": reading,
-                    "residues": residues,
-                    "createdb_seconds": round(build, 1),
-                    "search_wall_seconds": round(elapsed, 1),
-                    "search_core_seconds": round(core_seconds, 1),
-                    "query_residues": counts.viral_residues,
-                    "query_sequences": counts.viral_seeded,
-                    "hit_rows": hits,
-                }
-            )
-            publish()
     return results
 
 
