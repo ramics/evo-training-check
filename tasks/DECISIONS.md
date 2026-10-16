@@ -4429,3 +4429,50 @@ decision has a threshold or parameter in it, the number goes in the entry.
   measurement on spot, then the broad arm's sampled pass. `iam:*` is denied here, so this project
   cannot verify the role exists except by attempting a launch, which is also the launch it wants —
   so the attempt is the check.
+
+### D-112 — D-109's $26 is a search price, not a run price: the pass is dozens of launches and each one currently re-reads the corpus
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-109 priced the broad arm's sweep at 1,296 core-hours, $26 of a $30 ceiling, from
+  D-104's fitted model. That model prices **searches**. Neither entry converted the figure into
+  launches, and the conversion is where the money is.
+- **The arithmetic, which is all from D-109's own numbers.** 1,296 core-hours on an 8-vCPU instance
+  is **162 instance-hours — 6.8 days**. The instance shutdown timer this task launches with is
+  260 minutes, and `ec2:ModifyInstanceAttribute` is denied so it cannot be extended after launch.
+  So the broad arm was never one run; it is dozens, and `tools/esm3_calibrate.py` rebuilds the
+  target shards from the full 295 GB corpus on **every** run, because it has no way to load them.
+  The corpus pass is therefore paid once per launch rather than once.
+- **What the corpus pass actually costs, measured today.** The in-flight cap measurement is past
+  2.5 hours on a pass that took 53 minutes in the rate-2000 run it was estimated from. The cause is
+  not the corpus read, which is the same 295 GB either way, but the sample: at rate 50 the pass
+  keeps 40x more records, and every one travels from a worker process to the parent over IPC and is
+  written out by that single parent. **The corpus pass is sample-write-bound, not read-bound**, so a
+  timing taken at one sample rate does not transfer to another. The authoritative pass samples
+  denser still at rate 40, so 2.5-3 hours is the planning figure.
+- **The consequence, as a table.** At a 4.33-hour run cap, 2.5-3 hours of each run is corpus pass
+  and only ~1.6 hours is search, so 1,296 core-hours needs roughly **95 launches and about $66** —
+  2.5x the quoted figure and over the ceiling it was designed against. Longer runs dilute the
+  overhead: a 12-hour cap is roughly 15 launches and about $30. Staging the shards removes it
+  entirely: one corpus pass ever, then launches that are pure search, which returns the figure to
+  about $27.
+- **Decision:** **stage the sampled target shards to object storage once, and have the search runs
+  load them**, in the way the viral seed FASTA is already staged. D-109's $26 stands only with that
+  change; without it the entry's figure is wrong by 2.5x and the ceiling is breached.
+- **Why staging rather than simply longer runs, which is the cheaper-looking alternative.** Longer
+  runs reduce the overhead but raise the exposure: a spot reclaim loses everything the run has done,
+  and the corpus pass is the most expensive thing to lose. The first in-region run established this
+  the hard way — 53 minutes of completed corpus pass went with the searches when it was cut short.
+  With shards staged, a reclaim costs only the search in flight. The two are not exclusive and
+  staging is what makes long runs safe rather than merely cheaper.
+- **Rejected:** Leaving D-109's figure unqualified and reporting the overrun afterwards — the
+  ceiling was a constraint from the project owner, and a 2.5x breach discovered in the invoice is
+  not a measurement problem but a reporting failure. Re-reading the corpus per run as a way to avoid
+  writing staging code — it is the most expensive possible way to save an afternoon. Sizing a bigger
+  instance to shorten the pass — `AGENTS.md` is explicit that a memory or CPU bound is not the test
+  for launching bigger, and the pass is bound by a single parent process writing samples, which more
+  cores do not help.
+- **Consequence:** staging is now a prerequisite for the broad arm's pass, not an optimisation.
+  **Every future entry pricing work in this repo states whether its figure is core-hours of compute
+  or the cost of the runs that deliver them**, since this entry exists because those two were
+  conflated. The cap measurement in flight is unaffected in substance: it is one run, its overhead
+  is one corpus pass, and the ratios it measures do not depend on how the pass is scheduled.
