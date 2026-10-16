@@ -105,3 +105,27 @@ def test_state_survives_an_api_failure() -> None:
             raise RuntimeError("throttled")
 
     assert tool._state(_Broken(), "i-1") == "unknown"
+
+
+def test_each_measurement_has_its_own_result_key_and_they_match_the_tool() -> None:
+    """A mismatch here reads as a run that produced nothing, having paid for everything."""
+    path = _PATH.parent / "esm3_calibrate.py"
+    spec = importlib.util.spec_from_file_location("esm3_calibrate_for_launcher_test", path)
+    calibrate = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = calibrate
+    spec.loader.exec_module(calibrate)
+
+    assert tool.RESULT_NAMES == calibrate.ARTEFACT_NAMES
+    assert set(tool.SAMPLE_RATES) == set(tool.RESULT_NAMES)
+
+
+def test_the_cap_measurement_asks_for_a_larger_target_than_the_cost_curve() -> None:
+    """Opposite trades: the curve needs a small target to complete, the cap a large one to bind."""
+    assert tool.SAMPLE_RATES["caps"] < tool.SAMPLE_RATES["curve"]
+
+
+def test_user_data_passes_the_measurement_and_its_cap_parameters() -> None:
+    import string
+
+    fields = {f for _, f, _, _ in string.Formatter().parse(tool.USER_DATA) if f}
+    assert {"measure", "cap_query_denominator", "cap_shard_points", "cap_fractions"} <= fields

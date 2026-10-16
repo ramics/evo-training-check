@@ -48,7 +48,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import repro, seeds, uniref
+from amazebio import repro, seeds, similarity, uniref
 from amazebio.repro import ReproError
 
 S3_REGION = "us-east-1"
@@ -62,6 +62,10 @@ CHUNK = 8 << 20
 #: sets no identity floor.
 CHARITABLE = ("--min-seq-id", "0.70", "-c", "0.8", "--cov-mode", "1")
 STRICT = ("-c", "0.8", "--cov-mode", "1", "-s", "7.5")
+
+#: One artefact name per mode, because the corpus bucket has no DeleteObject: a second mode
+#: writing to the first's key would overwrite a preserved grid permanently.
+ARTEFACT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
 
 
 def human(n: float) -> str:
@@ -166,10 +170,54 @@ def main(argv: list[str] | None = None) -> int:
         "curve for a guarantee the run ends and reports. 0 means no budget, which is "
         "only safe where something else bounds the run.",
     )
+    ap.add_argument(
+        "--measure",
+        choices=("curve", "caps"),
+        default="curve",
+        help="`curve` times the cost model's grid, which is what D-104 was fitted on. "
+        "`caps` measures the two items D-105 and D-109 left open: what the hit cap costs "
+        "where it binds, and what relaxing coverage costs to buy the three readings from "
+        "one search (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--artefact-name",
+        default="",
+        help="result filename, which is also its S3 key. Defaults per --measure, and the "
+        "default is never shared between modes: the corpus bucket has no DeleteObject, so "
+        "writing one mode's artefact over another's preserved grid cannot be undone",
+    )
+    ap.add_argument(
+        "--cap-query-denominator",
+        type=int,
+        default=100,
+        help="query subsample for the cap measurement. Hits per seed is a per-seed "
+        "property, so subsampling the query does not bias it — it only makes the "
+        "measurement affordable (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--cap-shard-points",
+        type=lambda s: [int(x) for x in s.split(",")],
+        default=[1, 2, 4],
+        help="cumulative shard counts the cap measurement runs at. More than one because "
+        "the question is whether hits per seed grows linearly in target size, which is "
+        "what decides whether the cap binds at the pass's scale (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--cap-fractions",
+        type=lambda s: [float(x) for x in s.split(",")],
+        default=[0.5, 0.2],
+        help="caps to also run, as fractions of the maximum hits per seed the slack run "
+        "observed. These are the caps that bind at this scale; the published cap stays "
+        "D-105's 100,000 (default: %(default)s)",
+    )
     args = ap.parse_args(argv)
 
     if args.buckets < 1:
         raise SystemExit("--buckets must be at least 1")
+    if args.measure == "caps" and max(args.cap_shard_points) > args.buckets:
+        raise SystemExit("--cap-shard-points cannot exceed --buckets")
+    if any(not 0 < f <= 1 for f in args.cap_fractions):
+        raise SystemExit("--cap-fractions are fractions of the observed maximum, in (0, 1]")
     if args.strict_buckets > args.buckets:
         raise SystemExit("--strict-buckets cannot exceed --buckets")
 
@@ -254,7 +302,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
     work.mkdir(parents=True, exist_ok=True)
     seed_fasta = work / "viral-seeds.faa"
     shard_paths = [work / f"shard-{i:02d}.faa" for i in range(args.buckets)]
-    timing_path = args.outdir / "calibration.json"
+    timing_path = args.outdir / (args.artefact_name or ARTEFACT_NAMES[args.measure])
 
     print(f"loading taxonomy from {args.taxdump}", flush=True)
     taxonomy = seeds.Taxonomy.from_taxdump_zip(args.taxdump)
@@ -281,6 +329,12 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             ("workers", args.workers),
             ("batch_bytes", args.batch_bytes),
             ("limit_bytes", args.limit_bytes),
+            ("measure", args.measure),
+            ("cap_query_denominator", args.cap_query_denominator),
+            ("cap_shard_points", ",".join(str(x) for x in args.cap_shard_points)),
+            ("cap_fractions", ",".join(str(x) for x in args.cap_fractions)),
+            ("published_hit_cap", similarity.HIT_CAP),
+            ("coverage", similarity.COVERAGE),
             ("charitable_params", " ".join(CHARITABLE)),
             ("strict_params", " ".join(STRICT)),
             ("taxdump_pin", seeds.TAXDUMP_2023_04.date),
@@ -340,6 +394,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         )
 
         payload: dict[str, Any] = {
+            "measure": args.measure,
             "release": args.release,
             "tier": args.tier,
             "bounded": bool(args.limit_bytes),
@@ -387,16 +442,19 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         upload(seed_fasta, "viral-seed-set")
 
         if not args.skip_search:
-            _time_searches(
-                args,
-                work,
-                seed_fasta,
-                shard_paths,
-                shard_residues,
-                counts,
-                payload["searches"],
-                publish,
-            )
+            if args.measure == "caps":
+                _measure_caps(args, work, seed_fasta, shard_paths, shard_residues, payload, publish)
+            else:
+                _time_searches(
+                    args,
+                    work,
+                    seed_fasta,
+                    shard_paths,
+                    shard_residues,
+                    counts,
+                    payload["searches"],
+                    publish,
+                )
 
         timing_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         manifest.output_file(timing_path, role="calibration")
@@ -567,6 +625,341 @@ def _time_searches(
                 )
                 publish()
     return results
+
+
+#: The cap measurement holds sensitivity at D-105's fixed value rather than sweeping it.
+#: The two questions here are about the cap and about coverage, and entangling them with the
+#: one axis D-109 is already paying to sweep would make neither answer clean.
+CAP_SENSITIVITY = 5.7
+
+
+def _build_targets(
+    args: argparse.Namespace,
+    work: Path,
+    db: Path,
+    shard_paths: list[Path],
+    shard_residues: list[int],
+    points: list[int],
+) -> list[tuple[int, int, Path]]:
+    """Cumulative target databases at the requested shard counts.
+
+    Shards 1..k of a hash partition is itself a hash sample, which is what makes a size
+    sweep one corpus pass rather than k of them.
+    """
+    targets: list[tuple[int, int, Path]] = []
+    cumulative = work / "cap-cumulative.faa"
+    if cumulative.exists():
+        cumulative.unlink()
+    wanted = sorted({min(k, args.buckets) for k in points})
+    for k in range(1, max(wanted) + 1):
+        with cumulative.open("ab") as out, shard_paths[k - 1].open("rb") as src:
+            shutil.copyfileobj(src, out)
+        if k not in wanted:
+            continue
+        residues = sum(shard_residues[:k])
+        if residues == 0:
+            print(f"  shards 1..{k}: empty, skipped", flush=True)
+            continue
+        target = db / f"CT{k}"
+        build = _mmseqs("createdb", str(cumulative), str(target))
+        print(
+            f"  createdb(target 1..{k}) {build:.1f}s, {residues / 1e6:.0f} M residues", flush=True
+        )
+        targets.append((k, residues, target))
+    return targets
+
+
+def _cap_cell(
+    args: argparse.Namespace,
+    work: Path,
+    db: Path,
+    qdb: Path,
+    target: Path,
+    *,
+    cap: int,
+    coverage_mode: int | None,
+    label: str,
+) -> tuple[float, int, similarity.RecordLedger, similarity.Saturation]:
+    """One search, read back through the instrument the pass itself will use.
+
+    Reading the hit table through `similarity` rather than counting lines is the point: the
+    distinct-record counts per coverage reading are what decide whether the post-filter buys
+    the three readings, and they cannot be recovered from a row count.
+    """
+    out_db = db / f"R-{label}"
+    tmp = work / "tmp"
+    if tmp.exists():
+        shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True, exist_ok=True)
+    params = similarity.search_argv(
+        sensitivity=CAP_SENSITIVITY, cap=cap, coverage_mode=coverage_mode
+    )
+    elapsed = _mmseqs(
+        "search",
+        str(qdb),
+        str(target),
+        str(out_db),
+        str(tmp),
+        *params,
+        "--threads",
+        str(args.threads),
+    )
+    tsv = work / f"cap-hits-{label}.tsv"
+    _mmseqs(
+        "convertalis",
+        str(qdb),
+        str(target),
+        str(out_db),
+        str(tsv),
+        "--format-output",
+        similarity.CONVERTALIS_FORMAT,
+    )
+    ledger = similarity.RecordLedger()
+    guard = similarity.Saturation(cap=cap)
+    rows = 0
+    with tsv.open() as handle:
+        for row in similarity.parse_hits(handle):
+            rows += 1
+            ledger.observe(row)
+            guard.observe(row.query)
+    tsv.unlink(missing_ok=True)
+    return elapsed, rows, ledger, guard
+
+
+def _measure_caps(
+    args: argparse.Namespace,
+    work: Path,
+    seed_fasta: Path,
+    shard_paths: list[Path],
+    shard_residues: list[int],
+    payload: dict[str, Any],
+    publish: Any,
+) -> None:
+    """Measure the two things D-105 and D-109 left open, in the one run where they interact.
+
+    **The hit cap, where it binds.** D-105 measured raising 300 to 5,000 at a scale where the
+    cap did not bind — 1.62x for 0.21% more records — which prices the wrong thing: a slack
+    cap costs what it costs. What matters is the cap that truncates, because truncation is
+    worst for the records matching the most seeds, which are the most viral-like ones. So the
+    slack run reports the maximum hits per seed at each target size, and the binding runs are
+    caps set as fractions of *that*. Hits per seed against target size is also what says
+    whether 100,000 binds at the pass's scale, by extrapolation rather than by assertion.
+
+    **Relaxed coverage.** D-109 buys the three coverage readings from one relaxed search and
+    flagged the risk honestly: relaxing admits more rows, so it costs more and makes the cap
+    likelier to bind. Running both coverage settings here prices that, and the two questions
+    share a run because the interaction is the thing — a relaxed search with a binding cap is
+    the cell where the design could fail.
+
+    The fallback is already decided. If relaxed costs more than three separate `--cov-mode`
+    cells, three cells is the design and D-109 is superseded; this run is what picks.
+    """
+    db = work / "db"
+    db.mkdir(exist_ok=True)
+    spent = 0.0
+    cells: list[dict[str, Any]] = payload["searches"]
+
+    qpath = work / "cap-query.faa"
+    qseqs, qres = _subsample_fasta(seed_fasta, qpath, args.cap_query_denominator)
+    if qseqs == 0:
+        print("  cap measurement: query subsample is empty, nothing to measure", flush=True)
+        return
+    qdb = db / "QCAP"
+    _mmseqs("createdb", str(qpath), str(qdb))
+    print(
+        f"\ncap measurement: query 1/{args.cap_query_denominator} = {qseqs:,} seeds, "
+        f"{qres / 1e6:.0f} M residues",
+        flush=True,
+    )
+    payload["cap_query"] = {
+        "denominator": args.cap_query_denominator,
+        "sequences": qseqs,
+        "residues": qres,
+        "sensitivity": CAP_SENSITIVITY,
+    }
+
+    targets = _build_targets(args, work, db, shard_paths, shard_residues, args.cap_shard_points)
+
+    for k, residues, target in targets:
+        # Relaxed first. It is the design under test, and if the budget runs out after one
+        # coverage setting the useful half is the one that was not already decided.
+        for coverage_mode in (None, 1):
+            name = "relaxed" if coverage_mode is None else f"covmode{coverage_mode}"
+            base = {
+                "measurement": "hit-cap",
+                "reading": name,
+                "shards": k,
+                "residues": residues,
+                "query_sequences": qseqs,
+                "coverage_mode": coverage_mode,
+            }
+            if args.search_budget_seconds and spent >= args.search_budget_seconds:
+                print(
+                    f"  budget of {args.search_budget_seconds:.0f}s spent; stopping before "
+                    f"{name} x shards 1..{k}",
+                    flush=True,
+                )
+                cells.append({**base, "skipped": "search budget exhausted"})
+                publish()
+                return
+
+            try:
+                elapsed, rows, ledger, guard = _cap_cell(
+                    args,
+                    work,
+                    db,
+                    qdb,
+                    target,
+                    cap=similarity.HIT_CAP,
+                    coverage_mode=coverage_mode,
+                    label=f"{name}-{k}-slack",
+                )
+            except RuntimeError as exc:
+                print(f"  {name} x 1..{k} slack: FAILED {exc}", flush=True)
+                cells.append({**base, "cap": similarity.HIT_CAP, "error": str(exc)})
+                publish()
+                continue
+            spent += elapsed
+            slack_records = {m: len(ledger.records(m)) for m in similarity.COVERAGE_READINGS}
+            cells.append(
+                {
+                    **base,
+                    "cap": similarity.HIT_CAP,
+                    "binding": guard.saturated,
+                    "search_wall_seconds": round(elapsed, 1),
+                    "search_core_seconds": round(elapsed * args.threads, 1),
+                    "hit_rows": rows,
+                    "records_by_reading": {str(m): n for m, n in slack_records.items()},
+                    "bands_by_reading": {
+                        str(m): ledger.counts_by_band(m) for m in similarity.COVERAGE_READINGS
+                    },
+                    "saturation": guard.to_dict(),
+                }
+            )
+            print(
+                f"  {name} x 1..{k} cap {similarity.HIT_CAP}: {elapsed:.1f}s wall, {rows:,} rows, "
+                f"max {guard.max_hits:,} hits/seed, records {slack_records}",
+                flush=True,
+            )
+            publish()
+
+            # The caps that bind are defined by what this scale actually produced, so they
+            # are derived here rather than guessed before the run. The published cap is
+            # unchanged by anything measured here: D-105 fixed it, and this prices it.
+            reference = ledger.records(1)
+            for fraction in args.cap_fractions:
+                cap = max(1, int(guard.max_hits * fraction))
+                if cap >= guard.max_hits:
+                    continue
+                if args.search_budget_seconds and spent >= args.search_budget_seconds:
+                    cells.append({**base, "cap": cap, "skipped": "search budget exhausted"})
+                    publish()
+                    return
+                try:
+                    elapsed, rows, ledger_c, guard_c = _cap_cell(
+                        args,
+                        work,
+                        db,
+                        qdb,
+                        target,
+                        cap=cap,
+                        coverage_mode=coverage_mode,
+                        label=f"{name}-{k}-cap{cap}",
+                    )
+                except RuntimeError as exc:
+                    print(f"  {name} x 1..{k} cap {cap}: FAILED {exc}", flush=True)
+                    cells.append({**base, "cap": cap, "error": str(exc)})
+                    publish()
+                    continue
+                spent += elapsed
+                found = ledger_c.records(1)
+                lost = len(reference - found)
+                cells.append(
+                    {
+                        **base,
+                        "cap": cap,
+                        "cap_fraction_of_observed_max": fraction,
+                        "binding": guard_c.saturated,
+                        "search_wall_seconds": round(elapsed, 1),
+                        "search_core_seconds": round(elapsed * args.threads, 1),
+                        "hit_rows": rows,
+                        "records_by_reading": {
+                            str(m): len(ledger_c.records(m)) for m in similarity.COVERAGE_READINGS
+                        },
+                        "records_lost_vs_slack": lost,
+                        "record_loss_fraction": (lost / len(reference)) if reference else None,
+                        "saturation": guard_c.to_dict(),
+                    }
+                )
+                print(
+                    f"  {name} x 1..{k} cap {cap}: {elapsed:.1f}s wall, {rows:,} rows, "
+                    f"lost {lost:,} of {len(reference):,} records",
+                    flush=True,
+                )
+                publish()
+
+    payload["cap_summary"] = _cap_summary(cells)
+    publish()
+
+
+def _cap_summary(cells: list[dict[str, Any]]) -> dict[str, Any]:
+    """The two numbers the run exists to produce, derived from the cells.
+
+    Derived here rather than in a notebook so the instance reports a conclusion even if
+    nothing downstream ever reads the cells: there is no shell on it, and a run whose
+    arithmetic waits until it is home is a run that can come home without it.
+    """
+    slack = [c for c in cells if c.get("cap") == similarity.HIT_CAP and "search_wall_seconds" in c]
+    by_shards: dict[int, dict[str, dict[str, Any]]] = {}
+    for cell in slack:
+        by_shards.setdefault(cell["shards"], {})[cell["reading"]] = cell
+
+    coverage_cost: list[dict[str, Any]] = []
+    for shards, readings in sorted(by_shards.items()):
+        relaxed, filtered = readings.get("relaxed"), readings.get("covmode1")
+        if not (relaxed and filtered):
+            continue
+        ratio = relaxed["search_wall_seconds"] / filtered["search_wall_seconds"]
+        coverage_cost.append(
+            {
+                "shards": shards,
+                "residues": relaxed["residues"],
+                "relaxed_wall_seconds": relaxed["search_wall_seconds"],
+                "filtered_wall_seconds": filtered["search_wall_seconds"],
+                "cost_ratio": round(ratio, 3),
+                # Three separate --cov-mode searches is the fallback D-109 names, so the
+                # relaxed search is only worth it below 3x. Stated as the comparison rather
+                # than as a verdict, because the verdict is a decision entry's job.
+                "cheaper_than_three_cells": ratio < len(similarity.COVERAGE_READINGS),
+                "row_ratio": round(relaxed["hit_rows"] / max(1, filtered["hit_rows"]), 3),
+            }
+        )
+
+    hits_per_seed = [
+        {
+            "shards": c["shards"],
+            "residues": c["residues"],
+            "reading": c["reading"],
+            "max_hits_per_seed": c["saturation"]["max_hits_per_query"],
+            "max_hits_per_seed_per_g_residue": round(
+                c["saturation"]["max_hits_per_query"] / (c["residues"] / 1e9), 1
+            )
+            if c["residues"]
+            else None,
+        }
+        for c in slack
+    ]
+    return {
+        "coverage_cost": coverage_cost,
+        "hits_per_seed": hits_per_seed,
+        "published_cap": similarity.HIT_CAP,
+        "note": (
+            "max_hits_per_seed_per_g_residue extrapolates linearly to the pass's target size "
+            "and is what says whether the published cap binds there. The caps run below the "
+            "observed maximum price truncation at this scale; they do not change the "
+            "published cap, which D-105 fixed."
+        ),
+    }
 
 
 def _hit_count(query: Path, target: Path, result: Path, work: Path) -> int:

@@ -70,3 +70,64 @@ def test_readings_are_fixed_constants_not_computed() -> None:
     # The strict reading removes on any detected hit, so it sets no identity floor.
     assert "--min-seq-id" not in tool.STRICT
     assert "-s" in tool.STRICT
+
+
+def _slack(reading: str, shards: int, residues: int, wall: float, rows: int, mx: int) -> dict:
+    return {
+        "measurement": "hit-cap",
+        "reading": reading,
+        "shards": shards,
+        "residues": residues,
+        "cap": tool.similarity.HIT_CAP,
+        "search_wall_seconds": wall,
+        "hit_rows": rows,
+        "saturation": {"max_hits_per_query": mx},
+    }
+
+
+def test_cap_and_curve_write_to_different_artefacts() -> None:
+    """The corpus bucket has no DeleteObject, so a shared default would be unrecoverable."""
+    assert tool.ARTEFACT_NAMES["caps"] != tool.ARTEFACT_NAMES["curve"]
+    assert len(set(tool.ARTEFACT_NAMES.values())) == len(tool.ARTEFACT_NAMES)
+
+
+def test_cap_summary_prices_relaxed_coverage_against_the_three_cell_fallback() -> None:
+    """D-109's provisional item: relaxed coverage is only worth it below three separate cells."""
+    cells = [
+        _slack("relaxed", 1, 1_000_000_000, 250.0, 9000, 400),
+        _slack("covmode1", 1, 1_000_000_000, 100.0, 3000, 150),
+    ]
+    summary = tool._cap_summary(cells)
+    (cost,) = summary["coverage_cost"]
+    assert cost["cost_ratio"] == 2.5
+    assert cost["cheaper_than_three_cells"] is True
+
+    cells[0]["search_wall_seconds"] = 400.0
+    cost = tool._cap_summary(cells)["coverage_cost"][0]
+    assert cost["cost_ratio"] == 4.0
+    assert cost["cheaper_than_three_cells"] is False, "above 3x the fallback wins"
+
+
+def test_cap_summary_reports_hits_per_seed_per_residue_for_extrapolation() -> None:
+    """Whether the published cap binds at the pass's scale is this number times that scale."""
+    summary = tool._cap_summary([_slack("relaxed", 2, 2_000_000_000, 10.0, 10, 500)])
+    (row,) = summary["hits_per_seed"]
+    assert row["max_hits_per_seed_per_g_residue"] == 250.0
+    assert summary["published_cap"] == tool.similarity.HIT_CAP
+
+
+def test_cap_summary_ignores_the_binding_cells_when_pricing_coverage() -> None:
+    """A binding cap truncates, so its wall time prices truncation rather than coverage."""
+    cells = [
+        _slack("relaxed", 1, 1_000_000_000, 250.0, 9000, 400),
+        _slack("covmode1", 1, 1_000_000_000, 100.0, 3000, 150),
+        {**_slack("relaxed", 1, 1_000_000_000, 5.0, 100, 80), "cap": 80},
+    ]
+    assert tool._cap_summary(cells)["coverage_cost"][0]["cost_ratio"] == 2.5
+
+
+def test_cap_summary_omits_a_shard_size_measured_at_only_one_coverage_setting() -> None:
+    """A budget can stop the run between the two settings; half a ratio is not a ratio."""
+    summary = tool._cap_summary([_slack("relaxed", 1, 1_000_000_000, 250.0, 9000, 400)])
+    assert summary["coverage_cost"] == []
+    assert len(summary["hits_per_seed"]) == 1, "the half that ran is still reported"

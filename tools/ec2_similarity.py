@@ -54,6 +54,16 @@ MMSEQS_URL = (
 )
 MMSEQS_SHA256 = "bd9b0234da5949ad528d5b5f9ea4cda9c1e23dce14b46c0791d4d919a76e61ce"
 
+#: Per measurement, because the two want opposite trades. The curve holds the full seed set
+#: as query and needs a small target for its grid points to complete at all; the cap
+#: measurement subsamples the query and needs a large target, since hits per seed is what the
+#: cap truncates and it scales with the target.
+SAMPLE_RATES = {"curve": 2000, "caps": 50}
+
+#: Where each measurement's result lands, matching `esm3_calibrate.ARTEFACT_NAMES`. The
+#: watcher polls this key, so a mismatch reads as a run that produced nothing.
+RESULT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
+
 #: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
 PAYLOAD = (
     "src/amazebio/__init__.py",
@@ -123,8 +133,11 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --release {release} --tier {tier} \
     --taxdump /opt/amazebio/taxdmp.zip \
     --outdir /opt/amazebio/out --workdir /mnt/work \
+    --measure {measure} \
     --sample-rate {sample_rate} --buckets {buckets} --strict-buckets {strict_buckets} \
     --query-fractions {query_fractions} --shard-points {shard_points} \
+    --cap-query-denominator {cap_query_denominator} \
+    --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
     --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
@@ -184,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
     # full-query search against it had not finished in 61 minutes; at 2000 the whole sample
     # is 67 M residues, so every grid point can complete and the fit gets points instead of
     # one timeout.
-    ap.add_argument("--sample-rate", type=int, default=2000)
+    ap.add_argument("--sample-rate", type=int, default=None)
     ap.add_argument("--query-fractions", default="1000,100,10,1")
     ap.add_argument("--shard-points", default="1,2,4,8")
     ap.add_argument("--buckets", type=int, default=8)
@@ -232,6 +245,21 @@ def main(argv: list[str] | None = None) -> int:
         help="kill the instance when the watch window expires even if it is still "
         "working. Off by default: doing it unconditionally destroyed a healthy run once.",
     )
+    ap.add_argument(
+        "--measure",
+        choices=("curve", "caps"),
+        default="curve",
+        help="what the instance measures. `caps` prices the hit cap where it binds and "
+        "relaxed coverage against D-109's three-cell fallback (default: %(default)s)",
+    )
+    # The cap measurement wants the opposite trade from the cost curve: a *larger* target
+    # against a small query, because hits per seed — the thing the cap truncates — scales
+    # with the target and is a per-seed property the query subsample does not bias. Rate 50
+    # over UniRef100 is about 2 G residues against rate 2000's 67 M, which is the difference
+    # between a cap that can be made to bind and one that cannot.
+    ap.add_argument("--cap-query-denominator", type=int, default=100)
+    ap.add_argument("--cap-shard-points", default="1,2")
+    ap.add_argument("--cap-fractions", default="0.5,0.2")
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
     ap.add_argument(
         "--spot",
@@ -241,6 +269,8 @@ def main(argv: list[str] | None = None) -> int:
         "can be reclaimed mid-run",
     )
     args = ap.parse_args(argv)
+    if args.sample_rate is None:
+        args.sample_rate = SAMPLE_RATES[args.measure]
 
     if args.volume_size > 200:
         raise SystemExit("the account's policy caps volumes at 200 GB in gp3/gp2")
@@ -282,7 +312,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     print(f"code commit: {commit}")
 
-    code_key = f"{prefix}/code/a1-6-calibrate-{int(time.time())}.tar.gz"
+    code_key = f"{prefix}/code/a1-6-{args.measure}-{int(time.time())}.tar.gz"
     payload = build_payload(root)
     if not args.dry_run:
         s3.put_object(Bucket=bucket, Key=code_key, Body=payload)
@@ -296,6 +326,10 @@ def main(argv: list[str] | None = None) -> int:
         commit=commit,
         release=args.release,
         tier=args.tier,
+        measure=args.measure,
+        cap_query_denominator=args.cap_query_denominator,
+        cap_shard_points=args.cap_shard_points,
+        cap_fractions=args.cap_fractions,
         sample_rate=args.sample_rate,
         buckets=args.buckets,
         strict_buckets=args.strict_buckets,
@@ -316,7 +350,7 @@ def main(argv: list[str] | None = None) -> int:
     tags = [
         {"Key": "Project", "Value": "ClaudeSpike"},
         {"Key": "Owner", "Value": args.owner},
-        {"Key": "Name", "Value": "amazebio-a1-6-calibrate"},
+        {"Key": "Name", "Value": f"amazebio-a1-6-{args.measure}"},
     ]
     launch: dict[str, Any] = dict(
         ImageId=ami,
@@ -409,7 +443,8 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
     """Poll the result key and the console. Returns (exit code, whether time ran out)."""
     deadline = time.monotonic() + args.timeout_minutes * 60
     timed_out = True
-    key = f"{prefix}/results/a1-6/calibration.json"
+    name = RESULT_NAMES[args.measure]
+    key = f"{prefix}/results/a1-6/{name}"
     seen_console = 0
     last_searches = -1
 
@@ -448,8 +483,8 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
         body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
         out = Path("artifacts/a1-6")
         out.mkdir(parents=True, exist_ok=True)
-        (out / "calibration.json").write_bytes(body)
-        print(f"collected s3://{bucket}/{key} -> artifacts/a1-6/calibration.json")
+        (out / name).write_bytes(body)
+        print(f"collected s3://{bucket}/{key} -> artifacts/a1-6/{name}")
         return 0, timed_out
     except Exception as exc:
         print(f"no result at s3://{bucket}/{key}: {type(exc).__name__}")
