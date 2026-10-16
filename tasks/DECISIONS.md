@@ -4569,3 +4569,52 @@ decision has a threshold or parameter in it, the number goes in the entry.
   is the hit cap alone, against a staged sample rather than a fresh corpus pass. The project owner's
   standing direction is the cheap, provable efficiencies with sampling retained; this is the first
   of them.
+
+### D-115 — The narrow arm's handling and reporting rules, fixed before the result exists
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-108 settled the narrow arm's scope — exhaustive against every corpus record — and
+  explicitly left its handling open, because it is the output §4's reporting limits and the X3.1
+  gate are written for. The arm was not to be built until this existed. The question had to be
+  answered **now** rather than when the result lands: §2 and the working conventions fix analysis
+  specs before results are inspected, and an empty result and a non-empty one invite very different
+  rules once either is visible. This entry therefore covers both branches in advance.
+- **Decision (project owner): report counts aggregated by survival route and homology class, never
+  by organism or taxon.** Per-record detail goes to the disclosure package only — Arc Institute,
+  EvolutionaryScale and SecureBio under §4 — and not to the preprint, which carries the aggregate
+  and a pointer. This follows §4's existing precedent for cost curves, where the regime
+  classification publishes by homology class and fold family while per-family curves stay in the
+  disclosure package: the narrow arm's manifest is the same kind of object, and it is organism-
+  attributable by construction because the denylist was reconstructed from an organism list.
+- **Both branches.** An empty result is reported plainly — nothing on the narrow denylist survived,
+  with the proxy qualifier A1.1 requires on every ESM3 result. A non-empty result is reported as
+  counts by survival route (A3.1's frozen taxonomy) and by homology class, with its interval, and
+  nothing finer.
+- **Four consequences that follow rather than being separate choices.**
+  1. **Where the manifest may live.** `artifacts/` is git-ignored and is where it goes. It is **not**
+     committed, because deliverable 7 is a public repo, and it is **not** staged to the corpus
+     bucket, which has no `DeleteObject` — a per-record narrow-arm manifest written there could
+     never be withdrawn. The disclosure package is assembled separately.
+  2. **Downstream inheritance.** D-108 has A2.* and B3.* consuming A1.4's manifest shape from this
+     arm. They inherit this rule: their *published* outputs aggregate the same way. A restriction
+     that stops at A1.6 while a downstream task republishes the detail is not a restriction.
+  3. **Enforced in code, not remembered.** §4's limits are enforced in the harness per the
+     non-negotiables. The narrow arm's reporting path emits aggregates; the per-record manifest is
+     written only under the git-ignored artefacts path, and the upload helper refuses a narrow-arm
+     manifest key. A harness that *could* publish the detail is the thing the non-negotiable
+     forbids, independently of whether anyone would.
+  4. **Nothing circulates before X3.1**, including the aggregate, per §4's disclosure requirement
+     and §7's treatment of the window as substance.
+- **Rejected:** A bare count with no breakdown until the window closes — more conservative, and it
+  would leave the Phase A write-up unable to characterise what survived, which is the audit's
+  actual contribution. The full per-record manifest as the deliverable with only a pointer in the
+  preprint — strongest for the three recipients who can act on it, and it makes the preprint's
+  central narrow-arm claim unverifiable by a reader. Deferring the non-empty branch until a result
+  exists — this is exactly the "fix it before you look" rule, and the asymmetry of the two branches
+  is what makes deferring it tempting and wrong.
+- **Consequence:** **the narrow arm is unblocked.** What remains before it runs is not the owner's:
+  the second seed set is still unbuilt, and two questions gate it, each needing its own entry — how
+  the published organism list's names map to taxonomy ids, which the list does not do for you; and
+  which version of that list was in force when the filter ran, since the source cites a 2024 access
+  date and the retrievable page is live and undated. The reconstruction has a validation target:
+  187K sequences, published in the source (D-106).

@@ -292,6 +292,31 @@ the boot-armed shutdown timer does fire, reported as `User initiated` rather tha
 the measurement entirely, so only the hit cap remains, and it runs against a staged sample
 rather than a fresh corpus pass.
 
+## The narrow arm is unblocked — 2026-10-16, sixth
+
+D-115. The project owner's rule, fixed before any result exists because §2 requires analysis
+specs settled before results are inspected, and because an empty result and a non-empty one
+would invite different rules once either was visible: **counts by survival route and homology
+class, never by organism or taxon**, with per-record detail in the disclosure package only and
+the preprint carrying the aggregate. Both branches are covered in advance.
+
+Four things follow rather than being separate calls, and they are in D-115: the per-record
+manifest lives only under the git-ignored artefacts path — never committed, since the public
+repo is a deliverable, and never staged to the corpus bucket, which cannot delete; A2.* and
+B3.* inherit the rule for their published outputs; the limit is enforced in the harness per the
+non-negotiables, not left to be remembered; and nothing circulates before X3.1.
+
+**Nothing on this arm now waits on the owner.** What remains is ours, in order:
+
+1. Two decisions, each its own entry — how the published organism list's names map to taxonomy
+   ids, which the list does not do for you; and which version of that list was in force when the
+   filter ran, since the source cites a 2024 access date and the retrievable page is live and
+   undated.
+2. Build the second seed set. Validation target: 187K sequences, published in the source (D-106).
+3. Score it exhaustively. Cost is linear in query count, so at 187K against 3.16M this arm is
+   roughly a seventeenth of the broad arm's compute — cheap even over the whole corpus, which is
+   what D-108 relied on.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
