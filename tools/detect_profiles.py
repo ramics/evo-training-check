@@ -431,20 +431,38 @@ def cache_dir(release: str, *, root: Path | None = None) -> Path:
     return (root or CACHE_ROOT) / release
 
 
+def cache_stem(component: str, object_name: str, lo: float, hi: float) -> str:
+    """The cache's filename stem for one staged object and band.
+
+    The *object* is in the key, not just the component, because Evo 1 publishes stage 2 as three
+    splits under one component name: a stem keyed on the component alone makes the three collide,
+    and the last write wins. That cost a 23-minute read once — the two empty splits overwrote the
+    full one. Suffixes are concatenated rather than applied with `Path.with_suffix`, which would
+    read the `.02` of a band bound as the suffix to replace.
+    """
+    return f"{component}--{object_name}--{lo:g}-{hi:g}"
+
+
 def write_cache(
-    path: Path, proteins: list[Any], records: dict[str, Any], *, band: tuple[float, float]
-) -> None:
+    directory: Path,
+    stem: str,
+    proteins: list[Any],
+    records: dict[str, Any],
+    *,
+    band: tuple[float, float],
+) -> Path:
     """Write called proteins and their records' metadata for later searching.
 
     Two files: the proteins as gzipped FASTA named `<record_id>|gene<n>`, and a JSONL of each
     record's component and lineage, which is what the route resolution needs. No nucleotide
     sequence is written and nothing here is an artefact — see D-103.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with gzip.open(path.with_suffix(".faa.gz"), "wt") as handle:
+    directory.mkdir(parents=True, exist_ok=True)
+    proteins_path = directory / f"{stem}.faa.gz"
+    with gzip.open(proteins_path, "wt") as handle:
         for protein in proteins:
             handle.write(f">{_text(protein.name)}\n{protein.textize().sequence}\n")
-    with open(path.with_suffix(".records.jsonl"), "w") as handle:
+    with open(directory / f"{stem}.records.jsonl", "w") as handle:
         for record_id, record in records.items():
             handle.write(
                 json.dumps(
@@ -458,6 +476,7 @@ def write_cache(
                 )
                 + "\n"
             )
+    return proteins_path
 
 
 def read_cache(
@@ -480,7 +499,7 @@ def read_cache(
     stats = Counter({"records": 0, "genes": 0, "residues": 0, "records_without_genes": 0})
     seen: set[str] = set()
 
-    for meta_path in sorted(directory.glob(f"{component}-*.records.jsonl")):
+    for meta_path in sorted(directory.glob(f"{component}--*.records.jsonl")):
         for line in meta_path.read_text().splitlines():
             if not line:
                 continue
@@ -492,7 +511,7 @@ def read_cache(
                 component=row["component"],
                 taxonomy=tuple(row["taxonomy"]) or None,
             )
-    for faa_path in sorted(directory.glob(f"{component}-*.faa.gz")):
+    for faa_path in sorted(directory.glob(f"{component}--*.faa.gz")):
         with gzip.open(faa_path, "rt") as handle:
             name = None
             for raw in handle:
@@ -726,6 +745,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="merge the initial tables and every part into the final tables, searching nothing",
     )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=None,
+        help=(
+            "where called proteins are cached (D-103). Defaults to a scratch directory outside "
+            "the working tree; never put it under artifacts/ or data/, where a reviewer looks "
+            "for the audit's own artefacts."
+        ),
+    )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     args = parser.parse_args(argv)
 
@@ -848,7 +877,10 @@ def main(argv: list[str] | None = None) -> int:
                 started = time.time()
                 if args.from_cache:
                     proteins, cached_records, stats = read_cache(
-                        cache_dir(release), component=source.corpus_component, lo=lo, hi=hi
+                        cache_dir(release, root=args.cache_dir),
+                        component=source.corpus_component,
+                        lo=lo,
+                        hi=hi,
                     )
                     sampled_records.update(cached_records)
                     read_seconds = time.time() - started
@@ -881,12 +913,16 @@ def main(argv: list[str] | None = None) -> int:
                     records_here = {s.id: s.record for s in batch}
                     del batch
                     if args.collect:
-                        target = cache_dir(release) / f"{source.corpus_component}-{lo:g}-{hi:g}"
-                        write_cache(target, proteins, records_here, band=(lo, hi))
+                        written_to = write_cache(
+                            cache_dir(release, root=args.cache_dir),
+                            cache_stem(source.corpus_component, Path(source.key).name, lo, hi),
+                            proteins,
+                            records_here,
+                            band=(lo, hi),
+                        )
                         print(
                             f"  cached {stats['genes']:,} genes "
-                            f"({stats['residues']:,} residues) to "
-                            f"{target.with_suffix('.faa.gz')}",
+                            f"({stats['residues']:,} residues) to {written_to}",
                             flush=True,
                         )
                 print(
@@ -932,6 +968,14 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 del proteins
                 per_source.append(source_row)
+
+            if args.collect:
+                # A collect run searched nothing, so it must write no part: a part whose tables
+                # are empty would be merged by --assemble as a band that was searched and found
+                # nothing, which is an understated bound with nothing to show it. The coverage
+                # check cannot catch that — the bands would tile correctly.
+                print(f"  collected {release}; searched nothing and wrote no part", flush=True)
+                continue
 
             for entry in entries:
                 manifest = entry["manifest"]
