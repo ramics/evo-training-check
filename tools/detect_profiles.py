@@ -28,16 +28,20 @@ What it does, in order, per release:
    *named* record has to be recomputed; what is taken from the manifest is the surviving set
    itself, which is the thing A2.1 must not re-derive.
 
-No sequence is written. D-020 holds here as everywhere: residues live in memory for as long as
-the search takes, and the artefacts carry accessions, scores and model coordinates only.
+No sequence reaches an artefact. Residues live in memory, and called proteins in ephemeral
+scratch when several band searches have to read them (D-103); the artefacts carry accessions,
+scores and model coordinates only.
 """
 
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
+import os
 import shutil
 import sys
+import tempfile
 import time
 from collections import Counter
 from pathlib import Path
@@ -55,6 +59,7 @@ from amazebio.detect import (
     check_route_coverage,
     detection_rows,
     element_kind_for,
+    in_band,
 )
 from amazebio.policyspec import Outcome, load_policy_dir
 from amazebio.profiles import (
@@ -409,6 +414,108 @@ def stream_source(client: Any, source: corpora.StagedSource, *, lo: float = 0.0,
         raise SystemExit(f"no sequence reader for {source.key}")
 
 
+#: Where called proteins live between a read pass and the searches that consume them (D-103).
+#: Ephemeral per-session scratch, outside the working tree: sequence may live here and in memory,
+#: never in the repository, `artifacts/`, or anything a reviewer reads as a result.
+CACHE_ROOT = (
+    Path(
+        os.environ.get("AMAZEBIO_SCRATCH")
+        or os.environ.get("CLAUDE_SCRATCH_DIR")
+        or tempfile.gettempdir()
+    )
+    / "a2-1-proteins"
+)
+
+
+def cache_dir(release: str, *, root: Path | None = None) -> Path:
+    return (root or CACHE_ROOT) / release
+
+
+def write_cache(
+    path: Path, proteins: list[Any], records: dict[str, Any], *, band: tuple[float, float]
+) -> None:
+    """Write called proteins and their records' metadata for later searching.
+
+    Two files: the proteins as gzipped FASTA named `<record_id>|gene<n>`, and a JSONL of each
+    record's component and lineage, which is what the route resolution needs. No nucleotide
+    sequence is written and nothing here is an artefact — see D-103.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(path.with_suffix(".faa.gz"), "wt") as handle:
+        for protein in proteins:
+            handle.write(f">{_text(protein.name)}\n{protein.textize().sequence}\n")
+    with open(path.with_suffix(".records.jsonl"), "w") as handle:
+        for record_id, record in records.items():
+            handle.write(
+                json.dumps(
+                    {
+                        "record_id": record_id,
+                        "component": record.component,
+                        "taxonomy": list(record.taxonomy or ()),
+                        "band": list(band),
+                    },
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+
+
+def read_cache(
+    directory: Path, *, component: str, lo: float, hi: float
+) -> tuple[list[Any], dict[str, Any], dict[str, int]]:
+    """Load cached proteins for one component, keeping only records in the band `[lo, hi)`.
+
+    Band membership is recomputed from the record identifier rather than trusted from the file
+    the cache was written by, which is what makes a cache unable to change what a run searched
+    (D-103): a stale or wider cache yields exactly the band asked for, and a missing record
+    yields a smaller count that the source row reports.
+    """
+    from pyhmmer.easel import Alphabet, TextSequence
+
+    from amazebio.policyspec import Record
+
+    amino = Alphabet.amino()
+    proteins: list[Any] = []
+    records: dict[str, Any] = {}
+    stats = Counter({"records": 0, "genes": 0, "residues": 0, "records_without_genes": 0})
+    seen: set[str] = set()
+
+    for meta_path in sorted(directory.glob(f"{component}-*.records.jsonl")):
+        for line in meta_path.read_text().splitlines():
+            if not line:
+                continue
+            row = json.loads(line)
+            if not in_band(row["record_id"], seed=SEED, lo=lo, hi=hi):
+                continue
+            records[row["record_id"]] = Record(
+                id=row["record_id"],
+                component=row["component"],
+                taxonomy=tuple(row["taxonomy"]) or None,
+            )
+    for faa_path in sorted(directory.glob(f"{component}-*.faa.gz")):
+        with gzip.open(faa_path, "rt") as handle:
+            name = None
+            for raw in handle:
+                if raw.startswith(">"):
+                    name = raw[1:].strip()
+                    continue
+                if name is None:
+                    continue
+                record_id = name.partition("|")[0]
+                if record_id in records:
+                    sequence = raw.strip()
+                    proteins.append(
+                        TextSequence(name=name.encode(), sequence=sequence).digitize(amino)
+                    )
+                    stats["genes"] += 1
+                    stats["residues"] += len(sequence)
+                    seen.add(record_id)
+                name = None
+    stats["records"] = len(seen)
+    stats["records_without_genes"] = len(records) - len(seen)
+    return proteins, records, dict(stats)
+
+
 def _detection_from_row(row: dict[str, Any]) -> Any:
     """Rebuild a `Detection` from a written row, for assembling bands into one table."""
     from amazebio.survival import Detection, ElementKind, Route
@@ -601,6 +708,20 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--collect",
+        action="store_true",
+        help=(
+            "read the band and cache its called proteins to scratch, searching nothing. One "
+            "collect pass then serves several --from-cache searches, so a release is read once "
+            "rather than once per band (D-103)."
+        ),
+    )
+    parser.add_argument(
+        "--from-cache",
+        action="store_true",
+        help="search a band from the cached proteins, reading no corpus",
+    )
+    parser.add_argument(
         "--assemble",
         action="store_true",
         help="merge the initial tables and every part into the final tables, searching nothing",
@@ -725,20 +846,49 @@ def main(argv: list[str] | None = None) -> int:
                     flush=True,
                 )
                 started = time.time()
-                batch: list[Any] = []
-                for sampled in stream_source(client, source, lo=lo, hi=hi):
-                    batch.append(sampled)
-                    sampled_records[sampled.id] = sampled.record
-                    if args.limit_records and len(batch) >= args.limit_records:
-                        break
-                read_seconds = time.time() - started
-                print(
-                    f"  {len(batch):,} records sampled in {read_seconds / 60:.1f} min; "
-                    "calling genes",
-                    flush=True,
-                )
-                proteins, stats = call_genes(batch)
-                del batch
+                if args.from_cache:
+                    proteins, cached_records, stats = read_cache(
+                        cache_dir(release), component=source.corpus_component, lo=lo, hi=hi
+                    )
+                    sampled_records.update(cached_records)
+                    read_seconds = time.time() - started
+                    if not proteins:
+                        raise SystemExit(
+                            f"{label}: the cache holds no proteins for band [{lo}, {hi}). Run "
+                            "--collect for this band first; searching nothing would write a "
+                            "part that silently covers no records."
+                        )
+                    print(
+                        f"  {stats['records']:,} records from cache in "
+                        f"{read_seconds:.1f}s ({stats['genes']:,} genes, "
+                        f"{stats['residues']:,} residues)",
+                        flush=True,
+                    )
+                else:
+                    batch: list[Any] = []
+                    for sampled in stream_source(client, source, lo=lo, hi=hi):
+                        batch.append(sampled)
+                        sampled_records[sampled.id] = sampled.record
+                        if args.limit_records and len(batch) >= args.limit_records:
+                            break
+                    read_seconds = time.time() - started
+                    print(
+                        f"  {len(batch):,} records sampled in {read_seconds / 60:.1f} min; "
+                        "calling genes",
+                        flush=True,
+                    )
+                    proteins, stats = call_genes(batch)
+                    records_here = {s.id: s.record for s in batch}
+                    del batch
+                    if args.collect:
+                        target = cache_dir(release) / f"{source.corpus_component}-{lo:g}-{hi:g}"
+                        write_cache(target, proteins, records_here, band=(lo, hi))
+                        print(
+                            f"  cached {stats['genes']:,} genes "
+                            f"({stats['residues']:,} residues) to "
+                            f"{target.with_suffix('.faa.gz')}",
+                            flush=True,
+                        )
                 print(
                     f"  {stats['genes']:,} genes, {stats['residues']:,} residues "
                     f"({stats['records_without_genes']:,} records with no gene called)",
@@ -756,6 +906,9 @@ def main(argv: list[str] | None = None) -> int:
                     "read_seconds": round(read_seconds, 1),
                     "search_seconds": {},
                 }
+                if args.collect:
+                    del proteins
+                    continue
                 for reg in regs:
                     if not proteins:
                         # A source the sample drew nothing from still costs a full pass over

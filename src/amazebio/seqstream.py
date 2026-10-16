@@ -14,11 +14,11 @@ header before any sequence is touched, and an unsampled record costs a hash. The
 still read end to end — object storage has no index into a gzip stream — but a 0.1% sample
 costs 0.1% of the memory and the search, which is the part that is out of reach (D-078).
 
-**No sequence is written anywhere.** D-020 is explicit that this project stores no genomic
-sequence, and A7.1's splitter measures the sequence and drops it for exactly that reason. The
-residues here live in memory for as long as it takes to call genes and search them, and the
-artefacts carry accessions, scores and coordinates only. A caller that wants to persist what
-this yields is doing something the project does not do.
+**No sequence reaches an artefact.** D-103 draws the line: residues may live in memory, and
+in ephemeral scratch outside the working tree when a later pass has to search them again, but
+never in the repository, in `artifacts/`, in the audit store, or in anything a reviewer reads
+as a result — which is why A7.1's splitter measures the sequence and drops it. What this module
+yields is for computing on, not for keeping.
 """
 
 from __future__ import annotations

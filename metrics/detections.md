@@ -115,7 +115,9 @@ A2.3's, and the rows say so (D-080).
 One JSON object per line: `record_id`, `family_id`, `registry`, `registry_version`, `detector`,
 `score`, `threshold`, `route`, `element_kind`.
 
-**No sequence, ever.** D-020 is explicit that this project stores no genomic sequence. Residues
+**No sequence in any artefact.** D-103 states the boundary: corpus sequence may live in
+memory and in ephemeral scratch outside the working tree, never in the repository, in
+`artifacts/`, in the audit store, or in anything a reviewer reads as a result. Residues
 live in memory for as long as a search takes; the artefacts carry accessions, scores and model
 coordinates only.
 
