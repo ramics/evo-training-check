@@ -3910,3 +3910,267 @@ decision has a threshold or parameter in it, the number goes in the entry.
   query-set size, because the query side is 3.16M sequences and the first run showed it dominates.
   What A1.6 delivers changes with it: survival **rates with intervals** over a sample, not
   per-record manifests over the whole corpus, and every downstream consumer must be told which.
+
+### D-102 — Search cost is affine in target size, not sub-linear; the power-law reading was an artefact
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The grid run (instance `i-0fab283b268b592cc`, commit `64e613f`) measured 19 points
+  over query sizes 3,130 to 3,159,223 and target sizes 8.3 to 66.4 M residues. D-101 framed the
+  remaining uncertainty as a target-size *exponent*, and the first reading of these points put it at
+  0.36–0.48 — strongly sub-linear, which would have made even a whole-corpus pass cost tens of
+  dollars. That reading is wrong and the error is worth recording, because it is the kind that
+  survives review by looking like a measurement.
+- **Decision:** **Model search cost as affine in target size, not as a power law.** Per-query cost
+  at the four target sizes, at 315,266 queries:
+
+  | target (M residues) | core-s per query |
+  |---|---|
+  | 8.3 | 0.01003 |
+  | 16.6 | 0.01289 |
+  | 33.2 | 0.01625 |
+  | 66.4 | 0.02281 |
+
+  The increments per M residue across the top three are 0.000202 and 0.000198 — flat. Fitting
+  `cost/query = a + b·T` on those gives **a = 0.009583 core-s, b = 0.0001992 core-s per M
+  residue**, which reproduces the 33.2 point to 0.3%. A power law fitted to the same data returns
+  an exponent near 0.4 only because the constant term dominates at these target sizes: at 8.3 M
+  residues the fixed cost is three quarters of the total. **The apparent sub-linearity is the
+  intercept, not the scaling.** Extrapolating the exponent would have understated the full pass by
+  about a hundred-fold.
+  **Query cost is linear, and that is measured at the real query size rather than extrapolated.**
+  Per-query cost converges to 0.00994–0.01003 core-s at 315,266 and 3,159,223 queries against the
+  same target, so doubling the seed set doubles the cost with no surprise at the size the pass will
+  actually use. This is the one axis that needs no further measurement.
+  **The strict reading costs 3.2× the charitable one**, consistent across the grid (2.3× at the
+  smallest query, 3.12× and 3.20× at the two largest). D-094 feared 10–50×. Both readings are
+  therefore affordable together wherever one of them is, and no choice between them is needed.
+- **Consequence, with the arithmetic stated so it can be checked:** at `Q = 3,159,223` and a
+  whole-corpus target of about 376,000 M residues, the affine model gives 236M core-seconds, or
+  **65,700 core-hours — about $4,100 at r6i.2xlarge rates for the charitable reading and roughly
+  $17,000 with strict included.** A 1-in-50 sample is about $83 and $350 respectively. So the
+  sampled pass D-101 chose stands, and it stands on a firmer basis than when it was chosen.
+  **This is still an extrapolation of 5,600× in target size and is not yet a result.** The affine
+  fit makes a sharp, falsifiable prediction that the next run tests directly: at 13,350 M residues
+  and 3,130 queries it predicts 17.4 minutes where the power law predicts 2.0. Instance
+  `i-0afb243ec1234245c` is measuring exactly that, with targets from 66.7 to 13,350 M residues.
+- **Rejected:** Reporting the 0.4 exponent with a caveat — it is not a conservative estimate, it is
+  a hundred-fold error in the project's favour, and §2's commitment makes an error that flatters the
+  audit the same failure as one that flatters the filter. Extrapolating from the affine fit without
+  testing it — the fit is excellent over an 8× range and the pass needs 5,600×, and the physical
+  reason to distrust it is concrete: at large target sizes MMseqs2 splits the target to fit memory,
+  and a split target is re-scanned per chunk, which would make the true cost **worse** than linear
+  rather than better.
+
+### D-103 — Where sequence may live: memory and ephemeral scratch, never the repo, the artefacts or the audit store
+- **Date:** 2026-10-16
+- **Task:** A2.1
+- **Context:** Four modules now cite D-020 for the proposition that "this project stores no
+  genomic sequence" — `metrics/detections.md`, `src/amazebio/seqstream.py`,
+  `src/amazebio/conformance.py` and `tools/detect_profiles.py`. **D-020 does not say that.** It
+  is the A1.1 gate correction establishing that stage 2 is Evo 1's viral component, and the
+  commitment is a parenthetical about one stored artefact: the sample "holding lineage tags and
+  counts only — no genomic sequence enters this repo". A1.3 and A7.1 read it correctly as a rule
+  about *outputs* ("a scan that never holds any cannot leak any, so the in-region pass can emit
+  its result straight to the audit store"). A2.1 escalated it to "no sequence is written
+  anywhere" and then paid for that reading: every one of the deepening's thirteen band runs
+  re-reads its whole staged object, because the called proteins were not allowed to touch disk
+  between runs. At 0.09 USD per GB that is about 10 USD of egress and two hours of wall clock to
+  avoid writing 190 MB to a scratch directory that is destroyed with the container.
+- **Decision:** The boundary is stated here rather than inferred from a parenthetical, and it is
+  the one A1.3 and A7.1 were already working to:
+  **Corpus sequence may exist in memory, and in ephemeral per-session scratch outside the
+  repository, for as long as a computation needs it.** A2.1 caches called proteins there so a
+  band search does not re-read the corpus.
+  **It may never enter the repository, `artifacts/`, the audit store, or any file a reviewer or
+  a later task reads as a result.** Every artefact carries accessions, scores, coordinates,
+  counts and lineage tags only. That is what D-020's commitment protects and it is unchanged.
+  **A cache is never an input to a result.** It is keyed by record identifier, and band
+  membership is recomputed from the identifier when it is read, so a cache cannot change which
+  records a run searched — only whether they had to be fetched again. Delete it and the run
+  reproduces from the pinned corpus.
+  The four citations are repointed here.
+- **Rejected:** Keeping the stronger reading, which the project owner was offered with its price
+  and declined. It is defensible — the safest handling of sequence is not to write it at all —
+  but it was never decided, only inherited from a misreading, and paying for an unstated rule is
+  worse than either reading.
+  Caching under `artifacts/` or `data/`, which are git-ignored and would therefore be "outside
+  the repository" in the only sense git cares about. They are inside the working tree, they are
+  where every other task's inputs and results live, and a reviewer looking for the audit's
+  artefacts should not find corpus sequence among them. Scratch is outside both.
+  Caching the raw nucleotide records rather than the called proteins. The proteins are what the
+  search consumes, they are a tenth of the size, and gene calling is the step whose determinism
+  (D-077) is worth not repeating.
+- **Consequence:** The remaining deepening reads each release once rather than once per band:
+  about 28 GiB instead of 107, roughly 7 USD and two hours saved. Nothing about the result
+  changes — same seed, same bands, same records, and the coverage check still refuses a table
+  whose bands do not tile its rate. The lesson is the one to carry: **a commitment that four
+  modules cite should be written where it can be read, not left as a parenthetical in an entry
+  about something else.** This session escalated it once without noticing; the next task to
+  inherit it would have had no way to tell the inherited reading from the decided one.
+
+### D-104 — The cost model decomposed: a linear per-search scan plus a marginal per-query term approaching linear
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-102 recorded search cost as affine in target size, with a per-query coefficient of
+  0.0001992 core-seconds per M residue, and refuted a sub-linear power law. That entry was fitted
+  on a grid spanning 8× in target size, and on the sparse-query row of the sweep that followed.
+  Both readings were wrong, in opposite directions, and the reason is worth recording because it
+  is a general trap in benchmarking: **a cost with two components cannot be characterised by
+  varying one input.**
+- **Decision:** Model cost as `core_s = F(T) + Q · g(T)`, fitting both components from two query
+  sizes at each target size. Measured on `r6i.2xlarge`, 8 threads, unsplit targets, at Q = 3,130
+  and Q = 31,381:
+
+  | target (M residues) | F (per-search, core-s) | g (per-query, core-s) | local exponent of g |
+  |---|---|---|---|
+  | 67 | 50 | 0.02156 | — |
+  | 134 | 84 | 0.03173 | 0.56 |
+  | 534 | 305 | 0.06232 | 0.49 |
+  | 2,137 | 1,240 | 0.13788 | 0.57 |
+  | 8,546 | 6,494 | 0.42834 | 0.82 |
+  | 13,351 | 9,848 | 0.62277 | 0.84 |
+
+  **`F` is linear in `T`** — 0.738 core-s per M residue at the top, which is the target scan, and it
+  is negligible at the query sizes this task will use.
+  **`g` is sub-linear but its exponent is climbing toward 1** — about 0.5 at small targets, 0.84 at
+  13,351 M residues and still rising. This is the expected physics: once the target dominates, cost
+  becomes proportional to it. **The chord exponent over the whole range, 0.635, therefore
+  understates the real pass and must not be used to extrapolate.** Plan against the linear bound.
+  **Where each earlier error came from.** The 0.36–0.48 exponent in D-101 was fitted where the
+  constant term dominated. D-102's "affine, linear" came from the sparse-query row, where `F` — which
+  is genuinely linear — dominates, so the per-search scan was mistaken for the per-query term. Each
+  fitted its own data well and generalised wrongly.
+  **Large query size needs no further measurement.** Per-query cost at T = 8.3 M residues is 0.01003
+  at Q = 315,266 and 0.00994 at Q = 3,159,223 — within 1%. Beyond roughly 300,000 queries the
+  marginal cost is flat, so the real query size is multiplication rather than a regime to explore.
+- **Consequence:** the exhaustive **charitable** pass over the whole corpus (Q = 3,159,223,
+  T ≈ 288,000 M residues after dropping the nested UniRef90 and UniRef50 tiers) is **11,800
+  core-hours at the linear bound, 7,200 at the observed 0.84** — about **$240 to $450** on
+  `c6i.2xlarge` spot at $0.16/hour, or $450 to $740 on `r6i.2xlarge` on demand. With the strict
+  reading's measured 3.2× multiplier, both readings come to roughly **$1,000 on spot** before the
+  hit-cap correction in D-105. **That makes the exhaustive pass affordable, so A1.6 scores every
+  record and reports no sampled rate.** D-101's sampled design is withdrawn, and with it the
+  clustering, design-effect and denominator problems a corpus sample would have carried.
+  Artefacts: `calibration-rate2000-grid.json` and `calibration-rate10-targetsweep.json` under
+  `s3://amazebio-corpora-897641797669/corpora/results/a1-6/`.
+- **Rejected:** Extrapolating the fitted 0.635 — it is a chord across a range whose slope is still
+  increasing, and using it would understate the pass by about three-fold in the project's favour.
+  Measuring the large-query, large-target corner directly — proposed, then found unnecessary, since
+  query linearity above 300,000 is already measured and the corner is the product of two measured
+  quantities. Sampling the corpus to save money — the money is no longer the constraint, and a
+  sample cannot support the per-family all-clear statement the exhaustive pass can.
+
+### D-105 — Search parameters for the authoritative pass, fixed before any result is produced
+- **Date:** 2026-10-16 14:51 UTC
+- **Task:** A1.6
+- **Context:** §2 and the working conventions require thresholds and parameters fixed before results
+  are inspected, recorded with their timestamp. A1.6 has now run enough calibration that the author
+  can see which settings produce which costs, which is precisely the condition under which a
+  parameter choice stops being neutral. Fixing them here, with the measurements that justify each.
+  The policy threshold itself is **not** in scope: D-015 fixed the three readings and nothing below
+  revisits them.
+- **Decision — six parameters, each with its measured justification.**
+
+  **1. Aligner: `mmseqs2 18.8cc5c`** (D-093). The source names no version, so there is nothing to
+  match; the pin is ours and is reported as such.
+
+  **2. Orientation: seed set as query, corpus as target, sharded.** Re-confirmed rather than
+  assumed. D-094 chose it on a measurement taken at default parameters; the obvious objection is
+  that the question is per corpus record, so the cap belongs on the corpus side and could be set to
+  1. Re-measured with `--max-seqs 1` in the reversed orientation: it ran **over 30 minutes without
+  completing** against the forward orientation's **503 seconds** on identical data. The forward
+  orientation stands.
+
+  **3. Sensitivity: `-s 5.7`** (the tool's default). Chosen not because it is complete but because
+  both alternatives are worse in measured, specific ways, over 15,845 seeds against 2,058,701
+  records:
+  - `-s 2.0` is 2.08× faster and **loses 5 records at identities 0.737, 0.771, 0.791, 0.836 and
+    0.863** — well above the 0.70 cut. That is real recall loss, and it biases toward *understating*
+    leakage, which §2 treats as the same failure as overstating it. The 2× saving is refused.
+  - `-s 7.5` is 2.66× slower and does **not** dominate: it finds 31 records `-s 5.7` misses and
+    loses 51 that `-s 5.7` finds.
+
+  **4. Coverage: `-c 0.8 --cov-mode 1`.** Not a free choice: these are the flags ESM3 states for its
+  own clustering, and they are the only parameter guidance anywhere in the source.
+
+  **5. Hit cap: `--max-seqs 100000`, with a saturation guard that fails the run.** The default of 300
+  caps hits per *seed*, and at full corpus scale each seed would match on the order of 10⁴–10⁵
+  records, so the cap would bind hard — and it truncates worst for the corpus records matching the
+  most seeds, which are the most viral-like ones. Measured: capping at 20, a ratio of about 12% of
+  true hits per seed, **lost 983 of 18,046 distinct records — 5.4%**. Raising 300 → 5,000 at a scale
+  where the cap does not bind cost 1.62× for 0.21% more records, so the correction is not free.
+  Because a number alone cannot be defended across shard sizes, the commitment is a **guard**: the
+  pass records the maximum hits per seed on every shard, and if any seed reaches the cap the run
+  reports its counts as a **lower bound** and refuses to publish them as a result until the cap is
+  raised. A silent truncation is the failure mode this guard exists to make impossible.
+
+  **6. Reporting: identity bands, not a single threshold.** 8.07% of hit rows — 14,050 of 174,180 —
+  lie between 0.70 and 0.75 identity, and the records on which two sensitivity settings disagree are
+  98% inside that band. So the removed set is not sharply defined even given a threshold, and the
+  threshold itself was inferred from one sentence about an evaluation set (D-015). Every figure
+  therefore ships banded, with the 0.70–0.75 band shown separately from ≥0.75, so a reader can see
+  how much of the result balances on the inferred cut.
+- **Rejected:** `-s 2.0` for its 2× saving, per the recall measurement above — recorded explicitly
+  because the saving was attractive and the author had already seen the price. `-s 7.5` as a gold
+  standard — it is not a superset of `-s 5.7`, so calling it one would be false. A bare
+  `--max-seqs` number with no guard — the cap's effect depends on the shard size it runs against,
+  and an unverified number would reintroduce exactly the silent truncation that this entry exists to
+  prevent. Reporting one number at 0.70 — it would hide that an eighth of the evidence sits within
+  five points of an inferred boundary.
+- **Consequence:** these are fixed. A later task changing any of them changes a published parameter
+  and needs its own entry saying so. **A finding falls out of parameter 6 that belongs in the
+  write-up rather than only here:** ESM3's filter is not reproducible even in principle from its
+  published description, because at the margin its output depends on search parameters the paper
+  does not state — and 8% of matches sit at that margin. The unpublished threshold is not a tidy
+  omission; it is most of the uncertainty.
+
+### D-106 — The unpublished threshold is verified across every reachable source, and the version of record is the one gap
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-015 reads ESM3-open's identity threshold as unpublished and infers 0.70 for the
+  charitable reading. Every ESM3 figure in this audit rests on that, and D-105 has just made the
+  claim load-bearing for a published parameter set. The claim had been carried forward since
+  2026-10-13 without being re-tested, which for the central under-specification finding of the ESM3
+  arm is not good enough — §7 assumes a reader who checks exactly this.
+- **Decision:** Re-verify by exhaustive machine search rather than recollection, and record the
+  result including what remains unchecked.
+  **The preprint is confirmed, by sweeping every page for identity, threshold, denylist and select
+  agent rather than re-reading the section we knew about.** The filter sentence carries no number:
+  "We then remove all sequences from the training set that are detected to align to those in the
+  denylists by MMseqs2 at or above a given sequence identity threshold" (p67). Every other 70% in
+  the paper belongs to a different procedure — validation purging via `mmseqs easy-search` (p38),
+  the worked deduplication example of clustering at 90% then 70% (p38), and the held-out evaluation
+  set, "the chains in PDB that were > 70% sequence identity hits to the Viral Denylist" (p69). That
+  last is the sentence D-015 infers from, and seeing all of them together strengthens rather than
+  weakens the reading: the figure exists in the paper three times and never as the filter's
+  parameter.
+  **Four sources never previously checked, all negative.** The `evolutionaryscale/esm` repository
+  cloned in full and searched — 283 files, no denylist implementation, no MMseqs invocation, no
+  identity threshold, the only numeric identity being an unrelated 58% in a GFP tutorial. The
+  ESM3 launch post on evolutionaryscale.ai. The Europe PMC record: PMID 39818825, `inPMC` N,
+  `isOpenAccess` N, `hasSuppl` N. The HuggingFace model card, re-confirmed.
+  **One gap, and it is the one a reviewer checks first.** `S-ESM3-SCIENCE`
+  (doi 10.1126/science.ads0018) is still `unretrieved`: both the article and its supplementary file
+  return 403. A1.5's earlier check established only that no *correction* is registered against it,
+  which is a different question from what it says. Europe PMC reporting no supplementary is that
+  publisher-independent index's metadata, not Science's own, so it does not settle the point.
+  **A fact recovered by the sweep that was previously recorded as unknown.** The Select Agent
+  Denylist's size *is* published: "This process gives us 147K non-viral sequences and 40K additional
+  viral sequences" (p67) — 187K in total. A1.6 had been treating that size as unknown and as the
+  thing deciding whether an exhaustive select-agent pass was affordable. It is small, so that pass
+  is cheap, and 187K is a validation target for the select-agent reconstruction in exactly the way
+  ~4M is for the viral one (D-100).
+- **Rejected:** Leaving the claim as carried forward from D-015 — it is the ESM3 arm's central
+  finding and had not been tested since the day it was written. Treating Europe PMC's `hasSuppl` N
+  as proof that no supplementary exists — it is an index's view of a closed-access record, and
+  Science hosts its own supplementary files. Inferring from the absence of a threshold in the
+  repository that none was ever used — the repository ships inference code, not the training
+  pipeline, so its silence is weak evidence and is recorded as such.
+- **Consequence:** the wording stands for now, with its scope stated: the threshold is unpublished
+  **in every source this project can reach**, which is not the same as unpublished. **This is an open
+  item against the Phase A write-up, not just against A1.6.** If the version of record states the
+  threshold, D-015 is superseded, the literal reading becomes decidable, the charitable reading's
+  0.70 may be wrong, and the ESM3 similarity pass has to be re-run at the stated value — so it must
+  be settled before the authoritative pass, not after. The project owner has access and is
+  retrieving it; a PDF capture with a sha256 in `sources.json` is what the convention requires,
+  since quotes are machine-verified against their source and a pasted excerpt cannot be cited.

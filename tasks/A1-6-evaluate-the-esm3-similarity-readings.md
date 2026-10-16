@@ -113,8 +113,22 @@ rules out the cheap end of the estimate, so **A1.6 now targets a sampled pass re
 rates with intervals rather than per-record manifests over the whole corpus**. Downstream consumers
 of these manifests need telling.
 
-**Waiting on the project owner:** nothing right now. The spend decision for the full pass comes
-after the redesigned calibration reports a figure.
+**Update 2026-10-16, second.** Calibration is finished and the search parameters are fixed
+(D-104, D-105). The cost model separates a per-search target scan, linear in target size, from a
+marginal per-query term whose exponent climbs from 0.5 to 0.84 over a 200-fold range and is still
+rising, so the pass is planned against the linear bound. **The exhaustive charitable pass over the
+whole corpus is about $240-450 on spot, both readings roughly $1,000 — so A1.6 scores every record
+and the sampled design of D-101 is withdrawn**, along with the clustering and denominator problems
+a corpus sample would have carried. Parameters are fixed with their measurements: `-s 5.7`,
+`-c 0.8 --cov-mode 1`, `--max-seqs 100000` behind a saturation guard that fails the run rather than
+truncating silently, seeds as query, and reporting in identity bands because 8% of matches sit
+between 0.70 and 0.75.
+
+**Left:** the select-agent seed set; the `--max-seqs` cost measured where the cap actually binds;
+spot support in the launcher; then the authoritative pass.
+
+**Waiting on the project owner:** the spend decision for the authoritative pass, now that it has a
+figure — about $240-450 for the charitable reading, roughly $1,000 for both.
 
 
 ## Notes
