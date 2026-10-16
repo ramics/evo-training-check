@@ -233,6 +233,13 @@ def main(argv: list[str] | None = None) -> int:
         "working. Off by default: doing it unconditionally destroyed a healthy run once.",
     )
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
+    ap.add_argument(
+        "--spot",
+        action="store_true",
+        help="request a spot instance. D-104's $240-450 and D-109's $26 are both spot "
+        "figures, so the authoritative passes need this; the price is that the instance "
+        "can be reclaimed mid-run",
+    )
     args = ap.parse_args(argv)
 
     if args.volume_size > 200:
@@ -331,6 +338,10 @@ def main(argv: list[str] | None = None) -> int:
         InstanceInitiatedShutdownBehavior="terminate",
     )
 
+    market = market_options(args.spot)
+    if market is not None:
+        launch["InstanceMarketOptions"] = market
+
     if args.dry_run:
         try:
             ec2.run_instances(DryRun=True, **launch)
@@ -338,9 +349,20 @@ def main(argv: list[str] | None = None) -> int:
             print("dry run:", type(exc).__name__, str(exc)[:200])
         return 0
 
-    instance = ec2.run_instances(**launch)["Instances"][0]
+    try:
+        instance = ec2.run_instances(**launch)["Instances"][0]
+    except Exception as exc:
+        text = str(exc)
+        if args.spot and ("Capacity" in text or "capacity" in text):
+            raise SystemExit(
+                f"spot capacity refused for {args.instance_type}: {text[:200]}\n"
+                "  nothing launched and nothing billed. Retry, try another permitted "
+                "instance type, or run on demand without --spot at the higher price."
+            ) from exc
+        raise
     iid = instance["InstanceId"]
-    print(f"launched {iid} ({args.instance_type}, {args.volume_size} GB gp3)")
+    market = "spot" if args.spot else "on-demand"
+    print(f"launched {iid} ({args.instance_type}, {market}, {args.volume_size} GB gp3)")
 
     return _run_and_collect(ec2, s3, iid, bucket, prefix, args)
 
@@ -431,6 +453,19 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
         return 0, timed_out
     except Exception as exc:
         print(f"no result at s3://{bucket}/{key}: {type(exc).__name__}")
+        # A spot reclaim and a broken run both end with no result key, and they need
+        # different responses: the first is a re-run of the same code, the second is not.
+        # EC2 says which in StateTransitionReason, so read it rather than guessing.
+        reason = _transition_reason(ec2, iid)
+        if "Server.SpotInstanceTermination" in reason or "Server.Capacity" in reason:
+            print(
+                f"  {iid} was reclaimed by EC2, not failed: {reason!r}.\n"
+                "  the run is interrupted, not refuted — re-run it. Partial results that "
+                "reached S3 before the reclaim are still there."
+            )
+            return 2, timed_out
+        if reason:
+            print(f"  StateTransitionReason: {reason!r}")
         return 1, timed_out
 
 
@@ -440,6 +475,45 @@ def _summarise(done: list[dict[str, Any]]) -> str:
         f" @ {d['residues'] / 1e9:.2f} Gres"
         for d in done
     )
+
+
+def market_options(spot: bool) -> dict[str, Any] | None:
+    """What to ask EC2 for, market-wise. `None` means say nothing and get on demand.
+
+    Three choices, each of which has a cheaper-looking alternative that is wrong here:
+
+    *One-time, not persistent.* A reclaim on a persistent request re-launches the instance,
+    which restarts a multi-hour pass with nobody watching and bills for it. The pass is
+    re-run deliberately or not at all.
+
+    *Interruption behaviour terminate, not stop or hibernate.* Stop keeps billing the
+    volume, which is the same trap `InstanceInitiatedShutdownBehavior` exists to avoid, and
+    it leaves a resource to forget. That flag stays set independently: it governs the
+    instance's own shutdown, this one governs EC2's reclaim, and both have to say terminate.
+
+    *No maximum price.* Omitting it caps the bid at the on-demand price. The saving this
+    task wants comes from spot being cheaper than on demand, not from bidding under the
+    going rate — a bid below it converts a run that would have cost money into a launch that
+    silently never happens, and nobody is watching to notice.
+    """
+    if not spot:
+        return None
+    return {
+        "MarketType": "spot",
+        "SpotOptions": {
+            "SpotInstanceType": "one-time",
+            "InstanceInterruptionBehavior": "terminate",
+        },
+    }
+
+
+def _transition_reason(ec2: Any, iid: str) -> str:
+    """Why EC2 says the instance changed state. Empty when it does not say."""
+    try:
+        inst = ec2.describe_instances(InstanceIds=[iid])["Reservations"][0]["Instances"][0]
+        return str(inst.get("StateTransitionReason", ""))
+    except Exception:
+        return ""
 
 
 def _state(ec2: Any, iid: str) -> str:
