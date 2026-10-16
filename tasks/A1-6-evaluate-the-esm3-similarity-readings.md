@@ -133,8 +133,10 @@ figure — about $240-450 for the charitable reading, roughly $1,000 for both.
 
 ## Handoff — 2026-10-16
 
-`in-progress`. Code is on `ccr-3e0650c5-8fsgiq`, open as **PR #18**. Every decision is on
-`main` as D-092 to D-107; read those plus this block and you have the task.
+`in-progress`. **The code is merged — PR #18 landed on `main`, nothing is left on a branch.**
+`src/amazebio/seeds.py`, `tools/esm3_seeds.py`, `tools/esm3_calibrate.py`,
+`tools/ec2_similarity.py` and their tests are all on `main`, along with decisions D-092 to
+D-107. Read those plus this block and you have the task; there is no branch to find.
 
 **Settled.** The viral seed set is measured and stored: 3,159,223 viral-seeded clusters of
 350,950,053, the latter matching the publisher's own count exactly (D-100). The FASTA is in
