@@ -4476,3 +4476,47 @@ decision has a threshold or parameter in it, the number goes in the entry.
   or the cost of the runs that deliver them**, since this entry exists because those two were
   conflated. The cap measurement in flight is unaffected in substance: it is one run, its overhead
   is one corpus pass, and the ratios it measures do not depend on how the pass is scheduled.
+
+### D-113 — Correction to D-112: the corpus pass is not sample-write-bound, and the overrun is ~10% rather than 2.5x
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-112 explained a corpus pass running long by claiming it was sample-write-bound —
+  that keeping 40x more records at rate 50 than at rate 2000 moved the cost, because every sampled
+  record crosses from a worker to a single parent that writes it. That claim was reasoning from the
+  code's shape rather than from a measurement, and the measurements were already in the repo's own
+  preserved artefacts. They refute it.
+- **What the artefacts say.** From the two preserved calibration grids, both over UniRef100 2023_02
+  at 350,950,053 clusters:
+  - rate 2000 — 175,010 sampled clusters, 0.066 G residues — corpus pass **3,070 s (51.2 min)**;
+  - rate 10 — 35,092,626 sampled clusters, 13.351 G residues — corpus pass **3,267 s (54.4 min)**.
+  **A 200-fold increase in sampled records costs 3 minutes, about 6%.** The pass is bound by the
+  read, decompress and parse chain and lands near 52 minutes at any sample rate in this range. This
+  is consistent with what was already recorded in `esm3_calibrate.py`'s own `--workers` note:
+  decompression runs at 218 MB/s against 43.6 MB/s for the whole pass single-threaded, so parsing is
+  the bottleneck and the workers are what spread it. Sample writing never entered it.
+- **Correction to D-112's figures.** With a 52-minute pass rather than 2.5-3 hours, a 4.33-hour run
+  spends 0.87 h on the pass and 3.46 h searching, which is 27.7 search core-hours per run. 1,296
+  core-hours therefore needs about **47 launches and about $33** unstaged, against about **38
+  launches and about $26.5** staged. So the overrun against the $30 ceiling is roughly **10%, not
+  2.5x**, and the $66 in D-112 is wrong.
+- **What survives in D-112, and why.** Its decision stands: stage the sampled shards once rather
+  than rebuild them per launch. The reason is now mainly robustness rather than price — a spot
+  reclaim destroys a 52-minute corpus pass along with the searches it was feeding, which is exactly
+  what happened to the first in-region run — with the ~$6.50 as a secondary benefit. Its rule
+  stands too, and this entry is an instance of why: a price must say whether it is core-hours of
+  compute or the cost of the runs delivering them.
+- **What this means for the run in flight.** It is not merely slow. Its pass was due at about 52
+  minutes and it is past 2.5 hours with nothing published, and rate 50 sits between two rates that
+  both completed in 52 minutes, so the sample rate cannot explain it. The only difference from
+  every pass that has completed is the instance type: `m6i.2xlarge` here against `r6i.2xlarge` for
+  all three successful passes, taken because spot capacity for `r6i.2xlarge` was refused. That is a
+  hypothesis and not a finding — with `cloudwatch:GetMetricStatistics`,
+  `ec2:GetConsoleScreenshot`, SSH and SSM all denied there is no way to confirm it from here, which
+  is itself the reason the heartbeat was added.
+- **Rejected:** Editing D-112 in place — the log is append-only and a wrong figure that was briefly
+  load-bearing should stay visible with its correction next to it, not be quietly removed. Treating
+  the slow run as evidence for the sample-write hypothesis — it is one run on an instance type that
+  has never completed a pass here, against three completed passes that directly contradict it.
+- **Consequence:** **a timing claim in this task cites the artefact it came from.** Both numbers in
+  this entry were sitting in object storage while D-112 was being written, and the entry would not
+  have been wrong if they had been read first.
