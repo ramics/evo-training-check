@@ -115,9 +115,7 @@ def test_band_membership_is_recomputed_rather_than_trusted(tmp_path):
     _, records, stats = detect_profiles.read_cache(
         tmp_path, component="imgvr", object_name="imgvr.fasta.gz", lo=0.1, hi=0.3
     )
-    expected = {
-        i for i in ids if in_band(i, seed=detect_profiles.SEED, lo=0.1, hi=0.3)
-    }
+    expected = {i for i in ids if in_band(i, seed=detect_profiles.SEED, lo=0.1, hi=0.3)}
     assert set(records) == expected
     assert 0 < stats["records"] < len(ids)
 
