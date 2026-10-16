@@ -124,6 +124,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --taxdump /opt/amazebio/taxdmp.zip \
     --outdir /opt/amazebio/out --workdir /mnt/work \
     --sample-rate {sample_rate} --buckets {buckets} --strict-buckets {strict_buckets} \
+    --query-fractions {query_fractions} --shard-points {shard_points} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
     --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
@@ -179,7 +180,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
     ap.add_argument("--release", default="2023_02")
     ap.add_argument("--tier", default="uniref100")
-    ap.add_argument("--sample-rate", type=int, default=50)
+    # 2000, not the 50 the first run used. At rate 50 one shard was 334 M residues and the
+    # full-query search against it had not finished in 61 minutes; at 2000 the whole sample
+    # is 67 M residues, so every grid point can complete and the fit gets points instead of
+    # one timeout.
+    ap.add_argument("--sample-rate", type=int, default=2000)
+    ap.add_argument("--query-fractions", default="1000,100,10,1")
+    ap.add_argument("--shard-points", default="1,2,4,8")
     ap.add_argument("--buckets", type=int, default=8)
     ap.add_argument("--strict-buckets", type=int, default=3)
     ap.add_argument("--threads", type=int, default=8)
@@ -285,6 +292,8 @@ def main(argv: list[str] | None = None) -> int:
         sample_rate=args.sample_rate,
         buckets=args.buckets,
         strict_buckets=args.strict_buckets,
+        query_fractions=args.query_fractions,
+        shard_points=args.shard_points,
         threads=args.threads,
         workers=args.workers,
         budget=args.search_budget_seconds,
