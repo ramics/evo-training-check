@@ -4282,3 +4282,78 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Sampling both arms — cheapest, and it forfeits the all-clear statement on exactly the arm that
   needs it. Keeping both arms exhaustive — defensible, roughly four figures, and the broad arm's
   extra precision buys an aggregate number no downstream task has asked to be per-record.
+
+### D-109 — The broad arm's sampling design: 2.5% by accession hash, three sensitivities, $26 of a $30 ceiling
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-108 made the broad arm sampled. Two constraints from the project owner: total spend
+  of about $30, and a sweep over parameters rather than a single setting, because the filter's own
+  parameters are unpublished (D-105, D-107) and a result at one setting would hide how much of it
+  rests on our inference. A sweep multiplies cost by the number of cells, so the first question is
+  which parameters genuinely need their own search.
+- **Decision — three parameters come free, one costs, and that sets the sample size.**
+
+  **Free: the identity threshold.** D-105 parameter 6 already commits to reporting in identity
+  bands. One search at the lowest threshold of interest emits every higher threshold by binning
+  `fident` from `convertalis`. The entire threshold range — including the literal reading's
+  undetermined cut and the charitable 0.70 — is one search, not one per value. This was already
+  implied by banded reporting and is stated here because it is the single largest saving available.
+
+  **Free: coverage mode.** D-107 made `--cov-mode` a three-way reading rather than recovered
+  guidance. It is recoverable by post-filter: search with coverage filtering relaxed, emit `qcov`
+  and `tcov` alongside `fident`, and each of the three modes is a predicate over those two columns
+  at `-c 0.8`. One search, three readings. **Not free of risk, and the one unmeasured item here:**
+  relaxing the filter admits more rows into alignment and into the output, so it raises both cost
+  and the chance the hit cap binds. That cost is folded into the hit-cap measurement already on
+  A1.6's list, and the design is provisional on it. If relaxing coverage turns out to cost more than
+  running three cov-modes separately, three cells is the fallback and this entry is superseded.
+
+  **Costs: sensitivity.** `-s` cannot be post-filtered — it changes what is found, and D-105 measured
+  that the settings are not nested: `-s 7.5` finds 31 records `-s 5.7` misses and loses 51 it finds.
+  So the sweep over sensitivity is the real multiplier, and it is the one worth paying for, because
+  `-s` is **our** parameter rather than the publisher's, and the sweep is what distinguishes a
+  property of the filter from a property of our instrument.
+
+  **The arithmetic, from D-104's fitted model and D-105's measured ratios.** At `c6i.2xlarge` spot,
+  $0.16/hour for 8 vCPU, a core-hour is $0.02, so $30 is 1,500 core-hours. D-105's relative costs
+  make the three-sensitivity sweep 4.14 cost units against 1.0 for `-s 5.7` alone — 0.48 at `-s 2.0`
+  (2.08× faster) and 2.66 at `-s 7.5`. That leaves 362 core-hours per unit. Interpolating `g` from
+  D-104's table at Q = 3,159,223 puts a 2.5% target sample at about 313 core-hours per unit, so the
+  sweep is **about 1,296 core-hours, $26**, inside the ceiling with headroom for the cap measurement.
+  The model is checked against its own endpoint: extrapolating `g` linearly from the 8,546 M-residue
+  row to the full 288,000 M-residue target reproduces D-104's 11,800-core-hour figure, so the
+  interpolation is being used inside the range it was fitted on.
+
+  **The sample: 2.5% of records, selected by a seeded hash of the accession.** A prefix is not a
+  sample, because UniRef is ordered by accession — already recorded in A1.6's state and restated
+  because it is the error this design exists to avoid. The hash is deterministic and seeded through
+  `amazebio.repro`, so the sample regenerates exactly.
+- **The clustering and denominator problems, which D-104 raised as reasons against sampling and
+  which D-108 declined to treat as solved.** Both are real and neither is answered by a larger
+  sample:
+  - **Design effect.** Binomial error at n ≈ 8.8M records is below 0.01% and is not the binding
+    constraint. Viral material is clumped by family, so the effective sample size for any
+    family-level statement is the number of distinct **families** drawn, not records. The pass
+    therefore reports the realised family count alongside every rate, and intervals are computed
+    with a design effect estimated from between-family variance rather than as binomial. **A rate
+    whose interval is quoted as binomial would be wrong by whatever that factor is**, and quoting it
+    is how this objection gets answered rather than dismissed.
+  - **Denominator.** UniRef's is exact — 350,950,053 clusters, reconciling with the publisher's own
+    count (D-100). MGnify's is not: its granularity is unstated (A1.5), so its denominator carries a
+    reading. The two components are therefore **reported separately and never pooled into one rate**,
+    which also keeps D-108's prohibition on pooling the two arms from being quietly broken one level
+    down.
+- **Consequence:** the broad arm ships a table of rates by identity band, by coverage reading and by
+  sensitivity, per corpus component, each with a design-effect interval and its realised family
+  count — not a single number. The parameter sweep is itself a finding in the shape D-105
+  described: if the rate moves materially across settings the paper does not state, then the
+  filter's effect is not determined by its published description, and the spread is the result.
+- **Rejected:** One cell at the fixed `-s 5.7` and a 10% sample — four times the precision on a
+  quantity whose error is already dominated by the design effect rather than by sample size, bought
+  by giving up the only check on whether the number is a property of the filter or of our aligner
+  settings. A threshold sweep as separate searches — unnecessary, and it would have consumed the
+  budget that bought the sensitivity sweep. Pooling UniRef and MGnify into one rate — tidier to
+  present and it would launder an unstated granularity into an exact-looking denominator.
+  A larger sample inside the same budget by dropping to `-s 2.0` only — D-105 already refused that
+  setting on measured recall loss that biases toward understating leakage, and the budget is not a
+  reason to reopen it.

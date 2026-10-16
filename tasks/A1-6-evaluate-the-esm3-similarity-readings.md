@@ -189,6 +189,36 @@ measured where it binds. Spot support in the launcher. Then the two passes.
 the narrow arm. Its scope is settled; what may be said about its output, at what granularity, and
 what waits on X3.1 is not. The arm is not built until that decision exists.
 
+## Sampling design fixed — 2026-10-16
+
+D-109. Owner constraints: about $30 total, and a sweep rather than one setting.
+
+**Three of the four parameters cost nothing extra.** The identity threshold comes free from banded
+reporting — one search at the lowest cut emits every higher one. Coverage mode comes free by
+emitting `qcov`/`tcov` and post-filtering, which turns D-107's three-way reading into three
+predicates over one search. Sensitivity is the one that cannot be post-filtered, because D-105
+measured that the settings are not nested, and it is the sweep worth paying for: `-s` is our
+parameter, so the sweep separates a property of the filter from a property of our instrument.
+
+**So the budget buys a 2.5% sample across three sensitivities — about 1,296 core-hours, $26** on
+`c6i.2xlarge` spot, from D-104's fitted cost model and D-105's measured ratios, checked against
+D-104's own full-pass endpoint.
+
+**The two objections D-104 raised are answered in the design, not waved through.** Intervals use a
+design effect from between-family variance, not binomial — at this n the binomial error is under
+0.01% and is not the real uncertainty — and every rate ships with its realised family count. UniRef
+and MGnify are reported separately because MGnify's granularity is unstated, so its denominator
+carries a reading that must not be pooled into an exact-looking number.
+
+**One item is unmeasured and the design is provisional on it:** relaxing coverage to allow the
+post-filter admits more rows, so it raises cost and may make the hit cap bind. That folds into the
+hit-cap measurement already on the list. If it costs more than three separate coverage cells, three
+cells is the fallback and D-109 is superseded.
+
+**Left, in order.** The hit-cap and relaxed-coverage cost measured together where they bind. Spot
+support in the launcher. Then the broad arm's sampled pass. The narrow arm stays blocked on the
+owner's handling decision.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
