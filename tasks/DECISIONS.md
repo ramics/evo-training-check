@@ -4007,3 +4007,119 @@ decision has a threshold or parameter in it, the number goes in the entry.
   modules cite should be written where it can be read, not left as a parenthetical in an entry
   about something else.** This session escalated it once without noticing; the next task to
   inherit it would have had no way to tell the inherited reading from the decided one.
+
+### D-104 — The cost model decomposed: a linear per-search scan plus a marginal per-query term approaching linear
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-102 recorded search cost as affine in target size, with a per-query coefficient of
+  0.0001992 core-seconds per M residue, and refuted a sub-linear power law. That entry was fitted
+  on a grid spanning 8× in target size, and on the sparse-query row of the sweep that followed.
+  Both readings were wrong, in opposite directions, and the reason is worth recording because it
+  is a general trap in benchmarking: **a cost with two components cannot be characterised by
+  varying one input.**
+- **Decision:** Model cost as `core_s = F(T) + Q · g(T)`, fitting both components from two query
+  sizes at each target size. Measured on `r6i.2xlarge`, 8 threads, unsplit targets, at Q = 3,130
+  and Q = 31,381:
+
+  | target (M residues) | F (per-search, core-s) | g (per-query, core-s) | local exponent of g |
+  |---|---|---|---|
+  | 67 | 50 | 0.02156 | — |
+  | 134 | 84 | 0.03173 | 0.56 |
+  | 534 | 305 | 0.06232 | 0.49 |
+  | 2,137 | 1,240 | 0.13788 | 0.57 |
+  | 8,546 | 6,494 | 0.42834 | 0.82 |
+  | 13,351 | 9,848 | 0.62277 | 0.84 |
+
+  **`F` is linear in `T`** — 0.738 core-s per M residue at the top, which is the target scan, and it
+  is negligible at the query sizes this task will use.
+  **`g` is sub-linear but its exponent is climbing toward 1** — about 0.5 at small targets, 0.84 at
+  13,351 M residues and still rising. This is the expected physics: once the target dominates, cost
+  becomes proportional to it. **The chord exponent over the whole range, 0.635, therefore
+  understates the real pass and must not be used to extrapolate.** Plan against the linear bound.
+  **Where each earlier error came from.** The 0.36–0.48 exponent in D-101 was fitted where the
+  constant term dominated. D-102's "affine, linear" came from the sparse-query row, where `F` — which
+  is genuinely linear — dominates, so the per-search scan was mistaken for the per-query term. Each
+  fitted its own data well and generalised wrongly.
+  **Large query size needs no further measurement.** Per-query cost at T = 8.3 M residues is 0.01003
+  at Q = 315,266 and 0.00994 at Q = 3,159,223 — within 1%. Beyond roughly 300,000 queries the
+  marginal cost is flat, so the real query size is multiplication rather than a regime to explore.
+- **Consequence:** the exhaustive **charitable** pass over the whole corpus (Q = 3,159,223,
+  T ≈ 288,000 M residues after dropping the nested UniRef90 and UniRef50 tiers) is **11,800
+  core-hours at the linear bound, 7,200 at the observed 0.84** — about **$240 to $450** on
+  `c6i.2xlarge` spot at $0.16/hour, or $450 to $740 on `r6i.2xlarge` on demand. With the strict
+  reading's measured 3.2× multiplier, both readings come to roughly **$1,000 on spot** before the
+  hit-cap correction in D-105. **That makes the exhaustive pass affordable, so A1.6 scores every
+  record and reports no sampled rate.** D-101's sampled design is withdrawn, and with it the
+  clustering, design-effect and denominator problems a corpus sample would have carried.
+  Artefacts: `calibration-rate2000-grid.json` and `calibration-rate10-targetsweep.json` under
+  `s3://amazebio-corpora-897641797669/corpora/results/a1-6/`.
+- **Rejected:** Extrapolating the fitted 0.635 — it is a chord across a range whose slope is still
+  increasing, and using it would understate the pass by about three-fold in the project's favour.
+  Measuring the large-query, large-target corner directly — proposed, then found unnecessary, since
+  query linearity above 300,000 is already measured and the corner is the product of two measured
+  quantities. Sampling the corpus to save money — the money is no longer the constraint, and a
+  sample cannot support the per-family all-clear statement the exhaustive pass can.
+
+### D-105 — Search parameters for the authoritative pass, fixed before any result is produced
+- **Date:** 2026-10-16 14:51 UTC
+- **Task:** A1.6
+- **Context:** §2 and the working conventions require thresholds and parameters fixed before results
+  are inspected, recorded with their timestamp. A1.6 has now run enough calibration that the author
+  can see which settings produce which costs, which is precisely the condition under which a
+  parameter choice stops being neutral. Fixing them here, with the measurements that justify each.
+  The policy threshold itself is **not** in scope: D-015 fixed the three readings and nothing below
+  revisits them.
+- **Decision — six parameters, each with its measured justification.**
+
+  **1. Aligner: `mmseqs2 18.8cc5c`** (D-093). The source names no version, so there is nothing to
+  match; the pin is ours and is reported as such.
+
+  **2. Orientation: seed set as query, corpus as target, sharded.** Re-confirmed rather than
+  assumed. D-094 chose it on a measurement taken at default parameters; the obvious objection is
+  that the question is per corpus record, so the cap belongs on the corpus side and could be set to
+  1. Re-measured with `--max-seqs 1` in the reversed orientation: it ran **over 30 minutes without
+  completing** against the forward orientation's **503 seconds** on identical data. The forward
+  orientation stands.
+
+  **3. Sensitivity: `-s 5.7`** (the tool's default). Chosen not because it is complete but because
+  both alternatives are worse in measured, specific ways, over 15,845 seeds against 2,058,701
+  records:
+  - `-s 2.0` is 2.08× faster and **loses 5 records at identities 0.737, 0.771, 0.791, 0.836 and
+    0.863** — well above the 0.70 cut. That is real recall loss, and it biases toward *understating*
+    leakage, which §2 treats as the same failure as overstating it. The 2× saving is refused.
+  - `-s 7.5` is 2.66× slower and does **not** dominate: it finds 31 records `-s 5.7` misses and
+    loses 51 that `-s 5.7` finds.
+
+  **4. Coverage: `-c 0.8 --cov-mode 1`.** Not a free choice: these are the flags ESM3 states for its
+  own clustering, and they are the only parameter guidance anywhere in the source.
+
+  **5. Hit cap: `--max-seqs 100000`, with a saturation guard that fails the run.** The default of 300
+  caps hits per *seed*, and at full corpus scale each seed would match on the order of 10⁴–10⁵
+  records, so the cap would bind hard — and it truncates worst for the corpus records matching the
+  most seeds, which are the most viral-like ones. Measured: capping at 20, a ratio of about 12% of
+  true hits per seed, **lost 983 of 18,046 distinct records — 5.4%**. Raising 300 → 5,000 at a scale
+  where the cap does not bind cost 1.62× for 0.21% more records, so the correction is not free.
+  Because a number alone cannot be defended across shard sizes, the commitment is a **guard**: the
+  pass records the maximum hits per seed on every shard, and if any seed reaches the cap the run
+  reports its counts as a **lower bound** and refuses to publish them as a result until the cap is
+  raised. A silent truncation is the failure mode this guard exists to make impossible.
+
+  **6. Reporting: identity bands, not a single threshold.** 8.07% of hit rows — 14,050 of 174,180 —
+  lie between 0.70 and 0.75 identity, and the records on which two sensitivity settings disagree are
+  98% inside that band. So the removed set is not sharply defined even given a threshold, and the
+  threshold itself was inferred from one sentence about an evaluation set (D-015). Every figure
+  therefore ships banded, with the 0.70–0.75 band shown separately from ≥0.75, so a reader can see
+  how much of the result balances on the inferred cut.
+- **Rejected:** `-s 2.0` for its 2× saving, per the recall measurement above — recorded explicitly
+  because the saving was attractive and the author had already seen the price. `-s 7.5` as a gold
+  standard — it is not a superset of `-s 5.7`, so calling it one would be false. A bare
+  `--max-seqs` number with no guard — the cap's effect depends on the shard size it runs against,
+  and an unverified number would reintroduce exactly the silent truncation that this entry exists to
+  prevent. Reporting one number at 0.70 — it would hide that an eighth of the evidence sits within
+  five points of an inferred boundary.
+- **Consequence:** these are fixed. A later task changing any of them changes a published parameter
+  and needs its own entry saying so. **A finding falls out of parameter 6 that belongs in the
+  write-up rather than only here:** ESM3's filter is not reproducible even in principle from its
+  published description, because at the margin its output depends on search parameters the paper
+  does not state — and 8% of matches sit at that margin. The unpublished threshold is not a tidy
+  omission; it is most of the uncertainty.
