@@ -4123,3 +4123,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   published description, because at the margin its output depends on search parameters the paper
   does not state — and 8% of matches sit at that margin. The unpublished threshold is not a tidy
   omission; it is most of the uncertainty.
+
+### D-106 — The unpublished threshold is verified across every reachable source, and the version of record is the one gap
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-015 reads ESM3-open's identity threshold as unpublished and infers 0.70 for the
+  charitable reading. Every ESM3 figure in this audit rests on that, and D-105 has just made the
+  claim load-bearing for a published parameter set. The claim had been carried forward since
+  2026-10-13 without being re-tested, which for the central under-specification finding of the ESM3
+  arm is not good enough — §7 assumes a reader who checks exactly this.
+- **Decision:** Re-verify by exhaustive machine search rather than recollection, and record the
+  result including what remains unchecked.
+  **The preprint is confirmed, by sweeping every page for identity, threshold, denylist and select
+  agent rather than re-reading the section we knew about.** The filter sentence carries no number:
+  "We then remove all sequences from the training set that are detected to align to those in the
+  denylists by MMseqs2 at or above a given sequence identity threshold" (p67). Every other 70% in
+  the paper belongs to a different procedure — validation purging via `mmseqs easy-search` (p38),
+  the worked deduplication example of clustering at 90% then 70% (p38), and the held-out evaluation
+  set, "the chains in PDB that were > 70% sequence identity hits to the Viral Denylist" (p69). That
+  last is the sentence D-015 infers from, and seeing all of them together strengthens rather than
+  weakens the reading: the figure exists in the paper three times and never as the filter's
+  parameter.
+  **Four sources never previously checked, all negative.** The `evolutionaryscale/esm` repository
+  cloned in full and searched — 283 files, no denylist implementation, no MMseqs invocation, no
+  identity threshold, the only numeric identity being an unrelated 58% in a GFP tutorial. The
+  ESM3 launch post on evolutionaryscale.ai. The Europe PMC record: PMID 39818825, `inPMC` N,
+  `isOpenAccess` N, `hasSuppl` N. The HuggingFace model card, re-confirmed.
+  **One gap, and it is the one a reviewer checks first.** `S-ESM3-SCIENCE`
+  (doi 10.1126/science.ads0018) is still `unretrieved`: both the article and its supplementary file
+  return 403. A1.5's earlier check established only that no *correction* is registered against it,
+  which is a different question from what it says. Europe PMC reporting no supplementary is that
+  publisher-independent index's metadata, not Science's own, so it does not settle the point.
+  **A fact recovered by the sweep that was previously recorded as unknown.** The Select Agent
+  Denylist's size *is* published: "This process gives us 147K non-viral sequences and 40K additional
+  viral sequences" (p67) — 187K in total. A1.6 had been treating that size as unknown and as the
+  thing deciding whether an exhaustive select-agent pass was affordable. It is small, so that pass
+  is cheap, and 187K is a validation target for the select-agent reconstruction in exactly the way
+  ~4M is for the viral one (D-100).
+- **Rejected:** Leaving the claim as carried forward from D-015 — it is the ESM3 arm's central
+  finding and had not been tested since the day it was written. Treating Europe PMC's `hasSuppl` N
+  as proof that no supplementary exists — it is an index's view of a closed-access record, and
+  Science hosts its own supplementary files. Inferring from the absence of a threshold in the
+  repository that none was ever used — the repository ships inference code, not the training
+  pipeline, so its silence is weak evidence and is recorded as such.
+- **Consequence:** the wording stands for now, with its scope stated: the threshold is unpublished
+  **in every source this project can reach**, which is not the same as unpublished. **This is an open
+  item against the Phase A write-up, not just against A1.6.** If the version of record states the
+  threshold, D-015 is superseded, the literal reading becomes decidable, the charitable reading's
+  0.70 may be wrong, and the ESM3 similarity pass has to be re-run at the stated value — so it must
+  be settled before the authoritative pass, not after. The project owner has access and is
+  retrieving it; a PDF capture with a sha256 in `sources.json` is what the convention requires,
+  since quotes are machine-verified against their source and a pasted excerpt cannot be cited.
