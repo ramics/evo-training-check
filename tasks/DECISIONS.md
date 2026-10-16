@@ -3782,3 +3782,55 @@ decision has a threshold or parameter in it, the number goes in the entry.
   fixed-cost regime, and it was used to justify a decision about what is possible. Any later task
   costing a pass over the corpora — A2.2's structural search above all, which has the same shape —
   should take its throughput from a run of realistic size or not quote one.
+
+### D-099 — The sample is deepened ten-fold, searched as bands, and why that cannot bias the bound
+- **Date:** 2026-10-16
+- **Task:** A2.1
+- **Context:** The first pass produced a lower bound on family-level survival from a 0.2%/0.1%
+  sample (D-078). Two facts then arrived together. D-098 corrected the cost: a full census is
+  about 3,000 core-hours rather than the 40,000 that had been claimed, so depth is a decision
+  rather than a limit. And the family accumulation curves, computed from the first pass's own
+  detections, show discovery nowhere near saturation — on the **last doubling** of sampled
+  records Pfam still gained 16% more families and RVDB 31-39%. A bound that moves that fast
+  under more data is a weak bound. The project owner was given the three options with those
+  numbers and **chose a ten-fold deepening in this container**.
+- **Decision:** Rates go to ten times the pre-registered ones — `stage2` 0.02, `imgvr` 0.01,
+  `imgpr` 0.01 — at the same seed **20261015**, declared here before the deepening ran.
+  **It is searched as hash bands, and the already-searched prefix is not searched again.** Sample
+  membership is `blake2b(seed, record_id) < rate · 2⁶⁴`, so the sample at rate `r` is a *prefix*
+  of the sample at any larger rate, and widening from `r` to `10r` is exactly the band
+  `[r, 10r)`. `amazebio.detect.in_band` is that primitive and a test pins the property:
+  prefix and band are disjoint, and their union is the wider sample exactly.
+  **Bands are run separately because no single run in this environment may exceed two hours**,
+  while a ten-fold pass over Evo 1's viral component is about eight. Each band run writes a
+  *part*; `--assemble` merges the parts with the first pass into the final tables, summing
+  per-source counts and recording the bands. The assembler **refuses** to write a table whose
+  bands leave a gap in `[0, rate)`, because such a table would claim a rate over records nothing
+  read — an understated lower bound with nothing to show it.
+  **Why changing a pre-registered sample size after seeing results is legitimate here, stated
+  plainly rather than assumed.** `AGENTS.md` fixes thresholds and analysis specs before results
+  are inspected, and that is not relaxed: the thresholds (D-076), the family universes (D-075,
+  D-083), the route mapping and the metric definitions are all unchanged and none of them is
+  touched by this entry. What changes is only *how many records were read*. The headline is a
+  lower bound whose dependence on sample size is **monotone**: more records can only add
+  families, never remove one, so there is no choice of depth that makes a family appear or
+  disappear to order, and no analysis decision rides on the result. The one thing that could have
+  been gamed — stopping at a depth that flattered a conclusion — is foreclosed by the bands being
+  declared here, the seed being fixed, and the coverage check refusing a partial tiling.
+- **Rejected:** A full census now (~3,000 core-hours, ~$130, and capped at 8 vCPU per instance so
+  about 375 instance-hours), which the owner declined for this pass; it remains available as its
+  own task rather than as A2.1 widened.
+  One long run instead of bands. It does not fit the two-hour limit, and `apply_policies` already
+  demonstrated the failure mode earlier in this session: a 20 GB read was lost when its run was
+  stopped at the limit, because it wrote its output only at the end.
+  Re-running from zero at the deeper rate, which would re-search the first pass's records for
+  nothing. The nesting exists precisely so that is unnecessary.
+  Deepening only the component with the steepest curve (`imgvr`, whose RVDB discovery is rising
+  fastest). It would buy the most families per core-hour and make the two releases' figures
+  incomparable, which is the comparison Phase A is for.
+- **Consequence:** The headline stays a `lower_bound` and becomes a tighter one; `estimate_kind`
+  does not change and A3.2's refusal to pool a bound with a population figure still holds. Every
+  table will carry its bands and a `bands_cover_rate` flag, so a reader can see that the rate it
+  claims was actually tiled. Expect roughly 14 band runs and about 18 hours of wall clock, nearly
+  all of it RVDB-prot, which is 93% of the search cost. The first pass's tables are preserved
+  under `artifacts/a2-1/initial/` so the reported result stays readable beside the deepened one.
