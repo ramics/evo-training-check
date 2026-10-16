@@ -129,3 +129,28 @@ def test_user_data_passes_the_measurement_and_its_cap_parameters() -> None:
 
     fields = {f for _, f, _, _ in string.Formatter().parse(tool.USER_DATA) if f}
     assert {"measure", "cap_query_denominator", "cap_shard_points", "cap_fractions"} <= fields
+
+
+def test_the_service_linked_role_refusal_is_named_as_such() -> None:
+    """Measured 2026-10-16: this account cannot create the EC2 Spot service-linked role, and
+    iam:* is denied so neither can we. It is not a capacity problem and the fix is not a
+    retry, so the two must not collapse into one message."""
+    message = tool.spot_refusal(
+        "An error occurred (AuthFailure.ServiceLinkedRoleCreationNotPermitted) when calling "
+        "the RunInstances operation: The provided credentials do not have permission to "
+        "create the service-linked role for EC2 Spot Instances."
+    )
+    assert message is not None
+    assert "AWSServiceRoleForEC2Spot" in message
+    assert "nothing billed" in message
+    assert "retry" not in message.lower(), "a retry cannot create an IAM role"
+
+
+def test_a_capacity_refusal_says_to_retry_instead() -> None:
+    message = tool.spot_refusal("InsufficientInstanceCapacity: there is no Spot capacity")
+    assert message is not None and "Retry" in message
+
+
+def test_an_unrecognised_launch_failure_is_not_dressed_up_as_a_spot_problem() -> None:
+    """Returning None re-raises the original, which is what an unknown failure deserves."""
+    assert tool.spot_refusal("UnauthorizedOperation: you are not authorized") is None

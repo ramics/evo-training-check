@@ -386,13 +386,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         instance = ec2.run_instances(**launch)["Instances"][0]
     except Exception as exc:
-        text = str(exc)
-        if args.spot and ("Capacity" in text or "capacity" in text):
-            raise SystemExit(
-                f"spot capacity refused for {args.instance_type}: {text[:200]}\n"
-                "  nothing launched and nothing billed. Retry, try another permitted "
-                "instance type, or run on demand without --spot at the higher price."
-            ) from exc
+        message = spot_refusal(str(exc)) if args.spot else None
+        if message:
+            raise SystemExit(message) from exc
         raise
     iid = instance["InstanceId"]
     market = "spot" if args.spot else "on-demand"
@@ -510,6 +506,42 @@ def _summarise(done: list[dict[str, Any]]) -> str:
         f" @ {d['residues'] / 1e9:.2f} Gres"
         for d in done
     )
+
+
+def spot_refusal(text: str) -> str | None:
+    """Why a spot launch was refused, in terms the next person can act on. `None` if unclear.
+
+    Both refusals this distinguishes mean nothing launched and nothing was billed, and they
+    need opposite responses — which is why they are not one message.
+
+    *The service-linked role.* Measured 2026-10-16, and no dry run finds it: a spot request
+    needs `AWSServiceRoleForEC2Spot`, which EC2 creates on the caller's behalf on first use
+    via `iam:CreateServiceLinkedRole`. AGENTS.md records that `iam:*` is denied in this
+    account, so spot is not a flag that can be turned on from here. It needs one IAM action
+    from someone who has that permission, and until then every spot-priced figure in this
+    task is a price we cannot pay.
+
+    *Capacity.* The ordinary spot refusal: the same request may succeed later, or on another
+    permitted instance type.
+    """
+    if "ServiceLinkedRoleCreationNotPermitted" in text:
+        return (
+            f"spot is unavailable in this account: {text[:160]}\n"
+            "  the EC2 Spot service-linked role does not exist and iam:* is denied, so it "
+            "cannot be created from here.\n"
+            "  nothing launched, nothing billed. Either someone with IAM permissions creates "
+            "AWSServiceRoleForEC2Spot once, or the run goes on demand without --spot at "
+            "roughly 3-4x the price.\n"
+            "  that price difference is not a detail: D-104's $240-450 and D-109's $26 are "
+            "spot figures."
+        )
+    if "Capacity" in text or "capacity" in text:
+        return (
+            f"spot capacity refused: {text[:200]}\n"
+            "  nothing launched and nothing billed. Retry, try another permitted instance "
+            "type, or run on demand without --spot at the higher price."
+        )
+    return None
 
 
 def market_options(spot: bool) -> dict[str, Any] | None:
