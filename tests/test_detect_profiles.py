@@ -161,3 +161,28 @@ def test_an_absent_cache_reads_as_empty_rather_than_raising(tmp_path, component)
         tmp_path, component=component, object_name="nothing.gz", lo=0.0, hi=1.0
     )
     assert (proteins, records, stats["genes"]) == ([], {}, 0)
+
+
+def test_a_sub_band_search_finds_a_wider_collect_pass_cache(tmp_path):
+    # A collect pass caches [0.014, 0.02); the searches take [0.014, 0.017) and [0.017, 0.02)
+    # out of it. The reader must find the wide file and filter it, not look for a file named
+    # after the sub-band — and a guard that looked for an exact stem match once discarded a
+    # finished 70-minute search.
+    ids = [f"stage2:train#{i}" for i in range(800)]
+    detect_profiles.write_cache(
+        tmp_path,
+        detect_profiles.cache_stem("stage2", "train_stage2.parquet", 0.014, 0.02),
+        [protein(f"{i}|gene0") for i in ids],
+        records_for(ids),
+        band=(0.014, 0.02),
+    )
+    wide = {i for i in ids if in_band(i, seed=detect_profiles.SEED, lo=0.014, hi=0.02)} or set(ids)
+    first, _, _ = detect_profiles.read_cache(
+        tmp_path, component="stage2", object_name="train_stage2.parquet", lo=0.0, hi=0.5
+    )
+    second, _, _ = detect_profiles.read_cache(
+        tmp_path, component="stage2", object_name="train_stage2.parquet", lo=0.5, hi=1.0
+    )
+    assert first and second
+    assert len(first) + len(second) == len(ids)
+    assert wide  # the cache's own band is recorded, and membership is recomputed on read

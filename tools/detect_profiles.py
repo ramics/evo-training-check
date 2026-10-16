@@ -892,9 +892,18 @@ def main(argv: list[str] | None = None) -> int:
                     )
                     sampled_records.update(cached_records)
                     read_seconds = time.time() - started
-                    stem = cache_stem(source.corpus_component, Path(source.key).name, lo, hi)
-                    cached_file = cache_dir(release, root=args.cache_dir) / f"{stem}.faa.gz"
-                    if not proteins and not cached_file.exists():
+                    # Any cache file for this object counts, not one named for the band being
+                    # searched: a collect pass caches a wide band and each search takes a
+                    # sub-band out of it by recomputing membership, which is the whole point of
+                    # keying on the record id. Looking for an exact stem match cost a finished
+                    # 70-minute search once — the guard fired after the work and before the
+                    # part was written.
+                    cached_any = any(
+                        cache_dir(release, root=args.cache_dir).glob(
+                            f"{source.corpus_component}--{Path(source.key).name}--*.faa.gz"
+                        )
+                    )
+                    if not proteins and not cached_any:
                         raise SystemExit(
                             f"{label}: no cache for band [{lo}, {hi}). Run --collect for this "
                             "band first; searching nothing would write a part that silently "
