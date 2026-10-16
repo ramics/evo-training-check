@@ -263,6 +263,35 @@ dollar), then the broad arm's sampled pass (about $26).
 unchanged from the previous block and still blocking that arm. Nothing in this round touched
 it.
 
+## The cap run was lost, and what came out of losing it — 2026-10-16, fifth
+
+`i-072947a778cb59a60`, `m6i.2xlarge` spot, launched 16:48 after `r6i.2xlarge` spot capacity was
+refused. It published nothing in four hours on a pass that takes 52 minutes, and terminated on
+its boot-armed timer at 21:09. Cost about $0.60.
+
+**Why is not known.** What is established: the pass never completed (the seed FASTA uploads
+immediately after the first publish, and a failing upload would have raised and taken the
+instance down), and the process stayed alive throughout. Beyond that, nothing — every
+diagnostic channel is closed, which is now recorded in `AGENTS.md`.
+
+**Two causes are consistent with the evidence** and the second is now the stronger. The
+instance type, since all three completed passes ran on `r6i.2xlarge` and this is the only
+`m6i.2xlarge` attempt — a coincidence of one. Or a degrading S3 read: `S3RangeRead` reset its
+retry counter per `read()` call by design, while `self.reconnects` accumulated against no
+bound, so a connection delivering one chunk and then stalling retried for ever at a read
+timeout plus backoff per cycle. That needs only one bad connection and explains three prior
+successes.
+
+**Fixed either way, with tests.** A global reconnect budget bounds the degrading case
+(`src/amazebio/uniref.py`; `S3RangeRead` had no tests at all before — it now has five). A
+corpus-pass heartbeat to object storage makes the next occurrence diagnosable in minutes. And
+`AGENTS.md` carries both findings: that a running instance cannot be observed here, and that
+the boot-armed shutdown timer does fire, reported as `User initiated` rather than as a reclaim.
+
+**The re-run is much smaller than this one was.** D-114 removed the relaxed-coverage half of
+the measurement entirely, so only the hit cap remains, and it runs against a staged sample
+rather than a fresh corpus pass.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

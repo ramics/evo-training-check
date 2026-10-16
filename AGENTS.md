@@ -231,6 +231,25 @@ indefinitely. Both, not either.
 project needs 3.12; `datetime.UTC` alone is 3.11+. Install `python3.12` and invoke it by name. A
 run that trusts `python3` dies on an `ImportError` about half a minute in, having read nothing.
 
+**You cannot see a running instance work, so it must report to S3.** Observed 2026-10-16:
+`GetConsoleOutput` stops recording once cloud-init finishes, so everything a long run prints after
+boot is invisible. In this account `cloudwatch:GetMetricStatistics` and `ec2:GetConsoleScreenshot`
+are both denied as well, on top of the SSH and SSM denials above, and `DescribeInstanceStatus` only
+reports that the OS is alive. An instance spent four hours on a 52-minute pass and nothing could
+distinguish work from a wedge. Anything that runs longer than a few minutes therefore writes a
+heartbeat to object storage on an interval — `esm3_calibrate.py` is the worked example — and
+publishes each measurement as it is taken rather than at the end. Silence is not progress and it is
+not failure either; without a heartbeat it is nothing at all.
+
+**The boot-armed shutdown timer works — and it is the only thing that saves a wedged run.** Also
+observed 2026-10-16: an instance that produced nothing terminated on time at exactly the
+`shutdown -h +N` armed in `UserData` before anything that could fail, four hours after its watcher
+had been killed and its launcher could no longer terminate it. EC2 reports it in
+`StateTransitionReason` as `User initiated`, which is the same wording as a manual termination and
+is **not** `Server.SpotInstanceTermination` — so that field distinguishes a reclaim from a shutdown
+but not a shutdown from a human. Arm the timer at launch, always; the launcher's own `finally` is
+the thing that cannot be relied on.
+
 **A dry run authorizes; it does not execute.** `DryRun=True` checks permissions and parameters and
 returns `DryRunOperation` on success, which is worth doing. It runs no `UserData`, so it cannot
 catch a missing dependency, a wrong interpreter or a broken script. Those checks belong inside the
