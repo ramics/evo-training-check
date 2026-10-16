@@ -3910,3 +3910,53 @@ decision has a threshold or parameter in it, the number goes in the entry.
   query-set size, because the query side is 3.16M sequences and the first run showed it dominates.
   What A1.6 delivers changes with it: survival **rates with intervals** over a sample, not
   per-record manifests over the whole corpus, and every downstream consumer must be told which.
+
+### D-102 — Search cost is affine in target size, not sub-linear; the power-law reading was an artefact
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The grid run (instance `i-0fab283b268b592cc`, commit `64e613f`) measured 19 points
+  over query sizes 3,130 to 3,159,223 and target sizes 8.3 to 66.4 M residues. D-101 framed the
+  remaining uncertainty as a target-size *exponent*, and the first reading of these points put it at
+  0.36–0.48 — strongly sub-linear, which would have made even a whole-corpus pass cost tens of
+  dollars. That reading is wrong and the error is worth recording, because it is the kind that
+  survives review by looking like a measurement.
+- **Decision:** **Model search cost as affine in target size, not as a power law.** Per-query cost
+  at the four target sizes, at 315,266 queries:
+
+  | target (M residues) | core-s per query |
+  |---|---|
+  | 8.3 | 0.01003 |
+  | 16.6 | 0.01289 |
+  | 33.2 | 0.01625 |
+  | 66.4 | 0.02281 |
+
+  The increments per M residue across the top three are 0.000202 and 0.000198 — flat. Fitting
+  `cost/query = a + b·T` on those gives **a = 0.009583 core-s, b = 0.0001992 core-s per M
+  residue**, which reproduces the 33.2 point to 0.3%. A power law fitted to the same data returns
+  an exponent near 0.4 only because the constant term dominates at these target sizes: at 8.3 M
+  residues the fixed cost is three quarters of the total. **The apparent sub-linearity is the
+  intercept, not the scaling.** Extrapolating the exponent would have understated the full pass by
+  about a hundred-fold.
+  **Query cost is linear, and that is measured at the real query size rather than extrapolated.**
+  Per-query cost converges to 0.00994–0.01003 core-s at 315,266 and 3,159,223 queries against the
+  same target, so doubling the seed set doubles the cost with no surprise at the size the pass will
+  actually use. This is the one axis that needs no further measurement.
+  **The strict reading costs 3.2× the charitable one**, consistent across the grid (2.3× at the
+  smallest query, 3.12× and 3.20× at the two largest). D-094 feared 10–50×. Both readings are
+  therefore affordable together wherever one of them is, and no choice between them is needed.
+- **Consequence, with the arithmetic stated so it can be checked:** at `Q = 3,159,223` and a
+  whole-corpus target of about 376,000 M residues, the affine model gives 236M core-seconds, or
+  **65,700 core-hours — about $4,100 at r6i.2xlarge rates for the charitable reading and roughly
+  $17,000 with strict included.** A 1-in-50 sample is about $83 and $350 respectively. So the
+  sampled pass D-101 chose stands, and it stands on a firmer basis than when it was chosen.
+  **This is still an extrapolation of 5,600× in target size and is not yet a result.** The affine
+  fit makes a sharp, falsifiable prediction that the next run tests directly: at 13,350 M residues
+  and 3,130 queries it predicts 17.4 minutes where the power law predicts 2.0. Instance
+  `i-0afb243ec1234245c` is measuring exactly that, with targets from 66.7 to 13,350 M residues.
+- **Rejected:** Reporting the 0.4 exponent with a caveat — it is not a conservative estimate, it is
+  a hundred-fold error in the project's favour, and §2's commitment makes an error that flatters the
+  audit the same failure as one that flatters the filter. Extrapolating from the affine fit without
+  testing it — the fit is excellent over an 8× range and the pass needs 5,600×, and the physical
+  reason to distrust it is concrete: at large target sizes MMseqs2 splits the target to fit memory,
+  and a split target is re-scanned per chunk, which would make the true cost **worse** than linear
+  rather than better.
