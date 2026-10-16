@@ -490,6 +490,13 @@ def cache_dir(release: str, *, root: Path | None = None) -> Path:
     return (root or CACHE_ROOT) / release
 
 
+#: Cache layout version. Bumped when a cached file's meaning changes, so a cache written by
+#: older code is refused with an instruction rather than misread. Version 1 wrote
+#: `Record.taxonomy` as a list, which kept the ranks and dropped every taxon; nothing could
+#: recover those taxa, so a version-1 cache has to be collected again.
+CACHE_FORMAT = 2
+
+
 def cache_stem(component: str, object_name: str, lo: float, hi: float) -> str:
     """The cache's filename stem for one staged object and band.
 
@@ -534,6 +541,7 @@ def write_cache(
                         # rules act on.
                         "taxonomy": dict(record.taxonomy or {}),
                         "band": list(band),
+                        "format": CACHE_FORMAT,
                     },
                     sort_keys=True,
                 )
@@ -574,6 +582,13 @@ def read_cache(
             if not line:
                 continue
             row = json.loads(line)
+            if row.get("format") != CACHE_FORMAT:
+                raise SystemExit(
+                    f"{meta_path} was written by cache format "
+                    f"{row.get('format', 1)}, this is {CACHE_FORMAT}. Delete the cache "
+                    "directory and re-run --collect: a format-1 cache stored the taxonomy's "
+                    "ranks without their taxa, and the taxa cannot be recovered from it."
+                )
             if not in_band(row["record_id"], seed=SEED, lo=lo, hi=hi):
                 continue
             records[row["record_id"]] = Record(

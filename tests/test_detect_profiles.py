@@ -197,3 +197,28 @@ def test_a_sub_band_search_finds_a_wider_collect_pass_cache(tmp_path):
     assert first and second
     assert len(first) + len(second) == len(ids)
     assert wide  # the cache's own band is recorded, and membership is recomputed on read
+
+
+def test_a_cache_from_an_older_format_is_refused_with_an_instruction(tmp_path):
+    # Format 1 wrote the taxonomy's ranks and dropped its taxa, which cannot be recovered — so a
+    # stale cache must say to re-collect rather than raise a ValueError deep in a dict() call,
+    # or crash at the routing stage after a long search.
+    import json
+
+    stem = detect_profiles.cache_stem("stage2", "train_stage2.parquet", 0.0, 1.0)
+    (tmp_path / f"{stem}.faa.gz").write_bytes(b"")
+    (tmp_path / f"{stem}.records.jsonl").write_text(
+        json.dumps(
+            {
+                "record_id": "stage2:train#1",
+                "component": "IMG/VR",
+                "taxonomy": ["realm", "class"],
+                "band": [0.0, 1.0],
+            }
+        )
+        + "\n"
+    )
+    with pytest.raises(SystemExit, match="cache format"):
+        detect_profiles.read_cache(
+            tmp_path, component="stage2", object_name="train_stage2.parquet", lo=0.0, hi=1.0
+        )
