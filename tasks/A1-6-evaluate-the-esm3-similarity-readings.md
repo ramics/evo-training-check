@@ -104,8 +104,17 @@ worth having because D-032 established the reported 10.6M removals cannot valida
 reconstruction. And a bounded run cannot estimate the viral share of a tier: UniRef is ordered by
 accession, so a prefix is not a sample, and only the full-tier pass produces a seed count.
 
+**Update 2026-10-16.** The first in-region run finished its corpus pass and lost its searches.
+The seed set is measured — 3,159,223 viral-seeded clusters out of 350,950,053, the latter matching
+the publisher's own count exactly (D-100) — and the representative gap is 1.06%, half what the
+prefix suggested. Two faults in how results leave the instance cost the rest, both fixed (D-101).
+The one surviving search measurement puts a floor of 3,250 core-hours on UniRef100 alone, which
+rules out the cheap end of the estimate, so **A1.6 now targets a sampled pass reporting survival
+rates with intervals rather than per-record manifests over the whole corpus**. Downstream consumers
+of these manifests need telling.
+
 **Waiting on the project owner:** nothing right now. The spend decision for the full pass comes
-after the calibration reports a figure.
+after the redesigned calibration reports a figure.
 
 
 ## Notes

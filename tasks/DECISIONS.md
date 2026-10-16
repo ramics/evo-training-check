@@ -3834,3 +3834,79 @@ decision has a threshold or parameter in it, the number goes in the entry.
   claims was actually tiled. Expect roughly 14 band runs and about 18 hours of wall clock, nearly
   all of it RVDB-prot, which is 93% of the search cost. The first pass's tables are preserved
   under `artifacts/a2-1/initial/` so the reported result stays readable beside the deepened one.
+### D-100 — The viral seed set is 3,159,223 clusters, and the corpus pass reconciles exactly
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The first in-region run (instance `i-0f551e14f56b7916d`, code commit `26663b5`)
+  completed a full pass over the staged UniRef100 tier of UniRef 2023_02. Its searches were lost
+  to two faults recorded in D-101; the corpus pass itself finished and is a result.
+- **Decision:** Record these as A1.6's measured seed-set figures, superseding every number taken
+  from the prefix sample during development.
+
+  | quantity | value |
+  |---|---|
+  | clusters read | 350,950,053 |
+  | residues | 133,486,060,660 |
+  | viral-seeded clusters | 3,159,223 (0.900%) |
+  | viral-seeded residues | 1,180,922,524 |
+  | viral-seeded with a non-viral representative | 33,394 (1.057% of viral-seeded) |
+  | taxonomically mixed | 59,308 (1.877% of viral-seeded) |
+  | wall time | 3,202.5 s on 8 vCPU, 7 parsing workers |
+
+  **The cluster count reconciles exactly with the publisher's.** UniRef 2023_02 states 350,950,053
+  UniRef100 clusters and the pass read 350,950,053. That is the check that the parser saw the whole
+  tier and dropped nothing — worth more than any internal consistency test, because it is against a
+  number this project did not produce.
+  **The reconstruction corroborates ESM3's stated denylist size.** The source describes the viral
+  denylist as "roughly 4M sequences"; the reconstruction is 3.16M UniRef100 clusters. The direction
+  is right and expected: UniRef100 collapses identical sequences and sub-fragments, so clusters sit
+  below the UniProtKB sequence count they cover. This is the validation target D-092 argued for and
+  D-032 established the reported 10.6M removals could not provide. It is corroboration, not
+  reproduction, and the write-up should say which.
+  **D-092's measured limitation shrinks by half.** The representative-versus-member gap is 1.06%
+  against the 2.38% measured on the first 796,477 clusters, and mixed membership 1.88% against
+  7.75%. The prefix overstated both, which is the hazard D-078 and this task's own file warn about:
+  UniRef is ordered by accession, so a prefix is not a sample. Every figure in D-092 taken from the
+  prefix is superseded here; the reading itself is unchanged.
+- **Rejected:** Reporting the prefix figures with a note — they are wrong, not provisional, and a
+  reader comparing the two would have no way to know which governs. Treating the 3.16M as
+  reproducing the stated 4M — the two count different things, and asserting agreement would paper
+  over exactly the kind of unit mismatch §7's adversarial reader checks first.
+- **Consequence:** `artifacts/a1-6/calibration.json`, at
+  `s3://amazebio-corpora-897641797669/corpora/results/a1-6/calibration.json`. The seed-set FASTA
+  itself was not uploaded before the run was cut (D-101), so the sequences have to be rebuilt; the
+  counts above do not. Mean cluster length is 380.4 residues, which sizes every later estimate.
+
+### D-101 — Two faults cost a finished corpus pass, and the sampled pass follows from the cost
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The run in D-100 finished its corpus pass at minute 53 and returned only counts. Both
+  causes were in how results escape a machine nobody can log into, and neither was in the analysis.
+- **Decision:** **Terminate on an outcome, not on a timer; and ship a deliverable the moment it
+  exists.** The launcher terminated in a bare `finally` — "both, not either", as the EC2 section
+  requires — which is right except in one case: the watch window expiring is not a failure. The
+  searches were still running at 115 minutes, that was the watch timeout and nothing else, and
+  `StateTransitionReason` reads "User initiated". It now terminates when the run finished, failed,
+  or is already going down, and when the window merely expires on a running instance it leaves it to
+  the shutdown timer armed in `UserData` ahead of anything that can fail. `--attach` resumes a watch.
+  Separately, the seed set was written at minute 53 and uploaded only after the searches, so the
+  searches being cut destroyed it; it now uploads before any search starts.
+  **The surviving search measurement redirects the task.** One shard of 333,742,778 residues ran 61
+  minutes on 8 cores without finishing, which is a lower bound of 87,743 core-seconds per G residue
+  of target, hence **more than 3,250 core-hours for UniRef100 alone** and more than 550 dollars for
+  the full target at r6i.2xlarge rates. The bound is weak — the search was incomplete, so the true
+  figure is higher — but it is enough to rule out the cheap end of D-094's range for good.
+  **So the pass becomes a sampled one.** A1.6 will score a hash sample of the corpus and report
+  survival as a rate with an interval, rather than scoring every record. This is what the project
+  already does everywhere else: uncertainty travels with the estimate, and a rate with an interval
+  is the honest form of this measurement regardless of budget. Cost falls with the sample fraction.
+  Put to the project owner with the alternatives; this was the decision.
+- **Rejected:** Scoring every record — defensible and very likely four figures, for per-record
+  manifests whose extra precision no downstream task has asked for. Keeping the unconditional
+  terminate and simply setting a longer window — the window would have to be guessed against a
+  runtime nobody can predict, which is the position that caused this. Dropping the alignment pass —
+  it is the only way the ESM3 arm of the survival work gets any input at all.
+- **Consequence:** The calibration is redesigned around far smaller target shards and a sweep over
+  query-set size, because the query side is 3.16M sequences and the first run showed it dominates.
+  What A1.6 delivers changes with it: survival **rates with intervals** over a sample, not
+  per-record manifests over the whole corpus, and every downstream consumer must be told which.
