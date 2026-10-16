@@ -624,6 +624,42 @@
       "bytes": 12551,
       "retrieved": "2026-10-15",
       "note": "The publisher's own inventory, including an md5sum per file, served without authentication. The dataset identifier Custom_MPI-IMG_VR came from the portal's own redirect rather than a guess: the documented download page is a JavaScript application with no static links. The files themselves return HTTP 401 {\"detail\":\"Authentication credentials were not provided.\"} and are marked _es_public_data: false, so this entry pins what IMG/VR contains and not its contents. Dated and mutable, like S-OPENGENOME1-TREE: claims from it carry the retrieval date. Two releases answer to 'IMG/VR v4' (2022-09-20 and 2022-12-20); see DECISIONS.md D-052 and D-054."
+    },
+    {
+      "id": "S-GENOMAD-NATBIOTECH",
+      "kind": "paper",
+      "title": "Camargo et al. 2024 \u2014 Identification of mobile genetic elements with geNomad (Nature Biotechnology)",
+      "url": "https://www.nature.com/articles/s41587-023-01953-y",
+      "licence": "publisher content \u2014 not redistributed",
+      "doi": "10.1038/s41587-023-01953-y",
+      "status": "retrieved_not_stored",
+      "sha256": "532643d30649c026eb0962137b05ecbcfd4a78902a5d66aeb6db8785a3852308",
+      "bytes": 21208235,
+      "note": "The tool A4.2 benchmarks, described by its authors. Two statements A4.2 relies on: that geNomad produced the data IMG/VR v4 was built from, which corroborates the dependency decomposition from a primary source rather than from the corpus alone; and that its taxonomically informed markers were annotated from ICTV Virus Metadata Resource version 19, which is the ground truth D-086 should have pinned and D-095 shows does not change the result. Retrieved 2026-10-15 and read; not stored because it is publisher content. Re-fetch from url to verify."
+    },
+    {
+      "id": "S-IMGVR-V4-NAR",
+      "kind": "paper",
+      "title": "Camargo et al. 2023 \u2014 IMG/VR v4: an expanded database of uncultivated virus genomes (Nucleic Acids Research)",
+      "url": "https://doi.org/10.1093/nar/gkac1037",
+      "licence": "publisher content \u2014 open access per Unpaywall, licence not stated in the PDF, so not redistributed",
+      "doi": "10.1093/nar/gkac1037",
+      "status": "retrieved_not_stored",
+      "note": "Retrieved 2026-10-15 by the project owner, who supplied the PDF after four automated access paths were refused (OUP 403; PMC proof-of-work interstitial; the eScholarship and OSTI mirrors HTTP 202 behind a bot challenge). Not stored because the PDF states no redistribution licence, unlike the bioRxiv preprints in pdfs/. Verify against the recorded sha256. It settles three things A4.2 had to bound or report as undocumented, and D-096 records the corrections: geNomad's version is stated as 1.1.0 in Methods, twice and for the marker-based assignment specifically, with Zenodo doi 10.5281/zenodo.7015982 as reference 19 \u2014 which is the version A4.2 benchmarked; the ground truth is ICTV Taxonomy Release #37, which is the MSL D-086 pinned; and the taxonomy methods the release note and help page leave out are documented here, so the 'three undocumented methods' finding in D-084 does not survive.",
+      "sha256": "06de029f5e7415eef3bfcc3bbe1eaebe57f8a964fe35a427923f922dfbec9ba1",
+      "bytes": 3523561
+    },
+    {
+      "id": "S-RVMT-CELL",
+      "kind": "paper",
+      "title": "Neri et al. 2022 \u2014 Expansion of the global RNA virome reveals diverse clades of bacteriophages (Cell)",
+      "url": "https://doi.org/10.1016/j.cell.2022.08.023",
+      "licence": "publisher content \u2014 not redistributed",
+      "doi": "10.1016/j.cell.2022.08.023",
+      "status": "retrieved_not_stored",
+      "sha256": "9f8efb1d7d934a659848db2c23f7dc83331e1046b1d8fdc78e6e1854795d90a5",
+      "bytes": 6529173,
+      "note": "RVMT, the catalogue IMG/VR imported the taxonomy of. A4.2's dependency pass found it supplies 49.51% of the records Evo's denylist removes \u2014 more than geNomad \u2014 and the IMG/VR method field cites it by its preprint doi (10.1101/2022.02.15.480533). Retrieved 2026-10-15 for A4.4, which owns benchmarking it. Not stored because it is publisher content; the version of record was fetched from the UEA repository copy because biorxiv.org rate-limited. Re-fetch from url to verify."
     }
   ]
 }

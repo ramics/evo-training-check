@@ -3558,3 +3558,355 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** The calibration run is next, and its figure decides the full pass. The sharding
   requirement is a property of the account's policy rather than of this task, so it belongs in
   AGENTS.md's EC2 section alongside the parallelism and memory notes.
+
+---
+
+### D-095 — geNomad's markers were annotated from a different VMR than A4.2 scored against, and it changes nothing
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Numbering:** drafted as D-092, which A1.6 took first; renumbered per `AGENTS.md`. Commit
+  `b5200a2` on branch `ccr-bcc7b994-9ycpzn` is already pushed and cites this entry as D-092 in
+  its message, so that citation resolves here. A1.6's D-092 is the one left in place: it was
+  committed first and is cited from three entries of its own series.
+- **Context:** D-086 pinned ICTV VMR_20-190822_MSL37.3 as ground truth, reasoning that the
+  taxonomy in force when IMG/VR v4 was built is what isolates tool error from the taxonomic
+  revision A9.1 measures. Retrieving the geNomad paper (`S-GENOMAD-NATBIOTECH`) afterwards
+  surfaced a fact that reasoning did not account for: geNomad's taxonomically informed markers
+  were annotated from **ICTV Virus Metadata Resource version 19**, four months earlier than
+  VMR 20 though still MSL37.
+
+  That matters because it splits the question D-086 treated as one. Scoring against the VMR the
+  markers were built from measures the tool against its own reference — can it reproduce the
+  taxonomy it was taught? Scoring against the VMR in force when the corpus was built measures
+  what the filter inherited. A4.2 reports the second, which is the audit's question, but a
+  reviewer is entitled to ask whether the first would give a different number.
+
+  The same paper also states, from the tool's authors, that geNomad produced the data IMG/VR v4
+  was built from. D-084 established the dependency from the corpus's own method field; this
+  corroborates it from a primary source, which `AGENTS.md`'s rule against secondary sources
+  makes worth having.
+- **Decision:** The pin stands, and the sensitivity check is run and reported rather than
+  argued. `ictv.MARKER_SOURCE_RELEASE` pins VMR 19 (`VMR_19-250422_MSL37.xlsx`, sha256
+  `e8ed871a…`) so the comparison is re-runnable, and a test asserts it is the same MSL as the
+  benchmark release — a different MSL would make the comparison a measure of taxonomic revision
+  rather than of this choice.
+
+  Over the 3,149 scored accessions:
+
+  | difference | count |
+  |---|---|
+  | family assignment differs | 4 |
+  | order assignment differs | 0 |
+  | **denylist scope differs** | **0** |
+  | accession absent from VMR 19 | 24 |
+
+  All four family differences are bacteriophage renames — `Flexireviridae`→`Graaviviridae`,
+  `Queuoviridae`→`Druskaviridae` — and every one is an out-of-scope control. **No record
+  changes which side of the denylist it falls on, so neither reported rate moves.** The 24
+  absences are accession-field edits between the two revisions, not taxonomic changes.
+
+  So A4.2's escape rate of 36.23% and spurious-removal rate of 3.05% stand as reported, and the
+  artefact's choice of ground truth is now a measured non-issue rather than an assumption.
+- **Rejected:** *Re-score against VMR 19 and report that instead* — it answers a question about
+  geNomad's self-consistency rather than about what the filter inherited, and D-086's reasoning
+  for the later release is unchanged by this.
+  *Report both as parallel headline rates* — they are identical to within four out-of-scope
+  renames, so a second column would imply a distinction the data does not contain.
+  *Leave the discrepancy unrecorded because the result is unchanged* — the check is cheap, the
+  objection is obvious, and §7 requires writing for a reviewer who wants the result to be wrong.
+
+---
+
+### D-096 — The IMG/VR v4 paper states the geNomad version and documents the taxonomy methods, so two of A4.2's findings are corrected
+
+- **Date:** 2026-10-15
+- **Task:** A4.2
+- **Context:** D-084 and D-085 were written with the IMG/VR v4 paper unretrieved. Four automated
+  access paths refused it (OUP 403; PMC proof-of-work interstitial; the eScholarship and OSTI
+  mirrors HTTP 202 behind a bot challenge), and both entries were scoped accordingly — D-085
+  said in terms that its claim covered "the release note and the publisher's help page, the two
+  sources actually checked". The project owner then supplied the PDF
+  (`S-IMGVR-V4-NAR`, sha256 `06de029f…`), and it answers both questions.
+
+  This entry is a **correction**, and it goes in the direction that costs the audit rather than
+  the filter. §2's commitment cuts both ways and §7 assumes a reviewer who wants the result to
+  be wrong; a finding that survives only because a source was unreachable is exactly the kind
+  that reviewer would overturn.
+- **Decision:**
+
+  **1. The geNomad version is stated, and it is the one A4.2 benchmarked.** The paper's Methods
+  name **geNomad version 1.1.0** twice — once for mining UViGs from IMG/M assemblies retrieved
+  2022-04-10, and once for the marker-based taxonomic assignment specifically — and reference 19
+  is the Zenodo deposit of that release (doi:10.5281/zenodo.7015982). D-085's framing of the
+  version as "a bound, not a statement" and as "unrecoverable from the publisher" is withdrawn:
+  it was unrecoverable from this environment, which is a different claim and the one the audit
+  may make. The pin itself is vindicated — A4.2 derived 1.1.0 from release dates alone, before
+  the paper was in hand, and `genomad.VERSION_EVIDENCE` keeps that argument as independent
+  corroboration precisely so the agreement is checkable rather than circular.
+
+  What survives from D-085 is narrower and still worth reporting: the **release note pins CheckV
+  to v1.0.1 in the same field list and names geNomad with no version**, and the help page carries
+  none either. So the data a user downloads does not carry the version its own labels came from,
+  and recovering it requires the paper. That is a provenance observation about the distribution,
+  not a claim that the publisher withheld anything.
+
+  One residual gap is real and now stated as the only inferred part of the pin: **no source
+  states the marker database version.** The paper gives the package version and the code's
+  Zenodo deposit; the pairing to database v1.1 rests on the publisher's own `releases.txt`
+  mapping. `VERSION_EVIDENCE["residual_gap"]` carries it and the report prints it.
+
+  **2. The "three undocumented taxonomy methods" finding does not survive.** D-084 observed that
+  the help page names four taxonomy approaches while the corpus carries eight method values, and
+  called `RVMT`, `RefSeq` and `GVMAG` undocumented. The paper documents all three: sequences
+  imported from RefSeq "were assigned to their NCBI taxonomy", and UViGs from the RVMT and GVMAG
+  projects "were designated to taxonomic lineages listed in their original studies", with the
+  four-method priority order applying to the remainder. Table 1 lists RVMT and GVMAG as data
+  sources with their own references. **That part of D-084 is withdrawn.**
+
+  What survives, and it is the part that bears on the audit: the **decomposition itself**, which
+  was measured from the corpus and is untouched — geNomad carries 38.56% of the denylist's
+  181,530 removals and RVMT 49.51%. The paper strengthens rather than weakens A4.4's premise by
+  saying where those lineages came from, which is where A4.4 must now look. And the §A0 point
+  survives in reduced form: the methods are documented in a paper behind an access path that
+  refused four automated attempts, not in the release note or help page that ship with the data.
+
+  **3. Two independent pins are confirmed.** The paper states the taxonomy is assigned against
+  **ICTV Taxonomy Release #37**, which is the MSL D-086 pinned, and gives the IMG/M retrieval
+  date as 2022-04-10 — closer to VMR 19 than to VMR 20, which is consistent with D-095's finding
+  that the choice between them changes no denylist-scope decision in the evaluation set.
+
+  **No measured result changes.** The escape rate of 36.23% (33.80–38.72) and the
+  spurious-removal rate of 3.05% (2.27–4.00) were produced by geNomad 1.1.0 against ICTV MSL37
+  and stand exactly as reported; `score` was re-run only so the artefact carries the corrected
+  evidence rather than the superseded bound.
+- **Rejected:** *Amend D-084 and D-085 in place* — `DECISIONS.md` is append-only, and an entry
+  that quietly becomes right is worse than one that is visibly corrected.
+  *Store the paper in `pdfs/` with the committed preprints* — those are bioRxiv CC-BY
+  submissions; this PDF states no redistribution licence, so it is recorded
+  `retrieved_not_stored` with its checksum, as `S-EVO2-NATURE` already is.
+  *Treat the access failure as a finding about the publisher* — it is a finding about this
+  container's network path. Unpaywall reports the article open access, and a person with an
+  ordinary browser retrieved it in one attempt.
+
+### D-097 — RVDB's families get a derived label, and `family_id` stays the only identity
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** A2.1's RVDB hit tables are correct and unreadable: the registry names its families
+  `FAM004230` and the top of Evo 1's result is a column of such ids. The release ships an
+  annotation database (`U-RVDBv32.0-prot-hmm.sqlite.xz`, pinned against the publisher's own md5),
+  and inspecting it settles what is available: tables of **keyword frequencies** — one set
+  harvested from the member sequences' names, one from the domain literature — plus an LCA taxon
+  id, a member count and a model length. **There is no family name anywhere in it.** So a
+  readable label cannot be looked up; it has to be derived, and deriving a name for somebody
+  else's family is exactly the kind of step that later gets quoted as if the publisher had said
+  it.
+- **Decision:** Three parts, and the second is the one that matters.
+  **The label is the four most frequent sequence-name keywords, in frequency order.** It reads as
+  a rough function: `FAM000069` becomes "helicase virus rna dependent", `FAM005268` becomes
+  "reductase ribonucleotide virus large". All 13,679 families get one; none came back empty.
+  Reference-derived keywords travel *beside* the label rather than inside it, because they
+  describe the domain literature rather than the member sequences, and mixing the two would make
+  a derived string look like a curated title.
+  **`family_id` remains the only identity.** Counts are keyed on it, the survival denominator is
+  a set of ids, and it is the only thing a figure or a paper sentence may cite as the family. The
+  label is for a reader's orientation and carries a field saying so.
+  **The labels ship in the registry artefact and are joined on `family_id`**, in
+  `artifacts/a2-1/registries/rvdb-families.json`. The hit tables are not rewritten to carry them.
+- **Rejected:** Writing the label into each table's `name` field. It would read better and it
+  would mean editing a measurement after the fact — the tables already have their `run.json`,
+  their manifest digest and their provenance, and a relabelling pass would either invalidate that
+  or silently not. The join costs a reader one small file.
+  Re-running the search with labels in place, which would be the clean way to get them into the
+  tables and costs 50 minutes of RVDB search per release to change a display string.
+  Taking the label from the LCA taxon instead ("Caudoviricetes family 4230"). It is the
+  publisher's own datum rather than a derivation, which is attractive, but 10239 (Viruses) is the
+  LCA for most families, so it labels almost everything identically.
+  Leaving the ids bare and letting A6.1 solve it. The write-up is where an unreadable table
+  becomes a figure nobody can check, and `AGENTS.md` requires every number in a write-up to trace
+  to a machine-readable artefact — the artefact is the right place for the mapping.
+- **Consequence:** A reader joins one file to read any RVDB result. The write-up must present the
+  label as derived — this project's summary of the publisher's keyword frequencies — and never as
+  RVDB's own name for the family, which is a sentence-level discipline rather than something code
+  can enforce. The same question returns in A2.2 for fold families and in C5.2 for the homology
+  neighbourhood index: where a registry ships identifiers without names, the mapping is an
+  artefact with a stated rule, not a label invented at figure time.
+
+### D-098 — D-078's cost figure was wrong by a factor of thirty, and a full census is affordable after all
+- **Date:** 2026-10-15
+- **Task:** A2.1
+- **Context:** D-078 pre-registered the sample and justified it with a measurement: "98 million
+  profile-residues per second for RVDB-prot ... against 13,679 RVDB profiles that is roughly
+  40,000 core-hours", and concluded that a full pass is "not expensive, it is arithmetically out
+  of reach". **The conclusion was false and the measurement behind it was worthless.** The
+  benchmark searched 300 profiles against 2,000 random 300-residue sequences — a job small enough
+  that per-profile fixed cost dominated it, which understated real throughput by about three
+  orders of magnitude.
+  The real runs settle it. RVDB-prot over 23.28 M residues of Evo 1's viral component took 50.0
+  minutes on three cores: **386 core-seconds per million residues**, against the benchmark's
+  implied 140,000. Evo 2's component gives 428 and its plasmid/phage component 344, so the figure
+  is stable across sources.
+- **Decision:** The cost of a full, unsampled census is recorded here as measured, and D-078's
+  figure is superseded. Scaling each component's own measured rate to its full residue count:
+  | component | residues | RVDB | Pfam viral |
+  |---|---|---|---|
+  | `opengenome`/`stage2` | ~11,642 Maa | 1,250 core-hours | 87 |
+  | `opengenome2`/`imgvr` | ~11,577 Maa | 1,375 core-hours | 95 |
+  | `opengenome2`/`imgpr` | ~1,472 Maa | 141 core-hours | 43 |
+  **About 3,000 core-hours for both releases against both registries** — not 40,000 for one
+  component of one release. Linear scaling is sound here: `hmmsearch`'s cost is residues x
+  profiles, and the sample is a 0.1-0.2% random draw.
+  **The sampling design itself stands**, unchanged and still pre-registered: a sample was the
+  right first pass, it produced the result, and the hash nesting means a deeper pass extends it
+  rather than repeating it. What is withdrawn is the *reason* given — "out of reach" — and every
+  statement resting on it.
+- **Rejected:** Correcting D-078 in place. The log is append-only and that entry was cited in the
+  PR for #17, in `metrics/detections.md` and in the task file before the error was found;
+  rewriting it would leave those citations pointing at text that no longer says what they
+  reported. The citations are repointed to this entry instead.
+  Also rejected: treating this as a private slip to fix quietly. The figure had already been
+  published in a merged pull request body and used to justify a methodological choice to the
+  project owner, which makes it a finding about this project's own rigour. `AGENTS.md` asks for
+  airtight work against a motivated reader; a reader who re-derived the arithmetic would find
+  this in a minute.
+- **Consequence:** The scale decision changes from impossible to affordable and goes back to the
+  project owner with real numbers. Two bounds on it: the account's policy allows nothing larger
+  than `c6i.2xlarge` (8 vCPU — `c6i.4xlarge` and above return `UnauthorizedOperation`), so a
+  census is about 375 instance-hours of one machine or a fan-out across several, and an instance
+  cannot be inspected once running (`AGENTS.md`). And the accumulation curves say the current
+  bound is weak: on the last doubling of sampled records, Pfam still gained 16% more families and
+  RVDB 31-39%, so family discovery is far from saturated and a deeper pass would move the
+  headline materially rather than confirm it.
+  The general lesson, which is the part worth carrying: **a benchmark that does not resemble the
+  real job is not evidence.** This one was off by 1,000x because it was too small to leave the
+  fixed-cost regime, and it was used to justify a decision about what is possible. Any later task
+  costing a pass over the corpora — A2.2's structural search above all, which has the same shape —
+  should take its throughput from a run of realistic size or not quote one.
+
+### D-099 — The sample is deepened ten-fold, searched as bands, and why that cannot bias the bound
+- **Date:** 2026-10-16
+- **Task:** A2.1
+- **Context:** The first pass produced a lower bound on family-level survival from a 0.2%/0.1%
+  sample (D-078). Two facts then arrived together. D-098 corrected the cost: a full census is
+  about 3,000 core-hours rather than the 40,000 that had been claimed, so depth is a decision
+  rather than a limit. And the family accumulation curves, computed from the first pass's own
+  detections, show discovery nowhere near saturation — on the **last doubling** of sampled
+  records Pfam still gained 16% more families and RVDB 31-39%. A bound that moves that fast
+  under more data is a weak bound. The project owner was given the three options with those
+  numbers and **chose a ten-fold deepening in this container**.
+- **Decision:** Rates go to ten times the pre-registered ones — `stage2` 0.02, `imgvr` 0.01,
+  `imgpr` 0.01 — at the same seed **20261015**, declared here before the deepening ran.
+  **It is searched as hash bands, and the already-searched prefix is not searched again.** Sample
+  membership is `blake2b(seed, record_id) < rate · 2⁶⁴`, so the sample at rate `r` is a *prefix*
+  of the sample at any larger rate, and widening from `r` to `10r` is exactly the band
+  `[r, 10r)`. `amazebio.detect.in_band` is that primitive and a test pins the property:
+  prefix and band are disjoint, and their union is the wider sample exactly.
+  **Bands are run separately because no single run in this environment may exceed two hours**,
+  while a ten-fold pass over Evo 1's viral component is about eight. Each band run writes a
+  *part*; `--assemble` merges the parts with the first pass into the final tables, summing
+  per-source counts and recording the bands. The assembler **refuses** to write a table whose
+  bands leave a gap in `[0, rate)`, because such a table would claim a rate over records nothing
+  read — an understated lower bound with nothing to show it.
+  **Why changing a pre-registered sample size after seeing results is legitimate here, stated
+  plainly rather than assumed.** `AGENTS.md` fixes thresholds and analysis specs before results
+  are inspected, and that is not relaxed: the thresholds (D-076), the family universes (D-075,
+  D-083), the route mapping and the metric definitions are all unchanged and none of them is
+  touched by this entry. What changes is only *how many records were read*. The headline is a
+  lower bound whose dependence on sample size is **monotone**: more records can only add
+  families, never remove one, so there is no choice of depth that makes a family appear or
+  disappear to order, and no analysis decision rides on the result. The one thing that could have
+  been gamed — stopping at a depth that flattered a conclusion — is foreclosed by the bands being
+  declared here, the seed being fixed, and the coverage check refusing a partial tiling.
+- **Rejected:** A full census now (~3,000 core-hours, ~$130, and capped at 8 vCPU per instance so
+  about 375 instance-hours), which the owner declined for this pass; it remains available as its
+  own task rather than as A2.1 widened.
+  One long run instead of bands. It does not fit the two-hour limit, and `apply_policies` already
+  demonstrated the failure mode earlier in this session: a 20 GB read was lost when its run was
+  stopped at the limit, because it wrote its output only at the end.
+  Re-running from zero at the deeper rate, which would re-search the first pass's records for
+  nothing. The nesting exists precisely so that is unnecessary.
+  Deepening only the component with the steepest curve (`imgvr`, whose RVDB discovery is rising
+  fastest). It would buy the most families per core-hour and make the two releases' figures
+  incomparable, which is the comparison Phase A is for.
+- **Consequence:** The headline stays a `lower_bound` and becomes a tighter one; `estimate_kind`
+  does not change and A3.2's refusal to pool a bound with a population figure still holds. Every
+  table will carry its bands and a `bands_cover_rate` flag, so a reader can see that the rate it
+  claims was actually tiled. Expect roughly 14 band runs and about 18 hours of wall clock, nearly
+  all of it RVDB-prot, which is 93% of the search cost. The first pass's tables are preserved
+  under `artifacts/a2-1/initial/` so the reported result stays readable beside the deepened one.
+### D-100 — The viral seed set is 3,159,223 clusters, and the corpus pass reconciles exactly
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The first in-region run (instance `i-0f551e14f56b7916d`, code commit `26663b5`)
+  completed a full pass over the staged UniRef100 tier of UniRef 2023_02. Its searches were lost
+  to two faults recorded in D-101; the corpus pass itself finished and is a result.
+- **Decision:** Record these as A1.6's measured seed-set figures, superseding every number taken
+  from the prefix sample during development.
+
+  | quantity | value |
+  |---|---|
+  | clusters read | 350,950,053 |
+  | residues | 133,486,060,660 |
+  | viral-seeded clusters | 3,159,223 (0.900%) |
+  | viral-seeded residues | 1,180,922,524 |
+  | viral-seeded with a non-viral representative | 33,394 (1.057% of viral-seeded) |
+  | taxonomically mixed | 59,308 (1.877% of viral-seeded) |
+  | wall time | 3,202.5 s on 8 vCPU, 7 parsing workers |
+
+  **The cluster count reconciles exactly with the publisher's.** UniRef 2023_02 states 350,950,053
+  UniRef100 clusters and the pass read 350,950,053. That is the check that the parser saw the whole
+  tier and dropped nothing — worth more than any internal consistency test, because it is against a
+  number this project did not produce.
+  **The reconstruction corroborates ESM3's stated denylist size.** The source describes the viral
+  denylist as "roughly 4M sequences"; the reconstruction is 3.16M UniRef100 clusters. The direction
+  is right and expected: UniRef100 collapses identical sequences and sub-fragments, so clusters sit
+  below the UniProtKB sequence count they cover. This is the validation target D-092 argued for and
+  D-032 established the reported 10.6M removals could not provide. It is corroboration, not
+  reproduction, and the write-up should say which.
+  **D-092's measured limitation shrinks by half.** The representative-versus-member gap is 1.06%
+  against the 2.38% measured on the first 796,477 clusters, and mixed membership 1.88% against
+  7.75%. The prefix overstated both, which is the hazard D-078 and this task's own file warn about:
+  UniRef is ordered by accession, so a prefix is not a sample. Every figure in D-092 taken from the
+  prefix is superseded here; the reading itself is unchanged.
+- **Rejected:** Reporting the prefix figures with a note — they are wrong, not provisional, and a
+  reader comparing the two would have no way to know which governs. Treating the 3.16M as
+  reproducing the stated 4M — the two count different things, and asserting agreement would paper
+  over exactly the kind of unit mismatch §7's adversarial reader checks first.
+- **Consequence:** `artifacts/a1-6/calibration.json`, at
+  `s3://amazebio-corpora-897641797669/corpora/results/a1-6/calibration.json`. The seed-set FASTA
+  itself was not uploaded before the run was cut (D-101), so the sequences have to be rebuilt; the
+  counts above do not. Mean cluster length is 380.4 residues, which sizes every later estimate.
+
+### D-101 — Two faults cost a finished corpus pass, and the sampled pass follows from the cost
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The run in D-100 finished its corpus pass at minute 53 and returned only counts. Both
+  causes were in how results escape a machine nobody can log into, and neither was in the analysis.
+- **Decision:** **Terminate on an outcome, not on a timer; and ship a deliverable the moment it
+  exists.** The launcher terminated in a bare `finally` — "both, not either", as the EC2 section
+  requires — which is right except in one case: the watch window expiring is not a failure. The
+  searches were still running at 115 minutes, that was the watch timeout and nothing else, and
+  `StateTransitionReason` reads "User initiated". It now terminates when the run finished, failed,
+  or is already going down, and when the window merely expires on a running instance it leaves it to
+  the shutdown timer armed in `UserData` ahead of anything that can fail. `--attach` resumes a watch.
+  Separately, the seed set was written at minute 53 and uploaded only after the searches, so the
+  searches being cut destroyed it; it now uploads before any search starts.
+  **The surviving search measurement redirects the task.** One shard of 333,742,778 residues ran 61
+  minutes on 8 cores without finishing, which is a lower bound of 87,743 core-seconds per G residue
+  of target, hence **more than 3,250 core-hours for UniRef100 alone** and more than 550 dollars for
+  the full target at r6i.2xlarge rates. The bound is weak — the search was incomplete, so the true
+  figure is higher — but it is enough to rule out the cheap end of D-094's range for good.
+  **So the pass becomes a sampled one.** A1.6 will score a hash sample of the corpus and report
+  survival as a rate with an interval, rather than scoring every record. This is what the project
+  already does everywhere else: uncertainty travels with the estimate, and a rate with an interval
+  is the honest form of this measurement regardless of budget. Cost falls with the sample fraction.
+  Put to the project owner with the alternatives; this was the decision.
+- **Rejected:** Scoring every record — defensible and very likely four figures, for per-record
+  manifests whose extra precision no downstream task has asked for. Keeping the unconditional
+  terminate and simply setting a longer window — the window would have to be guessed against a
+  runtime nobody can predict, which is the position that caused this. Dropping the alignment pass —
+  it is the only way the ESM3 arm of the survival work gets any input at all.
+- **Consequence:** The calibration is redesigned around far smaller target shards and a sweep over
+  query-set size, because the query side is 3.16M sequences and the first run showed it dominates.
+  What A1.6 delivers changes with it: survival **rates with intervals** over a sample, not
+  per-record manifests over the whole corpus, and every downstream consumer must be told which.

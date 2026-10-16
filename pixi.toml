@@ -39,6 +39,21 @@ boto3 = ">=1.43.111,<2"
 # what keeps the pass off local disk, which a 15.8 GiB file in a session container needs.
 # Floor from A7.1 (>=18); A1.4 asked only for >=17, so the tighter bound governs.
 pyarrow = ">=18,<22"
+# Profile search is A2.1's whole method, and HMMER is the tool §A2 names. `pyhmmer` rather than
+# the `hmmer` binaries because the search runs inside the pipeline that reads the corpus: a
+# subprocess would need the translated sequences written to disk first, and the surviving set is
+# too large for that to be anything but a staging problem. It also makes the per-model gathering
+# cutoffs readable from the profile itself, which is what lets A2.1's thresholds be Pfam's own
+# curated ones rather than an E-value this project picked (DECISIONS.md D-076). Vendors HMMER
+# 3.4 internally; `pyhmmer.hmmer.__version__` records which, and `run.json` pins it.
+pyhmmer = ">=0.12.3,<0.13"
+# Evo's surviving corpora are nucleotide and the profiles are protein, so something has to decide
+# what the reading frames are. Gene calling in metagenomic mode rather than six-frame translation
+# because six frames put five wrong answers beside every right one and a profile hit on a frame
+# no gene occupies is a false positive this audit cannot afford to report (D-077). Prodigal is
+# the caller IMG/VR's own annotation pipeline uses, so the genes are called the way the records'
+# publisher calls them. `pyrodigal` for the same in-process reason as `pyhmmer`.
+pyrodigal = ">=3.7.1,<4"
 # A7.2 joins 15.7 million IMG/VR accessions against two other sets and groups them by vOTU.
 # Those are sorts, set memberships and bincounts over tens of millions of integers: a dict of
 # 15.7 million strings does not fit the container the pass runs in, and the packed-integer
@@ -52,6 +67,36 @@ mmseqs2 = ">=17"
 [activation.env]
 PYTHONPATH = "$PIXI_PROJECT_ROOT/src"
 
+# geNomad is the tool A4.2 benchmarks: IMG/VR v4 assigns 91.7% of the taxonomic
+# classifications every Evo denylist rule reads with it, and the filter inherits its
+# errors. It lives in its own environment rather than the default one because the
+# version contemporaneous with IMG/VR v4 carries 2022-era TensorFlow and Keras pins,
+# and solving those against the default environment would hold the whole project back
+# to them. Version choice and the stated-vs-used gap: see DECISIONS.md.
+# linux-64 only, and deliberately: this environment exists to run a 2022 tool, and the
+# 2022 TensorFlow and numpy builds it needs were never published for osx-arm64. The
+# benchmark is a linux pipeline; the rest of the project stays cross-platform.
+[feature.genomad]
+platforms = ["linux-64"]
+
+[feature.genomad.dependencies]
+genomad = "==1.1.0"
+# Not cosmetic pins. geNomad 1.1.0's `marker_classification` calls `np.warnings`,
+# which numpy removed in 1.24, so the tool does not import at all against a current
+# numpy; and numpy 1.23 is the last series built for Python 3.10. Pinning the
+# interpreter and the array library to what the tool was written against is what makes
+# the 2022 version runnable in 2026 — the alternative is benchmarking a version the
+# filter cannot have used.
+python = "3.10.*"
+numpy = ">=1.21,<1.24"
+# The search engine, pinned to the series geNomad 1.1.0's own recipe floors at and the one
+# contemporaneous with the marker database it pairs with. Not a preference: the current
+# mmseqs2 (18.x) dies in the prefilter against the 2022 profile database however far the
+# search is split, and a benchmark cannot report a tool's error rate from a run that did
+# not finish. Pinning it also keeps the whole search faithful to what the filter's labels
+# came out of, which is the point of benchmarking a 2022 version at all.
+mmseqs2 = "==13.45111"
+
 [feature.dev.dependencies]
 pytest = ">=8.3,<9"
 ruff = ">=0.8,<0.9"
@@ -59,6 +104,13 @@ ruff = ">=0.8,<0.9"
 [environments]
 default = { features = [], solve-group = "main" }
 dev = { features = ["dev"], solve-group = "main" }
+# Its own solve group: see the comment on `feature.genomad.dependencies`.
+# `no-default-feature` because the project's `[dependencies]` pin python 3.12, and the
+# whole point of this environment is the interpreter geNomad 1.1.0 predates. It holds the
+# tool and nothing else; the pipeline calls its CLI from the dev environment.
+genomad = { features = [
+  "genomad",
+], solve-group = "genomad", no-default-feature = true }
 
 [tasks]
 # Regenerate the task board from task frontmatter.
