@@ -341,6 +341,14 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             "searches": [],
         }
 
+        def upload(path: Path, role: str) -> None:
+            if not (args.upload_results and client is not None):
+                return
+            key = f"{prefix}/results/a1-6/{path.name}"
+            client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
+            manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
+            print(f"  uploaded s3://{bucket}/{key}", flush=True)
+
         def publish() -> None:
             """Write the timing artefact, and upload it if asked.
 
@@ -355,7 +363,13 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 key = f"{prefix}/results/a1-6/{timing_path.name}"
                 client.put_object(Bucket=bucket, Key=key, Body=timing_path.read_bytes())
 
+        # The seed set goes up *now*, before the searches, because it is the deliverable
+        # and they are the measurement. On 2026-10-15 the searches were cut short and took
+        # an already-finished 53-minute corpus pass with them, purely because the upload
+        # sat after them in this function. Deliverables ship when they exist.
         publish()
+        upload(seed_fasta, "viral-seed-set")
+
         if not args.skip_search:
             _time_searches(
                 args,
@@ -379,15 +393,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 "tier's share. The timings are still timings."
             )
 
-        if args.upload_results and client is not None:
-            for path, role in (
-                (timing_path, "calibration"),
-                (seed_fasta, "viral-seed-set"),
-            ):
-                key = f"{prefix}/results/a1-6/{path.name}"
-                client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
-                manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
-                print(f"  uploaded s3://{bucket}/{key}", flush=True)
+        upload(timing_path, "calibration")
 
     if args.upload_results and client is not None:
         local = args.outdir / "run-calibration.json"

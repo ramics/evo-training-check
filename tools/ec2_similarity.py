@@ -213,6 +213,18 @@ def main(argv: list[str] | None = None) -> int:
         "surviving to run its terminate (default: %(default)s)",
     )
     ap.add_argument("--poll-seconds", type=float, default=120.0)
+    ap.add_argument(
+        "--attach",
+        metavar="INSTANCE_ID",
+        help="watch an instance that is already running instead of launching one, for "
+        "picking a run back up after a watch window expired",
+    )
+    ap.add_argument(
+        "--terminate-on-timeout",
+        action="store_true",
+        help="kill the instance when the watch window expires even if it is still "
+        "working. Off by default: doing it unconditionally destroyed a healthy run once.",
+    )
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
     args = ap.parse_args(argv)
 
@@ -232,6 +244,10 @@ def main(argv: list[str] | None = None) -> int:
     ssm = boto3.client(
         "ssm", region_name=REGION, endpoint_url=f"https://ssm.{REGION}.amazonaws.com"
     )
+
+    if args.attach:
+        print(f"attaching to {args.attach} ({_state(ec2, args.attach)})")
+        return _run_and_collect(ec2, s3, args.attach, bucket, prefix, args)
 
     ami = ""
     for name in (AMI_PARAMETER_FALLBACK, AMI_PARAMETER):
@@ -317,19 +333,51 @@ def main(argv: list[str] | None = None) -> int:
     iid = instance["InstanceId"]
     print(f"launched {iid} ({args.instance_type}, {args.volume_size} GB gp3)")
 
+    return _run_and_collect(ec2, s3, iid, bucket, prefix, args)
+
+
+def _run_and_collect(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> int:
+    """Watch, then terminate — unless the watch window simply ran out on a healthy run.
+
+    The first version of this terminated in a bare `finally`, which is what AGENTS.md's
+    "both, not either" asks for and is wrong in exactly one case. On 2026-10-15 a run
+    whose corpus pass had finished was killed at 115 minutes because that was the watch
+    window, not because anything had failed: the searches were still going, and
+    `StateTransitionReason` read "User initiated". Fifty-three minutes of corpus pass and
+    the whole search curve went with it.
+
+    So the rule is narrower than "always terminate". Terminate when the run finished, when
+    it failed, or when the instance is already on its way down. When the window expires on
+    an instance that is still running, leave it: the shutdown timer armed in `UserData`
+    before anything that can fail is what prevents an orphan, and it does that whether or
+    not this process is alive to watch. Reattach with `--attach`.
+    """
+    outcome = 1
+    timed_out = False
     try:
-        return _watch(ec2, s3, iid, bucket, prefix, args)
+        outcome, timed_out = _watch(ec2, s3, iid, bucket, prefix, args)
     finally:
-        try:
-            ec2.terminate_instances(InstanceIds=[iid])
-            print(f"terminate requested for {iid}")
-        except Exception as exc:
-            print(f"terminate: {type(exc).__name__}: {str(exc)[:120]}")
+        state = _state(ec2, iid)
+        if timed_out and state == "running" and not args.terminate_on_timeout:
+            print(
+                f"\nwatch window expired and {iid} is still running — leaving it alone.\n"
+                f"  the instance's own shutdown timer ({args.hard_stop_minutes} min from "
+                f"boot) bounds it.\n"
+                f"  reattach:  python3 tools/ec2_similarity.py --attach {iid}"
+            )
+        else:
+            try:
+                ec2.terminate_instances(InstanceIds=[iid])
+                print(f"terminate requested for {iid}")
+            except Exception as exc:
+                print(f"terminate: {type(exc).__name__}: {str(exc)[:120]}")
+    return outcome
 
 
-def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> int:
-    """Poll the result key and the serial console until the run lands or time runs out."""
+def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> tuple[int, bool]:
+    """Poll the result key and the console. Returns (exit code, whether time ran out)."""
     deadline = time.monotonic() + args.timeout_minutes * 60
+    timed_out = True
     key = f"{prefix}/results/a1-6/calibration.json"
     seen_console = 0
     last_searches = -1
@@ -354,6 +402,7 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
                 seen_console = len(out)
             if "calibration finished" in out:
                 print("\n=== instance reported finished ===")
+                timed_out = False
                 break
         except Exception:
             pass
@@ -361,6 +410,7 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
         state = _state(ec2, iid)
         if state in ("shutting-down", "terminated", "stopped"):
             print(f"\n=== instance {state} ===")
+            timed_out = False
             break
 
     try:
@@ -369,10 +419,10 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
         out.mkdir(parents=True, exist_ok=True)
         (out / "calibration.json").write_bytes(body)
         print(f"collected s3://{bucket}/{key} -> artifacts/a1-6/calibration.json")
-        return 0
+        return 0, timed_out
     except Exception as exc:
         print(f"no result at s3://{bucket}/{key}: {type(exc).__name__}")
-        return 1
+        return 1, timed_out
 
 
 def _summarise(done: list[dict[str, Any]]) -> str:
