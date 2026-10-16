@@ -4174,3 +4174,70 @@ decision has a threshold or parameter in it, the number goes in the entry.
   be settled before the authoritative pass, not after. The project owner has access and is
   retrieving it; a PDF capture with a sha256 in `sources.json` is what the convention requires,
   since quotes are machine-verified against their source and a pasted excerpt cannot be cited.
+
+### D-107 — The threshold is confirmed unpublished in the version of record, and the omission is selective
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-106 left one gap: the Science version of record and its supplementary materials,
+  unreachable from this container. The project owner supplied all three files. `S-ESM3-SCIENCE-SM`
+  is 101 pages and is the version of record of the appendix the preprint calls A.6.
+- **Decision — D-015 stands, now against the version of record rather than a preprint.** The filter
+  sentence on p47 of the supplementary materials is **word for word identical to the preprint**:
+  "We then remove all sequences from the training set that are detected to align to those in the
+  denylists by MMseqs2 at or above a given sequence identity threshold." After peer review, in
+  Science, it is still "a given sequence identity threshold". The two occurrences of "identity
+  threshold" in 101 pages are this one and the validation purge on p23; the three occurrences of
+  70% are the purge, the deduplication worked example, and the held-out evaluation set on p48. The
+  charitable reading's 0.70 remains an inference, the literal reading remains `undetermined`, and
+  **no ESM3 result needs re-running.**
+- **The finding is stronger than "unpublished", and this is the form it should take in the
+  write-up.** The authors publish complete MMseqs parameter sets for **four** other procedures in
+  the same document:
+
+  | procedure | page | published flags |
+  |---|---|---|
+  | clustering the training data | 21 | `--kmer-per-seq 100 --cluster-mode 2 --cov-mode 1 -c 0.8 --min-seq-id <seqid>` |
+  | validation purge | 23 | `--alignment-mode 3 -c 0.8 --cov-mode 0 --max-seqs 300 --max-accept 3 --start-sens 2 -s 7 --sens-steps 3` |
+  | similarity of generations to training set | 29 | `--cov-mode 2 -c 0.8 -s 6.0` |
+  | GFP pretraining-exposure search | 45 | `-s 6 -a --max-seqs 10000` |
+
+  The safety filter is the **only** MMseqs procedure in the paper whose parameters are withheld, and
+  it is the one the open release's safety case rests on. That is not a stylistic omission: the same
+  authors, in the same appendix, state flags four times when they choose to. §A0 asks what
+  under-specification costs; here it can be stated precisely — the filter cannot be reproduced from
+  the paper while every other search in it can.
+- **Three secondary confirmations, all unchanged from the preprint.** The Select Agent Denylist is
+  "147K non-viral sequences and 40K additional viral sequences" (p47), confirming the 187K D-106
+  recovered. The total removed is 10.6M (p47). The scope list is still "including PDB, UniRef,
+  MGnify, and JGI" (p47), so whether OAS, AlphaFoldDB and ESMAtlas were filtered remains unstated.
+  "Almost exclusively" is still unquantified.
+- **D-032's two under-specification findings survive peer review.** The UniRef tier is still
+  unstated — p21 says only "UniRef release 2023 02 is downloaded and parsed from the official
+  UniRef website", and Table S3's 70%/90% columns are ESM3's own clustering, not UniRef's tiers.
+  **The JGI date still contradicts itself in the version of record**: p21 prose says "July 31st,
+  2023" and Table S3 on p76 says "July 30th, 2023". Both were reported to a journal, peer reviewed,
+  and published uncorrected.
+- **One correction to D-105, in our disfavour.** D-105 justified `-c 0.8 --cov-mode 1` as "the flags
+  ESM3 states for its own clustering, the only parameter guidance anywhere in the source". That was
+  true of the preprint reading and is now too strong: the paper uses **three different coverage
+  modes** for three procedures (1 for clustering, 0 for the purge, 2 for the similarity search), and
+  the filter's is unstated. So coverage mode is a three-way reading, not a single piece of guidance,
+  and the authoritative pass must report its sensitivity to that choice rather than presenting
+  `--cov-mode 1` as recovered.
+- **One upgrade to D-094 and D-105, in our favour.** The orientation was chosen on a timing
+  measurement; the source states it. "For each denylist, MMseqs was used to query against the full
+  set of training databases" (p47) — the denylist is the query and the training databases are the
+  target, which is exactly the forward orientation. It is no longer only the fast choice, it is the
+  stated one. It also makes D-105's hit-cap guard clearly necessary rather than precautionary: with
+  the denylist as query, one seed matches very many corpus records, which is the regime a per-query
+  cap truncates.
+- **Rejected:** Adopting the validation purge's flags for the filter because they are the closest
+  published analogue — tempting, and wrong: the purge runs the opposite way round, with the filtered
+  set as query, so its `--max-accept 3` and `--max-seqs 300` are sound for its per-query existence
+  test and would truncate badly in the filter's stated orientation. Treating the JGI contradiction
+  as a typographical slip now that it has appeared twice — it is a dated snapshot of a set whose
+  membership changes, so the day matters, and it has now survived review.
+- **Consequence:** D-106's open item is closed. Every ESM3 claim can now cite the version of record;
+  `S-ESM3-SCIENCE-SM` is registered as retrieved with its sha256, so quotes against it are
+  machine-verified. The Phase A write-up should lead this finding with the four-procedure table
+  rather than with the bare word "unpublished".
