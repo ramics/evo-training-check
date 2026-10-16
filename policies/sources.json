@@ -1,665 +1,667 @@
 {
-  "note": "Citable source inventory for the policy evidence store. Policy files cite these ids. tools/policies.py verifies that every stored source matches its recorded sha256 and that every quote literally appears in the source it cites. Retrieved 2026-10-13; see git history for retrieval detail.",
-  "retrieved_date": "2026-10-13",
-  "sources": [
-    {
-      "id": "S-EVO1-PREPRINT",
-      "kind": "paper",
-      "title": "Nguyen et al. 2024 \u2014 Sequence modeling and design from molecular to genome scale with Evo (preprint)",
-      "url": "https://www.biorxiv.org/content/10.1101/2024.02.27.582234v1.full.pdf",
-      "licence": "CC-BY 4.0",
-      "models": [
-        "Evo 1",
-        "OpenGenome"
-      ],
-      "doi": "10.1101/2024.02.27.582234",
-      "status": "retrieved",
-      "capture": "pdfs/2024.02.27.582234v1.full.pdf",
-      "sha256": "793f60c0bc7d06a97f2b24404e61af6ac700bb615abb3b2ee48882d350170241",
-      "bytes": 20023302,
-      "note": ""
-    },
-    {
-      "id": "S-EVO2-PREPRINT",
-      "kind": "paper",
-      "title": "Brixi et al. 2025 \u2014 Genome modeling and design across all domains of life with Evo 2 (preprint)",
-      "url": "https://www.biorxiv.org/content/10.1101/2025.02.18.638918v1.full.pdf",
-      "licence": "CC-BY-ND 4.0",
-      "models": [
-        "Evo 2",
-        "OpenGenome2"
-      ],
-      "doi": "10.1101/2025.02.18.638918",
-      "status": "retrieved",
-      "capture": "pdfs/2025.02.18.638918v1.full.pdf",
-      "sha256": "76c658fcc8394686d32b2dec05e0198a308d9e4f5f3f0bdf5a8c23aae0cce93e",
-      "bytes": 25121454
-    },
-    {
-      "id": "S-ESM3-PREPRINT",
-      "kind": "paper",
-      "title": "Hayes et al. 2024 \u2014 Simulating 500 million years of evolution with a language model (preprint)",
-      "url": "https://www.biorxiv.org/content/10.1101/2024.07.01.600583v2.full.pdf",
-      "licence": "CC-BY-NC-ND 4.0",
-      "models": [
-        "ESM3",
-        "esm3-sm-open-v1"
-      ],
-      "doi": "10.1101/2024.07.01.600583",
-      "status": "retrieved",
-      "capture": "pdfs/2024.07.01.600583v2.full.pdf",
-      "sha256": "386256d46792a62ff58a9c993d5602a41ab06a8d97fa9c41ea514fe3dce39abf",
-      "bytes": 9922489
-    },
-    {
-      "id": "S-ESMC-PREPRINT",
-      "kind": "paper",
-      "title": "Candido et al. 2026 \u2014 Language Modeling Materializes a World Model of Protein Biology (preprint)",
-      "url": "https://www.biorxiv.org/content/10.64898/2026.06.03.729735v1.full.pdf",
-      "licence": "CC-BY 4.0",
-      "models": [
-        "ESMC",
-        "ESMFold2"
-      ],
-      "doi": "10.64898/2026.06.03.729735",
-      "status": "retrieved",
-      "capture": "pdfs/2026.06.03.729735v1.full.pdf",
-      "sha256": "802067eb7208078ad5e4e52506f421e2ab28d9db4d51af4c299239c840645869",
-      "bytes": 19514425
-    },
-    {
-      "id": "S-EVO2-REPO",
-      "kind": "repo_doc",
-      "title": "ArcInstitute/evo2 README",
-      "url": "https://raw.githubusercontent.com/ArcInstitute/evo2/main/README.md",
-      "licence": "Apache-2.0",
-      "models": [
-        "Evo 2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/evo2-README.md",
-      "sha256": "58787c8ef5cb4fba4c04322a4ceb9f174e2233ec22d4193622fb6bc67d651d89",
-      "bytes": 12895
-    },
-    {
-      "id": "S-EVO2-HF-7B",
-      "kind": "model_card",
-      "title": "HuggingFace model card: arcinstitute/evo2_7b",
-      "url": "https://huggingface.co/arcinstitute/evo2_7b/raw/main/README.md",
-      "licence": "apache-2.0",
-      "models": [
-        "Evo 2 7B"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-evo2_7b-README.md",
-      "sha256": "802cb1e030bc560414a9fabcddd8fe243c296ad7d0b523dde0a3a0e1a7eaf794",
-      "bytes": 1253
-    },
-    {
-      "id": "S-EVO2-HF-40B",
-      "kind": "model_card",
-      "title": "HuggingFace model card: arcinstitute/evo2_40b",
-      "url": "https://huggingface.co/arcinstitute/evo2_40b/raw/main/README.md",
-      "licence": "apache-2.0",
-      "models": [
-        "Evo 2 40B"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-evo2_40b-README.md",
-      "sha256": "b39cc7f28cca98b868aa2e9a8bcb93b11c13937e45f330f616070d8a2545e180",
-      "bytes": 1217
-    },
-    {
-      "id": "S-OPENGENOME2-CARD",
-      "kind": "dataset_card",
-      "title": "HuggingFace dataset card: arcinstitute/opengenome2",
-      "url": "https://huggingface.co/datasets/arcinstitute/opengenome2/raw/main/README.md",
-      "licence": "apache-2.0",
-      "models": [
-        "OpenGenome2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-opengenome2-README.md",
-      "sha256": "127b61c8492f9b7b7597f39748df4b043d499f8066569cf2caec599e46cc2135",
-      "bytes": 6390
-    },
-    {
-      "id": "S-ESM3-HF-OPEN",
-      "kind": "model_card",
-      "title": "HuggingFace model card: esm3-sm-open-v1",
-      "url": "https://huggingface.co/biohub/esm3-sm-open-v1/raw/main/README.md",
-      "licence": "MIT",
-      "models": [
-        "esm3-sm-open-v1"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-esm3-sm-open-v1-README.md",
-      "sha256": "4aedacc49eff2fb6b90b926b5252076818a888884ac34d8a6701cd74421903d5",
-      "bytes": 1202
-    },
-    {
-      "id": "S-ESM3-REPO",
-      "kind": "repo_doc",
-      "title": "evolutionaryscale/esm \u2014 ESM3 README",
-      "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/_assets/ESM3_README.md",
-      "licence": "MIT",
-      "models": [
-        "ESM3"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/esm-ESM3_README.md",
-      "sha256": "2f564153712e32ad668f1586b6e78599d1a7fd6a3b3b7049718d85f9b33f79a6",
-      "bytes": 6442
-    },
-    {
-      "id": "S-ESM-REPO",
-      "kind": "repo_doc",
-      "title": "evolutionaryscale/esm README (ESMC, ESMFold2, ESM Atlas)",
-      "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/README.md",
-      "licence": "MIT",
-      "models": [
-        "ESMC",
-        "ESMFold2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/esm-README.md",
-      "sha256": "57ea7f51b5e9ec3a334beab4ebf024f445cf557da0602986e7e5087a4a194a81",
-      "bytes": 21113
-    },
-    {
-      "id": "S-ESMC-HF-6B",
-      "kind": "model_card",
-      "title": "HuggingFace model card: biohub/ESMC-6B",
-      "url": "https://huggingface.co/biohub/ESMC-6B/raw/main/README.md",
-      "licence": "mit, other",
-      "models": [
-        "ESMC-6B"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-ESMC-6B-README.md",
-      "sha256": "64096baa2f7345c1badd5be2c97c0998fc46d4c3d017c2a3f3ce83418a20f147",
-      "bytes": 14960
-    },
-    {
-      "id": "S-ESMC-HF-600M",
-      "kind": "model_card",
-      "title": "HuggingFace model card: biohub/ESMC-600M (byte-identical to ESMC-6B card)",
-      "url": "https://huggingface.co/biohub/ESMC-600M/raw/main/README.md",
-      "licence": "mit, other",
-      "models": [
-        "ESMC-600M"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-ESMC-600M-README.md",
-      "sha256": "64096baa2f7345c1badd5be2c97c0998fc46d4c3d017c2a3f3ce83418a20f147",
-      "bytes": 14960
-    },
-    {
-      "id": "S-ESM2-REPO",
-      "kind": "repo_doc",
-      "title": "facebookresearch/esm README",
-      "url": "https://raw.githubusercontent.com/facebookresearch/esm/main/README.md",
-      "licence": "MIT",
-      "models": [
-        "ESM-2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/esm2-README.md",
-      "sha256": "8b273c21a322fc9473d1b68d0dd40c8166ab2f89e4a190aa26ca87251b97cba9",
-      "bytes": 46320
-    },
-    {
-      "id": "S-ESM-LICENSE",
-      "kind": "license",
-      "title": "evolutionaryscale/esm LICENSE.md",
-      "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/LICENSE.md",
-      "licence": "MIT",
-      "models": [
-        "ESM3",
-        "ESMC"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/esm-LICENSE.md",
-      "sha256": "b63df9ca1dd96b3b21eec226b51b236d0bd152ac20eafc43aad46bf832b48d8a",
-      "bytes": 1095
-    },
-    {
-      "id": "S-EVO2-NATURE",
-      "kind": "paper",
-      "title": "Brixi et al. 2026 \u2014 Genome modelling and design across all domains of life with Evo 2 (Nature; version of record)",
-      "url": "https://www.nature.com/articles/s41586-026-10176-5",
-      "licence": "publisher content \u2014 not redistributed",
-      "models": [
-        "Evo 2"
-      ],
-      "doi": "10.1038/s41586-026-10176-5",
-      "status": "retrieved_not_stored",
-      "note": "Retrieved and read; not stored because it is publisher content. Re-fetch from url to verify."
-    },
-    {
-      "id": "S-EVO2-NATURE-METHODS",
-      "kind": "paper_section",
-      "title": "Evo 2 (Nature) Methods section",
-      "url": "https://www.nature.com/articles/s41586-026-10176-5",
-      "models": [
-        "Evo 2"
-      ],
-      "status": "unretrieved",
-      "blocker": "Absent from both the article HTML and the article PDF; 21 occurrences of 'Methods' in the PDF are all cross-references. Needed only to confirm the Evo 2 procedure adds nothing to Evo 1's; the preprint Methods already defers to Evo 1."
-    },
-    {
-      "id": "S-ESM3-SCIENCE",
-      "kind": "paper",
-      "title": "Hayes et al. 2025 \u2014 Simulating 500 million years of evolution with a language model (Science; version of record)",
-      "url": "https://doi.org/10.1126/science.ads0018",
-      "models": [
-        "ESM3"
-      ],
-      "status": "unretrieved",
-      "blocker": "science.org returns 403 directly and via doi.org; not deposited in PMC. Likely paywalled. The preprint is stored and carries the filter description; the version of record should be checked before quoting in a publication.",
-      "note": "Checked for a correction on 2026-10-15 (A1.5): Crossref returns no work registered as updating this DOI, bioRxiv has only v1 and v2 of the preprint, and the Europe PMC record is closed access with no supplementary material listed. No published correction exists. The version of record itself is still unread, so its supplementary materials may restate the pretraining-data appendix that A1.5's findings quote; that needs institutional access."
-    },
-    {
-      "id": "S-BIOHUB-PLATFORM-RESOURCES",
-      "kind": "policy",
-      "title": "Biohub Platform Resources page (guardrail details)",
-      "url": "referenced in S-ESM-REPO as \"our Biohub Platform Resources page\" with no link",
-      "models": [
-        "ESMC",
-        "ESMFold2"
-      ],
-      "status": "unretrieved",
-      "blocker": "Referenced in prose but never linked by the source that cites it. An under-specification finding in its own right: the guardrail detail is pointed at but not published."
-    },
-    {
-      "id": "S-OPENGENOME1-CARD",
-      "kind": "dataset_card",
-      "title": "HuggingFace dataset card: LongSafari/open-genome (OpenGenome v1)",
-      "url": "https://huggingface.co/datasets/LongSafari/open-genome/raw/main/README.md",
-      "licence": "apache-2.0",
-      "models": [
-        "OpenGenome"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-open-genome-README.md",
-      "sha256": "0165106607086042711f77b12d7531efde507ae8ce86a1c313a6f3750bb8a673",
-      "bytes": 1806,
-      "note": "The OpenGenome v1 release artefact, located via the pointer in Evo 1's own repository README (S-EVO1-REPO) rather than guessed: it sits under LongSafari, not under an arcinstitute namespace. Closes the A1.1 gap recorded in D-017."
-    },
-    {
-      "id": "S-EVO1-REPO",
-      "kind": "repo_doc",
-      "title": "evo-design/evo README (Evo 1)",
-      "url": "https://raw.githubusercontent.com/evo-design/evo/main/README.md",
-      "licence": "apache-2.0",
-      "models": [
-        "Evo 1"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/evo1-repo-README.md",
-      "sha256": "01a84248f24f64fe1a5b3d81a1a2aa84bf8a5379a6fbaeca24e925170147476f",
-      "bytes": 8821,
-      "note": "The repository Evo 1's paper names as its code and data pointer. Retrieved for the dataset location; also describes OpenGenome's scope in one line."
-    },
-    {
-      "id": "S-OPENGENOME1-TREE",
-      "kind": "file_listing",
-      "title": "File listing of LongSafari/open-genome at revision main",
-      "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/tree/main?recursive=true",
-      "licence": "apache-2.0",
-      "models": [
-        "OpenGenome"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-open-genome-files.json",
-      "sha256": "a43e9c3ca5d24dab5b8a4672b7291861e5a8260877936d4c717fef4d1e233398",
-      "bytes": 1009,
-      "note": "A listing, not a document: it records what the release exposed at the revision and date stored in the capture, and a later revision may differ. Used for a statement about which components the release exposes by path, which the card alone cannot settle. Claims from it must be dated."
-    },
-    {
-      "id": "S-OPENGENOME1-ROWS",
-      "kind": "data_sample",
-      "title": "Lineage-tag sample of LongSafari/open-genome stage2/train (8 offsets, 800 rows)",
-      "url": "https://datasets-server.huggingface.co/rows?dataset=LongSafari%2Fopen-genome&config=stage2&split=train",
-      "licence": "apache-2.0",
-      "models": [
-        "OpenGenome"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-open-genome-stage2-lineage-sample.json",
-      "sha256": "0768885be15229573158207389aa4a6f0c407b8f3466dc63b9f24b3223534622",
-      "bytes": 2981,
-      "note": "A sample, not a document, and the weakest kind of entry in this store: 800 of 2,652,947 rows, drawn as eight contiguous blocks of 100 rather than at random, so it supports qualitative statements about what the split contains and no published proportion. Stores lineage tags and counts only \u2014 no genomic sequence enters this repo. Dated, and a later revision of the dataset may differ."
-    },
-    {
-      "id": "S-EVO1-SCIENCE",
-      "kind": "paper",
-      "title": "Nguyen et al. 2024 \u2014 Sequence modeling and design from molecular to genome scale (Science, version of record)",
-      "url": "https://www.science.org/doi/10.1126/science.ado9336",
-      "doi": "10.1126/science.ado9336",
-      "models": [
-        "Evo 1"
-      ],
-      "status": "unretrieved",
-      "blocker": "science.org returns HTTP 403; Europe PMC holds the record as PMC12057570 but fullTextXML returns HTTP 500 and the article is marked not open access; the PMC article page returns HTTP 200 but serves a reCAPTCHA challenge rather than content.",
-      "note": "Identified while closing the A1.1 gap. The version of record may carry a fuller data availability statement than the preprint; quotes must come from S-EVO1-PREPRINT until this is retrieved. Note that one of the three attempts returned HTTP 200 without returning the document, so status here rests on the content received, not the code."
-    },
-    {
-      "id": "S-ESM1B-PNAS",
-      "kind": "paper",
-      "title": "Rives et al. 2021 \u2014 Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences (PNAS, version of record)",
-      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8053943/fullTextXML",
-      "licence": "CC-BY-NC-ND 4.0",
-      "models": [
-        "ESM-1",
-        "ESM-1b"
-      ],
-      "doi": "10.1073/pnas.2016239118",
-      "status": "retrieved",
-      "capture": "policies/captures/esm1b-pnas-fulltext.xml",
-      "sha256": "371ba324fb6c86b69e6777377c4656e0332745aec5a7bf4240a11af31dd06d2c",
-      "bytes": 171069,
-      "note": "The paper that defines the UR100, UR50/S and UR50/D dataset notation the ESM repository's model table uses; retrieved for A1.3 (DECISIONS.md D-025). Captured as JATS XML from the Europe PMC REST endpoint because pnas.org returns HTTP 403 and the PMC article page serves an interstitial rather than the PDF. The capture is the publisher's own full text, not a mirror's rendering, but quotes are matched against XML bytes, so a quotation must not span inline markup (an <xref> citation marker, a formula) \u2014 pick a sentence that reads clean in the source."
-    },
-    {
-      "id": "S-ESM2-PREPRINT",
-      "kind": "paper",
-      "title": "Lin et al. 2022 \u2014 Evolutionary-scale prediction of atomic level protein structure with a language model (preprint)",
-      "url": "https://www.biorxiv.org/content/10.1101/2022.07.20.500902v3.full.pdf",
-      "doi": "10.1101/2022.07.20.500902",
-      "models": [
-        "ESM-2",
-        "ESMFold"
-      ],
-      "status": "retrieved",
-      "note": "ESM-2's own paper, and the first-party statement of what ESM-2 was trained on. Retrieved 2026-10-14 after the earlier HTTP 429 lifted; the host rate-limits bursts rather than sustaining a block, so one request every few minutes succeeds where repeated attempts do not. NOTE ON THE CHECKSUM: biorxiv.org stamps the download time into the PDF's XMP ModifyDate and MetadataDate, so the bytes differ on every fetch and this sha256 will NOT reproduce. Verified by comparing this capture against an independently downloaded copy: 30 bytes differ, all of them in those two timestamps, and the extracted text is identical. So the hash fixes this capture, not the document.",
-      "capture": "pdfs/2022.07.20.500902v3.full.pdf",
-      "sha256": "87476bce2bd3b8c54420c58d9d797ae88b72501dec54c03c36b4f9448f499ca0",
-      "bytes": 4637380
-    },
-    {
-      "id": "S-ESM2-SCIENCE",
-      "kind": "paper",
-      "title": "Lin et al. 2023 \u2014 Evolutionary-scale prediction of atomic-level protein structure with a language model (Science, version of record)",
-      "url": "https://www.science.org/doi/10.1126/science.ade2574",
-      "doi": "10.1126/science.ade2574",
-      "models": [
-        "ESM-2",
-        "ESMFold"
-      ],
-      "status": "unretrieved",
-      "blocker": "science.org is paywalled and returns HTTP 403, as it does for S-EVO1-SCIENCE.",
-      "note": "The version of record for ESM-2. Same standing as S-ESM3-SCIENCE and S-EVO1-SCIENCE: quotes come from the preprint once that is retrieved, and anything load-bearing should be checked against this version before publication."
-    },
-    {
-      "id": "S-UNIREF-2023-02-METALINK",
-      "kind": "file_listing",
-      "title": "UniProt release 2023_02 UniRef metalink (sizes and md5 per file)",
-      "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/RELEASE.metalink",
-      "licence": "CC-BY 4.0",
-      "status": "retrieved",
-      "capture": "policies/captures/uniref-2023_02-RELEASE.metalink",
-      "retrieved_date": "2026-10-14",
-      "note": "The publisher's own verification for the archive A1.5 stages as ESM3-open's UniRef proxy: 211,819,312,677 bytes, md5 353681f464572bb199fa032f714d4669. Also carries an md5 for each release note below, all three of which the stored captures match.",
-      "sha256": "5f4dd537cdae4dad325de3a9f5baa28fd01620bcecdba0b890502d6d0c62da24",
-      "bytes": 2641
-    },
-    {
-      "id": "S-UNIREF-2023-02-RELNOTE-50",
-      "kind": "dataset_card",
-      "title": "UniRef50 release note, UniProt release 2023_02",
-      "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref50.release_note",
-      "licence": "CC-BY 4.0",
-      "status": "retrieved",
-      "capture": "policies/captures/uniref-2023_02-uniref50.release_note",
-      "retrieved_date": "2026-10-14",
-      "note": "Authority on UniRef50 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
-      "sha256": "a1d65f41c8a685d83aa06695e7a63e4f91207924553805bff72bd42baf134cf4",
-      "bytes": 311
-    },
-    {
-      "id": "S-UNIREF-2023-02-RELNOTE-90",
-      "kind": "dataset_card",
-      "title": "UniRef90 release note, UniProt release 2023_02",
-      "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref90.release_note",
-      "licence": "CC-BY 4.0",
-      "status": "retrieved",
-      "capture": "policies/captures/uniref-2023_02-uniref90.release_note",
-      "retrieved_date": "2026-10-14",
-      "note": "Authority on UniRef90 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
-      "sha256": "0f9c88e7d6e101c8770ddf8a6f02fd4836c7ebb07f33b2d440a292e0908d4db6",
-      "bytes": 311
-    },
-    {
-      "id": "S-UNIREF-2023-02-RELNOTE-100",
-      "kind": "dataset_card",
-      "title": "UniRef100 release note, UniProt release 2023_02",
-      "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref100.release_note",
-      "licence": "CC-BY 4.0",
-      "status": "retrieved",
-      "capture": "policies/captures/uniref-2023_02-uniref100.release_note",
-      "retrieved_date": "2026-10-14",
-      "note": "Authority on UniRef100 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
-      "sha256": "2df027655bacabcef1c254d652a8c57401cc759350a15642ece450a8f0450304",
-      "bytes": 312
-    },
-    {
-      "id": "S-MGNIFY-2023-02-README",
-      "kind": "dataset_card",
-      "title": "MGnify protein database 2023_02 README (statistics and file descriptions)",
-      "url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02/README.txt",
-      "licence": "CC0 1.0",
-      "status": "retrieved",
-      "capture": "policies/captures/mgnify-2023_02-README.txt",
-      "retrieved_date": "2026-10-14",
-      "note": "Authority on the release ESM3 names as MGnify90: 2,973,257,435 sequences and 729,215,663 clusters at 90%, clustered with MMseqs/linclust. Also states that the records carry MGYP accessions, assembly and biome metadata and no taxonomy.",
-      "sha256": "e0908bba1dc86c49e8f0305aa6adfa936257b5f2c5caad67a915745da15c6117",
-      "bytes": 4661
-    },
-    {
-      "id": "S-MGNIFY-2023-02-MD5SUM",
-      "kind": "file_listing",
-      "title": "MGnify protein database 2023_02 md5sum.txt",
-      "url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02/md5sum.txt",
-      "licence": "CC0 1.0",
-      "status": "retrieved",
-      "capture": "policies/captures/mgnify-2023_02-md5sum.txt",
-      "retrieved_date": "2026-10-14",
-      "note": "Published md5 per file for the MGnify component of the proxy, which is what lets a staging run verify before it writes to a bucket with no delete.",
-      "sha256": "b0c38cdf8f0a32c1cf86a6189d844535b498163720459eda3e0350b61231e51b",
-      "bytes": 4324
-    },
-    {
-      "id": "S-ESM2-HF-650M",
-      "kind": "model_card",
-      "title": "HuggingFace model card: facebook/esm2_t33_650M_UR50D",
-      "url": "https://huggingface.co/facebook/esm2_t33_650M_UR50D/raw/main/README.md",
-      "licence": "mit",
-      "models": [
-        "ESM-2 650M"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-esm2_t33_650M_UR50D-README.md",
-      "sha256": "462a2f24724e19c6be0efab926315c294a863c9a9770e2c8b3d859b2d81a07de",
-      "bytes": 1705,
-      "note": "Retrieved 2026-10-14 for B1.1, to pin the HuggingFace access route. Byte-identical to the 3B card: one shared card serves every ESM-2 variant, so neither evidences anything checkpoint-specific beyond the licence and the family's checkpoint list. Same situation as the ESMC cards."
-    },
-    {
-      "id": "S-ESM2-HF-3B",
-      "kind": "model_card",
-      "title": "HuggingFace model card: facebook/esm2_t36_3B_UR50D",
-      "url": "https://huggingface.co/facebook/esm2_t36_3B_UR50D/raw/main/README.md",
-      "licence": "mit",
-      "models": [
-        "ESM-2 3B"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-esm2_t36_3B_UR50D-README.md",
-      "sha256": "462a2f24724e19c6be0efab926315c294a863c9a9770e2c8b3d859b2d81a07de",
-      "bytes": 1705,
-      "note": "Retrieved 2026-10-14 for B1.1. Byte-identical to the 650M card; see that entry."
-    },
-    {
-      "id": "S-ESM2-LICENSE",
-      "kind": "license",
-      "title": "facebookresearch/esm LICENSE (MIT, Meta Platforms)",
-      "url": "https://raw.githubusercontent.com/facebookresearch/esm/main/LICENSE",
-      "licence": "MIT",
-      "models": [
-        "ESM-1",
-        "ESM-1b",
-        "ESM-2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/esm2-LICENSE",
-      "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
-      "bytes": 1088,
-      "note": "Capture was stored by A0.1 but left unregistered, so it was not quotable; registered here for B1.1, which owes a verified licence per checkpoint."
-    },
-    {
-      "id": "S-EVO2-LICENSE",
-      "kind": "license",
-      "title": "ArcInstitute/evo2 LICENSE (Apache-2.0)",
-      "url": "https://raw.githubusercontent.com/ArcInstitute/evo2/main/LICENSE",
-      "licence": "Apache-2.0",
-      "models": [
-        "Evo 2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/evo2-LICENSE",
-      "sha256": "5bb5812fc2bfb2d777fe5621767172f8ef30be62ad719c87e0f10832336a99e0",
-      "bytes": 25780,
-      "note": "As for S-ESM2-LICENSE: stored by A0.1, unregistered until B1.1."
-    },
-    {
-      "id": "S-OPENGENOME2-MANIFEST",
-      "kind": "file_listing",
-      "title": "Per-file manifest of arcinstitute/opengenome2 at the pinned revision",
-      "url": "https://huggingface.co/api/datasets/arcinstitute/opengenome2/tree/84d2a7e690c8bb395d1f4868822dfa031ea561c6?recursive=true&expand=true",
-      "licence": "apache-2.0",
-      "models": [
-        "Evo 2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-opengenome2-manifest.json",
-      "sha256": "58aa66b7cc0ab3a66fd19630f025abf745d0ab4e73b8f1b82cd5c62ee72bebf2",
-      "bytes": 310792,
-      "note": "A listing, not a document. 1,126 files totalling 5,523,240,795,932 bytes, each with the Git LFS oid HuggingFace publishes for it \u2014 a SHA-256 over the file contents, and what every staged object is verified against before its upload completes. Paths, sizes and checksums only; no sequence. Pinned to a commit rather than `main`, which has moved."
-    },
-    {
-      "id": "S-OPENGENOME1-MANIFEST",
-      "kind": "file_listing",
-      "title": "Per-file manifest of LongSafari/open-genome at the pinned revision",
-      "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/tree/84369c058d192dcb607086d71679b877421e3250?recursive=true&expand=true",
-      "licence": "apache-2.0",
-      "models": [
-        "OpenGenome"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-open-genome-manifest.json",
-      "sha256": "a726c1e902cbb47ed58b22795df9fb02ff28a5d1994c27532c96d121a98f96c9",
-      "bytes": 4787,
-      "note": "As S-OPENGENOME2-MANIFEST, for Evo 1's release: 22 files, 146,886,935,899 bytes. Supersedes S-OPENGENOME1-TREE, which lists paths at `main` without checksums."
-    },
-    {
-      "id": "S-OPENGENOME2-COMMITS",
-      "kind": "file_listing",
-      "title": "Commit history of arcinstitute/opengenome2, with the month each sequence file last changed",
-      "url": "https://huggingface.co/api/datasets/arcinstitute/opengenome2/commits/main",
-      "licence": "apache-2.0",
-      "models": [
-        "Evo 2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-opengenome2-commits.json",
-      "sha256": "2fdb0e59086c5b771cd24420c14802a33f6e7e3baedff651be99fe4eb65ffda6",
-      "bytes": 5497,
-      "note": "Evidence for whether the release changed after publication. All 1,123 sequence files were last touched in February 2025; the three later-dated files are the README, `.gitattributes` and `species_metadata.csv`. Deletions would not appear in a listing of what is present, so this supports 'unchanged since' and not 'nothing was removed'."
-    },
-    {
-      "id": "S-OPENGENOME1-COMMITS",
-      "kind": "file_listing",
-      "title": "Commit history of LongSafari/open-genome",
-      "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/commits/main",
-      "licence": "apache-2.0",
-      "models": [
-        "OpenGenome"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-open-genome-commits.json",
-      "sha256": "97a3359bc95a6c763fa062f267605441ae9937444d4f2ef38fbe3eb1a23c0483",
-      "bytes": 2100,
-      "note": "All 20 data files landed in one commit on 2024-07-06; the 11 commits since are README edits. Same caveat as S-OPENGENOME2-COMMITS about deletions."
-    },
-    {
-      "id": "S-OPENGENOME2-RECORD-FIELDS",
-      "kind": "data_sample",
-      "title": "Identifying fields per representation in arcinstitute/opengenome2 (4 components)",
-      "url": "https://huggingface.co/datasets/arcinstitute/opengenome2/resolve/84d2a7e690c8bb395d1f4868822dfa031ea561c6/",
-      "licence": "apache-2.0",
-      "models": [
-        "Evo 2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/hf-opengenome2-record-fields.json",
-      "sha256": "0c81c2afcea8f4da364782365ab464ecfc73e86f863225e46f07b2e7babc4b38",
-      "bytes": 1709,
-      "note": "A sample, and the weakest kind of entry in this store: the leading ~3 MB of four files out of 1,123, read to establish which representation carries a traceable identifier. Field names, record counts and accession prefixes only \u2014 no sequence enters this repo. Supports qualitative statements about record structure and no proportion. Dated."
-    },
-    {
-      "id": "S-IMGVR-JGI-INVENTORY",
-      "kind": "file_listing",
-      "title": "JGI Data Portal file listing for the IMG/VR dataset (42 files, 10 dated releases)",
-      "url": "https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR&x=50",
-      "licence": "see JGI data use policy",
-      "models": [
-        "Evo 1",
-        "Evo 2",
-        "OpenGenome",
-        "OpenGenome2"
-      ],
-      "status": "retrieved",
-      "capture": "policies/captures/jgi-imgvr-inventory.json",
-      "sha256": "949ee672b86523e2acab128cab6529ae984732a82dc40b5db49c3d526751b519",
-      "bytes": 12551,
-      "retrieved": "2026-10-15",
-      "note": "The publisher's own inventory, including an md5sum per file, served without authentication. The dataset identifier Custom_MPI-IMG_VR came from the portal's own redirect rather than a guess: the documented download page is a JavaScript application with no static links. The files themselves return HTTP 401 {\"detail\":\"Authentication credentials were not provided.\"} and are marked _es_public_data: false, so this entry pins what IMG/VR contains and not its contents. Dated and mutable, like S-OPENGENOME1-TREE: claims from it carry the retrieval date. Two releases answer to 'IMG/VR v4' (2022-09-20 and 2022-12-20); see DECISIONS.md D-052 and D-054."
-    },
-    {
-      "id": "S-GENOMAD-NATBIOTECH",
-      "kind": "paper",
-      "title": "Camargo et al. 2024 \u2014 Identification of mobile genetic elements with geNomad (Nature Biotechnology)",
-      "url": "https://www.nature.com/articles/s41587-023-01953-y",
-      "licence": "publisher content \u2014 not redistributed",
-      "doi": "10.1038/s41587-023-01953-y",
-      "status": "retrieved_not_stored",
-      "sha256": "532643d30649c026eb0962137b05ecbcfd4a78902a5d66aeb6db8785a3852308",
-      "bytes": 21208235,
-      "note": "The tool A4.2 benchmarks, described by its authors. Two statements A4.2 relies on: that geNomad produced the data IMG/VR v4 was built from, which corroborates the dependency decomposition from a primary source rather than from the corpus alone; and that its taxonomically informed markers were annotated from ICTV Virus Metadata Resource version 19, which is the ground truth D-086 should have pinned and D-095 shows does not change the result. Retrieved 2026-10-15 and read; not stored because it is publisher content. Re-fetch from url to verify."
-    },
-    {
-      "id": "S-IMGVR-V4-NAR",
-      "kind": "paper",
-      "title": "Camargo et al. 2023 \u2014 IMG/VR v4: an expanded database of uncultivated virus genomes (Nucleic Acids Research)",
-      "url": "https://doi.org/10.1093/nar/gkac1037",
-      "licence": "publisher content \u2014 open access per Unpaywall, licence not stated in the PDF, so not redistributed",
-      "doi": "10.1093/nar/gkac1037",
-      "status": "retrieved_not_stored",
-      "note": "Retrieved 2026-10-15 by the project owner, who supplied the PDF after four automated access paths were refused (OUP 403; PMC proof-of-work interstitial; the eScholarship and OSTI mirrors HTTP 202 behind a bot challenge). Not stored because the PDF states no redistribution licence, unlike the bioRxiv preprints in pdfs/. Verify against the recorded sha256. It settles three things A4.2 had to bound or report as undocumented, and D-096 records the corrections: geNomad's version is stated as 1.1.0 in Methods, twice and for the marker-based assignment specifically, with Zenodo doi 10.5281/zenodo.7015982 as reference 19 \u2014 which is the version A4.2 benchmarked; the ground truth is ICTV Taxonomy Release #37, which is the MSL D-086 pinned; and the taxonomy methods the release note and help page leave out are documented here, so the 'three undocumented methods' finding in D-084 does not survive.",
-      "sha256": "06de029f5e7415eef3bfcc3bbe1eaebe57f8a964fe35a427923f922dfbec9ba1",
-      "bytes": 3523561
-    },
-    {
-      "id": "S-RVMT-CELL",
-      "kind": "paper",
-      "title": "Neri et al. 2022 \u2014 Expansion of the global RNA virome reveals diverse clades of bacteriophages (Cell)",
-      "url": "https://doi.org/10.1016/j.cell.2022.08.023",
-      "licence": "publisher content \u2014 not redistributed",
-      "doi": "10.1016/j.cell.2022.08.023",
-      "status": "retrieved_not_stored",
-      "sha256": "9f8efb1d7d934a659848db2c23f7dc83331e1046b1d8fdc78e6e1854795d90a5",
-      "bytes": 6529173,
-      "note": "RVMT, the catalogue IMG/VR imported the taxonomy of. A4.2's dependency pass found it supplies 49.51% of the records Evo's denylist removes \u2014 more than geNomad \u2014 and the IMG/VR method field cites it by its preprint doi (10.1101/2022.02.15.480533). Retrieved 2026-10-15 for A4.4, which owns benchmarking it. Not stored because it is publisher content; the version of record was fetched from the UEA repository copy because biorxiv.org rate-limited. Re-fetch from url to verify."
-    }
-  ]
+ "note": "Citable source inventory for the policy evidence store. Policy files cite these ids. tools/policies.py verifies that every stored source matches its recorded sha256 and that every quote literally appears in the source it cites. Retrieved 2026-10-13; see git history for retrieval detail.",
+ "retrieved_date": "2026-10-13",
+ "sources": [
+  {
+   "id": "S-EVO1-PREPRINT",
+   "kind": "paper",
+   "title": "Nguyen et al. 2024 — Sequence modeling and design from molecular to genome scale with Evo (preprint)",
+   "url": "https://www.biorxiv.org/content/10.1101/2024.02.27.582234v1.full.pdf",
+   "licence": "CC-BY 4.0",
+   "models": [
+    "Evo 1",
+    "OpenGenome"
+   ],
+   "doi": "10.1101/2024.02.27.582234",
+   "status": "retrieved",
+   "capture": "pdfs/2024.02.27.582234v1.full.pdf",
+   "sha256": "793f60c0bc7d06a97f2b24404e61af6ac700bb615abb3b2ee48882d350170241",
+   "bytes": 20023302,
+   "note": ""
+  },
+  {
+   "id": "S-EVO2-PREPRINT",
+   "kind": "paper",
+   "title": "Brixi et al. 2025 — Genome modeling and design across all domains of life with Evo 2 (preprint)",
+   "url": "https://www.biorxiv.org/content/10.1101/2025.02.18.638918v1.full.pdf",
+   "licence": "CC-BY-ND 4.0",
+   "models": [
+    "Evo 2",
+    "OpenGenome2"
+   ],
+   "doi": "10.1101/2025.02.18.638918",
+   "status": "retrieved",
+   "capture": "pdfs/2025.02.18.638918v1.full.pdf",
+   "sha256": "76c658fcc8394686d32b2dec05e0198a308d9e4f5f3f0bdf5a8c23aae0cce93e",
+   "bytes": 25121454
+  },
+  {
+   "id": "S-ESM3-PREPRINT",
+   "kind": "paper",
+   "title": "Hayes et al. 2024 — Simulating 500 million years of evolution with a language model (preprint)",
+   "url": "https://www.biorxiv.org/content/10.1101/2024.07.01.600583v2.full.pdf",
+   "licence": "CC-BY-NC-ND 4.0",
+   "models": [
+    "ESM3",
+    "esm3-sm-open-v1"
+   ],
+   "doi": "10.1101/2024.07.01.600583",
+   "status": "retrieved",
+   "capture": "pdfs/2024.07.01.600583v2.full.pdf",
+   "sha256": "386256d46792a62ff58a9c993d5602a41ab06a8d97fa9c41ea514fe3dce39abf",
+   "bytes": 9922489
+  },
+  {
+   "id": "S-ESMC-PREPRINT",
+   "kind": "paper",
+   "title": "Candido et al. 2026 — Language Modeling Materializes a World Model of Protein Biology (preprint)",
+   "url": "https://www.biorxiv.org/content/10.64898/2026.06.03.729735v1.full.pdf",
+   "licence": "CC-BY 4.0",
+   "models": [
+    "ESMC",
+    "ESMFold2"
+   ],
+   "doi": "10.64898/2026.06.03.729735",
+   "status": "retrieved",
+   "capture": "pdfs/2026.06.03.729735v1.full.pdf",
+   "sha256": "802067eb7208078ad5e4e52506f421e2ab28d9db4d51af4c299239c840645869",
+   "bytes": 19514425
+  },
+  {
+   "id": "S-EVO2-REPO",
+   "kind": "repo_doc",
+   "title": "ArcInstitute/evo2 README",
+   "url": "https://raw.githubusercontent.com/ArcInstitute/evo2/main/README.md",
+   "licence": "Apache-2.0",
+   "models": [
+    "Evo 2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/evo2-README.md",
+   "sha256": "58787c8ef5cb4fba4c04322a4ceb9f174e2233ec22d4193622fb6bc67d651d89",
+   "bytes": 12895
+  },
+  {
+   "id": "S-EVO2-HF-7B",
+   "kind": "model_card",
+   "title": "HuggingFace model card: arcinstitute/evo2_7b",
+   "url": "https://huggingface.co/arcinstitute/evo2_7b/raw/main/README.md",
+   "licence": "apache-2.0",
+   "models": [
+    "Evo 2 7B"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-evo2_7b-README.md",
+   "sha256": "802cb1e030bc560414a9fabcddd8fe243c296ad7d0b523dde0a3a0e1a7eaf794",
+   "bytes": 1253
+  },
+  {
+   "id": "S-EVO2-HF-40B",
+   "kind": "model_card",
+   "title": "HuggingFace model card: arcinstitute/evo2_40b",
+   "url": "https://huggingface.co/arcinstitute/evo2_40b/raw/main/README.md",
+   "licence": "apache-2.0",
+   "models": [
+    "Evo 2 40B"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-evo2_40b-README.md",
+   "sha256": "b39cc7f28cca98b868aa2e9a8bcb93b11c13937e45f330f616070d8a2545e180",
+   "bytes": 1217
+  },
+  {
+   "id": "S-OPENGENOME2-CARD",
+   "kind": "dataset_card",
+   "title": "HuggingFace dataset card: arcinstitute/opengenome2",
+   "url": "https://huggingface.co/datasets/arcinstitute/opengenome2/raw/main/README.md",
+   "licence": "apache-2.0",
+   "models": [
+    "OpenGenome2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-opengenome2-README.md",
+   "sha256": "127b61c8492f9b7b7597f39748df4b043d499f8066569cf2caec599e46cc2135",
+   "bytes": 6390
+  },
+  {
+   "id": "S-ESM3-HF-OPEN",
+   "kind": "model_card",
+   "title": "HuggingFace model card: esm3-sm-open-v1",
+   "url": "https://huggingface.co/biohub/esm3-sm-open-v1/raw/main/README.md",
+   "licence": "MIT",
+   "models": [
+    "esm3-sm-open-v1"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-esm3-sm-open-v1-README.md",
+   "sha256": "4aedacc49eff2fb6b90b926b5252076818a888884ac34d8a6701cd74421903d5",
+   "bytes": 1202
+  },
+  {
+   "id": "S-ESM3-REPO",
+   "kind": "repo_doc",
+   "title": "evolutionaryscale/esm — ESM3 README",
+   "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/_assets/ESM3_README.md",
+   "licence": "MIT",
+   "models": [
+    "ESM3"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/esm-ESM3_README.md",
+   "sha256": "2f564153712e32ad668f1586b6e78599d1a7fd6a3b3b7049718d85f9b33f79a6",
+   "bytes": 6442
+  },
+  {
+   "id": "S-ESM-REPO",
+   "kind": "repo_doc",
+   "title": "evolutionaryscale/esm README (ESMC, ESMFold2, ESM Atlas)",
+   "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/README.md",
+   "licence": "MIT",
+   "models": [
+    "ESMC",
+    "ESMFold2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/esm-README.md",
+   "sha256": "57ea7f51b5e9ec3a334beab4ebf024f445cf557da0602986e7e5087a4a194a81",
+   "bytes": 21113
+  },
+  {
+   "id": "S-ESMC-HF-6B",
+   "kind": "model_card",
+   "title": "HuggingFace model card: biohub/ESMC-6B",
+   "url": "https://huggingface.co/biohub/ESMC-6B/raw/main/README.md",
+   "licence": "mit, other",
+   "models": [
+    "ESMC-6B"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-ESMC-6B-README.md",
+   "sha256": "64096baa2f7345c1badd5be2c97c0998fc46d4c3d017c2a3f3ce83418a20f147",
+   "bytes": 14960
+  },
+  {
+   "id": "S-ESMC-HF-600M",
+   "kind": "model_card",
+   "title": "HuggingFace model card: biohub/ESMC-600M (byte-identical to ESMC-6B card)",
+   "url": "https://huggingface.co/biohub/ESMC-600M/raw/main/README.md",
+   "licence": "mit, other",
+   "models": [
+    "ESMC-600M"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-ESMC-600M-README.md",
+   "sha256": "64096baa2f7345c1badd5be2c97c0998fc46d4c3d017c2a3f3ce83418a20f147",
+   "bytes": 14960
+  },
+  {
+   "id": "S-ESM2-REPO",
+   "kind": "repo_doc",
+   "title": "facebookresearch/esm README",
+   "url": "https://raw.githubusercontent.com/facebookresearch/esm/main/README.md",
+   "licence": "MIT",
+   "models": [
+    "ESM-2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/esm2-README.md",
+   "sha256": "8b273c21a322fc9473d1b68d0dd40c8166ab2f89e4a190aa26ca87251b97cba9",
+   "bytes": 46320
+  },
+  {
+   "id": "S-ESM-LICENSE",
+   "kind": "license",
+   "title": "evolutionaryscale/esm LICENSE.md",
+   "url": "https://raw.githubusercontent.com/evolutionaryscale/esm/main/LICENSE.md",
+   "licence": "MIT",
+   "models": [
+    "ESM3",
+    "ESMC"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/esm-LICENSE.md",
+   "sha256": "b63df9ca1dd96b3b21eec226b51b236d0bd152ac20eafc43aad46bf832b48d8a",
+   "bytes": 1095
+  },
+  {
+   "id": "S-EVO2-NATURE",
+   "kind": "paper",
+   "title": "Brixi et al. 2026 — Genome modelling and design across all domains of life with Evo 2 (Nature; version of record)",
+   "url": "https://www.nature.com/articles/s41586-026-10176-5",
+   "licence": "publisher content — not redistributed",
+   "models": [
+    "Evo 2"
+   ],
+   "doi": "10.1038/s41586-026-10176-5",
+   "status": "retrieved_not_stored",
+   "note": "Retrieved and read; not stored because it is publisher content. Re-fetch from url to verify."
+  },
+  {
+   "id": "S-EVO2-NATURE-METHODS",
+   "kind": "paper_section",
+   "title": "Evo 2 (Nature) Methods section",
+   "url": "https://www.nature.com/articles/s41586-026-10176-5",
+   "models": [
+    "Evo 2"
+   ],
+   "status": "unretrieved",
+   "blocker": "Absent from both the article HTML and the article PDF; 21 occurrences of 'Methods' in the PDF are all cross-references. Needed only to confirm the Evo 2 procedure adds nothing to Evo 1's; the preprint Methods already defers to Evo 1."
+  },
+  {
+   "id": "S-ESM3-SCIENCE",
+   "kind": "paper",
+   "title": "Hayes et al. 2025 — Simulating 500 million years of evolution with a language model (Science; version of record)",
+   "url": "https://doi.org/10.1126/science.ads0018",
+   "models": [
+    "ESM3"
+   ],
+   "status": "retrieved_not_stored",
+   "blocker": "science.org returns 403 directly and via doi.org; not deposited in PMC. Likely paywalled. The preprint is stored and carries the filter description; the version of record should be checked before quoting in a publication.",
+   "note": "Version of record, MAIN ARTICLE ONLY (10 pages), retrieved 2026-10-16 by the project owner. Status is retrieved_not_stored rather than retrieved: the other captures in pdfs/ are CC-BY-family preprints and are committed, but this is an all-rights-reserved subscription article, so redistributing it in this repository is not something its licence permits. The sha256 is recorded so a reader with their own copy can confirm they hold the same bytes; because nothing is stored, no quote may cite this id, which tools/policies.py enforces. WHAT IT SETTLES: the main text contains no occurrence of 'Denylist', 'identity threshold' or 'Select Agent' — zero, machine-checked across all 10 pages — and defers throughout to 'supplementary materials, section A.x'. WHAT IS STILL MISSING: the supplementary materials, whose section A.6 is where the preprint puts the two denylists and the unnumbered threshold (preprint p67). That file is the open item against D-106, not this one. Earlier check (A1.5, 2026-10-15) established only that no correction is registered against this DOI.",
+   "sha256": "9b5a7c513b0aa10d3f3b3b6cd6c117de73d6e3f98f5fe16fdc757eba0745f8df",
+   "bytes": 2836500
+  },
+  {
+   "id": "S-BIOHUB-PLATFORM-RESOURCES",
+   "kind": "policy",
+   "title": "Biohub Platform Resources page (guardrail details)",
+   "url": "referenced in S-ESM-REPO as \"our Biohub Platform Resources page\" with no link",
+   "models": [
+    "ESMC",
+    "ESMFold2"
+   ],
+   "status": "unretrieved",
+   "blocker": "Referenced in prose but never linked by the source that cites it. An under-specification finding in its own right: the guardrail detail is pointed at but not published."
+  },
+  {
+   "id": "S-OPENGENOME1-CARD",
+   "kind": "dataset_card",
+   "title": "HuggingFace dataset card: LongSafari/open-genome (OpenGenome v1)",
+   "url": "https://huggingface.co/datasets/LongSafari/open-genome/raw/main/README.md",
+   "licence": "apache-2.0",
+   "models": [
+    "OpenGenome"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-open-genome-README.md",
+   "sha256": "0165106607086042711f77b12d7531efde507ae8ce86a1c313a6f3750bb8a673",
+   "bytes": 1806,
+   "note": "The OpenGenome v1 release artefact, located via the pointer in Evo 1's own repository README (S-EVO1-REPO) rather than guessed: it sits under LongSafari, not under an arcinstitute namespace. Closes the A1.1 gap recorded in D-017."
+  },
+  {
+   "id": "S-EVO1-REPO",
+   "kind": "repo_doc",
+   "title": "evo-design/evo README (Evo 1)",
+   "url": "https://raw.githubusercontent.com/evo-design/evo/main/README.md",
+   "licence": "apache-2.0",
+   "models": [
+    "Evo 1"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/evo1-repo-README.md",
+   "sha256": "01a84248f24f64fe1a5b3d81a1a2aa84bf8a5379a6fbaeca24e925170147476f",
+   "bytes": 8821,
+   "note": "The repository Evo 1's paper names as its code and data pointer. Retrieved for the dataset location; also describes OpenGenome's scope in one line."
+  },
+  {
+   "id": "S-OPENGENOME1-TREE",
+   "kind": "file_listing",
+   "title": "File listing of LongSafari/open-genome at revision main",
+   "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/tree/main?recursive=true",
+   "licence": "apache-2.0",
+   "models": [
+    "OpenGenome"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-open-genome-files.json",
+   "sha256": "a43e9c3ca5d24dab5b8a4672b7291861e5a8260877936d4c717fef4d1e233398",
+   "bytes": 1009,
+   "note": "A listing, not a document: it records what the release exposed at the revision and date stored in the capture, and a later revision may differ. Used for a statement about which components the release exposes by path, which the card alone cannot settle. Claims from it must be dated."
+  },
+  {
+   "id": "S-OPENGENOME1-ROWS",
+   "kind": "data_sample",
+   "title": "Lineage-tag sample of LongSafari/open-genome stage2/train (8 offsets, 800 rows)",
+   "url": "https://datasets-server.huggingface.co/rows?dataset=LongSafari%2Fopen-genome&config=stage2&split=train",
+   "licence": "apache-2.0",
+   "models": [
+    "OpenGenome"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-open-genome-stage2-lineage-sample.json",
+   "sha256": "0768885be15229573158207389aa4a6f0c407b8f3466dc63b9f24b3223534622",
+   "bytes": 2981,
+   "note": "A sample, not a document, and the weakest kind of entry in this store: 800 of 2,652,947 rows, drawn as eight contiguous blocks of 100 rather than at random, so it supports qualitative statements about what the split contains and no published proportion. Stores lineage tags and counts only — no genomic sequence enters this repo. Dated, and a later revision of the dataset may differ."
+  },
+  {
+   "id": "S-EVO1-SCIENCE",
+   "kind": "paper",
+   "title": "Nguyen et al. 2024 — Sequence modeling and design from molecular to genome scale (Science, version of record)",
+   "url": "https://www.science.org/doi/10.1126/science.ado9336",
+   "doi": "10.1126/science.ado9336",
+   "models": [
+    "Evo 1"
+   ],
+   "status": "unretrieved",
+   "blocker": "science.org returns HTTP 403; Europe PMC holds the record as PMC12057570 but fullTextXML returns HTTP 500 and the article is marked not open access; the PMC article page returns HTTP 200 but serves a reCAPTCHA challenge rather than content.",
+   "note": "Identified while closing the A1.1 gap. The version of record may carry a fuller data availability statement than the preprint; quotes must come from S-EVO1-PREPRINT until this is retrieved. Note that one of the three attempts returned HTTP 200 without returning the document, so status here rests on the content received, not the code."
+  },
+  {
+   "id": "S-ESM1B-PNAS",
+   "kind": "paper",
+   "title": "Rives et al. 2021 — Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences (PNAS, version of record)",
+   "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8053943/fullTextXML",
+   "licence": "CC-BY-NC-ND 4.0",
+   "models": [
+    "ESM-1",
+    "ESM-1b"
+   ],
+   "doi": "10.1073/pnas.2016239118",
+   "status": "retrieved",
+   "capture": "policies/captures/esm1b-pnas-fulltext.xml",
+   "sha256": "371ba324fb6c86b69e6777377c4656e0332745aec5a7bf4240a11af31dd06d2c",
+   "bytes": 171069,
+   "note": "The paper that defines the UR100, UR50/S and UR50/D dataset notation the ESM repository's model table uses; retrieved for A1.3 (DECISIONS.md D-025). Captured as JATS XML from the Europe PMC REST endpoint because pnas.org returns HTTP 403 and the PMC article page serves an interstitial rather than the PDF. The capture is the publisher's own full text, not a mirror's rendering, but quotes are matched against XML bytes, so a quotation must not span inline markup (an <xref> citation marker, a formula) — pick a sentence that reads clean in the source."
+  },
+  {
+   "id": "S-ESM2-PREPRINT",
+   "kind": "paper",
+   "title": "Lin et al. 2022 — Evolutionary-scale prediction of atomic level protein structure with a language model (preprint)",
+   "url": "https://www.biorxiv.org/content/10.1101/2022.07.20.500902v3.full.pdf",
+   "doi": "10.1101/2022.07.20.500902",
+   "models": [
+    "ESM-2",
+    "ESMFold"
+   ],
+   "status": "retrieved",
+   "note": "ESM-2's own paper, and the first-party statement of what ESM-2 was trained on. Retrieved 2026-10-14 after the earlier HTTP 429 lifted; the host rate-limits bursts rather than sustaining a block, so one request every few minutes succeeds where repeated attempts do not. NOTE ON THE CHECKSUM: biorxiv.org stamps the download time into the PDF's XMP ModifyDate and MetadataDate, so the bytes differ on every fetch and this sha256 will NOT reproduce. Verified by comparing this capture against an independently downloaded copy: 30 bytes differ, all of them in those two timestamps, and the extracted text is identical. So the hash fixes this capture, not the document.",
+   "capture": "pdfs/2022.07.20.500902v3.full.pdf",
+   "sha256": "87476bce2bd3b8c54420c58d9d797ae88b72501dec54c03c36b4f9448f499ca0",
+   "bytes": 4637380
+  },
+  {
+   "id": "S-ESM2-SCIENCE",
+   "kind": "paper",
+   "title": "Lin et al. 2023 — Evolutionary-scale prediction of atomic-level protein structure with a language model (Science, version of record)",
+   "url": "https://www.science.org/doi/10.1126/science.ade2574",
+   "doi": "10.1126/science.ade2574",
+   "models": [
+    "ESM-2",
+    "ESMFold"
+   ],
+   "status": "unretrieved",
+   "blocker": "science.org is paywalled and returns HTTP 403, as it does for S-EVO1-SCIENCE.",
+   "note": "The version of record for ESM-2. Same standing as S-ESM3-SCIENCE and S-EVO1-SCIENCE: quotes come from the preprint once that is retrieved, and anything load-bearing should be checked against this version before publication."
+  },
+  {
+   "id": "S-UNIREF-2023-02-METALINK",
+   "kind": "file_listing",
+   "title": "UniProt release 2023_02 UniRef metalink (sizes and md5 per file)",
+   "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/RELEASE.metalink",
+   "licence": "CC-BY 4.0",
+   "status": "retrieved",
+   "capture": "policies/captures/uniref-2023_02-RELEASE.metalink",
+   "retrieved_date": "2026-10-14",
+   "note": "The publisher's own verification for the archive A1.5 stages as ESM3-open's UniRef proxy: 211,819,312,677 bytes, md5 353681f464572bb199fa032f714d4669. Also carries an md5 for each release note below, all three of which the stored captures match.",
+   "sha256": "5f4dd537cdae4dad325de3a9f5baa28fd01620bcecdba0b890502d6d0c62da24",
+   "bytes": 2641
+  },
+  {
+   "id": "S-UNIREF-2023-02-RELNOTE-50",
+   "kind": "dataset_card",
+   "title": "UniRef50 release note, UniProt release 2023_02",
+   "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref50.release_note",
+   "licence": "CC-BY 4.0",
+   "status": "retrieved",
+   "capture": "policies/captures/uniref-2023_02-uniref50.release_note",
+   "retrieved_date": "2026-10-14",
+   "note": "Authority on UniRef50 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
+   "sha256": "a1d65f41c8a685d83aa06695e7a63e4f91207924553805bff72bd42baf134cf4",
+   "bytes": 311
+  },
+  {
+   "id": "S-UNIREF-2023-02-RELNOTE-90",
+   "kind": "dataset_card",
+   "title": "UniRef90 release note, UniProt release 2023_02",
+   "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref90.release_note",
+   "licence": "CC-BY 4.0",
+   "status": "retrieved",
+   "capture": "policies/captures/uniref-2023_02-uniref90.release_note",
+   "retrieved_date": "2026-10-14",
+   "note": "Authority on UniRef90 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
+   "sha256": "0f9c88e7d6e101c8770ddf8a6f02fd4836c7ebb07f33b2d440a292e0908d4db6",
+   "bytes": 311
+  },
+  {
+   "id": "S-UNIREF-2023-02-RELNOTE-100",
+   "kind": "dataset_card",
+   "title": "UniRef100 release note, UniProt release 2023_02",
+   "url": "https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2023_02/uniref/uniref100.release_note",
+   "licence": "CC-BY 4.0",
+   "status": "retrieved",
+   "capture": "policies/captures/uniref-2023_02-uniref100.release_note",
+   "retrieved_date": "2026-10-14",
+   "note": "Authority on UniRef100 2023_02's cluster count. ESM3 states the release but not the tier, so all three are stored and the spread between them is the finding (policies/esm3-open.md section 6).",
+   "sha256": "2df027655bacabcef1c254d652a8c57401cc759350a15642ece450a8f0450304",
+   "bytes": 312
+  },
+  {
+   "id": "S-MGNIFY-2023-02-README",
+   "kind": "dataset_card",
+   "title": "MGnify protein database 2023_02 README (statistics and file descriptions)",
+   "url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02/README.txt",
+   "licence": "CC0 1.0",
+   "status": "retrieved",
+   "capture": "policies/captures/mgnify-2023_02-README.txt",
+   "retrieved_date": "2026-10-14",
+   "note": "Authority on the release ESM3 names as MGnify90: 2,973,257,435 sequences and 729,215,663 clusters at 90%, clustered with MMseqs/linclust. Also states that the records carry MGYP accessions, assembly and biome metadata and no taxonomy.",
+   "sha256": "e0908bba1dc86c49e8f0305aa6adfa936257b5f2c5caad67a915745da15c6117",
+   "bytes": 4661
+  },
+  {
+   "id": "S-MGNIFY-2023-02-MD5SUM",
+   "kind": "file_listing",
+   "title": "MGnify protein database 2023_02 md5sum.txt",
+   "url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02/md5sum.txt",
+   "licence": "CC0 1.0",
+   "status": "retrieved",
+   "capture": "policies/captures/mgnify-2023_02-md5sum.txt",
+   "retrieved_date": "2026-10-14",
+   "note": "Published md5 per file for the MGnify component of the proxy, which is what lets a staging run verify before it writes to a bucket with no delete.",
+   "sha256": "b0c38cdf8f0a32c1cf86a6189d844535b498163720459eda3e0350b61231e51b",
+   "bytes": 4324
+  },
+  {
+   "id": "S-ESM2-HF-650M",
+   "kind": "model_card",
+   "title": "HuggingFace model card: facebook/esm2_t33_650M_UR50D",
+   "url": "https://huggingface.co/facebook/esm2_t33_650M_UR50D/raw/main/README.md",
+   "licence": "mit",
+   "models": [
+    "ESM-2 650M"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-esm2_t33_650M_UR50D-README.md",
+   "sha256": "462a2f24724e19c6be0efab926315c294a863c9a9770e2c8b3d859b2d81a07de",
+   "bytes": 1705,
+   "note": "Retrieved 2026-10-14 for B1.1, to pin the HuggingFace access route. Byte-identical to the 3B card: one shared card serves every ESM-2 variant, so neither evidences anything checkpoint-specific beyond the licence and the family's checkpoint list. Same situation as the ESMC cards."
+  },
+  {
+   "id": "S-ESM2-HF-3B",
+   "kind": "model_card",
+   "title": "HuggingFace model card: facebook/esm2_t36_3B_UR50D",
+   "url": "https://huggingface.co/facebook/esm2_t36_3B_UR50D/raw/main/README.md",
+   "licence": "mit",
+   "models": [
+    "ESM-2 3B"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-esm2_t36_3B_UR50D-README.md",
+   "sha256": "462a2f24724e19c6be0efab926315c294a863c9a9770e2c8b3d859b2d81a07de",
+   "bytes": 1705,
+   "note": "Retrieved 2026-10-14 for B1.1. Byte-identical to the 650M card; see that entry."
+  },
+  {
+   "id": "S-ESM2-LICENSE",
+   "kind": "license",
+   "title": "facebookresearch/esm LICENSE (MIT, Meta Platforms)",
+   "url": "https://raw.githubusercontent.com/facebookresearch/esm/main/LICENSE",
+   "licence": "MIT",
+   "models": [
+    "ESM-1",
+    "ESM-1b",
+    "ESM-2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/esm2-LICENSE",
+   "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+   "bytes": 1088,
+   "note": "Capture was stored by A0.1 but left unregistered, so it was not quotable; registered here for B1.1, which owes a verified licence per checkpoint."
+  },
+  {
+   "id": "S-EVO2-LICENSE",
+   "kind": "license",
+   "title": "ArcInstitute/evo2 LICENSE (Apache-2.0)",
+   "url": "https://raw.githubusercontent.com/ArcInstitute/evo2/main/LICENSE",
+   "licence": "Apache-2.0",
+   "models": [
+    "Evo 2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/evo2-LICENSE",
+   "sha256": "5bb5812fc2bfb2d777fe5621767172f8ef30be62ad719c87e0f10832336a99e0",
+   "bytes": 25780,
+   "note": "As for S-ESM2-LICENSE: stored by A0.1, unregistered until B1.1."
+  },
+  {
+   "id": "S-OPENGENOME2-MANIFEST",
+   "kind": "file_listing",
+   "title": "Per-file manifest of arcinstitute/opengenome2 at the pinned revision",
+   "url": "https://huggingface.co/api/datasets/arcinstitute/opengenome2/tree/84d2a7e690c8bb395d1f4868822dfa031ea561c6?recursive=true&expand=true",
+   "licence": "apache-2.0",
+   "models": [
+    "Evo 2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-opengenome2-manifest.json",
+   "sha256": "58aa66b7cc0ab3a66fd19630f025abf745d0ab4e73b8f1b82cd5c62ee72bebf2",
+   "bytes": 310792,
+   "note": "A listing, not a document. 1,126 files totalling 5,523,240,795,932 bytes, each with the Git LFS oid HuggingFace publishes for it — a SHA-256 over the file contents, and what every staged object is verified against before its upload completes. Paths, sizes and checksums only; no sequence. Pinned to a commit rather than `main`, which has moved."
+  },
+  {
+   "id": "S-OPENGENOME1-MANIFEST",
+   "kind": "file_listing",
+   "title": "Per-file manifest of LongSafari/open-genome at the pinned revision",
+   "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/tree/84369c058d192dcb607086d71679b877421e3250?recursive=true&expand=true",
+   "licence": "apache-2.0",
+   "models": [
+    "OpenGenome"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-open-genome-manifest.json",
+   "sha256": "a726c1e902cbb47ed58b22795df9fb02ff28a5d1994c27532c96d121a98f96c9",
+   "bytes": 4787,
+   "note": "As S-OPENGENOME2-MANIFEST, for Evo 1's release: 22 files, 146,886,935,899 bytes. Supersedes S-OPENGENOME1-TREE, which lists paths at `main` without checksums."
+  },
+  {
+   "id": "S-OPENGENOME2-COMMITS",
+   "kind": "file_listing",
+   "title": "Commit history of arcinstitute/opengenome2, with the month each sequence file last changed",
+   "url": "https://huggingface.co/api/datasets/arcinstitute/opengenome2/commits/main",
+   "licence": "apache-2.0",
+   "models": [
+    "Evo 2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-opengenome2-commits.json",
+   "sha256": "2fdb0e59086c5b771cd24420c14802a33f6e7e3baedff651be99fe4eb65ffda6",
+   "bytes": 5497,
+   "note": "Evidence for whether the release changed after publication. All 1,123 sequence files were last touched in February 2025; the three later-dated files are the README, `.gitattributes` and `species_metadata.csv`. Deletions would not appear in a listing of what is present, so this supports 'unchanged since' and not 'nothing was removed'."
+  },
+  {
+   "id": "S-OPENGENOME1-COMMITS",
+   "kind": "file_listing",
+   "title": "Commit history of LongSafari/open-genome",
+   "url": "https://huggingface.co/api/datasets/LongSafari/open-genome/commits/main",
+   "licence": "apache-2.0",
+   "models": [
+    "OpenGenome"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-open-genome-commits.json",
+   "sha256": "97a3359bc95a6c763fa062f267605441ae9937444d4f2ef38fbe3eb1a23c0483",
+   "bytes": 2100,
+   "note": "All 20 data files landed in one commit on 2024-07-06; the 11 commits since are README edits. Same caveat as S-OPENGENOME2-COMMITS about deletions."
+  },
+  {
+   "id": "S-OPENGENOME2-RECORD-FIELDS",
+   "kind": "data_sample",
+   "title": "Identifying fields per representation in arcinstitute/opengenome2 (4 components)",
+   "url": "https://huggingface.co/datasets/arcinstitute/opengenome2/resolve/84d2a7e690c8bb395d1f4868822dfa031ea561c6/",
+   "licence": "apache-2.0",
+   "models": [
+    "Evo 2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/hf-opengenome2-record-fields.json",
+   "sha256": "0c81c2afcea8f4da364782365ab464ecfc73e86f863225e46f07b2e7babc4b38",
+   "bytes": 1709,
+   "note": "A sample, and the weakest kind of entry in this store: the leading ~3 MB of four files out of 1,123, read to establish which representation carries a traceable identifier. Field names, record counts and accession prefixes only — no sequence enters this repo. Supports qualitative statements about record structure and no proportion. Dated."
+  },
+  {
+   "id": "S-IMGVR-JGI-INVENTORY",
+   "kind": "file_listing",
+   "title": "JGI Data Portal file listing for the IMG/VR dataset (42 files, 10 dated releases)",
+   "url": "https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR&x=50",
+   "licence": "see JGI data use policy",
+   "models": [
+    "Evo 1",
+    "Evo 2",
+    "OpenGenome",
+    "OpenGenome2"
+   ],
+   "status": "retrieved",
+   "capture": "policies/captures/jgi-imgvr-inventory.json",
+   "sha256": "949ee672b86523e2acab128cab6529ae984732a82dc40b5db49c3d526751b519",
+   "bytes": 12551,
+   "retrieved": "2026-10-15",
+   "note": "The publisher's own inventory, including an md5sum per file, served without authentication. The dataset identifier Custom_MPI-IMG_VR came from the portal's own redirect rather than a guess: the documented download page is a JavaScript application with no static links. The files themselves return HTTP 401 {\"detail\":\"Authentication credentials were not provided.\"} and are marked _es_public_data: false, so this entry pins what IMG/VR contains and not its contents. Dated and mutable, like S-OPENGENOME1-TREE: claims from it carry the retrieval date. Two releases answer to 'IMG/VR v4' (2022-09-20 and 2022-12-20); see DECISIONS.md D-052 and D-054."
+  },
+  {
+   "id": "S-GENOMAD-NATBIOTECH",
+   "kind": "paper",
+   "title": "Camargo et al. 2024 — Identification of mobile genetic elements with geNomad (Nature Biotechnology)",
+   "url": "https://www.nature.com/articles/s41587-023-01953-y",
+   "licence": "publisher content — not redistributed",
+   "doi": "10.1038/s41587-023-01953-y",
+   "status": "retrieved_not_stored",
+   "sha256": "532643d30649c026eb0962137b05ecbcfd4a78902a5d66aeb6db8785a3852308",
+   "bytes": 21208235,
+   "note": "The tool A4.2 benchmarks, described by its authors. Two statements A4.2 relies on: that geNomad produced the data IMG/VR v4 was built from, which corroborates the dependency decomposition from a primary source rather than from the corpus alone; and that its taxonomically informed markers were annotated from ICTV Virus Metadata Resource version 19, which is the ground truth D-086 should have pinned and D-095 shows does not change the result. Retrieved 2026-10-15 and read; not stored because it is publisher content. Re-fetch from url to verify."
+  },
+  {
+   "id": "S-IMGVR-V4-NAR",
+   "kind": "paper",
+   "title": "Camargo et al. 2023 — IMG/VR v4: an expanded database of uncultivated virus genomes (Nucleic Acids Research)",
+   "url": "https://doi.org/10.1093/nar/gkac1037",
+   "licence": "publisher content — open access per Unpaywall, licence not stated in the PDF, so not redistributed",
+   "doi": "10.1093/nar/gkac1037",
+   "status": "retrieved_not_stored",
+   "note": "Retrieved 2026-10-15 by the project owner, who supplied the PDF after four automated access paths were refused (OUP 403; PMC proof-of-work interstitial; the eScholarship and OSTI mirrors HTTP 202 behind a bot challenge). Not stored because the PDF states no redistribution licence, unlike the bioRxiv preprints in pdfs/. Verify against the recorded sha256. It settles three things A4.2 had to bound or report as undocumented, and D-096 records the corrections: geNomad's version is stated as 1.1.0 in Methods, twice and for the marker-based assignment specifically, with Zenodo doi 10.5281/zenodo.7015982 as reference 19 — which is the version A4.2 benchmarked; the ground truth is ICTV Taxonomy Release #37, which is the MSL D-086 pinned; and the taxonomy methods the release note and help page leave out are documented here, so the 'three undocumented methods' finding in D-084 does not survive.",
+   "sha256": "06de029f5e7415eef3bfcc3bbe1eaebe57f8a964fe35a427923f922dfbec9ba1",
+   "bytes": 3523561
+  },
+  {
+   "id": "S-RVMT-CELL",
+   "kind": "paper",
+   "title": "Neri et al. 2022 — Expansion of the global RNA virome reveals diverse clades of bacteriophages (Cell)",
+   "url": "https://doi.org/10.1016/j.cell.2022.08.023",
+   "licence": "publisher content — not redistributed",
+   "doi": "10.1016/j.cell.2022.08.023",
+   "status": "retrieved_not_stored",
+   "sha256": "9f8efb1d7d934a659848db2c23f7dc83331e1046b1d8fdc78e6e1854795d90a5",
+   "bytes": 6529173,
+   "note": "RVMT, the catalogue IMG/VR imported the taxonomy of. A4.2's dependency pass found it supplies 49.51% of the records Evo's denylist removes — more than geNomad — and the IMG/VR method field cites it by its preprint doi (10.1101/2022.02.15.480533). Retrieved 2026-10-15 for A4.4, which owns benchmarking it. Not stored because it is publisher content; the version of record was fetched from the UEA repository copy because biorxiv.org rate-limited. Re-fetch from url to verify."
+  }
+ ]
 }
