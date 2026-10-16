@@ -131,6 +131,35 @@ spot support in the launcher; then the authoritative pass.
 figure — about $240-450 for the charitable reading, roughly $1,000 for both.
 
 
+## Handoff — 2026-10-16
+
+`in-progress`. Code is on `ccr-3e0650c5-8fsgiq`, open as **PR #18**. Every decision is on
+`main` as D-092 to D-107; read those plus this block and you have the task.
+
+**Settled.** The viral seed set is measured and stored: 3,159,223 viral-seeded clusters of
+350,950,053, the latter matching the publisher's own count exactly (D-100). The FASTA is in
+the results prefix beside two preserved calibration grids. The cost model is characterised
+over a 200-fold range and plans against its conservative bound (D-104). Search parameters
+are fixed with their measurements (D-105), with one correction in D-107: coverage mode is a
+three-way reading, not recovered guidance, so the pass reports sensitivity to that choice.
+The unpublished threshold is confirmed against the version of record, and the omission is
+selective — four other procedures in the same appendix carry full parameter sets (D-107).
+Sampling is no longer forced by cost, so D-101's sampled design is withdrawn.
+
+**Left, in order.** The second seed set is not built, and two questions gate it, each needing
+its own decision entry: how organism names map to taxonomy ids, which the published list does
+not do for you; and which version of that list was in force when the filter ran, since the
+source cites a 2024 access date and the retrievable page is live and undated. Then the hit
+cap's cost measured where it binds, spot support in the launcher, and the pass.
+
+**Waiting on the project owner.** The scope and handling of the second arm. It is the part of
+this task whose output the §4 reporting limits and the X3.1 gate are written for, and it was
+being planned as simply the cheaper arm to run first, which is the wrong frame. That needs
+settling before the arm is built, not after. Splitting the remaining work into its own task id
+is the tidier option under the one-task-per-file rule and is the owner's call, since ids are
+permanent and cited.
+
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
