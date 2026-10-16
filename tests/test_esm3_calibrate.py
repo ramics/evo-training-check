@@ -131,3 +131,23 @@ def test_cap_summary_omits_a_shard_size_measured_at_only_one_coverage_setting() 
     summary = tool._cap_summary([_slack("relaxed", 1, 1_000_000_000, 250.0, 9000, 400)])
     assert summary["coverage_cost"] == []
     assert len(summary["hits_per_seed"]) == 1, "the half that ran is still reported"
+
+
+def test_cap_summary_surfaces_the_reading_one_agreement_check() -> None:
+    """D-109's premise, not its price: if the post-filter and the aligner's own --cov-mode 1
+    pick different records, the three readings are recovered approximately and the write-up
+    has to say by how much. A local rehearsal disagreed by one record out of 138."""
+    agreement = {
+        "post_filtered_records": 138,
+        "aligner_filtered_records": 137,
+        "only_post_filtered": 1,
+        "only_aligner_filtered": 0,
+        "jaccard": 0.9927,
+    }
+    cells = [
+        _slack("relaxed", 1, 1_000_000_000, 250.0, 9000, 400),
+        {**_slack("covmode1", 1, 1_000_000_000, 100.0, 3000, 150), "reading1_agreement": agreement},
+    ]
+    (row,) = tool._cap_summary(cells)["reading1_agreement"]
+    assert row["shards"] == 1
+    assert row["only_aligner_filtered"] == 0, "the post-filter being a superset is the safe side"

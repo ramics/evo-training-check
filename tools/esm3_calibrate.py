@@ -780,6 +780,12 @@ def _measure_caps(
 
     targets = _build_targets(args, work, db, shard_paths, shard_residues, args.cap_shard_points)
 
+    # Reading 1 is the only one both coverage settings can produce, which makes it the one
+    # place the post-filter can be checked against the aligner doing the filtering itself.
+    # D-109 assumes they agree; a local rehearsal on 1,200 synthetic records disagreed by one
+    # record, so the agreement is measured here rather than assumed.
+    relaxed_reading1: dict[int, set[str]] = {}
+
     for k, residues, target in targets:
         # Relaxed first. It is the design under test, and if the budget runs out after one
         # coverage setting the useful half is the one that was not already decided.
@@ -821,9 +827,29 @@ def _measure_caps(
                 continue
             spent += elapsed
             slack_records = {m: len(ledger.records(m)) for m in similarity.COVERAGE_READINGS}
+            agreement: dict[str, Any] | None = None
+            if coverage_mode is None:
+                relaxed_reading1[k] = ledger.records(1)
+            elif coverage_mode == 1 and k in relaxed_reading1:
+                post = relaxed_reading1[k]
+                native = ledger.records(1)
+                union = post | native
+                agreement = {
+                    "post_filtered_records": len(post),
+                    "aligner_filtered_records": len(native),
+                    "only_post_filtered": len(post - native),
+                    "only_aligner_filtered": len(native - post),
+                    "jaccard": (len(post & native) / len(union)) if union else None,
+                }
+                print(
+                    f"    reading-1 agreement: post {len(post):,} vs aligner {len(native):,}, "
+                    f"jaccard {agreement['jaccard']}",
+                    flush=True,
+                )
             cells.append(
                 {
                     **base,
+                    **({"reading1_agreement": agreement} if agreement else {}),
                     "cap": similarity.HIT_CAP,
                     "binding": guard.saturated,
                     "search_wall_seconds": round(elapsed, 1),
@@ -952,6 +978,14 @@ def _cap_summary(cells: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "coverage_cost": coverage_cost,
         "hits_per_seed": hits_per_seed,
+        # The check on D-109's premise rather than its price: if the post-filter and the
+        # aligner's own --cov-mode 1 do not pick the same records, the three readings are
+        # recovered approximately and the write-up has to say by how much.
+        "reading1_agreement": [
+            {"shards": c["shards"], **c["reading1_agreement"]}
+            for c in cells
+            if c.get("reading1_agreement")
+        ],
         "published_cap": similarity.HIT_CAP,
         "note": (
             "max_hits_per_seed_per_g_residue extrapolates linearly to the pass's target size "
