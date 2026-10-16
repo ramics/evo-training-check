@@ -3834,3 +3834,176 @@ decision has a threshold or parameter in it, the number goes in the entry.
   claims was actually tiled. Expect roughly 14 band runs and about 18 hours of wall clock, nearly
   all of it RVDB-prot, which is 93% of the search cost. The first pass's tables are preserved
   under `artifacts/a2-1/initial/` so the reported result stays readable beside the deepened one.
+### D-100 — The viral seed set is 3,159,223 clusters, and the corpus pass reconciles exactly
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The first in-region run (instance `i-0f551e14f56b7916d`, code commit `26663b5`)
+  completed a full pass over the staged UniRef100 tier of UniRef 2023_02. Its searches were lost
+  to two faults recorded in D-101; the corpus pass itself finished and is a result.
+- **Decision:** Record these as A1.6's measured seed-set figures, superseding every number taken
+  from the prefix sample during development.
+
+  | quantity | value |
+  |---|---|
+  | clusters read | 350,950,053 |
+  | residues | 133,486,060,660 |
+  | viral-seeded clusters | 3,159,223 (0.900%) |
+  | viral-seeded residues | 1,180,922,524 |
+  | viral-seeded with a non-viral representative | 33,394 (1.057% of viral-seeded) |
+  | taxonomically mixed | 59,308 (1.877% of viral-seeded) |
+  | wall time | 3,202.5 s on 8 vCPU, 7 parsing workers |
+
+  **The cluster count reconciles exactly with the publisher's.** UniRef 2023_02 states 350,950,053
+  UniRef100 clusters and the pass read 350,950,053. That is the check that the parser saw the whole
+  tier and dropped nothing — worth more than any internal consistency test, because it is against a
+  number this project did not produce.
+  **The reconstruction corroborates ESM3's stated denylist size.** The source describes the viral
+  denylist as "roughly 4M sequences"; the reconstruction is 3.16M UniRef100 clusters. The direction
+  is right and expected: UniRef100 collapses identical sequences and sub-fragments, so clusters sit
+  below the UniProtKB sequence count they cover. This is the validation target D-092 argued for and
+  D-032 established the reported 10.6M removals could not provide. It is corroboration, not
+  reproduction, and the write-up should say which.
+  **D-092's measured limitation shrinks by half.** The representative-versus-member gap is 1.06%
+  against the 2.38% measured on the first 796,477 clusters, and mixed membership 1.88% against
+  7.75%. The prefix overstated both, which is the hazard D-078 and this task's own file warn about:
+  UniRef is ordered by accession, so a prefix is not a sample. Every figure in D-092 taken from the
+  prefix is superseded here; the reading itself is unchanged.
+- **Rejected:** Reporting the prefix figures with a note — they are wrong, not provisional, and a
+  reader comparing the two would have no way to know which governs. Treating the 3.16M as
+  reproducing the stated 4M — the two count different things, and asserting agreement would paper
+  over exactly the kind of unit mismatch §7's adversarial reader checks first.
+- **Consequence:** `artifacts/a1-6/calibration.json`, at
+  `s3://amazebio-corpora-897641797669/corpora/results/a1-6/calibration.json`. The seed-set FASTA
+  itself was not uploaded before the run was cut (D-101), so the sequences have to be rebuilt; the
+  counts above do not. Mean cluster length is 380.4 residues, which sizes every later estimate.
+
+### D-101 — Two faults cost a finished corpus pass, and the sampled pass follows from the cost
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The run in D-100 finished its corpus pass at minute 53 and returned only counts. Both
+  causes were in how results escape a machine nobody can log into, and neither was in the analysis.
+- **Decision:** **Terminate on an outcome, not on a timer; and ship a deliverable the moment it
+  exists.** The launcher terminated in a bare `finally` — "both, not either", as the EC2 section
+  requires — which is right except in one case: the watch window expiring is not a failure. The
+  searches were still running at 115 minutes, that was the watch timeout and nothing else, and
+  `StateTransitionReason` reads "User initiated". It now terminates when the run finished, failed,
+  or is already going down, and when the window merely expires on a running instance it leaves it to
+  the shutdown timer armed in `UserData` ahead of anything that can fail. `--attach` resumes a watch.
+  Separately, the seed set was written at minute 53 and uploaded only after the searches, so the
+  searches being cut destroyed it; it now uploads before any search starts.
+  **The surviving search measurement redirects the task.** One shard of 333,742,778 residues ran 61
+  minutes on 8 cores without finishing, which is a lower bound of 87,743 core-seconds per G residue
+  of target, hence **more than 3,250 core-hours for UniRef100 alone** and more than 550 dollars for
+  the full target at r6i.2xlarge rates. The bound is weak — the search was incomplete, so the true
+  figure is higher — but it is enough to rule out the cheap end of D-094's range for good.
+  **So the pass becomes a sampled one.** A1.6 will score a hash sample of the corpus and report
+  survival as a rate with an interval, rather than scoring every record. This is what the project
+  already does everywhere else: uncertainty travels with the estimate, and a rate with an interval
+  is the honest form of this measurement regardless of budget. Cost falls with the sample fraction.
+  Put to the project owner with the alternatives; this was the decision.
+- **Rejected:** Scoring every record — defensible and very likely four figures, for per-record
+  manifests whose extra precision no downstream task has asked for. Keeping the unconditional
+  terminate and simply setting a longer window — the window would have to be guessed against a
+  runtime nobody can predict, which is the position that caused this. Dropping the alignment pass —
+  it is the only way the ESM3 arm of the survival work gets any input at all.
+- **Consequence:** The calibration is redesigned around far smaller target shards and a sweep over
+  query-set size, because the query side is 3.16M sequences and the first run showed it dominates.
+  What A1.6 delivers changes with it: survival **rates with intervals** over a sample, not
+  per-record manifests over the whole corpus, and every downstream consumer must be told which.
+
+### D-102 — Search cost is affine in target size, not sub-linear; the power-law reading was an artefact
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** The grid run (instance `i-0fab283b268b592cc`, commit `64e613f`) measured 19 points
+  over query sizes 3,130 to 3,159,223 and target sizes 8.3 to 66.4 M residues. D-101 framed the
+  remaining uncertainty as a target-size *exponent*, and the first reading of these points put it at
+  0.36–0.48 — strongly sub-linear, which would have made even a whole-corpus pass cost tens of
+  dollars. That reading is wrong and the error is worth recording, because it is the kind that
+  survives review by looking like a measurement.
+- **Decision:** **Model search cost as affine in target size, not as a power law.** Per-query cost
+  at the four target sizes, at 315,266 queries:
+
+  | target (M residues) | core-s per query |
+  |---|---|
+  | 8.3 | 0.01003 |
+  | 16.6 | 0.01289 |
+  | 33.2 | 0.01625 |
+  | 66.4 | 0.02281 |
+
+  The increments per M residue across the top three are 0.000202 and 0.000198 — flat. Fitting
+  `cost/query = a + b·T` on those gives **a = 0.009583 core-s, b = 0.0001992 core-s per M
+  residue**, which reproduces the 33.2 point to 0.3%. A power law fitted to the same data returns
+  an exponent near 0.4 only because the constant term dominates at these target sizes: at 8.3 M
+  residues the fixed cost is three quarters of the total. **The apparent sub-linearity is the
+  intercept, not the scaling.** Extrapolating the exponent would have understated the full pass by
+  about a hundred-fold.
+  **Query cost is linear, and that is measured at the real query size rather than extrapolated.**
+  Per-query cost converges to 0.00994–0.01003 core-s at 315,266 and 3,159,223 queries against the
+  same target, so doubling the seed set doubles the cost with no surprise at the size the pass will
+  actually use. This is the one axis that needs no further measurement.
+  **The strict reading costs 3.2× the charitable one**, consistent across the grid (2.3× at the
+  smallest query, 3.12× and 3.20× at the two largest). D-094 feared 10–50×. Both readings are
+  therefore affordable together wherever one of them is, and no choice between them is needed.
+- **Consequence, with the arithmetic stated so it can be checked:** at `Q = 3,159,223` and a
+  whole-corpus target of about 376,000 M residues, the affine model gives 236M core-seconds, or
+  **65,700 core-hours — about $4,100 at r6i.2xlarge rates for the charitable reading and roughly
+  $17,000 with strict included.** A 1-in-50 sample is about $83 and $350 respectively. So the
+  sampled pass D-101 chose stands, and it stands on a firmer basis than when it was chosen.
+  **This is still an extrapolation of 5,600× in target size and is not yet a result.** The affine
+  fit makes a sharp, falsifiable prediction that the next run tests directly: at 13,350 M residues
+  and 3,130 queries it predicts 17.4 minutes where the power law predicts 2.0. Instance
+  `i-0afb243ec1234245c` is measuring exactly that, with targets from 66.7 to 13,350 M residues.
+- **Rejected:** Reporting the 0.4 exponent with a caveat — it is not a conservative estimate, it is
+  a hundred-fold error in the project's favour, and §2's commitment makes an error that flatters the
+  audit the same failure as one that flatters the filter. Extrapolating from the affine fit without
+  testing it — the fit is excellent over an 8× range and the pass needs 5,600×, and the physical
+  reason to distrust it is concrete: at large target sizes MMseqs2 splits the target to fit memory,
+  and a split target is re-scanned per chunk, which would make the true cost **worse** than linear
+  rather than better.
+
+### D-103 — Where sequence may live: memory and ephemeral scratch, never the repo, the artefacts or the audit store
+- **Date:** 2026-10-16
+- **Task:** A2.1
+- **Context:** Four modules now cite D-020 for the proposition that "this project stores no
+  genomic sequence" — `metrics/detections.md`, `src/amazebio/seqstream.py`,
+  `src/amazebio/conformance.py` and `tools/detect_profiles.py`. **D-020 does not say that.** It
+  is the A1.1 gate correction establishing that stage 2 is Evo 1's viral component, and the
+  commitment is a parenthetical about one stored artefact: the sample "holding lineage tags and
+  counts only — no genomic sequence enters this repo". A1.3 and A7.1 read it correctly as a rule
+  about *outputs* ("a scan that never holds any cannot leak any, so the in-region pass can emit
+  its result straight to the audit store"). A2.1 escalated it to "no sequence is written
+  anywhere" and then paid for that reading: every one of the deepening's thirteen band runs
+  re-reads its whole staged object, because the called proteins were not allowed to touch disk
+  between runs. At 0.09 USD per GB that is about 10 USD of egress and two hours of wall clock to
+  avoid writing 190 MB to a scratch directory that is destroyed with the container.
+- **Decision:** The boundary is stated here rather than inferred from a parenthetical, and it is
+  the one A1.3 and A7.1 were already working to:
+  **Corpus sequence may exist in memory, and in ephemeral per-session scratch outside the
+  repository, for as long as a computation needs it.** A2.1 caches called proteins there so a
+  band search does not re-read the corpus.
+  **It may never enter the repository, `artifacts/`, the audit store, or any file a reviewer or
+  a later task reads as a result.** Every artefact carries accessions, scores, coordinates,
+  counts and lineage tags only. That is what D-020's commitment protects and it is unchanged.
+  **A cache is never an input to a result.** It is keyed by record identifier, and band
+  membership is recomputed from the identifier when it is read, so a cache cannot change which
+  records a run searched — only whether they had to be fetched again. Delete it and the run
+  reproduces from the pinned corpus.
+  The four citations are repointed here.
+- **Rejected:** Keeping the stronger reading, which the project owner was offered with its price
+  and declined. It is defensible — the safest handling of sequence is not to write it at all —
+  but it was never decided, only inherited from a misreading, and paying for an unstated rule is
+  worse than either reading.
+  Caching under `artifacts/` or `data/`, which are git-ignored and would therefore be "outside
+  the repository" in the only sense git cares about. They are inside the working tree, they are
+  where every other task's inputs and results live, and a reviewer looking for the audit's
+  artefacts should not find corpus sequence among them. Scratch is outside both.
+  Caching the raw nucleotide records rather than the called proteins. The proteins are what the
+  search consumes, they are a tenth of the size, and gene calling is the step whose determinism
+  (D-077) is worth not repeating.
+- **Consequence:** The remaining deepening reads each release once rather than once per band:
+  about 28 GiB instead of 107, roughly 7 USD and two hours saved. Nothing about the result
+  changes — same seed, same bands, same records, and the coverage check still refuses a table
+  whose bands do not tile its rate. The lesson is the one to carry: **a commitment that four
+  modules cite should be written where it can be read, not left as a parenthetical in an entry
+  about something else.** This session escalated it once without noticing; the next task to
+  inherit it would have had no way to tell the inherited reading from the decided one.
