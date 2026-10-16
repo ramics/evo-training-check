@@ -3960,3 +3960,50 @@ decision has a threshold or parameter in it, the number goes in the entry.
   reason to distrust it is concrete: at large target sizes MMseqs2 splits the target to fit memory,
   and a split target is re-scanned per chunk, which would make the true cost **worse** than linear
   rather than better.
+
+### D-103 — Where sequence may live: memory and ephemeral scratch, never the repo, the artefacts or the audit store
+- **Date:** 2026-10-16
+- **Task:** A2.1
+- **Context:** Four modules now cite D-020 for the proposition that "this project stores no
+  genomic sequence" — `metrics/detections.md`, `src/amazebio/seqstream.py`,
+  `src/amazebio/conformance.py` and `tools/detect_profiles.py`. **D-020 does not say that.** It
+  is the A1.1 gate correction establishing that stage 2 is Evo 1's viral component, and the
+  commitment is a parenthetical about one stored artefact: the sample "holding lineage tags and
+  counts only — no genomic sequence enters this repo". A1.3 and A7.1 read it correctly as a rule
+  about *outputs* ("a scan that never holds any cannot leak any, so the in-region pass can emit
+  its result straight to the audit store"). A2.1 escalated it to "no sequence is written
+  anywhere" and then paid for that reading: every one of the deepening's thirteen band runs
+  re-reads its whole staged object, because the called proteins were not allowed to touch disk
+  between runs. At 0.09 USD per GB that is about 10 USD of egress and two hours of wall clock to
+  avoid writing 190 MB to a scratch directory that is destroyed with the container.
+- **Decision:** The boundary is stated here rather than inferred from a parenthetical, and it is
+  the one A1.3 and A7.1 were already working to:
+  **Corpus sequence may exist in memory, and in ephemeral per-session scratch outside the
+  repository, for as long as a computation needs it.** A2.1 caches called proteins there so a
+  band search does not re-read the corpus.
+  **It may never enter the repository, `artifacts/`, the audit store, or any file a reviewer or
+  a later task reads as a result.** Every artefact carries accessions, scores, coordinates,
+  counts and lineage tags only. That is what D-020's commitment protects and it is unchanged.
+  **A cache is never an input to a result.** It is keyed by record identifier, and band
+  membership is recomputed from the identifier when it is read, so a cache cannot change which
+  records a run searched — only whether they had to be fetched again. Delete it and the run
+  reproduces from the pinned corpus.
+  The four citations are repointed here.
+- **Rejected:** Keeping the stronger reading, which the project owner was offered with its price
+  and declined. It is defensible — the safest handling of sequence is not to write it at all —
+  but it was never decided, only inherited from a misreading, and paying for an unstated rule is
+  worse than either reading.
+  Caching under `artifacts/` or `data/`, which are git-ignored and would therefore be "outside
+  the repository" in the only sense git cares about. They are inside the working tree, they are
+  where every other task's inputs and results live, and a reviewer looking for the audit's
+  artefacts should not find corpus sequence among them. Scratch is outside both.
+  Caching the raw nucleotide records rather than the called proteins. The proteins are what the
+  search consumes, they are a tenth of the size, and gene calling is the step whose determinism
+  (D-077) is worth not repeating.
+- **Consequence:** The remaining deepening reads each release once rather than once per band:
+  about 28 GiB instead of 107, roughly 7 USD and two hours saved. Nothing about the result
+  changes — same seed, same bands, same records, and the coverage check still refuses a table
+  whose bands do not tile its rate. The lesson is the one to carry: **a commitment that four
+  modules cite should be written where it can be read, not left as a parenthetical in an entry
+  about something else.** This session escalated it once without noticing; the next task to
+  inherit it would have had no way to tell the inherited reading from the decided one.
