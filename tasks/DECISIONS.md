@@ -4400,3 +4400,32 @@ decision has a threshold or parameter in it, the number goes in the entry.
   D-104 and D-109 keeps its number but gains the qualifier **"on spot, which this account cannot
   currently request"**, and any future entry pricing work in this repo states which market it
   assumes.
+
+### D-111 — The spot service-linked role is to be created, so A1.6's passes run at the prices they were designed against
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-110 established that spot is refused in this account and put three options to the
+  project owner: create the service-linked role, raise the ceiling to about $100 for the same
+  design on demand, or shrink the sample to fit $30 on demand.
+- **Decision (project owner):** create `AWSServiceRoleForEC2Spot`. D-109's design runs unchanged
+  and at the price it was designed against — about $26 of the $30 ceiling for the broad arm's
+  2.5% sample across three sensitivities, and the cap and coverage measurement for well under a
+  dollar rather than about $1 on demand.
+- **Why this is the better of the three rather than merely the cheapest.** The other two both pay
+  for the account's configuration with something that belongs to the audit. Raising the ceiling
+  spends about $75 more for an identical measurement, which is defensible but buys nothing.
+  Shrinking the sample to 0.7% looks like the frugal option and is the expensive one: the binding
+  constraint on this estimate is the realised family count, not the record count (D-109), so a
+  smaller sample widens the interval on every family-level statement in exchange for an IAM
+  limitation. An audit should not have a number in it whose precision was set by a missing role.
+- **Rejected:** the two priced alternatives above, for those reasons. Also rejected: running the
+  cap and coverage measurement on demand first to avoid waiting — it is about $1, so the saving is
+  real but trivial, and it would mean the first authoritative measurement in this arm was taken
+  under a configuration the rest of the arm does not share.
+- **Consequence:** A1.6's remaining work is **blocked on one external action** — someone with IAM
+  permissions creating that role once. Nothing in the repo changes and no code is waiting: the
+  launcher's spot path is already written and tested, and D-110's refusal classifier is what will
+  report it if the role is still absent. On confirmation the order is: the cap and coverage
+  measurement on spot, then the broad arm's sampled pass. `iam:*` is denied here, so this project
+  cannot verify the role exists except by attempting a launch, which is also the launch it wants —
+  so the attempt is the check.

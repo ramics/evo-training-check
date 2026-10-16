@@ -250,13 +250,18 @@ launcher — the code is right and one IAM action makes it work.
 project owner's go-ahead, since the session is not permitted to spend. Then the broad arm's
 sampled pass, whose budget is now an open question rather than a settled $26.
 
-**Waiting on the project owner — two things.**
-1. **The broad arm's market and budget.** D-109's $26 was a spot price. On demand the same
-   design is about $90-100. Either someone with IAM permissions creates
-   `AWSServiceRoleForEC2Spot` once, or the ceiling rises to about $100, or the sample shrinks
-   and the interval widens.
-2. **The narrow arm's handling and reporting rules**, unchanged from the previous block and
-   still blocking that arm. Nothing in this round touched it.
+**The budget question is answered (D-111): the spot role gets created**, so D-109's design
+runs unchanged at the price it was designed against. Nothing in the repo is waiting on code.
+
+**Blocked on one external action.** Someone with IAM permissions creating
+`AWSServiceRoleForEC2Spot`, once. `iam:*` is denied here, so this project cannot check whether
+it exists except by attempting a launch — which is also the launch it wants, so the attempt is
+the check. On confirmation, in order: the cap and coverage measurement on spot (well under a
+dollar), then the broad arm's sampled pass (about $26).
+
+**Still waiting on the project owner: the narrow arm's handling and reporting rules**,
+unchanged from the previous block and still blocking that arm. Nothing in this round touched
+it.
 
 ## Notes
 
