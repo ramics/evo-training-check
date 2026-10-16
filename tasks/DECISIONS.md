@@ -4241,3 +4241,44 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `S-ESM3-SCIENCE-SM` is registered as retrieved with its sha256, so quotes against it are
   machine-verified. The Phase A write-up should lead this finding with the four-procedure table
   rather than with the bare word "unpublished".
+
+### D-108 — The pass splits by denylist, not by corpus: the narrow arm exhaustive, the broad arm sampled
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-101 made the pass sampled on cost, D-104 made it exhaustive when the cost came
+  down, and the question was put to the project owner a third time as a choice between cutting the
+  corpus and sampling it. That framing was wrong and the owner rejected it. Cost is linear in the
+  size of the **query** set — the reconstructed denylist — as much as in the target, and the two
+  denylists differ in size by orders of magnitude. The expensive arm and the high-stakes arm are
+  not the same arm, which neither D-101 nor D-104 noticed.
+- **Decision — scope by which question each arm answers, and spend accordingly.** A1.6 splits into
+  three claims with three different methods:
+
+  | claim | method | why this method |
+  |---|---|---|
+  | could a filter of this design work at all | already answered, no alignment | A4.3's ceilings — filter scope against corpus composition, and label coverage — cap what any filter built this way achieves regardless of what leaked |
+  | did anything on the narrow denylist survive | **exhaustive, whole corpus** | the arm that needs an all-clear rather than a rate, and its query set is small enough that the whole corpus is affordable even pessimistically |
+  | how much ordinary viral material survived | **sampled, rate with interval** | an aggregate quantity, where a rate with an interval is the honest form and the project's house style everywhere else |
+
+  The reconstructed 3.16M-cluster viral denylist (D-100) is the expensive query set and buys an
+  aggregate number, so it is sampled. The narrow denylist is a small subset of it and buys the
+  statement the audit rests on, so it is scored against every record. **Neither the corpus cut nor
+  a uniform sample is taken.** D-101's sampled design returns for the broad arm only; D-104's
+  exhaustive design stands for the narrow arm only.
+- **Consequence:** the two arms report in different forms and must not be pooled. The broad arm's
+  output is a survival rate with an interval and no per-record manifest, so A2.* and B3.* consume
+  A1.4's manifest shape from the narrow arm and a rate from the broad one — every downstream
+  consumer needs telling which it is reading, as D-101 already required. The sampling design for
+  the broad arm is not fixed here and is its own entry: the clustering and denominator problems
+  D-104 named as reasons against a corpus sample are real and have to be answered before the broad
+  arm runs, not after.
+- **Still open, and not resolved by this entry:** the handling and reporting rules for the narrow
+  arm. Its scope is now settled — exhaustive — but it is the output the §4 reporting limits and the
+  X3.1 gate are written for, and what may be said about it, at what granularity, and what waits on
+  disclosure is a separate decision the project owner has not yet made. The arm is not built until
+  that exists.
+- **Rejected:** Cutting the corpus to one component — a proportional saving that gives up coverage
+  of a stated component of the training data, for a saving the query-side split makes unnecessary.
+  Sampling both arms — cheapest, and it forfeits the all-clear statement on exactly the arm that
+  needs it. Keeping both arms exhaustive — defensible, roughly four figures, and the broad arm's
+  extra precision buys an aggregate number no downstream task has asked to be per-record.

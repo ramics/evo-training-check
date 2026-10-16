@@ -162,6 +162,33 @@ is the tidier option under the one-task-per-file rule and is the owner's call, s
 permanent and cited.
 
 
+## Scope settled — 2026-10-16, third
+
+The pass **splits by denylist rather than by corpus** (D-108). The cost/stakes split runs along the
+query set, not the target, and the two denylists differ in size by orders of magnitude — so the arm
+that needs an exhaustive all-clear is not the expensive arm.
+
+- **Narrow denylist — exhaustive, whole corpus.** Small query set, affordable against every record
+  even pessimistically. This is the arm that has to support "nothing survived", which a sample
+  cannot.
+- **Broad viral denylist (3.16M clusters) — sampled, rate with an interval.** It buys an aggregate
+  number, and a rate with an interval is the honest form and the project's house style.
+- **The design question is already answered without any alignment.** A4.3's ceilings — filter scope
+  against corpus composition, and the label coverage its rules depend on — cap what a filter of this
+  design achieves whatever leaked. No pass is needed for that claim.
+
+Neither the corpus cut nor a uniform sample is taken. D-101 returns for the broad arm only; D-104
+stands for the narrow arm only. **The two arms report in different forms and must not be pooled** —
+downstream consumers need telling which they are reading.
+
+**Left, in order.** The broad arm's sampling design, which is its own decision entry and must answer
+the clustering and denominator problems D-104 raised *before* the arm runs. The hit cap's cost
+measured where it binds. Spot support in the launcher. Then the two passes.
+
+**Still waiting on the project owner — and this one blocks.** The handling and reporting rules for
+the narrow arm. Its scope is settled; what may be said about its output, at what granularity, and
+what waits on X3.1 is not. The arm is not built until that decision exists.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
