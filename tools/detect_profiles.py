@@ -191,6 +191,65 @@ def family_universe(reg: Registry) -> RegistryView:
     )
 
 
+def hits_dump_path(release: str, band: tuple[float, float] | None, *, root: Path | None) -> Path:
+    """Where a finished search's raw hits are parked before routes are resolved.
+
+    Searching is the expensive step and routing is the fragile one: three faults in this
+    session's scaffolding — a cache keyed wrong, a guard that could not find a wide cache, and a
+    taxonomy round-trip that lost its mapping — each fired *after* a 70-minute search and before
+    its part was written, so each threw the search away. The dump makes that impossible: a run
+    that has searched writes its hits here first, and a re-run with the same release and band
+    reuses them instead of searching again. It holds scores, accessions and lineage, never
+    sequence (D-103).
+    """
+    label = "full" if band is None else f"{band[0]:g}-{band[1]:g}"
+    return (root or CACHE_ROOT) / release / f"hits-{label}.json"
+
+
+def write_hits_dump(
+    path: Path,
+    *,
+    hits: dict[str, list[dict[str, Any]]],
+    per_source: list[dict[str, Any]],
+    records: dict[str, Any],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "hits": hits,
+                "per_source": per_source,
+                "records": {
+                    record_id: {
+                        "component": record.component,
+                        "taxonomy": dict(record.taxonomy or {}),
+                    }
+                    for record_id, record in records.items()
+                },
+            },
+            indent=1,
+        )
+        + "\n"
+    )
+
+
+def read_hits_dump(
+    path: Path,
+) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]], dict[str, Any]]:
+    from amazebio.policyspec import Record
+
+    payload = json.loads(path.read_text())
+    records = {
+        record_id: Record(
+            id=record_id,
+            component=row["component"],
+            taxonomy=dict(row["taxonomy"] or {}),
+        )
+        for record_id, row in payload["records"].items()
+    }
+    return payload["hits"], payload["per_source"], records
+
+
 def hmm_path(reg: Registry) -> Path:
     name = "Pfam-A.hmm.gz" if reg.id == "pfam" else reg.files[0].local_name
     return reg.staged_dir(DATA) / name
@@ -469,7 +528,11 @@ def write_cache(
                     {
                         "record_id": record_id,
                         "component": record.component,
-                        "taxonomy": list(record.taxonomy or ()),
+                        # A rank -> taxon mapping, written as one. `list()` of it yields the
+                        # ranks and loses every taxon, and the loss is silent until a rule
+                        # reaches for `.get(rank)` — which is the whole evidence the taxonomy
+                        # rules act on.
+                        "taxonomy": dict(record.taxonomy or {}),
                         "band": list(band),
                     },
                     sort_keys=True,
@@ -516,7 +579,7 @@ def read_cache(
             records[row["record_id"]] = Record(
                 id=row["record_id"],
                 component=row["component"],
-                taxonomy=tuple(row["taxonomy"]) or None,
+                taxonomy=dict(row["taxonomy"] or {}),
             )
     for faa_path in sorted(directory.glob(f"{component}--{object_name}--*.faa.gz")):
         with gzip.open(faa_path, "rt") as handle:
@@ -862,8 +925,22 @@ def main(argv: list[str] | None = None) -> int:
             per_source: list[dict[str, Any]] = []
             sampled_records: dict[str, Any] = {}
             manifest0 = entries[0]["manifest"]
+            dump = hits_dump_path(release, band, root=args.cache_dir)
 
-            for source, row in searched_sources(manifest0, release):
+            if dump.exists() and not args.collect:
+                # A previous run searched this band and something downstream failed. Reuse the
+                # search rather than repeat it; the registries and thresholds are pins, so the
+                # hits cannot have changed, and the dump records which bands they came from.
+                hits, per_source, sampled_records = read_hits_dump(dump)
+                print(
+                    f"\n{release}: reusing the finished search in {dump} "
+                    f"({sum(len(v) for v in hits.values()):,} hits over "
+                    f"{len(sampled_records):,} records)",
+                    flush=True,
+                )
+                m.note(f"Reused the search parked in {dump.name} rather than re-searching.")
+
+            for source, row in [] if per_source else searched_sources(manifest0, release):
                 initial = SAMPLE_RATES[source.corpus_component]
                 deep = DEEP_RATES[source.corpus_component]
                 # A band is given in rate units of the *initial* design, so --band 1:10 reads
@@ -987,6 +1064,10 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 del proteins
                 per_source.append(source_row)
+
+            if per_source and not args.collect and not dump.exists():
+                write_hits_dump(dump, hits=hits, per_source=per_source, records=sampled_records)
+                print(f"  parked the search in {dump}", flush=True)
 
             if args.collect:
                 # A collect run searched nothing, so it must write no part: a part whose tables

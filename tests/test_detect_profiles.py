@@ -35,8 +35,15 @@ def protein(name: str, sequence: str = "MKVLAT"):
     return TextSequence(name=name.encode(), sequence=sequence).digitize(Alphabet.amino())
 
 
+#: `Record.taxonomy` is a **rank -> taxon mapping**, and these fixtures use the real shape
+#: deliberately. The first version of them used a tuple because the cache wrote one, so the test
+#: agreed with the bug: `list()` of a mapping yields its ranks and drops every taxon, and nothing
+#: noticed until a policy rule reached for `.get(rank)` — after a 70-minute search.
+TAXONOMY = {"realm": "Duplodnaviria", "class": "Caudoviricetes"}
+
+
 def records_for(ids: list[str], component: str = "IMG/VR") -> dict[str, Record]:
-    return {i: Record(id=i, component=component, taxonomy=("r__Duplodnaviria",)) for i in ids}
+    return {i: Record(id=i, component=component, taxonomy=dict(TAXONOMY)) for i in ids}
 
 
 def test_the_stem_separates_splits_that_share_a_component():
@@ -135,7 +142,9 @@ def test_the_cache_carries_what_the_route_resolution_needs(tmp_path):
     )
     record = records["stage2:train#1"]
     assert record.component == "IMG/VR"
-    assert record.taxonomy == ("r__Duplodnaviria",)
+    # The mapping survives the round trip, rank by rank: this is what the taxonomy rules read.
+    assert record.taxonomy == TAXONOMY
+    assert record.taxonomy.get("realm") == "Duplodnaviria"
 
 
 def test_no_nucleotide_sequence_is_written(tmp_path):
@@ -151,6 +160,8 @@ def test_no_nucleotide_sequence_is_written(tmp_path):
     sidecar = (path.parent / path.name.replace(".faa.gz", ".records.jsonl")).read_text()
     assert "sequence" not in sidecar
     assert "MKVLAT" not in sidecar
+    # Lineage is metadata and travels; A1.4's own manifests carry the same tags.
+    assert "Caudoviricetes" in sidecar
 
 
 @pytest.mark.parametrize("component", ["stage2", "imgvr"])
