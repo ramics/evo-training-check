@@ -15,6 +15,7 @@ from amazebio.detect import (
     check_route_coverage,
     detection_rows,
     element_kind_for,
+    in_band,
     in_sample,
     sample_hash,
 )
@@ -221,3 +222,51 @@ def test_record_level_rows_carry_no_sequence():
         "route",
         "element_kind",
     }
+
+
+# --------------------------------------------------------------------------------------
+# Bands — the deepening primitive (D-099)
+# --------------------------------------------------------------------------------------
+
+
+def test_a_band_and_the_prefix_it_extends_are_disjoint_and_complete():
+    ids = [f"r{i}" for i in range(20000)]
+    prefix = {i for i in ids if in_sample(i, seed=7, rate=0.002)}
+    band = {i for i in ids if in_band(i, seed=7, lo=0.002, hi=0.02)}
+    wide = {i for i in ids if in_sample(i, seed=7, rate=0.02)}
+    assert prefix and band
+    assert not prefix & band
+    assert prefix | band == wide
+
+
+def test_in_sample_is_the_band_from_zero():
+    ids = [f"r{i}" for i in range(5000)]
+    assert {i for i in ids if in_sample(i, seed=3, rate=0.05)} == {
+        i for i in ids if in_band(i, seed=3, lo=0.0, hi=0.05)
+    }
+
+
+@pytest.mark.parametrize(("lo", "hi"), [(0.5, 0.5), (0.6, 0.4), (-0.1, 0.5), (0.5, 1.5)])
+def test_an_impossible_band_is_refused(lo, hi):
+    with pytest.raises(DetectionError, match="band"):
+        in_band("r", seed=1, lo=lo, hi=hi)
+
+
+def test_bands_must_tile_the_rate_they_claim():
+    # The assembled table's denominator is the rate, so a gap between bands would claim a rate
+    # over records nothing read. `--assemble` refuses on this.
+    tiled = SampleDesign(seed=1, rate=0.02, population=10, bands=((0, 0.002), (0.002, 0.02)))
+    assert tiled.bands_cover_rate()
+    gap = SampleDesign(seed=1, rate=0.02, population=10, bands=((0, 0.002), (0.004, 0.02)))
+    assert not gap.bands_cover_rate()
+    short = SampleDesign(seed=1, rate=0.02, population=10, bands=((0, 0.002),))
+    assert not short.bands_cover_rate()
+    unanchored = SampleDesign(seed=1, rate=0.02, population=10, bands=((0.002, 0.02),))
+    assert not unanchored.bands_cover_rate()
+
+
+def test_bands_travel_in_the_written_sample_design():
+    design = SampleDesign(seed=1, rate=0.02, population=10, bands=((0, 0.002), (0.002, 0.02)))
+    written = design.to_dict()
+    assert written["bands"] == [[0, 0.002], [0.002, 0.02]]
+    assert written["bands_cover_rate"] is True

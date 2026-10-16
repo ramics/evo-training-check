@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 import time
 from collections import Counter
@@ -88,6 +89,10 @@ SAMPLE_RATES = {
     "imgvr": 0.001,
     "imgpr": 0.001,
 }
+
+#: The deepened rates, declared before the deepening ran (D-099). Ten times the initial rates,
+#: searched as the band [initial, deep) so the records the first pass read are not read again.
+DEEP_RATES = {component: rate * 10 for component, rate in SAMPLE_RATES.items()}
 
 #: Why each unsearched component is unsearched, by corpus component. Reported per manifest rather
 #: than omitted, so a table is never read as a verdict on a release it only partly covers.
@@ -367,8 +372,8 @@ def searched_sources(
     return chosen
 
 
-def stream_source(client: Any, source: corpora.StagedSource, *, rate: float):
-    """Sampled records with sequence, for one staged source."""
+def stream_source(client: Any, source: corpora.StagedSource, *, lo: float = 0.0, hi: float):
+    """Sampled records with sequence, for one staged source, over the hash band `[lo, hi)`."""
     live = int(client.head_object(Bucket=corpora.BUCKET, Key=source.key)["ContentLength"])
     if source.bytes and live != source.bytes:
         raise SystemExit(
@@ -390,7 +395,8 @@ def stream_source(client: Any, source: corpora.StagedSource, *, rate: float):
             component=source.component,
             record_prefix=source.corpus_component + ":" + Path(source.key).name,
             seed=SEED,
-            rate=rate,
+            lo=lo,
+            hi=hi,
         )
     elif source.reader == "fasta":
         reader: Any = obj.buffered()
@@ -398,9 +404,178 @@ def stream_source(client: Any, source: corpora.StagedSource, *, rate: float):
             from amazebio.uniref import GunzipStream
 
             reader = GunzipStream(reader)
-        yield from iter_fasta_sampled(reader, component=source.component, seed=SEED, rate=rate)
+        yield from iter_fasta_sampled(reader, component=source.component, seed=SEED, lo=lo, hi=hi)
     else:  # pragma: no cover - guarded by the caller
         raise SystemExit(f"no sequence reader for {source.key}")
+
+
+def _detection_from_row(row: dict[str, Any]) -> Any:
+    """Rebuild a `Detection` from a written row, for assembling bands into one table."""
+    from amazebio.survival import Detection, ElementKind, Route
+
+    return Detection(
+        family_id=row["family_id"],
+        registry=row["registry"],
+        registry_version=row["registry_version"],
+        record_id=row["record_id"],
+        route=Route(row["route"]),
+        element_kind=ElementKind(row["element_kind"]),
+        detector=row["detector"],
+        score=row["score"],
+        threshold=row["threshold"],
+    )
+
+
+def _merge_source_rows(parts: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Sum the per-source statistics of several band runs over the same sources.
+
+    Counts add because the bands are disjoint (`amazebio.detect.in_band`); the bands themselves
+    are collected rather than summed, so the assembled table can state which slices of the hash
+    space were actually read and `SampleDesign.bands_cover_rate` can check they tile the rate.
+    """
+    merged: dict[str, dict[str, Any]] = {}
+    for rows in parts:
+        for row in rows:
+            if not row.get("searched"):
+                merged.setdefault(row["corpus_component"] + "|unsearched", dict(row))
+                continue
+            key = row["key"]
+            if key not in merged:
+                merged[key] = {**row, "bands": [row.get("band", [0.0, row["sample_rate"]])]}
+                continue
+            into = merged[key]
+            for field in ("records", "genes", "residues", "records_without_genes"):
+                into[field] = (into.get(field) or 0) + (row.get(field) or 0)
+            into["read_seconds"] = round(
+                into.get("read_seconds", 0) + row.get("read_seconds", 0), 1
+            )
+            for reg_id, seconds in row.get("search_seconds", {}).items():
+                into["search_seconds"][reg_id] = round(
+                    into["search_seconds"].get(reg_id, 0) + seconds, 1
+                )
+            into["bands"].append(row.get("band", [0.0, row["sample_rate"]]))
+            into["sample_rate"] = max(into["sample_rate"], row["sample_rate"])
+    return list(merged.values())
+
+
+def assemble(
+    args: argparse.Namespace, regs: list[Registry], manifests: list[dict[str, Any]]
+) -> int:
+    """Merge the initial tables and every band part into the final tables, searching nothing.
+
+    A deepened sample is produced by several runs because no single run here may exceed two
+    hours (D-099). This is the step that makes them one result: detections are concatenated,
+    per-source counts are summed, and the bands are recorded so the assembled table can prove
+    its own denominator — `bands_cover_rate` is false if the bands leave a gap, which would mean
+    the table claims a rate over records nobody read.
+    """
+    out = args.out
+    views = {r.id: family_universe(r) for r in regs}
+    parts_dir = out / "parts"
+    parts = [json.loads(path.read_text()) for path in sorted(parts_dir.glob("part-*.json"))]
+    print(f"assembling {len(parts)} band part(s) with the initial tables", flush=True)
+
+    # Keep the first pass's tables as written, once, before anything overwrites them. They are
+    # the result that was already reported, and a superseded artefact should stay readable.
+    initial_dir = out / "initial"
+    if not initial_dir.exists():
+        initial_dir.mkdir(parents=True)
+        for path in sorted(out.glob("detections-*.json*")):
+            shutil.copy2(path, initial_dir / path.name)
+        print(f"  kept the initial pass in {initial_dir.relative_to(REPO)}", flush=True)
+
+    with run(
+        "A2.1",
+        seed=SEED,
+        outdir=out,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        manifest_name="run-assemble.json",
+    ) as m:
+        m.parameter("assembled_parts", [part["band_multiple"] for part in parts])
+        m.parameter("sample_seed", SEED)
+        m.parameter("initial_rates", SAMPLE_RATES)
+        m.parameter("deep_rates", DEEP_RATES)
+        for entry in manifests:
+            manifest = entry["manifest"]
+            policy_id = manifest["policy"]["id"]
+            release = manifest["release"]
+            for reg in regs:
+                view = views[reg.id]
+                stem = f"detections-{reg.id}-{policy_id}-{release}"
+                initial_table = json.loads((initial_dir / f"{stem}.json").read_text())
+                rows: list[dict[str, Any]] = []
+                initial_jsonl = initial_dir / f"{stem}.jsonl"
+                if initial_jsonl.exists():
+                    rows += [
+                        json.loads(line) for line in initial_jsonl.read_text().splitlines() if line
+                    ]
+                source_rows = [initial_table["sources"]]
+                for part in parts:
+                    if part["release"] != release:
+                        continue
+                    rows += part["tables"].get(f"{policy_id}|{reg.id}", [])
+                    source_rows.append(part["sources"])
+
+                detections = [_detection_from_row(row) for row in rows]
+                sources = _merge_source_rows(source_rows)
+                searched = [s for s in sources if s.get("searched")]
+                bands = sorted({tuple(b) for s in searched for b in s.get("bands", [])})
+                rate = max((s["sample_rate"] for s in searched), default=1.0)
+                sample = (
+                    SampleDesign(
+                        seed=SEED,
+                        rate=rate,
+                        population=sum(s["records_in_source"] or 0 for s in searched) or None,
+                        bands=tuple(bands),
+                    )
+                    if searched
+                    else None
+                )
+                table = DetectionTable(
+                    task="A2.1",
+                    detector="profile-hmmer",
+                    registry=reg.id,
+                    registry_version=reg.version,
+                    manifest=ManifestRef(**initial_table["manifest"]),
+                    sources=sources,
+                    sample=sample,
+                    rows=build_rows(
+                        detections,
+                        universe=view.universe,
+                        thresholds=view.thresholds_by_family(),
+                    ),
+                    thresholds=initial_table["thresholds"],
+                    notes=[
+                        *initial_table["notes"],
+                        f"Assembled from the initial pass and {len(parts)} band part(s) "
+                        "(D-099). Bands are disjoint, so counts add and nothing was searched "
+                        "twice.",
+                    ],
+                )
+                check_route_coverage(table)
+                if sample is not None and not sample.bands_cover_rate():
+                    raise SystemExit(
+                        f"{stem}: the bands {bands} do not tile [0, {rate}) — the table would "
+                        "claim a rate over records nothing read. Run the missing band before "
+                        "assembling."
+                    )
+                table.write(out / f"{stem}.json")
+                m.output_file(out / f"{stem}.json", role="per-family hit table (assembled)")
+                if detections:
+                    jsonl = out / f"{stem}.jsonl"
+                    jsonl.write_text(
+                        "\n".join(detection_rows(detections, extra={"manifest": policy_id})) + "\n"
+                    )
+                    m.output_file(jsonl, role="record-level detections (assembled)")
+                survival = table.survival()
+                print(
+                    f"  {stem}: {survival['families_with_a_hit']:,} of "
+                    f"{survival['families_in_universe']:,} families at rate {rate} "
+                    f"({survival['estimate_kind']})",
+                    flush=True,
+                )
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -414,10 +589,34 @@ def main(argv: list[str] | None = None) -> int:
         "--limit-records", type=int, default=None, help="stop each source early; probing only"
     )
     parser.add_argument("--plan", action="store_true", help="print what would be read, then stop")
+    parser.add_argument(
+        "--band",
+        help=(
+            "hash band to search, as LO:HI in multiples of the component's own initial rate — "
+            "so 1:2 reads from the initial rate out to twice it, whatever that rate is, and "
+            "1:10 is the whole deepening. Writes a part file rather than tables; --assemble "
+            "merges them. Bands exist because no single run here may exceed two hours while a "
+            "10x pass is eight, and because the hash sample is nested, so a band re-reads "
+            "nothing (D-099)."
+        ),
+    )
+    parser.add_argument(
+        "--assemble",
+        action="store_true",
+        help="merge the initial tables and every part into the final tables, searching nothing",
+    )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     args = parser.parse_args(argv)
 
     regs = [registry(i) for i in (args.registry or sorted(REGISTRIES))]
+    band: tuple[float, float] | None = None
+    if args.band:
+        lo_text, _, hi_text = args.band.partition(":")
+        band = (float(lo_text), float(hi_text))
+        # Multiples of the initial rate, not absolute rates: the upper end is checked per
+        # component against the declared deep rate, which is what bounds it.
+        if not 0 <= band[0] < band[1]:
+            raise SystemExit(f"--band {args.band} is not a half-open band with LO < HI")
     manifests = load_manifests(args.manifests)
     if args.release:
         manifests = [m for m in manifests if m["manifest"]["release"] in args.release]
@@ -425,6 +624,9 @@ def main(argv: list[str] | None = None) -> int:
         manifests = [m for m in manifests if m["manifest"]["policy"]["id"] in args.policy]
     if not manifests:
         raise SystemExit("no manifests selected")
+
+    if args.assemble:
+        return assemble(args, regs, manifests)
 
     policies = load_policy_dir(SPECS)
     by_release: dict[str, list[dict[str, Any]]] = {}
@@ -489,18 +691,42 @@ def main(argv: list[str] | None = None) -> int:
             # One search per (release, source), reused by every reading of that release: the
             # readings differ in what they remove and in the route they imply, not in the
             # residues, and searching the same records three times would buy nothing.
+            part: dict[str, Any] = {
+                "release": release,
+                # Multiples of each component's initial rate, as given on the command line, and
+                # for the filename. The authoritative bands are the *resolved* rates recorded
+                # per source, because components with different initial rates resolve the same
+                # multiple to different bands — the assembler reads those and never this.
+                "band_multiple": list(band) if band else [0.0, 1.0],
+                "sources": [],
+                "tables": {},
+            }
             hits: dict[str, list[dict[str, Any]]] = {r.id: [] for r in regs}
             per_source: list[dict[str, Any]] = []
             sampled_records: dict[str, Any] = {}
             manifest0 = entries[0]["manifest"]
 
             for source, row in searched_sources(manifest0, release):
-                rate = SAMPLE_RATES[source.corpus_component]
+                initial = SAMPLE_RATES[source.corpus_component]
+                deep = DEEP_RATES[source.corpus_component]
+                # A band is given in rate units of the *initial* design, so --band 1:10 reads
+                # "from the initial rate out to ten times it" whatever the component's rate is.
+                # That keeps one flag meaningful across sources whose rates differ.
+                lo, hi = (band[0] * initial, band[1] * initial) if band else (0.0, initial)
+                if hi > deep:
+                    raise SystemExit(
+                        f"--band {args.band} reaches rate {hi} for {source.corpus_component}, "
+                        f"beyond the declared deep rate {deep} (D-099). A rate past the "
+                        "pre-registered one is a new decision, not a flag."
+                    )
                 label = f"{source.corpus_component}/{Path(source.key).name}"
-                print(f"\n{release}/{label}: sampling at {rate}", flush=True)
+                print(
+                    f"\n{release}/{label}: band [{lo}, {hi})",
+                    flush=True,
+                )
                 started = time.time()
                 batch: list[Any] = []
-                for sampled in stream_source(client, source, rate=rate):
+                for sampled in stream_source(client, source, lo=lo, hi=hi):
                     batch.append(sampled)
                     sampled_records[sampled.id] = sampled.record
                     if args.limit_records and len(batch) >= args.limit_records:
@@ -523,7 +749,8 @@ def main(argv: list[str] | None = None) -> int:
                     "corpus_component": source.corpus_component,
                     "key": source.key,
                     "searched": True,
-                    "sample_rate": rate,
+                    "sample_rate": hi,
+                    "band": [lo, hi],
                     "records_in_source": row.get("records"),
                     **stats,
                     "read_seconds": round(read_seconds, 1),
@@ -651,6 +878,22 @@ def main(argv: list[str] | None = None) -> int:
                         ],
                     )
                     check_route_coverage(table)
+                    if band is not None:
+                        # A band run writes a part, not a table: a table built from one band
+                        # would report a rate it did not search. `--assemble` merges them.
+                        part["tables"][f"{manifest['policy']['id']}|{reg.id}"] = list(
+                            detection_rows(detections, extra={"manifest": ref.policy_id})
+                        )
+                        part["tables"][f"{manifest['policy']['id']}|{reg.id}"] = [
+                            json.loads(line)
+                            for line in part["tables"][f"{manifest['policy']['id']}|{reg.id}"]
+                        ]
+                        print(
+                            f"  {manifest['policy']['id']}/{reg.id}: {len(detections):,} "
+                            "detections in this band",
+                            flush=True,
+                        )
+                        continue
                     stem = f"detections-{reg.id}-{manifest['policy']['id']}-{manifest['release']}"
                     table.write(out / f"{stem}.json")
                     m.output_file(out / f"{stem}.json", role="per-family hit table")
@@ -670,6 +913,15 @@ def main(argv: list[str] | None = None) -> int:
                         f"({survival['estimate_kind']})",
                         flush=True,
                     )
+
+            if band is not None:
+                part["sources"] = [*per_source, *unsearched]
+                parts_dir = out / "parts"
+                parts_dir.mkdir(parents=True, exist_ok=True)
+                name = f"part-{release}-{band[0]:g}-{band[1]:g}.json"
+                (parts_dir / name).write_text(json.dumps(part, indent=2) + "\n")
+                m.output_file(parts_dir / name, role="band part")
+                written.append(f"parts/{name}")
 
         index = {
             "task": "A2.1",
