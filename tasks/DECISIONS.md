@@ -4520,3 +4520,52 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** **a timing claim in this task cites the artefact it came from.** Both numbers in
   this entry were sitting in object storage while D-112 was being written, and the entry would not
   have been wrong if they had been read first.
+
+### D-114 — The three coverage readings come from two aligner-filtered searches, exactly; D-109's relaxed search is withdrawn
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-109 bought the three `--cov-mode` readings of D-107 for the price of one search by
+  relaxing coverage filtering and re-imposing it on the emitted `qcov`/`tcov` columns. It flagged
+  one risk honestly — relaxing admits more rows, so it costs more and may make the hit cap bind —
+  and named three separate cells as the fallback. Two things then landed against it. Rehearsing the
+  path against the pinned aligner showed the post-filter does **not** reproduce the aligner's own
+  `--cov-mode 1` exactly: 138 records against 137, with the post-filtered set a strict superset.
+  And D-104's table shows cost is ~99.5% the per-query term at the broad arm's target size, so the
+  rows a relaxed search adds are not free in the way "one search instead of three" implied.
+- **Decision:** run **two** coverage-filtered searches, `--cov-mode 1` and `--cov-mode 2`, and
+  derive all three readings from them. The construction is exact, and the argument is short enough
+  to check rather than measure:
+  - the mode-1 search returns every pair with `tcov >= c`;
+  - reading 0 is `qcov >= c AND tcov >= c`, so **every** mode-0 pair has `tcov >= c` and is
+    therefore in the mode-1 results, where the `qcov` column the search already emits identifies
+    it. No second pass and no intersection of result sets is needed;
+  - reading 1 is the mode-1 result set itself;
+  - reading 2 is `qcov >= c` with no constraint on `tcov`, which is **not** a subset of the mode-1
+    results, so it needs its own search.
+  Implemented as `similarity.SEARCH_READINGS`, which maps each search to the readings it is
+  authoritative for, with `RecordLedger.extend_from_search` as the only sanctioned call site. A
+  test asserts the two searches reproduce, record for record, what one unfiltered search
+  post-filtered three ways would have produced.
+- **Why this is better than both of D-109's options.** Against the relaxed search: it is exact
+  rather than approximate, and it keeps the aligner's own pruning — under `-c 0.8 --cov-mode 1` a
+  target cannot match a seed shorter than 80% of it, which a relaxed search must align to
+  discover for itself. Against the three-cell fallback: two cells rather than three.
+- **The failure mode this guards.** A `--cov-mode 1` search cannot speak for reading 2, because it
+  omits pairs with `qcov >= c` and `tcov < c`. Counting reading 2 from those rows would yield a
+  floor presented as a measurement — and a floor biases toward understating leakage, which §2
+  treats as the same failure as overstating it. `SEARCH_READINGS` exists so that which search may
+  speak for which reading is one decision in one place, and the coverage predicate is still applied
+  on top, so a misrouted feed narrows a count rather than inflating it.
+- **Rejected:** Keeping the relaxed search and reporting the post-filter's disagreement as a caveat
+  — it is avoidable at no extra cost, and a caveat on the central mechanism of the coverage sweep is
+  worse than one more search. Taking the post-filter's strict-superset behaviour as safe because it
+  errs toward overstating leakage — the direction was measured on 1,200 synthetic records and is not
+  a property anything guarantees at corpus scale. Three separate cells per D-109's fallback — two
+  suffice, and the third would have been bought by not noticing that mode 0 is recoverable from the
+  mode-1 search's own columns.
+- **Consequence:** D-109's coverage mechanism is superseded; its sampling design, identity banding,
+  sensitivity sweep and interval treatment all stand. **The pending hit-cap measurement shrinks
+  accordingly:** its relaxed-coverage half measured a question that no longer exists, so the re-run
+  is the hit cap alone, against a staged sample rather than a fresh corpus pass. The project owner's
+  standing direction is the cheap, provable efficiencies with sampling retained; this is the first
+  of them.

@@ -220,3 +220,58 @@ def test_rate_interval_stays_inside_the_unit_interval() -> None:
     rate = sim.rate_with_interval([(9, 10), (10, 10), (8, 10)])
     assert rate.high is not None and rate.high <= 1.0
     assert rate.low is not None and rate.low >= 0.0
+
+
+def test_two_filtered_searches_recover_all_three_readings_exactly() -> None:
+    """The replacement for D-109's relaxed search plus post-filter.
+
+    The mode-1 search returns every pair with tcov >= c, and mode 0 is qcov >= c AND
+    tcov >= c, so every mode-0 pair is in those results and the emitted qcov column
+    identifies it. Mode 2 is not a subset of mode 1, so it needs its own search. Here recB
+    passes mode 1 only, recC mode 2 only, recA all three.
+    """
+    universe = [
+        sim.HitRow("s1", "recA", 0.95, 0.9, 0.9),
+        sim.HitRow("s2", "recB", 0.80, 0.2, 0.9),
+        sim.HitRow("s3", "recC", 0.72, 0.9, 0.2),
+    ]
+    # What each aligner-filtered search would return.
+    mode1_rows = [r for r in universe if r.tcov >= sim.COVERAGE]
+    mode2_rows = [r for r in universe if r.qcov >= sim.COVERAGE]
+
+    ledger = sim.RecordLedger()
+    ledger.extend_from_search(mode1_rows, 1)
+    ledger.extend_from_search(mode2_rows, 2)
+
+    # Identical to what one unfiltered search post-filtered three ways would have produced.
+    reference = sim.RecordLedger().extend(universe)
+    for mode in sim.COVERAGE_READINGS:
+        assert ledger.records(mode) == reference.records(mode), f"reading {mode} differs"
+    assert ledger.records(0) == {"recA"}
+    assert ledger.records(1) == {"recA", "recB"}
+    assert ledger.records(2) == {"recA", "recC"}
+
+
+def test_the_mode_one_search_is_not_allowed_to_speak_for_reading_two() -> None:
+    """recC has qcov >= c and tcov < c, so the mode-1 search never sees it. Deriving reading 2
+    from those rows would report a floor as a measurement."""
+    universe = [
+        sim.HitRow("s1", "recA", 0.95, 0.9, 0.9),
+        sim.HitRow("s3", "recC", 0.72, 0.9, 0.2),
+    ]
+    mode1_rows = [r for r in universe if r.tcov >= sim.COVERAGE]
+    ledger = sim.RecordLedger().extend_from_search(mode1_rows, 1)
+    assert ledger.records(2) == set(), "reading 2 must stay empty until its own search runs"
+    assert ledger.records(1) == {"recA"}
+    assert ledger.records(0) == {"recA"}
+
+
+def test_search_readings_covers_every_reading_exactly_once() -> None:
+    derived = [m for modes in sim.SEARCH_READINGS.values() for m in modes]
+    assert sorted(derived) == sorted(sim.COVERAGE_READINGS)
+    assert len(sim.SEARCH_READINGS) == 2, "two searches, not three cells and not one relaxed"
+
+
+def test_an_unknown_search_mode_is_refused_rather_than_guessed() -> None:
+    with pytest.raises(ValueError, match="not one of the searches"):
+        sim.RecordLedger().extend_from_search([], 0)

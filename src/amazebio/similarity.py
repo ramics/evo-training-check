@@ -60,6 +60,22 @@ SENSITIVITIES: tuple[float, ...] = (2.0, 5.7, 7.5)
 #: correspond to. Names are the paper's vocabulary, not MMseqs2's.
 COVERAGE_READINGS: tuple[int, ...] = (0, 1, 2)
 
+#: Which searches the pass actually runs, and which readings each one is authoritative for.
+#:
+#: Two aligner-filtered searches recover all three readings **exactly**, which D-109's relaxed
+#: search plus post-filter did not. The argument is short enough to check: the `--cov-mode 1`
+#: search returns every pair with `tcov >= c`, and mode 0 is `qcov >= c AND tcov >= c`, so
+#: every mode-0 pair is in those results and is identified by the `qcov` column the search
+#: already emits. Mode 1 is the result set itself. Mode 2 — `qcov >= c` with no constraint on
+#: `tcov` — is not a subset of it, so it needs its own search.
+#:
+#: This replaces relaxing coverage for two reasons beyond exactness. Relaxing discards the
+#: aligner's own pruning: under `-c 0.8 --cov-mode 1` a target cannot match a seed shorter
+#: than 80% of it, and a relaxed search must align those pairs to discover the same thing.
+#: And two cells beat the three-cell fallback D-109 named for the case where relaxing proved
+#: too expensive.
+SEARCH_READINGS: dict[int, tuple[int, ...]] = {1: (0, 1), 2: (2,)}
+
 #: D-105 parameter 6. The lowest edge is the charitable reading's inferred 0.70 (D-015); the
 #: 0.70-0.75 band is separated because 8.07% of hit rows fall in it and the records on which
 #: two sensitivity settings disagree are 98% inside it. Rows below 0.70 are still emitted and
@@ -219,19 +235,45 @@ class RecordLedger:
     coverage: float = COVERAGE
     best: dict[str, list[float]] = field(default_factory=dict)
 
-    def observe(self, row: HitRow) -> None:
+    def observe(self, row: HitRow, derive: Iterable[int] = COVERAGE_READINGS) -> None:
+        """Fold one row in, for the readings its search is authoritative for.
+
+        `derive` matters and defaulting it to all three is only right for a search that was
+        not coverage-filtered. A `--cov-mode 1` search cannot speak for reading 2: it omits
+        pairs with `qcov >= c` but `tcov < c`, so counting reading 2 from its rows would
+        produce a number that looks like a measurement and is a floor. `SEARCH_READINGS` is
+        the mapping the pass feeds in, and the predicate is still applied on top, so a
+        misrouted feed narrows the count rather than inflating it.
+        """
         slot = self.best.get(row.target)
         if slot is None:
             slot = [-1.0] * len(COVERAGE_READINGS)
             self.best[row.target] = slot
-        for i, mode in enumerate(COVERAGE_READINGS):
+        for mode in derive:
+            i = COVERAGE_READINGS.index(mode)
             if coverage_passes(mode, row.qcov, row.tcov, self.coverage) and row.fident > slot[i]:
                 slot[i] = row.fident
 
-    def extend(self, rows: Iterable[HitRow]) -> RecordLedger:
+    def extend(
+        self, rows: Iterable[HitRow], derive: Iterable[int] = COVERAGE_READINGS
+    ) -> RecordLedger:
+        derive = tuple(derive)
         for row in rows:
-            self.observe(row)
+            self.observe(row, derive)
         return self
+
+    def extend_from_search(self, rows: Iterable[HitRow], cov_mode: int) -> RecordLedger:
+        """Fold in one coverage-filtered search's rows, under `SEARCH_READINGS`.
+
+        The call site should name the search rather than the readings, so that which readings
+        a search may speak for stays one decision in one place.
+        """
+        if cov_mode not in SEARCH_READINGS:
+            raise ValueError(
+                f"--cov-mode {cov_mode!r} is not one of the searches the pass runs "
+                f"({sorted(SEARCH_READINGS)}); reading 0 comes from the mode-1 search"
+            )
+        return self.extend(rows, SEARCH_READINGS[cov_mode])
 
     def counts_by_band(self, mode: int) -> list[int]:
         """Records per identity band under one reading, as a list parallel to `band_labels()`."""
