@@ -219,6 +219,45 @@ cells is the fallback and D-109 is superseded.
 support in the launcher. Then the broad arm's sampled pass. The narrow arm stays blocked on the
 owner's handling decision.
 
+## Instrument built, spot refused — 2026-10-16, fourth
+
+Branch `claude/fervent-hopper-8ht0h3`.
+
+**Built and green** (805 tests, full `check`): `src/amazebio/similarity.py` is the instrument
+both remaining passes need — D-105's parameters, the three coverage readings as post-filters
+over one relaxed search, identity banding, the saturation guard, and rates with D-109's
+design-effect intervals. `tools/esm3_calibrate.py --measure caps` measures the two items left
+open: the hit cap priced where it *binds* rather than where it is slack, and relaxed coverage
+against D-109's three-cell fallback. The launcher passes the mode through and each mode writes
+its own artefact name, since the corpus bucket has no `DeleteObject`.
+
+**One finding from rehearsing the path locally against the pinned aligner.** The post-filter
+and the aligner's own `--cov-mode 1` do not pick exactly the same records — 138 against 137 on
+1,200 synthetic records. The post-filtered set was a strict *superset* both times, so the
+approximation errs toward overstating leakage rather than understating it, which is the
+defensible side. The run now measures that agreement at corpus scale instead of assuming it.
+D-109's "three readings for the price of one" is therefore approximate, and the write-up has
+to say by how much.
+
+**Spot does not work in this account (D-110).** `RunInstances` with spot options is refused
+with `AuthFailure.ServiceLinkedRoleCreationNotPermitted`: the request needs the
+`AWSServiceRoleForEC2Spot` service-linked role, which EC2 creates via
+`iam:CreateServiceLinkedRole`, and `iam:*` is denied here. A dry run authorizes the same
+request, so no dry run finds this. Nothing was launched or billed. Spot support stays in the
+launcher — the code is right and one IAM action makes it work.
+
+**Left.** The cap measurement has not run: on demand it is about $1 and the launch needs the
+project owner's go-ahead, since the session is not permitted to spend. Then the broad arm's
+sampled pass, whose budget is now an open question rather than a settled $26.
+
+**Waiting on the project owner — two things.**
+1. **The broad arm's market and budget.** D-109's $26 was a spot price. On demand the same
+   design is about $90-100. Either someone with IAM permissions creates
+   `AWSServiceRoleForEC2Spot` once, or the ceiling rises to about $100, or the sample shrinks
+   and the interval widens.
+2. **The narrow arm's handling and reporting rules**, unchanged from the previous block and
+   still blocking that arm. Nothing in this round touched it.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

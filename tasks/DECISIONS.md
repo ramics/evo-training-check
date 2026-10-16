@@ -4357,3 +4357,46 @@ decision has a threshold or parameter in it, the number goes in the entry.
   A larger sample inside the same budget by dropping to `-s 2.0` only — D-105 already refused that
   setting on measured recall loss that biases toward understating leakage, and the budget is not a
   reason to reopen it.
+
+### D-110 — Spot is unavailable in this account, so every spot-priced figure in A1.6 is a price we cannot pay
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-104 priced the exhaustive charitable pass at $240-450 and D-109 priced the broad
+  arm's three-sensitivity sweep at $26 against a $30 ceiling. Both are **spot** figures, and the
+  launcher gained spot support on the strength of them. The first spot launch was refused.
+- **What was measured.** `RunInstances` with `InstanceMarketOptions` returns
+  `AuthFailure.ServiceLinkedRoleCreationNotPermitted`: a spot request needs the
+  `AWSServiceRoleForEC2Spot` service-linked role, which EC2 creates on the caller's behalf on first
+  use through `iam:CreateServiceLinkedRole`. `AGENTS.md` records that `iam:*` is denied in this
+  account, and it is denied for this too — the role cannot be created, inspected or listed from
+  here. Nothing launched and nothing was billed.
+  **A dry run does not find this.** The same request authorized as `DryRunOperation` a minute
+  earlier. `DryRun` never attempts the service-linked role, so this is a second instance of
+  `AGENTS.md`'s rule that a dry run authorizes but does not execute — and the first one it names
+  that cannot be caught by any check inside the instance's own script either, because the refusal
+  happens before there is an instance.
+- **Decision:** treat spot as unavailable rather than as a flag to retry, and keep the support in
+  the launcher. The code is correct and one IAM action makes it work, so removing it would discard
+  the cheaper option; what changes is that nothing may be *planned* against a spot price until that
+  action exists. The launcher classifies this refusal apart from a capacity refusal, because a
+  capacity refusal is a retry and this one cannot be retried into working.
+- **The price consequence, which is the substance of this entry.** On-demand is roughly 3-4x spot
+  for the permitted instance types. So D-109's $26 sweep is about $90-100 on demand and **does not
+  fit the $30 ceiling it was designed against**, and D-104's $240-450 exhaustive charitable pass is
+  roughly $1,000-1,500. The cap and coverage measurement is about $1 on demand and is unaffected in
+  substance.
+- **Rejected:** Re-pricing the broad arm's sample downward to fit $30 on demand — that would be
+  about 0.7% of the corpus, and it trades the measurement's precision against an account
+  configuration rather than against anything about the audit; it is also a decision the project
+  owner should make rather than one taken quietly inside a task. Dropping the sensitivity sweep to
+  one cell to fit — D-109 already rejected that for the reason that the sweep is the only check on
+  whether the number is a property of the filter or of our aligner settings, and an IAM limitation
+  is not a reason to reopen it. Bidding under the going rate with `MaxPrice` — unrelated to this
+  refusal, and already rejected in the launcher's own notes.
+- **Consequence:** **the broad arm's budget is back with the project owner**, with three real
+  options: have someone with IAM permissions create `AWSServiceRoleForEC2Spot` once and run D-109's
+  design as priced; raise the ceiling to about $100 and run the same design on demand; or shrink the
+  sample and accept a wider interval. Until one is chosen the pass does not run. Every figure in
+  D-104 and D-109 keeps its number but gains the qualifier **"on spot, which this account cannot
+  currently request"**, and any future entry pricing work in this repo states which market it
+  assumes.
