@@ -67,6 +67,11 @@ STRICT = ("-c", "0.8", "--cov-mode", "1", "-s", "7.5")
 #: writing to the first's key would overwrite a preserved grid permanently.
 ARTEFACT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
 
+#: Progress keys, one per mode for the same reason the artefacts are. Separate from the
+#: artefact because a heartbeat is not a deliverable, and small because it is overwritten
+#: every few minutes in a bucket that cannot delete anything.
+HEARTBEAT_NAMES = {"curve": "progress-curve.json", "caps": "progress-caps.json"}
+
 
 def human(n: float) -> str:
     for unit in ("B", "KB", "MB", "GB", "TB"):
@@ -263,7 +268,7 @@ def _reader(args: argparse.Namespace, client: Any, bucket: str, prefix: str):
     return reader, f"s3://{bucket}/{key}"
 
 
-def _chunks(stream: Any, limit: int, progress_seconds: float) -> Any:
+def _chunks(stream: Any, limit: int, progress_seconds: float, heartbeat: Any = None) -> Any:
     read = 0
     started = last = time.monotonic()
     while True:
@@ -277,12 +282,53 @@ def _chunks(stream: Any, limit: int, progress_seconds: float) -> Any:
         read += len(chunk)
         now = time.monotonic()
         if progress_seconds and now - last >= progress_seconds:
+            elapsed = now - started
             print(
-                f"    {human(read)} decompressed, {human(read / max(now - started, 1e-9))}/s",
+                f"    {human(read)} decompressed, {human(read / max(elapsed, 1e-9))}/s",
                 flush=True,
             )
+            if heartbeat is not None:
+                heartbeat(read, elapsed)
             last = now
         yield chunk
+
+
+def _make_heartbeat(client: Any, bucket: str, prefix: str, name: str, commit: str | None) -> Any:
+    """Write a few hundred bytes to S3 saying how far the corpus pass has got.
+
+    Measured need, 2026-10-16: an instance ran 95 minutes on a pass due in 53 with no way to
+    tell work from a wedge. The console froze at the boot line — `GetConsoleOutput` is
+    best-effort and stopped there — and in this account `cloudwatch:GetMetricStatistics` and
+    `ec2:GetConsoleScreenshot` are both denied, as are SSH and SSM by policy. So every channel
+    was closed except S3, and the pass published nothing until it finished: the only signal
+    arrived after the thing it would have reported on.
+
+    A heartbeat closes that. It is its own key rather than part of the result artefact,
+    because the result is a deliverable and a progress file is not, and because the corpus
+    bucket has no `DeleteObject` — overwriting one small key repeatedly is the cheapest thing
+    to leave behind. `None` when there is no client, so a local run is unaffected.
+    """
+    if client is None:
+        return None
+    key = f"{prefix}/results/a1-6/{name}"
+
+    def beat(read: int, elapsed: float) -> None:
+        body = {
+            "decompressed_bytes": read,
+            "elapsed_seconds": round(elapsed, 1),
+            "bytes_per_second": round(read / max(elapsed, 1e-9)),
+            "stage": "corpus-pass",
+            "code_commit": commit,
+            "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        try:
+            client.put_object(
+                Bucket=bucket, Key=key, Body=json.dumps(body, sort_keys=True).encode()
+            )
+        except Exception as exc:  # A failed heartbeat must never fail the run it reports on.
+            print(f"    heartbeat failed: {type(exc).__name__}", flush=True)
+
+    return beat
 
 
 def _mmseqs(*argv: str) -> float:
@@ -365,7 +411,18 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         try:
             with seed_fasta.open("wb") as seedfh:
                 for batch in seeds.scan_parallel(
-                    _chunks(stream, args.limit_bytes, args.progress_seconds),
+                    _chunks(
+                        stream,
+                        args.limit_bytes,
+                        args.progress_seconds,
+                        _make_heartbeat(
+                            client,
+                            bucket,
+                            prefix,
+                            HEARTBEAT_NAMES[args.measure],
+                            args.code_commit,
+                        ),
+                    ),
                     config,
                     workers=args.workers,
                     batch_bytes=args.batch_bytes,

@@ -151,3 +151,49 @@ def test_cap_summary_surfaces_the_reading_one_agreement_check() -> None:
     (row,) = tool._cap_summary(cells)["reading1_agreement"]
     assert row["shards"] == 1
     assert row["only_aligner_filtered"] == 0, "the post-filter being a superset is the safe side"
+
+
+class _S3:
+    def __init__(self, fail: bool = False) -> None:
+        self.puts: list[tuple[str, str, bytes]] = []
+        self.fail = fail
+
+    def put_object(self, Bucket: str, Key: str, Body: bytes) -> None:
+        if self.fail:
+            raise RuntimeError("no network")
+        self.puts.append((Bucket, Key, Body))
+
+
+def test_heartbeat_reports_corpus_pass_progress_to_its_own_key() -> None:
+    """The channel of last resort. Measured 2026-10-16: an instance ran 95 minutes on a pass
+    due in 53 with no way to tell work from a wedge — console frozen, CloudWatch and console
+    screenshot both denied, no SSH or SSM. S3 was the only way out and the pass wrote nothing
+    until it finished."""
+    import json
+
+    client = _S3()
+    beat = tool._make_heartbeat(client, "buk", "corpora", "progress-caps.json", "abc123")
+    beat(8 << 20, 120.0)
+    (bucket, key, body) = client.puts[0]
+    assert (bucket, key) == ("buk", "corpora/results/a1-6/progress-caps.json")
+    payload = json.loads(body)
+    assert payload["decompressed_bytes"] == 8 << 20
+    assert payload["bytes_per_second"] == round((8 << 20) / 120.0)
+    assert payload["code_commit"] == "abc123"
+    assert payload["stage"] == "corpus-pass"
+
+
+def test_heartbeat_is_a_separate_key_from_the_result_artefact() -> None:
+    """A progress file is not a deliverable, and the corpus bucket cannot delete anything."""
+    assert set(tool.HEARTBEAT_NAMES) == set(tool.ARTEFACT_NAMES)
+    assert not set(tool.HEARTBEAT_NAMES.values()) & set(tool.ARTEFACT_NAMES.values())
+
+
+def test_a_failed_heartbeat_does_not_fail_the_run_it_reports_on() -> None:
+    beat = tool._make_heartbeat(_S3(fail=True), "buk", "corpora", "progress-caps.json", None)
+    beat(1024, 1.0)  # must not raise
+
+
+def test_no_client_means_no_heartbeat_rather_than_a_crash() -> None:
+    """A local run against --source has no S3 client and must be unaffected."""
+    assert tool._make_heartbeat(None, "", "", "progress-caps.json", None) is None
