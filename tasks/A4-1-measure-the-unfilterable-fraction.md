@@ -2,7 +2,7 @@
 id: A4.1
 title: Measure the unfilterable fraction
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4]
 blocks: [A5.1, A6.1]
@@ -33,7 +33,12 @@ taxonomic filter's reach in principle.
 - Result framed as an in-principle ceiling, with the definition stated.
 - Unlabelled vs out-of-scope distinction preserved.
 
-## Outcome — 2026-10-15 — review
+## Outcome — 2026-10-15 — done
+
+**Merged.** The work landed on `main` in **PR #14** (branch `ccr-f17b9af4-4rp5eq`, merged
+2026-10-15). Nothing is left on a branch: look on `main`. Moved `review` → `done` on
+2026-10-17 — all three Done-when criteria are discharged below, and this task carries no
+A3.3 reproduction criterion, so no gate holds it.
 
 **Branch:** `ccr-f17b9af4-4rp5eq`. `src/amazebio/unfilterable.py`, `tools/unfilterable.py` and
 `tests/test_unfilterable.py`; artefacts `artifacts/a4-1/unfilterable.{json,md}` with `run.json`
