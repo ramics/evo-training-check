@@ -5503,3 +5503,55 @@ decision has a threshold or parameter in it, the number goes in the entry.
   discharged for the GTDB statements. The general lesson is cheap and worth recording: before
   escalating a publisher URL, check whether the paper is in PMC or Europe PMC — a `303` to an
   identity provider says nothing about the licence, and this one was openly licensed the whole time.
+
+### D-136 — A2.4's record is the genome; Evo 2 publishes it and Evo 1's is derived, at a measured cost
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-115 fixed A2.4's sampling unit as "the genome record" before either component had
+  been read. Reading them shows the two releases do not agree on what a record is, and fail to in
+  opposite directions.
+  **Evo 2's is already genome-shaped.** `fasta/gtdb_v220/...` is a tar whose every member is one
+  gzipped FASTA named for its assembly — `batch1/GCF_017922435.1.fasta.gz` — so one member is one
+  genome and the publisher supplies the identifier. Nothing is derived.
+  **Evo 1's is contigs with no genome column.** `stage1/gtdb/*.parquet` carries `record` and
+  `text`: an INSDC nucleotide accession and a sequence, and nothing else — no assembly accession,
+  no organism, no grouping key of any kind. Taken literally the record unit would be the contig,
+  which is wrong for this task twice: a provirus is a feature of a genome, and a per-contig
+  denominator would let one 400-contig draft assembly count four hundred times a complete one.
+- **Decision:** The record is the genome in both releases. Evo 2's comes from the member name.
+  **Evo 1's is derived from the accessions, and `amazebio.gtdb.genome_key` reports that it is
+  derived rather than returning a bare string.** An INSDC WGS accession encodes its project —
+  `JAHFAU010000149.1` is contig `0000149` of project `JAHFAU01`, and a project is an assembly —
+  so contigs are grouped on the project accession, with the optional RefSeq `NZ_` prefix ignored
+  because it splits no assembly.
+  **Measured, not assumed.** Over 40,000 contigs of `gtdb_train_shard_0`: **99.72% carry a WGS
+  project accession** and group into genomes at a median of 43 contigs each. The remaining
+  **0.28%** are complete replicons and scaffolds — `NZ_CP038213.1`, `NZ_GL890993.1`,
+  `NZ_CM001022.1` — which carry no project and cannot be grouped. Each becomes a genome of one.
+  **That under-groups**: a chromosome and its plasmids are counted as separate genomes. The error
+  is bounded, measured, and enlarges the denominator, so the survival fraction it feeds is
+  conservative — the direction to err in for a task whose null must stay visible.
+  The pattern requires four to six letters before the two project digits, which is what separates
+  a WGS contig from a complete replicon. A looser rule would read `CP038213` as project `CP03` and
+  **merge unrelated genomes**, inflating per-genome content with nothing downstream to show it.
+  That failure is tested for directly.
+- **Rejected:** Using the contig as the record unit and reporting per-contig survival. Defensible
+  only if the question were about contigs, and it is not; it would also make the two releases'
+  figures incomparable, which is the one thing A3.2 has to be able to do.
+  **Joining Evo 1's contigs to Evo 2's assemblies to recover the grouping exactly.** This would
+  work and would be better: Evo 2's FASTA headers carry the same INSDC contig accessions Evo 1
+  uses as its `record` column (`NZ_VDEZ01000001.1`, `JAHAXB010000057.1`), and Evo 2 reused Evo 1's
+  genomes, so the assembly for most of Evo 1's contigs is recoverable from Evo 2's member names.
+  It is not taken here for two reasons: it would make one release's record unit depend on the
+  other's data, which is the cross-release coupling D-116 refused in a different guise; and it is
+  **A7.4's join**, which has not run. If A7.4 establishes the mapping, A2.4 can adopt it and the
+  0.28% shrinks — that is a strict improvement available later at no wasted work, and it is
+  recorded here so the next worker does not have to rediscover that the headers carry it.
+  Dropping accessions the rule cannot parse. It would shrink the corpus with nothing to show for
+  it; they become genomes of one instead.
+- **Consequence:** A2.4's denominator is genomes, comparable across releases, with Evo 1's
+  carrying a declared 0.28% under-grouping and Evo 2's carrying none. The kind of key travels with
+  the record (`wgs_project` against `accession`), so a reader can separate the derived grouping
+  from the published one without re-deriving either. **And A7.4 gains a finding before it starts:
+  its comparison key is a plain accession join, not the sequence-digest exercise its Steps allow
+  for, because both releases carry the same INSDC contig accessions.**
