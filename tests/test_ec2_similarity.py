@@ -206,3 +206,67 @@ def test_the_two_staging_flags_cannot_both_reach_the_instance() -> None:
 def test_a_non_s3_sample_uri_is_refused_before_launch() -> None:
     with pytest.raises(SystemExit, match="s3:// uri"):
         tool._sample_flags(_Flags(sample_from="/local/manifest.json"))
+
+
+def _first_party_closure(entry: pathlib.Path) -> set[str]:
+    """Every `amazebio.*` module reachable from a shipped tool, transitively."""
+    import ast
+
+    src_root = _PATH.parent.parent / "src" / "amazebio"
+    seen: set[str] = set()
+    queue = [entry]
+    while queue:
+        path = queue.pop()
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("amazebio"):
+                parts = (node.module or "").split(".")
+                names = [a.name for a in node.names] if len(parts) == 1 else [parts[1]]
+            elif isinstance(node, ast.Import):
+                names = [a.name.split(".")[1] for a in node.names if a.name.startswith("amazebio.")]
+            for name in names:
+                candidate = src_root / f"{name}.py"
+                if candidate.exists() and name not in seen:
+                    seen.add(name)
+                    queue.append(candidate)
+    return seen
+
+
+def test_payload_ships_every_module_the_tool_imports() -> None:
+    """Keeping PAYLOAD by hand cost two launches: similarity.py and then shardstore.py were
+    imported by the tool and not shipped, so the instance died on an ImportError about half a
+    minute in. On the instance a missing import costs an hour and a launch; here it costs a
+    second, so the closure is derived rather than trusted."""
+    tool_path = _PATH.parent / "esm3_calibrate.py"
+    needed = {f"src/amazebio/{m}.py" for m in _first_party_closure(tool_path)}
+    shipped = set(tool.PAYLOAD)
+    missing = sorted(needed - shipped)
+    assert not missing, f"PAYLOAD is short: {missing}"
+    assert "src/amazebio/__init__.py" in shipped, "the package itself has to go too"
+    assert str(tool_path.relative_to(_PATH.parent.parent)) in shipped
+
+
+def test_payload_files_all_exist() -> None:
+    root = _PATH.parent.parent
+    assert [p for p in tool.PAYLOAD if not (root / p).exists()] == []
+
+
+def test_user_data_cancels_the_pending_timer_before_shutting_down() -> None:
+    """`shutdown -h now` does nothing while the boot-armed timer is pending — systemd already
+    has one scheduled. That is why a run which failed 31 seconds in sat idle until its
+    240-minute timer fired and looked like a four-hour corpus pass."""
+    assert "shutdown -c" in tool.USER_DATA
+    assert "die()" in tool.USER_DATA
+    # Every exit path goes through die(), which cancels first.
+    body = tool.USER_DATA.split("die() {{", 1)[1]
+    assert "shutdown -h now" not in body.replace(
+        "shutdown -h now || systemctl --no-block poweroff || halt -p || true", ""
+    ), "a bare immediate shutdown outside die() would silently not fire"
+
+
+def test_user_data_imports_the_payload_before_the_corpus_pass() -> None:
+    """The check that turns a short payload from an hour into two seconds."""
+    data = tool.USER_DATA
+    assert "PAYLOAD is short" in data
+    assert data.index("PRECHECK") < data.rindex("tools/esm3_calibrate.py")

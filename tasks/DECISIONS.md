@@ -4665,3 +4665,50 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** the narrow arm retains its exact output and publishes only aggregates. The
   permanence of the staged copy is a known, accepted limitation and belongs in the disclosure
   conversation at X3.1 rather than being presented as a safeguard.
+
+### D-117 — The lost runs were a short payload and a shutdown that never fired, not the reader or the instance type; D-113's hypotheses are both refuted
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-113 recorded two candidate causes for an instance that spent four hours on a
+  52-minute corpus pass and published nothing: a degrading S3 read retried without a global bound,
+  or the instance type, since the three passes that completed all ran on `r6i.2xlarge` and that was
+  the only `m6i.2xlarge` attempt. It named the second as weaker and the first as stronger. **Both
+  are refuted.** A second launch failed the same way and its console — still readable, because the
+  failure happens during boot — carried the answer: `ImportError: cannot import name 'shardstore'
+  from 'amazebio'`.
+- **What actually happened, in two faults.**
+  1. **The payload was short.** `ec2_similarity.PAYLOAD` lists the files shipped to the instance and
+     was maintained by hand. `similarity.py` was added to `esm3_calibrate.py`'s imports on
+     2026-10-16 and never added to it; `shardstore.py` followed on 2026-10-17. So the tool died on
+     an `ImportError` about 31 seconds in, having read nothing. The 2026-10-16 run used
+     `--measure caps`, which is exactly the path that imports `similarity`, so it failed the same
+     way — it was never slow, and nothing about rate 50 or the instance type was involved.
+  2. **`shutdown -h now` does not fire while the boot-armed timer is pending.** `UserData` arms
+     `shutdown -h +N` before anything that can fail, by design, and systemd then already has a
+     shutdown scheduled; the immediate one does not replace it. So a script that failed in 31
+     seconds sat idle until the +240 minute timer, burning the whole window. From outside — no
+     console after boot, no artefact, process alive, status checks ok — that is indistinguishable
+     from a four-hour corpus pass, which is why it was diagnosed as one.
+- **Decision — fix both, and make the first unrepeatable rather than remembered.**
+  `PAYLOAD` now lists every first-party module the shipped tools import, and
+  `tests/test_ec2_similarity.py` derives that closure from the source with `ast` and fails if the
+  list is short. `UserData` gains a `die` helper that runs `shutdown -c` before
+  `shutdown -h now`, with `systemctl --no-block poweroff` and `halt -p` as fallbacks, and every
+  exit path goes through it. And the script imports the shipped tool **before** the corpus pass, so
+  a short payload costs two seconds rather than an hour and a launch.
+- **What this says about the two fixes D-113 motivated.** Neither is withdrawn. The reader's global
+  reconnect budget bounds a real unbounded retry loop that remains a bug whether or not it was this
+  bug, and `S3RangeRead` had no tests at all before. The heartbeat is what made this diagnosis take
+  thirty seconds instead of four hours: its absence from object storage after 30 minutes is what
+  prompted looking at the console while the answer was still in it. Both were worth building; the
+  entry that motivated them simply had the wrong cause.
+- **Rejected:** Leaving D-113 standing as the explanation — it is wrong, it is cited from a commit
+  message and from `AGENTS.md`, and a later worker would otherwise plan around a reader fault and an
+  instance-type superstition that cost two launches to invent. Blaming the instance type, which was
+  tempting twice: both failing runs were `m6i.2xlarge` purely because `r6i.2xlarge` spot capacity was
+  refused both times, and the correlation was with the capacity refusal rather than with the machine.
+- **Consequence:** the cost of the two lost launches was about $0.75 and most of a day. The general
+  lesson is the one `AGENTS.md` already states and this breached from a direction it did not cover:
+  a dead man's switch that cannot be superseded turns every fast failure into a full-window
+  failure. **Both are now recorded in `AGENTS.md`** — that an immediate shutdown must cancel the
+  pending one first, and that the payload is derived and tested rather than listed by hand.

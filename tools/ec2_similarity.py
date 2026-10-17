@@ -71,11 +71,21 @@ DEFAULT_HARD_STOP_MINUTES = 400
 RESULT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
 
 #: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
+#: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
+#:
+#: Every first-party module the shipped tools import, transitively. Keeping this by hand cost
+#: two runs on 2026-10-16 and 2026-10-17: `similarity.py` and then `shardstore.py` were added
+#: to `esm3_calibrate.py` and not here, so the instance died on an ImportError about half a
+#: minute in. `tests/test_ec2_similarity.py` now derives the closure from the source and fails
+#: if this list is short, because the instance is the one place where a missing import costs an
+#: hour and a launch rather than a second.
 PAYLOAD = (
     "src/amazebio/__init__.py",
     "src/amazebio/repro.py",
     "src/amazebio/uniref.py",
     "src/amazebio/seeds.py",
+    "src/amazebio/similarity.py",
+    "src/amazebio/shardstore.py",
     "tools/esm3_calibrate.py",
 )
 
@@ -91,6 +101,19 @@ echo "=== amazebio a1-6 calibration starting $(date -Is) ==="
 # at launch is what makes this a terminate rather than a stop that keeps billing a volume.
 shutdown -h +{hard_stop_minutes} &
 
+# `die` exists because `shutdown -h now` does not work while that timer is pending: systemd
+# already has a shutdown scheduled and the immediate one does not replace it. On 2026-10-16 a
+# run whose script failed 31 seconds in therefore sat idle until the +240 minute timer fired,
+# burning the whole window instead of dying at once — and looked from outside exactly like a
+# wedged four-hour corpus pass. Cancel the schedule first, then go down, with fallbacks
+# because this is the one path that must not fail.
+die() {{
+  echo "=== shutting down: $1 ==="
+  shutdown -c || true
+  shutdown -h now || systemctl --no-block poweroff || halt -p || true
+  exit "${{2:-1}}"
+}}
+
 dnf install -y tar gzip unzip >/dev/null
 
 # Amazon Linux 2023 ships python3.9 as `python3`, and this project needs 3.12.
@@ -100,9 +123,7 @@ for cand in python3.12 python3.11; do
   if command -v "$cand" >/dev/null 2>&1; then PYBIN="$cand"; break; fi
 done
 if [ -z "$PYBIN" ]; then
-  echo "FATAL: no python 3.11+ available; nothing to run"
-  shutdown -h now
-  exit 1
+  die "no python 3.11+ available; nothing to run"
 fi
 echo "=== interpreter: $PYBIN ($($PYBIN -V)) ==="
 "$PYBIN" -m pip install --quiet boto3
@@ -116,9 +137,7 @@ tar xzf code.tar.gz
 # untraceable, which is worse than returning nothing.
 curl -sSL -o mmseqs.tar.gz "{mmseqs_url}"
 echo "{mmseqs_sha256}  mmseqs.tar.gz" | sha256sum -c - || {{
-  echo "FATAL: mmseqs checksum mismatch; refusing to run a different aligner"
-  shutdown -h now
-  exit 1
+  die "mmseqs checksum mismatch; refusing to run a different aligner"
 }}
 tar xzf mmseqs.tar.gz
 export PATH="/opt/amazebio/mmseqs/bin:$PATH"
@@ -129,10 +148,21 @@ mmseqs version
 # dated URL does not need to be made permanent.
 curl -sSL -o taxdmp.zip "{taxdump_url}"
 echo "{taxdump_sha256}  taxdmp.zip" | sha256sum -c - || {{
-  echo "FATAL: taxdump checksum mismatch"
-  shutdown -h now
-  exit 1
+  die "taxdump checksum mismatch"
 }}
+
+# Import the tool before the pass rather than discovering a short payload after it. This is
+# the check that would have turned two lost launches into two seconds.
+"$PYBIN" -c "import sys; sys.path.insert(0,'src'); import tools.esm3_calibrate" 2>/dev/null \
+  || "$PYBIN" - <<'PRECHECK' || die "the shipped payload cannot import; PAYLOAD is short"
+import sys
+sys.path.insert(0, "src")
+import importlib.util
+spec = importlib.util.spec_from_file_location("cal", "tools/esm3_calibrate.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+print("=== payload imports cleanly ===")
+PRECHECK
 
 export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
 ( "$PYBIN" tools/esm3_calibrate.py \
@@ -150,7 +180,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
 
 echo "=== amazebio a1-6 calibration finished $(date -Is) ==="
-shutdown -h now
+die "run complete" 0
 """
 
 

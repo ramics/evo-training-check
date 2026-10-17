@@ -241,14 +241,29 @@ heartbeat to object storage on an interval — `esm3_calibrate.py` is the worked
 publishes each measurement as it is taken rather than at the end. Silence is not progress and it is
 not failure either; without a heartbeat it is nothing at all.
 
-**The boot-armed shutdown timer works — and it is the only thing that saves a wedged run.** Also
-observed 2026-10-16: an instance that produced nothing terminated on time at exactly the
-`shutdown -h +N` armed in `UserData` before anything that could fail, four hours after its watcher
-had been killed and its launcher could no longer terminate it. EC2 reports it in
-`StateTransitionReason` as `User initiated`, which is the same wording as a manual termination and
-is **not** `Server.SpotInstanceTermination` — so that field distinguishes a reclaim from a shutdown
-but not a shutdown from a human. Arm the timer at launch, always; the launcher's own `finally` is
-the thing that cannot be relied on.
+**The boot-armed shutdown timer works, and it also blocks the immediate shutdown — cancel it
+first.** Arm `shutdown -h +N` in `UserData` before anything that can fail; observed 2026-10-16, it
+fires on time, four hours after a watcher had been killed and the launcher could no longer
+terminate anything, and EC2 reports it in `StateTransitionReason` as `User initiated` — the same
+wording as a manual termination, and **not** `Server.SpotInstanceTermination`, so that field
+distinguishes a reclaim from a shutdown but not a shutdown from a human.
+
+The trap is the other direction. **`shutdown -h now` does nothing while that timer is pending**:
+systemd already has a shutdown scheduled and the immediate one does not replace it. So a script
+that fails in thirty seconds sits idle until the timer fires, burning the whole window, and from
+outside — no console after boot, no artefact, process alive, status checks `ok` — that is
+indistinguishable from a long pass still working. It cost two launches and most of a day to
+diagnose as exactly that (D-117). Run `shutdown -c` before `shutdown -h now`, keep
+`systemctl --no-block poweroff` and `halt -p` as fallbacks, and route every exit path through one
+helper; `tools/ec2_similarity.py`'s `die` is the worked example.
+
+**Ship the payload by derivation, not by hand.** The instance has no checkout, so the launcher
+tars up a list of files. Twice — 2026-10-16 and 2026-10-17 — a module was added to a tool's
+imports and not to that list, and the instance died on an `ImportError` about half a minute in,
+having read nothing. Derive the first-party import closure from the source and test it, as
+`tests/test_ec2_similarity.py` does, and import the shipped tool on the instance **before** the
+long work starts: on the instance a missing import costs an hour and a launch, and in a test it
+costs a second.
 
 **A dry run authorizes; it does not execute.** `DryRun=True` checks permissions and parameters and
 returns `DryRunOperation` on success, which is worth doing. It runs no `UserData`, so it cannot
