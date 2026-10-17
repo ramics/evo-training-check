@@ -5555,3 +5555,132 @@ decision has a threshold or parameter in it, the number goes in the entry.
   from the published one without re-deriving either. **And A7.4 gains a finding before it starts:
   its comparison key is a plain accession join, not the sequence-digest exercise its Steps allow
   for, because both releases carry the same INSDC contig accessions.**
+
+### D-137 — The select-agent list's names map to taxonomy ids by curation, validated against the pinned taxonomy, never by name matching
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Numbering:** appended as D-134 and renumbered to D-137 on 2026-10-17. A1.6's broad-arm banding entry took D-134 first and is already merged on `main`, while this entry's citations sit in `src/amazebio/selectagents.py`, `policies/specs/` and this task's files, which the same commit can remap — so this side is the cheaper one to move. The commit "A1.8: reconstruct the select-agent list as taxa" on `ccr-51fc983f-tyojje` cites the old number; this line is how it resolves.
+- **Context:** ESM3-open's narrow denylist is "all sequences in UniProt belonging to organisms on
+  the Select Agents and Toxins List" (D-106, version of record). The list does not carry taxonomy
+  ids, so the mapping is A1.8's to decide and record — the first of the task's two open readings.
+  The obvious implementation is to match each entry against `names.dmp` in the pinned 2023-04-01
+  dump and descend what matches. Executed against the real list, that implementation is wrong in
+  five independent ways, and the measurements below are why this entry exists rather than a line
+  of code.
+- **Decision: a committed, hand-curated table decides every entry; the pinned taxonomy only
+  checks it.** `policies/specs/select-agents-2024-06-01.json` carries one record per list entry
+  with its kind, its chosen taxa, whether descent is in scope, and the reasoning. 70 entries,
+  one-to-one with the pinned regulation, enforced by a test. 53 entries name a taxon; under the
+  literal reading those expand to 114,206 taxa.
+
+  **What name matching does, measured on the real list.** Taken in the order they would bite:
+
+  1. **It resolves into the wrong kingdom.** The five sub-entries under "South American
+     hemorrhagic fever viruses" are bare words. In the pinned dump `Sabia` is the scientific name
+     of taxid 13663, a genus of *flowering plants*; `Chapare` matches an orchid and four other
+     plants; `Junin` matches a grass mouse and an Andes frog and no virus at all. Matching and
+     descending would seed a plant genus into a select-agent denylist, and nothing downstream
+     would notice.
+  2. **It misses taxa that have been renamed, which is most of the viral entries.** Junín is
+     "Argentinian mammarenavirus" in the pinned dump, with "Junin mammarenavirus" only an
+     equivalent name and the older form carrying an accent an ASCII match drops. Lassa, Marburg,
+     Newcastle disease and peste des petits ruminants all need a synonym or a reclassification.
+     "Goat pox virus" fails on a space, the taxonomy spelling being one word.
+  3. **It descends into material the regulation pointedly does not list.** There is no "SARS
+     coronavirus" species: the containing node is 694009, "Severe acute respiratory
+     syndrome-related coronavirus", whose 222 children include SARS-CoV-2. The regulation lists
+     SARS-CoV and regulates SARS-CoV/SARS-CoV-2 chimeras *separately*, which only makes sense if
+     SARS-CoV-2 is not itself listed. So descent here is refused — the one entry in the table
+     where it is — because descending would import the largest viral sequence space in UniProt on
+     the strength of a node name.
+  4. **It silently invents taxa for entries that have none.** Nine entries name a toxin, which is
+     a molecule; two name laboratory constructs (a reconstructed 1918 influenza virus, a defined
+     chimera); one is a function over a genus rather than a taxon. Sixteen of the 70 entries
+     contribute no taxon under the literal reading, and that is a number the write-up reports
+     rather than a silent zero — `unresolved()` exists to produce it.
+  5. **It cannot see where the taxonomy simply has no node.** `Sclerophthora rayssiae` is absent
+     from the pinned dump under any name, including its genus's other species. `Coniothyrium
+     glycines` exists only under the former name the regulation itself supplies parenthetically,
+     which makes that parenthetical load-bearing. The Pasteur strain of *B. anthracis* has no node
+     among 47 strain children, though that one costs nothing because the same section lists the
+     species separately.
+- **The readings that remain open are switches, not choices, following D-107's precedent.** Three
+  were available and none is settled by the source, so each is a flag on `seed_taxa` and the
+  sensitivity is run rather than argued: `include_toxin_producers` moves the nine toxins from the
+  literal reading to their producing organisms (and for saxitoxin and tetrodotoxin even the
+  producing set is undefined, recorded rather than guessed); `use_alternatives` takes the broader
+  or narrower reading recorded against an entry. Measured: literal 53 named taxa expanding to
+  114,206; toxin-producers 62 expanding to 125,008.
+- **Three over-inclusions are taken deliberately and recorded, because the direction matters.**
+  "Avian influenza virus" is not a taxon as worded — the regulation's scope is a virulence
+  criterion on the isolate, a sequence-level property with no taxonomic expression at all, which
+  is a §A0 under-specification in the *list* rather than in ESM3. It is taken as Influenza A virus
+  with descent, which pulls in human seasonal influenza. Newcastle disease virus carries the same
+  shape of criterion and is taken as the species. The two *Mycoplasma* entries are restricted by
+  the regulation to one subspecies each and are taken as the species. In each case the taxonomy
+  cannot express the restriction, and for an audit of a safeguard an over-inclusive denylist
+  overstates what should have been removed rather than understating it — which is the side §2
+  requires when the error cannot be eliminated. Tick-borne encephalitis virus is the one entry
+  that cannot be made exact in either direction: the pinned dump has no node for either listed
+  subtype, so the species is taken and it includes the unlisted Western subtype.
+- **Consequence:** the reconstruction's provenance is a committed file a reviewer can read entry by
+  entry, which §7's adversarial reader needs, and the error class in point 1 is a test
+  (`test_no_viral_entry_is_mapped_outside_the_viruses`) rather than a near miss. The count of
+  entries contributing no taxon travels with the result: an audit that says the filter should have
+  removed these agents has to say which listed agents its own seed set could not represent.
+- **Rejected:** Name matching with a hand-maintained exception list — the same table with the
+  dangerous default left in place, so a re-pin that renames an agent fails open into the wrong
+  kingdom instead of failing closed. Mapping only entries that resolve unambiguously — drops
+  roughly half the viral entries and every plant pathogen, understating the denylist, which is the
+  direction that flatters the filter. Per-strain enumeration for SARS-CoV instead of the named node
+  without descent — considered and declined, because it would miss SARS-CoV isolates absent from
+  the 2023-04 dump while buying nothing the refusal of descent does not already buy.
+
+### D-138 — The list in force is the regulation at the access date, not the live page; and the gap costs nothing while the live page would have cost five agents
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Numbering:** appended as D-135 and renumbered to D-138 on 2026-10-17. A2.4's Evo 2 version-of-record entry took D-135 first and is already merged on `main`; same reasoning as D-137 above, and the same commit cites the old number.
+- **Context:** A1.8's second open reading: which version of the Select Agents and Toxins List was
+  in force when ESM3's filter ran. The task file recorded the problem as "the source cites a 2024
+  access date; the retrievable page is live and undated", and the model card links
+  `selectagents.gov/sat/list.htm`. Both halves of that premise turn out to be wrong, in opposite
+  directions.
+- **Decision: pin the regulation, not the page.** The list is codified — 42 CFR 73.3 and 73.4, 9
+  CFR 121.3 and 121.4, 7 CFR 331.3 — and the webpage is a summary of it. The regulation is the
+  authority and it has dated versions; eCFR's full-text API serves any date. A1.8 pins all three
+  parts at 2024-06-01, stores the XML with digests (`policies/captures/cfr-*.xml`,
+  `amazebio.selectagents.PINS_2024`), and takes 9 CFR 121.4 as a duplicate of 42 CFR 73.4 rather
+  than counting the overlap agents twice.
+- **The under-specification is real and its consequence is nil, which is the useful finding.** No
+  amendment touched any of the three parts between **2022-05-27 and 2024-12-17**. Every date in
+  2023 and in 2024 up to that December amendment therefore resolves to identical text, so the
+  source's unstated version cannot change the reconstruction. §A0 asks for the consequence of
+  under-specification to be measured rather than assumed, and here it measures as zero — recorded
+  because a nil result is a result, and because it is the cheapest of A1.8's findings to lose.
+- **The live page is a different version, and using it would have understated the denylist.** The
+  page is not undated — it carries `cdc:last_reviewed` 2025-01-14 — and it reflects the amendments
+  of 2024-12-17 and 2025-01-16, both of which postdate the filter. Against the 2024 text those
+  amendments **delist five organism entries** that were in force when the filter ran: three
+  *Brucella* species from the overlap list, African horse sickness virus from the veterinary list,
+  and *Peronosclerospora philippinensis* from the plant list. They also widen one entry from a
+  species to its genus, *Ebolavirus* — so the broader reading of that entry is the later
+  regulation's own rather than ours (D-137).
+
+  A seed set built from today's page would therefore be missing five agents the filter was supposed
+  to have removed. For an audit of that filter the bias runs one way: a smaller denylist means less
+  material we expect to have been removed, so leakage is understated and the safeguard looks more
+  complete than it was. That is the same direction D-133 flagged for the sampled pass, and it is
+  the direction §2 treats as the failure to avoid.
+- **Consequence:** every A1.8 result cites the regulation at 2024-06-01, with the amendment
+  actually in force recorded alongside (`CfrPin.effective`), so a reader can tell a re-pin from a
+  re-run. Any later re-pin must re-check the mapping table, which a test enforces by failing on an
+  entry with no recorded reading rather than skipping it. The five delistings are also a live
+  example for A9.1, which measures denylist decay against taxonomy updates: the list itself decays,
+  not only the taxonomy under it.
+- **Rejected:** The live page, as the model card links it — wrong version, as measured above.
+  A web-archive snapshot of the page at the access date — the archive is unreachable from this
+  container (`web.archive.org` closes the tunnel mid-exchange, and the fetch tool refuses the host),
+  and it would in any case be a dated copy of a summary when the dated authority is directly
+  retrievable. Asking the project owner to retrieve the snapshot — the escalation AGENTS.md
+  requires when a source is blocked for an agent, and not needed here: the blocked source was the
+  inferior one, and the better source was never blocked.
