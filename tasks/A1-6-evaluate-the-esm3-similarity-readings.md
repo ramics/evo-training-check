@@ -300,11 +300,20 @@ would invite different rules once either was visible: **counts by survival route
 class, never by organism or taxon**, with per-record detail in the disclosure package only and
 the preprint carrying the aggregate. Both branches are covered in advance.
 
-Four things follow rather than being separate calls, and they are in D-115: the per-record
-manifest lives only under the git-ignored artefacts path — never committed, since the public
-repo is a deliverable, and never staged to the corpus bucket, which cannot delete; A2.* and
-B3.* inherit the rule for their published outputs; the limit is enforced in the harness per the
-non-negotiables, not left to be remembered; and nothing circulates before X3.1.
+Four things follow rather than being separate calls, and they are in D-115 as amended by
+D-116: the exact per-record manifest is computed, kept and **staged** — aggregation happens at
+the publication boundary, not the computation boundary — never committed, since the public repo
+is a deliverable; A2.* and B3.* inherit the rule for their published outputs; the limit is
+enforced in the harness per the non-negotiables, not left to be remembered; and nothing
+circulates before X3.1.
+
+**D-116 reverses D-115's storage sentence.** D-115 said the manifest must never be staged,
+reasoning that an unwithdrawable object is a liability. That went further than the reporting
+rule required and would have left a pipeline that holds nothing — breaking A3.3's independent
+reimplementation and the manifest A2.* and B3.* consume. The owner's call is to stage it and
+accept permanence, with the key fixed in advance as
+`corpora/results/a1-6/narrow-arm/<release>/<tier>/manifest-<commit>.jsonl`; the commit is in
+the key because an overwrite in this bucket destroys the earlier object irreversibly.
 
 **Nothing on this arm now waits on the owner.** What remains is ours, in order:
 

@@ -4618,3 +4618,50 @@ decision has a threshold or parameter in it, the number goes in the entry.
   which version of that list was in force when the filter ran, since the source cites a 2024 access
   date and the retrievable page is live and undated. The reconstruction has a validation target:
   187K sequences, published in the source (D-106).
+
+### D-116 — The narrow arm's exact result is retained, staged and permanent; D-115's storage call is reversed
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-115 fixed the narrow arm's reporting rule — counts by survival route and homology
+  class, never by organism or taxon — and then drew a storage conclusion from it that went further
+  than the rule required: that the per-record manifest lives only under the git-ignored artefacts
+  path and is never staged, because an object that cannot be withdrawn is a liability. The project
+  owner's clarification is that the **exact** result is to be held privately; only publication is
+  restricted.
+- **The distinction that was blurred, stated once:** aggregation happens at the **publication**
+  boundary, not the computation boundary. The pass scores every record and keeps the per-record
+  manifest. This is not merely permitted by the conventions, it is required by three of them —
+  "artefacts before prose" means every published number traces to a machine-readable artefact;
+  A3.3 must independently reimplement the headline counts, which cannot be done against a count;
+  and D-108 has A2.* and B3.* consuming A1.4's manifest shape from this arm. A pipeline that only
+  ever emitted aggregates would fail all three, and D-115's storage sentence pointed at exactly
+  that pipeline.
+- **Decision (project owner): stage the manifest to object storage and accept that it is
+  permanent.** The bucket is private, so access is not the issue; the cost is that the copy can
+  never be withdrawn, including if the disclosure process later asks for that. That cost is
+  accepted deliberately rather than discovered, which is the point of recording it here.
+- **Rejected:** Regeneration from pinned inputs as the durable form — the project's definition of
+  done already requires exact regeneration and this arm is cheap to re-run, so it was the
+  recommendation; rejected because a result that exists only as a recipe is not in hand when
+  someone asks for it, and the disclosure package has to be assemblable without a compute run.
+  A staged ciphertext with the key held outside the bucket — durable and retractable, and rejected
+  as a key-management pattern this project has nowhere else and would have to maintain for one
+  artefact.
+- **What changes in D-115, precisely.** Its consequence 1 is reversed: the manifest is staged.
+  Its consequence 3 moves rather than disappearing — enforcement in code is no longer "the upload
+  helper refuses a narrow-arm manifest key", which would now be wrong, but:
+  1. the reporting and write-up path emits aggregates only, by survival route and homology class;
+  2. the manifest is never committed, because the public repo is deliverable 7;
+  3. the manifest's staged key is recorded in the run manifest, so the disclosure package is
+     assembled by reference and a later reader knows the exact result exists and where.
+  Consequences 2 and 4 of D-115 stand unchanged: downstream published outputs inherit the
+  aggregation rule, and nothing circulates before X3.1.
+- **The key scheme, fixed before anything is written**, per `AGENTS.md`'s warning that a bucket
+  with no `DeleteObject` makes a wrong key permanent and that A1.3 left four unremovable 0-byte
+  objects behind: `corpora/results/a1-6/narrow-arm/<release>/<tier>/manifest-<commit>.jsonl`.
+  The commit is in the key so that two runs cannot collide — an overwrite in this bucket is not a
+  tidy replacement but the irreversible loss of the earlier object, which for this artefact would
+  mean destroying a result we had committed to holding.
+- **Consequence:** the narrow arm retains its exact output and publishes only aggregates. The
+  permanence of the staged copy is a known, accepted limitation and belongs in the disclosure
+  conversation at X3.1 rather than being presented as a safeguard.
