@@ -93,6 +93,10 @@ class ShardManifest:
     sample_rate: int
     buckets: int
     corpus_clusters: int
+    #: Kept as `viral_seeded_clusters` even though D-139 renamed the generic counters:
+    #: this field is not a generic count but a fact about *this* staged sample, which the
+    #: broad arm drew with viral seeds, and it is a key in an already-staged manifest that
+    #: cannot be rewritten. A1.8 reads this sample rather than drawing its own.
     viral_seeded_clusters: int
     seed_fasta: StagedObject
     shards: list[StagedShard]
@@ -160,11 +164,25 @@ class ShardManifest:
         if self.viral_seeded_clusters > self.corpus_clusters:
             raise ShardStoreError("more viral-seeded clusters than clusters")
         if self.seed_counts:
-            for field_name, scalar in (
-                ("clusters", self.corpus_clusters),
-                ("viral_seeded", self.viral_seeded_clusters),
+            # `seeded` is what `SeedCounts.to_dict` emits since D-139 renamed the counters to
+            # be denylist-neutral; `viral_seeded` is what the already-staged 2.5% sample
+            # manifest carries, and that object cannot be rewritten — the corpus bucket has no
+            # DeleteObject. Both spellings are accepted rather than bumping the manifest
+            # version, because a version bump makes `from_json` refuse the staged manifest
+            # outright, and that manifest is the input the A1.8 pass reads.
+            for field_names, scalar in (
+                (("clusters",), self.corpus_clusters),
+                (("seeded", "viral_seeded"), self.viral_seeded_clusters),
             ):
-                carried = self.seed_counts.get(field_name)
+                carried = next(
+                    (
+                        self.seed_counts[name]
+                        for name in field_names
+                        if self.seed_counts.get(name) is not None
+                    ),
+                    None,
+                )
+                field_name = field_names[0]
                 if carried is not None and carried != scalar:
                     raise ShardStoreError(
                         f"manifest disagrees with itself: seed_counts[{field_name!r}] is "

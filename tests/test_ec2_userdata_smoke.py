@@ -254,7 +254,7 @@ def test_the_shipped_payload_runs_a_whole_caps_measurement(
     payload = json.loads((tmp_path / "out" / "cap-measurement.json").read_text())
     assert payload["measure"] == "caps"
     assert payload["seed_counts"]["clusters"] == 200
-    assert payload["seed_counts"]["viral_seeded"] > 0
+    assert payload["seed_counts"]["seeded"] > 0
     done = [c for c in payload["searches"] if "search_wall_seconds" in c]
     assert done, "no search cell completed"
     assert any(c.get("saturation") for c in done), "the cap guard produced nothing"

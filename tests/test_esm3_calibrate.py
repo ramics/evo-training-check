@@ -266,7 +266,7 @@ def test_staging_refuses_to_overwrite_an_existing_object(tmp_path) -> None:
     seed, shards = _staged_files(tmp_path)
     prefix = "corpora/" + ss.sample_prefix("2023_02", "uniref100", 40)
     client = _StageS3(existing=[f"{prefix}/shard-00.faa"])
-    counts = sd.SeedCounts(clusters=10, viral_seeded=4)
+    counts = sd.SeedCounts(clusters=10, seeded=4)
     with pytest.raises(SystemExit, match="refusing to stage over existing objects"):
         tool._stage_sample(
             _stage_args(tmp_path), client, "buk", "corpora", seed, shards, counts, [1, 1], [8, 8]
@@ -279,7 +279,7 @@ def test_staging_writes_every_object_and_a_manifest(tmp_path) -> None:
 
     seed, shards = _staged_files(tmp_path)
     client = _StageS3()
-    counts = sd.SeedCounts(clusters=10, residues=80, viral_seeded=4, viral_residues=32)
+    counts = sd.SeedCounts(clusters=10, residues=80, seeded=4, seeded_residues=32)
     uri = tool._stage_sample(
         _stage_args(tmp_path), client, "buk", "corpora", seed, shards, counts, [1, 1], [8, 8]
     )
@@ -409,7 +409,7 @@ def test_staging_reports_progress_as_it_goes(tmp_path) -> None:
         "corpora",
         seed,
         shards,
-        sd.SeedCounts(clusters=10, viral_seeded=4),
+        sd.SeedCounts(clusters=10, seeded=4),
         [1, 1],
         [8, 8],
     )

@@ -127,11 +127,11 @@ def test_common_taxon_id_is_not_counted_as_a_member_taxid() -> None:
     assert 11157 not in entry.member_taxids
 
 
-def test_a_cluster_is_viral_seeded_through_a_member_whose_representative_is_not() -> None:
+def test_a_cluster_is_seeded_through_a_member_whose_representative_is_not() -> None:
     viral = _taxonomy().descendants(VIRAL_ROOT)
     (entry,) = list(iter_entries([ENTRY]))
-    assert entry.is_viral_seeded(viral) is True
-    assert entry.representative_is_viral(viral) is False
+    assert entry.is_seeded(viral) is True
+    assert entry.representative_is_seeded(viral) is False
     assert entry.is_mixed(viral) is True
 
 
@@ -165,17 +165,17 @@ def test_seed_counts_separate_the_representative_gap_from_the_seed_count() -> No
     assert counts.observe(next(iter(iter_entries([cellular]))), viral) is False
     out = counts.to_dict()
     assert out["clusters"] == 2
-    assert out["viral_seeded"] == 1
-    assert out["representative_not_viral"] == 1
+    assert out["seeded"] == 1
+    assert out["representative_not_seeded"] == 1
     assert out["mixed"] == 1
-    assert out["viral_share"] == 0.5
-    assert out["representative_not_viral_share"] == 1.0
+    assert out["seeded_share"] == 0.5
+    assert out["representative_not_seeded_share"] == 1.0
 
 
 def test_seed_counts_report_none_rather_than_dividing_by_zero() -> None:
     out = SeedCounts().to_dict()
-    assert out["viral_share"] is None
-    assert out["representative_not_viral_share"] is None
+    assert out["seeded_share"] is None
+    assert out["representative_not_seeded_share"] is None
     assert out["mixed_share"] is None
 
 
@@ -186,9 +186,9 @@ def test_an_entry_with_no_taxids_at_all_is_not_viral() -> None:
     (entry,) = list(iter_entries([bare]))
     assert entry.member_taxids == ()
     assert entry.representative_taxid is None
-    assert entry.is_viral_seeded(set()) is False
+    assert entry.is_seeded(set()) is False
     assert entry.is_mixed(set()) is False
-    assert UniRefEntry("x", "MKV", None, ()).is_viral_seeded({10239}) is False
+    assert UniRefEntry("x", "MKV", None, ()).is_seeded({10239}) is False
 
 
 # --- the parallel path -------------------------------------------------------------
@@ -211,7 +211,7 @@ MANY = b"".join(ENTRY.replace(b"X1", f"X{i:05d}".encode()) for i in range(400))
 
 def _config() -> ScanConfig:
     return ScanConfig(
-        viral=frozenset(_taxonomy().descendants(VIRAL_ROOT)), sample_rate=3, buckets=4
+        denylist_taxids=frozenset(_taxonomy().descendants(VIRAL_ROOT)), sample_rate=3, buckets=4
     )
 
 
@@ -278,6 +278,6 @@ def test_sampling_and_shard_hashes_agree_across_processes() -> None:
 
 
 def test_counts_merge_is_additive() -> None:
-    a, b = SeedCounts(clusters=3, viral_seeded=1), SeedCounts(clusters=4, viral_seeded=2)
+    a, b = SeedCounts(clusters=3, seeded=1), SeedCounts(clusters=4, seeded=2)
     a.merge(b)
-    assert (a.clusters, a.viral_seeded) == (7, 3)
+    assert (a.clusters, a.seeded) == (7, 3)

@@ -198,3 +198,33 @@ def test_existing_keys_pages_through_everything() -> None:
     collision check that passes by not looking."""
     keys = [f"samples/a1-6/uniref100/2023_02/rate40/shard-{i:02d}.faa" for i in range(5)]
     assert ss.existing_keys(_S3(keys), "buk", "samples/") == set(keys)
+
+
+def test_the_already_staged_manifest_still_loads_after_the_counter_rename(
+    tmp_path: Path,
+) -> None:
+    """D-139 renamed `SeedCounts`' counters; the staged 2.5% sample predates that rename.
+
+    That object is in a bucket with no DeleteObject, so it cannot be rewritten, and it is the
+    input A1.8's pass reads. Its `seed_counts` carries the old `viral_seeded` spelling, so the
+    self-consistency check accepts either — the alternative was a manifest version bump, which
+    `from_json` turns into an outright refusal of exactly the manifest we need.
+    """
+    manifest, _ = _sample(tmp_path)
+    manifest.seed_counts = {"clusters": 350_950_053, "viral_seeded": 3_159_223}
+    ss.ShardManifest.from_json(manifest.to_json()).check_self_consistent()
+
+
+def test_the_new_counter_spelling_is_checked_too(tmp_path: Path) -> None:
+    manifest, _ = _sample(tmp_path)
+    manifest.seed_counts = {"clusters": 350_950_053, "seeded": 3_159_223}
+    ss.ShardManifest.from_json(manifest.to_json()).check_self_consistent()
+
+
+def test_a_disagreeing_counter_still_fails_under_either_spelling(tmp_path: Path) -> None:
+    """Accepting two spellings must not accept a manifest that contradicts itself."""
+    for spelling in ("seeded", "viral_seeded"):
+        manifest, _ = _sample(tmp_path)
+        manifest.seed_counts = {"clusters": 350_950_053, spelling: 999}
+        with pytest.raises(ss.ShardStoreError, match="disagrees with itself"):
+            ss.ShardManifest.from_json(manifest.to_json()).check_self_consistent()

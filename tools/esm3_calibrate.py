@@ -503,9 +503,9 @@ def _load_staged_sample(
         for name in (
             "clusters",
             "residues",
-            "viral_seeded",
-            "viral_residues",
-            "representative_not_viral",
+            "seeded",
+            "seeded_residues",
+            "representative_not_seeded",
             "mixed",
         ):
             value = staged.seed_counts.get(name)
@@ -516,7 +516,7 @@ def _load_staged_sample(
         # than inventing them — but say so, because a zero that reads as a measurement is
         # the failure this branch exists to avoid.
         counts.clusters = staged.corpus_clusters
-        counts.viral_seeded = staged.viral_seeded_clusters
+        counts.seeded = staged.viral_seeded_clusters
         print(
             "  note: this manifest carries only the denominators, so the "
             "representative-versus-member counts are absent rather than zero",
@@ -587,7 +587,7 @@ def _stage_sample(
         sample_rate=args.sample_rate,
         buckets=args.buckets,
         corpus_clusters=counts.clusters,
-        viral_seeded_clusters=counts.viral_seeded,
+        viral_seeded_clusters=counts.seeded,
         seed_fasta=shardstore.describe(seed_path, seed_key),
         shards=staged_shards,
         seed_counts={k: v for k, v in counts.to_dict().items() if isinstance(v, int)},
@@ -680,7 +680,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             # must be, or the target would be missing exactly the records the filter is
             # supposed to remove.
             config = seeds.ScanConfig(
-                viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
+                denylist_taxids=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
             )
             try:
                 with seed_fasta.open("wb") as seedfh:
@@ -716,13 +716,13 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         if staged is not None:
             print(
                 f"\nstaged sample: {counts.clusters:,} clusters in the corpus it was drawn "
-                f"from ({counts.viral_seeded:,} viral-seeded), no corpus pass run",
+                f"from ({counts.seeded:,} viral-seeded), no corpus pass run",
                 flush=True,
             )
         else:
             print(
                 f"\ncorpus pass: {counts.clusters:,} clusters in {corpus_seconds:.0f}s"
-                f"  ({counts.viral_seeded:,} viral-seeded)",
+                f"  ({counts.seeded:,} viral-seeded)",
                 flush=True,
             )
         print(

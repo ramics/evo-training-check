@@ -217,7 +217,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         counts = seeds.SeedCounts()
         started = time.monotonic()
         stream = uniref.GunzipStream(reader)
-        config = seeds.ScanConfig(viral=frozenset(viral))
+        config = seeds.ScanConfig(denylist_taxids=frozenset(viral))
         with open(fasta_path, "wb") as fasta:
             for batch in seeds.scan_parallel(
                 _chunks(stream, args.limit_bytes, args.progress_seconds),
@@ -260,13 +260,13 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             )
 
         print(
-            f"\n{counts.clusters:,} clusters, {counts.viral_seeded:,} viral-seeded "
-            f"({100 * (counts.viral_seeded / counts.clusters if counts.clusters else 0):.2f}%)"
+            f"\n{counts.clusters:,} clusters, {counts.seeded:,} viral-seeded "
+            f"({100 * (counts.seeded / counts.clusters if counts.clusters else 0):.2f}%)"
             f" in {elapsed:.0f}s",
             flush=True,
         )
         print(
-            f"  representative not viral: {counts.representative_not_viral:,}"
+            f"  representative not viral: {counts.representative_not_seeded:,}"
             f"   mixed members: {counts.mixed:,}",
             flush=True,
         )
