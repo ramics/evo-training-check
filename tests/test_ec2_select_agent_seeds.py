@@ -199,3 +199,31 @@ def test_the_reading_flags_pass_the_sensitivity_through() -> None:
 def test_print_user_data_needs_no_credentials_and_no_clean_tree() -> None:
     """The only way to read the script before it is the only thing that can be read."""
     assert tool.main(["--s3-uri", "s3://b/p", "--print-user-data"]) == 0
+
+
+def test_a_dry_run_writes_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A dry run that uploads leaves an object behind in a bucket with no DeleteObject.
+
+    It did, until it was run: the payload upload sat above the dry-run branch, so the one mode
+    whose whole point is to change nothing wrote a permanent object first.
+    """
+    puts: list[str] = []
+
+    class FakeS3:
+        def put_object(self, **kw: object) -> None:
+            puts.append(str(kw.get("Key")))
+
+    class FakeEc2:
+        def describe_images(self, **kw: object) -> dict:
+            return {"Images": [{"ImageId": "ami-1", "CreationDate": "2026-01-01"}]}
+
+        def run_instances(self, **kw: object) -> dict:
+            assert kw.get("DryRun") is True
+            raise RuntimeError("An error occurred (DryRunOperation) when calling RunInstances")
+
+    import boto3
+
+    monkeypatch.setattr(boto3, "client", lambda svc, **kw: FakeS3() if svc == "s3" else FakeEc2())
+    monkeypatch.setattr(tool._sim, "_git_head", lambda root: ("abc123def456", False))
+    assert tool.main(["--s3-uri", "s3://b/corpora", "--dry-run"]) == 0
+    assert puts == [], f"a dry run wrote {puts}"

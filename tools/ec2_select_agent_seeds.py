@@ -270,9 +270,11 @@ def main(argv: list[str] | None = None) -> int:
         "s3", region_name=args.region, endpoint_url="https://s3.us-east-1.amazonaws.com"
     )
 
+    # Built either way, because it is the cheapest check that every payload file exists, but
+    # uploaded only for a real launch: a dry run must not write, and this one did until it was
+    # run — leaving an object behind in a bucket with no DeleteObject.
     blob = build_payload(ROOT)
-    print(f"payload {len(blob):,} bytes -> s3://{bucket}/{code_key}")
-    s3.put_object(Bucket=bucket, Key=code_key, Body=blob)
+    print(f"payload {len(blob):,} bytes")
 
     request: dict[str, Any] = dict(
         ImageId=_sim.latest_al2023(ec2) if hasattr(_sim, "latest_al2023") else _al2023(ec2),
@@ -317,6 +319,9 @@ def main(argv: list[str] | None = None) -> int:
             print(refusal or text, file=sys.stderr)
             return 1
         return 0
+
+    print(f"uploading payload -> s3://{bucket}/{code_key}")
+    s3.put_object(Bucket=bucket, Key=code_key, Body=blob)
 
     iid = ""
     try:
