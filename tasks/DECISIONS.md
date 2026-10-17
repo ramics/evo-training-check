@@ -4464,3 +4464,182 @@ decision has a threshold or parameter in it, the number goes in the entry.
   **A2.1 is unaffected.** Its figures stand as reported; this entry adds context from the primary
   source rather than changing a number. The 24,534 non-Duplodnaviria survivors (0.92%) are the
   obvious place for the structural and problem-taxa detectors to look first.
+
+### D-112 — A2.4's geNomad is the audit's instrument, and it is pinned apart from A4.2's object of study
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** `feature.genomad` already exists and already works: geNomad 1.1.0 against marker
+  database v1.1, with mmseqs2 13.45111, numpy 1.23 and Python 3.10 pinned around it to make a
+  2022 tool runnable in 2026. A2.4 needs geNomad too, and reusing that environment is the obvious
+  move — it is installed, it is pinned, and A4.2 has already measured how it errs. But the two
+  tasks are using the tool for opposite purposes. A4.2 pins 1.1.0 because it is *benchmarking the
+  version IMG/VR's own labels came out of*: there, geNomad is the object of study, and any other
+  version would be benchmarking a tool the filter cannot have used (D-085, D-096). A2.4 is using
+  geNomad as the audit's *instrument*, and `DESIGN.md` §A2 opens by ruling exactly this out: "The
+  filter uses taxonomy; the audit must not, or it will reproduce the filter's own blind spots."
+  Detecting proviruses with the same 2022 build against the same 2022 markers is that failure in
+  its sharpest available form. An integrated element whose markers were absent from the v1.1
+  database is invisible to the filter's labelling *and* to the audit's detection, and A2.4 would
+  report its own blind spot as an absence of prophage — a false null, in the one direction
+  `AGENTS.md` says the pipeline may never be designed to favour.
+- **Decision:** Two pins, for two roles, in two solve groups that are not to be unified.
+  `feature.genomad` keeps geNomad 1.1.0 and remains A4.2's alone. A2.4 runs `feature.proviruses`:
+  **geNomad 1.12.0 against marker database v1.9**.
+  1.12.0 rather than 1.13.0, which is the newest build on bioconda but was published three days
+  before this pin and which the publisher's own `releases.txt` does not yet pair with any marker
+  database. Database v1.9 with package 1.12 is the newest pairing the publisher attests, and the
+  package/database pairing is part of the pin rather than a detail around it — the residual gap
+  D-085 recorded for A4.2 is precisely a pairing that had to be inferred, and there is no reason
+  to manufacture a second one when an attested pairing is available.
+- **Rejected:** Running A2.4 on 1.1.0 for consistency with A4.2. Consistency between a benchmark's
+  subject and an audit's instrument is not a virtue; it is the confound, and §A2 names it.
+  Pinning 1.13.0 as simply the newest. `AGENTS.md` requires results to regenerate from pinned
+  inputs, and an unattested package/database pairing is a guess wearing a version number.
+  Carrying A4.2's measured misassignment rate across as A2.4's error term. It was measured on
+  `genomad annotate`'s taxonomy step at 1.1.0; A2.4 runs `find-proviruses` at 1.12.0. Different
+  module, different version, different failure mode — A2.4 characterises its own error through the
+  concordance criterion (D-114) instead of inheriting a number that does not apply.
+- **Consequence:** geNomad appears in this repository twice, at two versions, and that looks like
+  an oversight unless the reason is written down — which is what this entry is for. Nothing in
+  A4.2 changes. A2.4's figures and A4.2's figures are **not comparable as statements about
+  geNomad**: one is a 2022 tool under test, the other a 2026 tool doing the testing. Any write-up
+  touching both says so.
+
+### D-113 — A2.4 establishes where the element is; the family identity comes from A2.1's registries
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** The frozen detection schema is family-keyed — `amazebio.survival.Detection`
+  requires `family_id`, `registry` and `registry_version`, and refuses an id outside the pinned
+  universe — because family-level survival is `DESIGN.md` §A3's headline and D-022 froze it. A
+  provirus call carries no family. `genomad find-proviruses` returns an interval inside a host
+  contig with a score; the only family-like label it offers is the marker-consensus taxonomy, and
+  that is taxonomy — the one input §A2 says the audit must not rest on, and the one A4.2 measured
+  failing to place 36% of the genomes the denylist targets. So A2.4 has an instrument that answers
+  a different question from the one the schema asks.
+- **Decision:** Split localisation from identity, and take each from the method that can support
+  it.
+  **Where** comes from the provirus finders. geNomad (and VIBRANT, D-114) say which surviving
+  bacterial records carry an integrated element and over what coordinates. This, and only this, is
+  what licenses `element_kind = PROPHAGE` — the kind D-079 explicitly reserved for A2.4 to
+  establish rather than for A2.1 to guess.
+  **Which family** comes from the registries A2.1 already pinned: Pfam 38.2's viral selection and
+  RVDB-prot 32.0 (D-075), searched over the proteins falling inside the delineated interval, at
+  **D-076's thresholds unchanged**.
+  Detections are emitted with `detector: provirus-genomad`, distinct from A2.1's `profile-hmmer`,
+  so `metrics/detections.md`'s no-pooling rule keeps the two separable in A3.2.
+- **Rejected:** Keying on geNomad's own taxonomic assignment, with the pinned ICTV VMR as the
+  registry. It is the path of least resistance — `amazebio.ictv` is already there and already
+  pinned — and it would make the audit's family axis a function of the same marker-consensus
+  taxonomy whose error rate A4.2 exists to measure. §A2 forbids it in its first sentence.
+  Emitting provirus calls with no family and leaving A3.2 to cope. `metrics/survival.md` is frozen
+  and the schema does not permit it; a detector that cannot meet the contract is a reason to
+  change the contract deliberately, not to route around it.
+  Loosening D-076's thresholds on the grounds that prophage proteins are diverged and will score
+  lower. A threshold that differs between two detectors makes their survival figures
+  incomparable, and comparing them is the whole of A3.2.
+- **Consequence:** Thresholds and registries are identical to A2.1's, so an A2.4 table and an A2.1
+  table differ only in route, element kind and the records searched — A3.2's cross-tabulation is a
+  join rather than a reconciliation.
+  The search loop is A2.1's, so it moves out of `tools/detect_profiles.py` and into the library
+  for both tools to call. That is a refactor of a `done` task's code, recorded here as one; it
+  changes no threshold, no registry and no output.
+  **A2.4's survival figure is survival inside delineated proviruses, not inside GTDB genomes at
+  large.** A viral-family protein sitting in a bacterial genome outside any provirus call is not
+  counted. That is deliberate and it is a lower bound in the same direction as the sampling one:
+  the alternative is an unbounded claim about every viral-looking gene in a prokaryotic genome,
+  which is a different question and not this task's.
+
+### D-114 — The concordance criterion, fixed before any call is looked at
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** A2.4's Done-when requires two-tool concordance "measured on a documented sample",
+  and §A2 names geNomad, VIBRANT and CheckV. `AGENTS.md` requires the analysis spec fixed before
+  results are inspected, and an agreement threshold chosen after the overlap distribution is in
+  hand is not a criterion, it is a result selected to be reportable.
+- **Decision:** **VIBRANT 1.2.1** is the second tool, in `feature.vibrant`. Its mechanism is
+  independent of geNomad's in the way the criterion needs: HMM scoring against KEGG, Pfam and VOG
+  with a metabolic-signature rule, against geNomad's marker consensus plus neural classifier.
+  The criterion, fixed here:
+  **Record level.** Every record in the concordance subsample is geNomad-positive, VIBRANT-positive,
+  both or neither. Reported as a 2x2 with Cohen's kappa and its 95% interval, per the house rule
+  that no point estimate ships without one.
+  **Interval level.** Two calls on the same record agree when their **reciprocal overlap is at
+  least 0.5** — each interval covers at least half of the other. Fixed at 0.5 now, not tuned later.
+  **The sample.** The concordance subsample is the *same* hash under the *same* seed 20261015 at
+  one tenth the main rate, so it is nested inside the main sample, declarable in advance, and
+  checkable per record afterwards (D-078).
+  **Disagreement is reported by direction** — geNomad-only and VIBRANT-only counted separately,
+  never pooled into a single disagreement rate, and never resolved by preferring a tool.
+- **Rejected:** CheckV as the second tool. Its contamination module trims host flanks off sequences
+  that have *already* been called viral; it is not a prophage finder over host genomes, so it
+  cannot disagree with geNomad about whether a genome carries one. It would produce a concordance
+  number that measures nothing.
+  Taking concordance as a filter — keeping only the calls both tools make. It reads as rigour and
+  it is the opposite: it converts disagreement between instruments into a quiet reduction in the
+  headline, in the direction that makes the filter under audit look better. `AGENTS.md` forbids
+  designing any part of the pipeline so a null is harder to see.
+  Choosing the overlap threshold once the distribution is visible.
+- **Consequence:** The headline comes from geNomad alone and VIBRANT measures how far that headline
+  depends on the instrument. The kappa travels with the headline wherever it is reported; a
+  prophage survival figure quoted without it is quoting one tool's opinion as a measurement.
+
+### D-115 — A2.4 samples genomes by the same hash, and what that supports is a lower bound
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** The bacterial target is OpenGenome2's GTDB v220 component: 109 GB staged across
+  four tar archives. `genomad annotate` plus `find-proviruses` over all of it is not something the
+  session container does, and the cost is not yet measured. The sampling *design*, though, has to
+  be fixed before any output exists, and D-078 already settled the shape for A2.1.
+- **Decision:** A2.4 samples by the same deterministic hash of the record identifier, under the
+  **same seed 20261015**, with nested rates — so a deeper pass is a superset of a shallower one
+  and re-searches nothing. `estimate_kind` is `lower_bound` for every sampled table, with the same
+  reading A2.1's carries: a family detected is detected; a family absent may survive in the
+  records not read.
+  The **rate** is deliberately not fixed here. It is set by a calibration that measures the
+  per-genome cost in region, the way D-104 set A1.6's, and it is recorded in its own entry when it
+  has a number behind it rather than guessed now.
+  **The sampling unit is the genome record, and that is a declared limitation, not a neutral
+  choice.** GTDB is species-clustered and the sequenced genomes are heavily unequal across
+  species, so a uniform sample over records over-represents the organisms the world sequences
+  most. A2.4 reports the record-level rate as what it is and does not reweight to a species
+  denominator it cannot defend.
+- **Rejected:** A new seed. Sharing 20261015 with A2.1 is what makes "was this record in both
+  samples" answerable without storing either list.
+  Taking a prefix of each archive instead of a hash sample. A1.6 learned this one the expensive
+  way (D-101): the archives are ordered, so a prefix is not a sample.
+  Fixing a rate now so the design looks complete. A rate chosen before the cost is measured is
+  either unaffordable or needlessly shallow, and either way it would be revised after the fact,
+  which is what pre-registration exists to prevent.
+- **Consequence:** A2.4's family-level survival is a lower bound twice over — once from the record
+  sample, once from counting only inside delineated proviruses (D-113) — and both directions are
+  the same direction. If A2.4 reports that viral families survive in bacterial genomes the filter
+  never examined, the true figure is at least that. A null from A2.4 is correspondingly weak and
+  must be reported as weak.
+
+### D-116 — A2.4 answers for Evo 2's bacterial component only, and does not substitute it for Evo 1's
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** `amazebio.opengenome` lists Evo 1's prokaryotic component, `stage1_gtdb`, as not
+  staged, with the reason "130 GB, and OpenGenome2's GTDB component supersedes it for A2.4". Read
+  at staging time that was a storage decision. Read now, as A2.4's scope, it is something else: it
+  says A2.4's result will be a statement about one of the two corpora under audit, and the word
+  "supersedes" invites the substitution of Evo 2's bacterial genomes for Evo 1's.
+- **Decision:** A2.4 searches `gtdb` for the `opengenome2` release and **nothing for `opengenome`**.
+  Evo 2's GTDB component is not treated as a proxy for Evo 1's. Every `opengenome` manifest gets a
+  table with `estimate_kind: not_searched` and the reason on the source row — the convention
+  `metrics/detections.md` fixed for exactly this, so that a structural zero is never read as a
+  measured one. Whether to stage Evo 1's 130 GB prokaryotic component is a spend decision for the
+  project owner, and it is put to them rather than settled inside this task.
+- **Rejected:** Substituting Evo 2's GTDB for Evo 1's. The two releases pin different GTDB
+  versions and Phase A exists to measure the difference between releases, not to average it away.
+  `AGENTS.md` names the quiet proxy substitution as the failure mode A2.1 already committed once,
+  and `DESIGN.md` §B1 step 0 forbids it outright.
+  Reporting the `opengenome` tables as zero prophage detections. They would be arithmetically
+  correct and completely misleading: a zero by construction is not evidence of absence, and this
+  is the §A3 headline it would be feeding.
+  Quietly omitting the `opengenome` manifests from A2.4's output, which is what would make the gap
+  invisible — the same reasoning D-080 applied to A2.1's unsearched components.
+- **Consequence:** **Phase A's prophage route is measured on Evo 2 and not on Evo 1 unless the
+  owner buys the staging.** That is a coverage gap in a headline route and it belongs in the write-up
+  as one, not in a footnote. A3.2 reads the `not_searched` tables and must not pool them with the
+  searched ones.
