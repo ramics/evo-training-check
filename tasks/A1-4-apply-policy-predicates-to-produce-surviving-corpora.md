@@ -5,7 +5,7 @@ phase: A
 status: done
 gate: false
 depends_on: [A0.3, A1.2, A1.3, A1.5]
-blocks: [A1.6, A1.8, A2.1, A2.2, A2.3, A2.4, A2.5, B3.1, B3.2, B3.3, A4.1, A4.2, A5.1]
+blocks: [A1.6, A1.8, A2.1, A2.2, A2.3, A2.4, A2.5, B3.1, B3.2, B3.3, A4.1, A4.2, A5.1, A7.4]
 design_ref: "§A1, §A2"
 deliverable: 1
 owner: claude

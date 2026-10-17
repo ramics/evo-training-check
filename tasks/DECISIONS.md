@@ -5170,3 +5170,95 @@ decision has a threshold or parameter in it, the number goes in the entry.
   feature branch and not on `main`. Whoever takes A1.8 should wait for that branch to land or
   branch from it rather than building a second copy. **That is an argument for landing A1.6's
   instrument on `main` sooner than its results.**
+
+### D-130 — Both releases' GTDB versions are established, Evo 2's component contains Evo 1's, and D-119's premise was wrong
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-119 staged Evo 1's prokaryotic component on the reasoning that the two releases
+  "pin different GTDB releases — Evo 2's is v220, Evo 1's is not yet identified from its own
+  metadata", and said that identifying Evo 1's belonged in its own entry if it proved
+  unrecoverable. The staging has finished; this is that entry, and it does not say what D-119
+  expected.
+- **What the staged data says.** Evo 1's `stage1_gtdb` Parquet carries **two columns and no
+  version**: `record`, an INSDC contig accession (`JAHFAU010000149.1`), and `text`, the sequence.
+  No GTDB release, no genome identifier, no taxonomy. So D-119 was right that the release is not
+  recoverable from the component's own metadata, and wrong to leave it there.
+- **What the publishers say.** Both releases state it, and the versions are more specific than
+  D-119 assumed.
+  **Evo 1 is GTDB v214.1**, stated twice in the **version of record** (`S-EVO1-SCIENCE`): "the
+  OpenGenome pretraining dataset (table S2) was compiled from three different sources: (i)
+  bacterial and archaeal genomes from the Genome Taxonomy Database (GTDB) v214.1", and again in
+  the data-availability section. `.1` matters — GTDB publishes v214 and v214.1 — and D-119's "v220
+  against unidentified" collapsed a stated minor version into an unknown.
+  **Evo 2 is v214.1 plus a v220.0 delta, not v220.** It "used in its entirety" the OpenGenome
+  dataset, "representative prokaryotic genomes available through GTDB release v214.1", and then
+  added "new prokaryotic reference genomes made available through the GTDB release 220.0 update",
+  selected as "all species' reference genomes that had no previously published (release 214.1)
+  genomes within their species cluster, resulting in 28,174 additional genomes".
+- **The staged tree corroborates this independently, and that is corpus-side evidence rather than a
+  second source.** OpenGenome2's component is staged as
+  `fasta/gtdb_v220/v214/batch{1,2,3}.tar` (83.5 GB) plus `fasta/gtdb_v220/v220_update.tar`
+  (25.6 GB). The publisher's own path layout separates the reused v214 tree from the v220
+  increment, under a directory named for the later release — so a reader who takes the directory
+  name as the version gets it wrong, which is what D-119 did.
+- **Decision:** Record v214.1 for Evo 1 and v214.1 + the 220.0 increment for Evo 2. Correct
+  D-119's premise here rather than silently. **D-116's refusal to substitute stands, and its
+  reason is now sharper**: substituting Evo 2's bacterial component for Evo 1's would not have
+  substituted a different snapshot, it would have substituted a **superset** — v214.1 plus 28,174
+  genomes Evo 1 never saw — for a subset, inflating the corpus Evo 1 is audited over with genomes
+  published after its filter ran. That is a worse error than the one D-116 described, and it is
+  the error the directory name invites.
+- **The Evo 2 statements come from the preprint, and that is a live gap, not a footnote.**
+  `S-EVO2-PREPRINT` is retrieved; the version of record `S-EVO2-NATURE` is
+  `retrieved_not_stored`, so nothing may be quoted from it, and `S-EVO2-NATURE-METHODS` is
+  registered **`unretrieved`** with the blocker that the Methods are absent from both the article
+  HTML and the PDF. The GTDB-220.0 selection rule above is therefore a preprint claim. D-110
+  found Evo 1's version of record agreed with its preprint word for word, which is grounds for
+  expecting the same here and **not** grounds for asserting it — that is precisely the inference
+  A2.1 made and was asked about. Flagged to the project owner in the same breath as this entry.
+- **What the staging bought, stated plainly, because it bought less than D-119 assumed.** Not
+  nothing: OG1's own train/valid/test splits, which A1.4's manifests are defined over, and its
+  Parquet representation with contig accessions, which the tar tree does not carry. But Evo 2's
+  `v214/` subtree is nominally the same genomes, already staged, so the 118.5 GiB is a second
+  representation of a sequence set the audit partly held. Had this been established before the
+  spend, the owner's choice would have been better informed, and the lesson is the ordinary one:
+  the version was in the paper the whole time and the component's metadata was consulted first.
+- **It also opens a sharper question than the one it answers.** "Used in its entirety" is a
+  checkable claim about delivered data, and both sides of it are now staged. Whether OG2's `v214/`
+  subtree is the sequence set of OG1's `stage1_gtdb` is measurable, and a discrepancy either way
+  is an A7-class conformance finding. Opened as **A7.4** rather than absorbed into A2.4, which
+  `AGENTS.md` forbids widening.
+- **Rejected:** Leaving D-119's premise standing because its conclusion survives. The conclusion
+  survives for a different and stronger reason, and a decision log whose reasoning is wrong where
+  its outcome is right is worse than useless to the next reader.
+  Treating the directory name `gtdb_v220` as the version. It is the trap this entry exists to mark.
+  Asserting the Evo 2 selection rule from the preprint without saying so.
+
+### D-131 — A2.4's ceiling is an on-demand ceiling, so the first band fits and the deepening does not
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-118 fixed A2.4's sampled pass against a $20 ceiling and compared it to A1.6's
+  spend, which D-104 and D-109 priced on **spot**. D-120, appended by the A1.6 track while A2.4
+  was in flight, establishes that spot cannot be launched from this account at all: a spot request
+  needs the `AWSServiceRoleForEC2Spot` service-linked role, `iam:CreateServiceLinkedRole` is
+  denied here, and a dry run does not catch it. D-121 records that the role is to be created. Until
+  it is, every spot figure in this project is a price that cannot be paid, and A2.4's ceiling was
+  set by analogy to two of them.
+- **Decision:** Read A2.4's $20 as **on-demand**, and size the bands against on-demand rather than
+  re-asking the owner for a number they have already given. On D-117's measured 2.73 core-minutes
+  per Mb, the **2.5% first band is about 122 core-hours**, which is inside the ceiling on-demand
+  with room to spare. A **10% band is about 490 core-hours and is not** — it is at or over $20 at
+  on-demand rates where it would have been comfortable on spot. So the first band runs now and the
+  deepening is contingent, not planned: it waits on either D-121's role being created or a fresh
+  decision from the owner.
+  Nothing about the design changes. Rates stay nested, so a later deepening still re-reads
+  nothing, and `estimate_kind` stays `lower_bound` (D-118).
+- **Rejected:** Keeping the spot figures and discovering the shortfall at launch, which is what
+  D-120 describes happening to A1.6.
+  Shrinking the first band to buy headroom for a deepening that is not authorised. The first band
+  is also the calibration (D-118), and a band too small to price the real assemblies would fail at
+  the one job that is certain.
+  Treating the ceiling as elastic because the overrun is small. It is the owner's number.
+- **Consequence:** A2.4's realized depth is likely to be 2.5% rather than the "deepen while the
+  ceiling allows" of D-118, and the lower bound is correspondingly shallower. Stated with the
+  result, since a lower bound's depth is what a reader needs to weigh it.

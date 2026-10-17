@@ -70,17 +70,30 @@ turn out to be versioned after all (KOfam 2019-08-10, Pfam 32.0, VOG 94, hard-co
 `VIBRANT_setup.py`), so the pin records them instead of reporting a gap that does not exist.
 
 **The owner's two answers are in, and both are recorded (D-118, D-119).** The pass is a
-**sampled** one inside a $20 ceiling, run in nested bands so that the first band is the
+**sampled** one inside a $20 ceiling — an *on-demand* ceiling, per D-131: spot cannot be launched
+from this account at all (D-120), so the 2.5% first band fits at about 122 core-hours and a 10%
+deepening does not, making the deepening contingent rather than planned — run in nested bands so that the first band is the
 calibration the budget did not separately buy — membership is already nested by construction,
 so a deepening re-reads nothing. `estimate_kind` is `lower_bound` at every depth. And **Evo 1's
 prokaryotic component is being staged**, so the prophage route covers both corpora rather than
 one of the audit's two subjects; `stage1_gtdb` moved into the staging tier accordingly.
 
-**In flight.** The Evo 1 staging is running: 118.5 GiB of Parquet, verified against the
-publisher's own per-file SHA-256 before each upload completes, which matters because the corpus
-bucket withholds `s3:DeleteObject`. The release pin verifies exactly — 22 files,
-146,886,935,899 bytes. D-116's `not_searched` outcome for the `opengenome` manifests stands
-until this finishes and verifies.
+**The Evo 1 staging is finished and verified.** All 14 objects of `stage1_gtdb` are present,
+118.5 GiB, no zero-byte objects — worth checking explicitly, since a permanently un-removable
+zero-byte object is the one thing A1.3 left in this bucket. The release pin re-probes exactly:
+22 files, 146,886,935,899 bytes.
+
+**And it corrected the reason it was done (D-130).** Both releases' GTDB versions are stated by
+their publishers: Evo 1 is **v214.1**, twice in the version of record; Evo 2 is **v214.1 plus a
+220.0 increment of 28,174 genomes**, not v220. OpenGenome2's staged tree says the same thing
+independently — `gtdb_v220/v214/batch{1,2,3}.tar` beside `gtdb_v220/v220_update.tar` — so the
+directory name is not the version of what is under it, which is the trap D-119 fell into. D-116's
+refusal to substitute **stands and is stronger**: the substitution would have put a superset in
+place of a subset, adding genomes published after Evo 1's filter ran. The staging bought OG1's own
+splits and representation and not a sequence set the audit lacked; D-130 says so plainly.
+
+**Also opened:** **A7.4**, to test Evo 2's "used in its entirety" claim now that both sides are
+staged. Not absorbed into A2.4.
 
 **Also done.** A2.1's search loop is now `src/amazebio/profilesearch.py`, called by both
 detectors (D-113), with thresholds, cutoffs and record naming unchanged — A2.1's own tests did
@@ -88,9 +101,7 @@ not move and still pass, which is the test of the refactor. It gains `proteins_f
 A2.4's way in: the proteins geNomad already called inside a delineated provirus, attributed to
 the host genome rather than to the fragment name the finder invented.
 
-**Left, in order.** Finish and verify the Evo 1 staging, and identify which GTDB release it
-pins — Evo 2's is v220 and Evo 1's is not yet established from its own metadata, which is the
-comparison D-119 exists to protect. Then `tools/detect_proviruses.py`: sample, run the two
+**Left, in order.** `tools/detect_proviruses.py`: sample, run the two
 tools, search the provirus proteins against A2.1's registries, emit the
 `metrics/detections.md` table with `element_kind: prophage` and the route from
 `amazebio.apply.resolve`.
