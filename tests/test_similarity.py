@@ -766,3 +766,37 @@ def test_a_cell_cannot_report_a_reading_its_search_does_not_support() -> None:
             seed_families=1,
             searched_residues=1,
         )
+
+
+def test_a_strata_sidecar_round_trips_including_the_unplaced_rows(tmp_path) -> None:
+    path = tmp_path / "shard00.taxids.tsv"
+    with path.open("wb") as fh:
+        sim.write_taxid_row(fh, "UniRef100_A", 11158)
+        sim.write_taxid_row(fh, "UniRef100_B", None)
+    with path.open() as fh:
+        assert list(sim.parse_taxid_rows(fh)) == [("UniRef100_A", 11158), ("UniRef100_B", None)]
+
+
+def test_an_unplaced_cluster_is_written_explicitly_rather_than_omitted() -> None:
+    """An absent row and a row saying "no taxid" are different claims, and only one of them
+    survives a truncated file. The denominator depends on telling them apart."""
+    rows = list(sim.parse_taxid_rows([f"UniRef100_B\t{sim.NO_TAXID}"]))
+    assert rows == [("UniRef100_B", None)]
+
+
+def test_a_malformed_sidecar_row_raises_rather_than_being_skipped() -> None:
+    """The sidecar is the denominator of every rate this arm publishes. A row quietly dropped
+    is a record quietly removed from the denominator, which moves the rate up."""
+    with pytest.raises(ValueError, match="not a cluster/taxid pair"):
+        list(sim.parse_taxid_rows(["UniRef100_A"]))
+    with pytest.raises(ValueError, match="non-numeric taxid"):
+        list(sim.parse_taxid_rows(["UniRef100_A\tnotanumber"]))
+
+
+def test_the_sidecar_builds_the_index_it_exists_for() -> None:
+    tax = _Tax({11158: 11157})
+    rows = sim.parse_taxid_rows(["UniRef100_A\t11158", f"UniRef100_B\t{sim.NO_TAXID}"])
+    idx = sim.FamilyIndex.build(rows, tax)
+    assert idx.totals == {"f:11157": 1, "u:UniRef100_B": 1}
+    assert idx.searched_records == 2
+    assert idx.unplaced_records == 1

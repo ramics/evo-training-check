@@ -358,7 +358,9 @@ class ScanConfig:
                 result.seeds.append((entry.cluster_id, entry.sequence))
             if self.sample_rate and bucket_of(entry.cluster_id, self.sample_rate) == 0:
                 shard = bucket_of(entry.cluster_id + "#shard", self.buckets)
-                result.samples.append((shard, entry.cluster_id, entry.sequence))
+                result.samples.append(
+                    (shard, entry.cluster_id, entry.sequence, entry.representative_taxid)
+                )
         return result
 
 
@@ -368,7 +370,13 @@ class BatchResult:
 
     counts: SeedCounts = field(default_factory=SeedCounts)
     seeds: list[tuple[str, str]] = field(default_factory=list)
-    samples: list[tuple[int, str, str]] = field(default_factory=list)
+    #: `(shard, cluster_id, sequence, representative_taxid)`. The taxid is carried because the
+    #: staged FASTA cannot hold it — MMseqs2 keys on the first whitespace-delimited token, so
+    #: `write_fasta` writes a bare cluster id — and the interval's strata need a taxid for
+    #: **every** sampled cluster, not only the ones that go on to match. Emitting it here
+    #: makes a staged sample self-describing; recovering it afterwards would need a second
+    #: corpus pass (D-142).
+    samples: list[tuple[int, str, str, int | None]] = field(default_factory=list)
 
 
 def iter_entry_blocks(chunks: Iterable[bytes], batch_bytes: int = 8 << 20) -> Iterator[list[bytes]]:

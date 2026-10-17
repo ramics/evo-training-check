@@ -676,6 +676,12 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             started = time.monotonic()
             stream = uniref.GunzipStream(reader)
             handles = [p.open("wb") for p in shard_paths]
+            # The strata sidecar, one per shard, beside the FASTA. It exists because the FASTA
+            # cannot carry the taxid and the interval needs one for every sampled cluster
+            # rather than only the matching ones (D-142). Written in the same pass, so a
+            # sample staged from here is self-describing and no second corpus pass is owed.
+            taxid_paths = [p.with_suffix(".taxids.tsv") for p in shard_paths]
+            taxid_handles = [p.open("wb") for p in taxid_paths]
             # The sample and the seed set are independent: a viral cluster can be in both, and
             # must be, or the target would be missing exactly the records the filter is
             # supposed to remove.
@@ -704,12 +710,13 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                         counts.merge(batch.counts)
                         for cluster_id, sequence in batch.seeds:
                             seeds.write_fasta(seedfh, cluster_id, sequence)
-                        for shard, cluster_id, sequence in batch.samples:
+                        for shard, cluster_id, sequence, taxid in batch.samples:
                             seeds.write_fasta(handles[shard], cluster_id, sequence)
+                            similarity.write_taxid_row(taxid_handles[shard], cluster_id, taxid)
                             shard_counts[shard] += 1
                             shard_residues[shard] += len(sequence)
             finally:
-                for handle in handles:
+                for handle in (*handles, *taxid_handles):
                     handle.close()
             corpus_seconds = time.monotonic() - started
 

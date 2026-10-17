@@ -34,7 +34,7 @@ import itertools
 import math
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import IO, Any
 
 from amazebio.seeds import bucket_of
 
@@ -868,3 +868,41 @@ def cell_from_stream(
         seeds_searched=seeds_searched,
         seed_families=seed_families,
     )
+
+
+#: What an unplaced cluster's taxid field holds in the sidecar. A cluster whose representative
+#: carries no taxid is written explicitly rather than omitted: an absent row and a row saying
+#: "no taxid" are different claims, and only one of them survives a truncated file.
+NO_TAXID = "-"
+
+
+def write_taxid_row(handle: IO[bytes], cluster_id: str, taxid: int | None) -> None:
+    """Append one `cluster_id\\ttaxid` row to a shard's strata sidecar."""
+    value = NO_TAXID if taxid is None else str(taxid)
+    handle.write(f"{cluster_id}\t{value}\n".encode("ascii"))
+
+
+def parse_taxid_rows(lines: Iterable[str | bytes]) -> Iterator[tuple[str, int | None]]:
+    """Read a strata sidecar back as `(cluster_id, taxid)` pairs.
+
+    A malformed row raises rather than being skipped. The sidecar is the denominator of every
+    rate this arm publishes, so a row quietly dropped is a record quietly removed from the
+    denominator, which moves the rate up.
+    """
+    for number, raw in enumerate(lines, start=1):
+        line = raw.decode("ascii", "replace") if isinstance(raw, bytes) else raw
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        cluster_id, _, value = line.partition("\t")
+        if not cluster_id or not value:
+            raise ValueError(f"strata sidecar line {number} is not a cluster/taxid pair: {line!r}")
+        if value == NO_TAXID:
+            yield cluster_id, None
+            continue
+        try:
+            yield cluster_id, int(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"strata sidecar line {number} has a non-numeric taxid: {value!r}"
+            ) from exc

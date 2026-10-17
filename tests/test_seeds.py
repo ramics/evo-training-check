@@ -272,7 +272,7 @@ def test_sampling_and_shard_hashes_agree_across_processes() -> None:
     out = list(scan_parallel([MANY], cfg, workers=4, batch_bytes=1024))
     placed: dict[str, int] = {}
     for batch in out:
-        for shard, cid, _seq in batch.samples:
+        for shard, cid, _seq, _taxid in batch.samples:
             assert placed.setdefault(cid, shard) == shard
             assert shard == bucket_of(cid + "#shard", 4)
 
