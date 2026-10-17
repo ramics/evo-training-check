@@ -219,6 +219,150 @@ cells is the fallback and D-109 is superseded.
 support in the launcher. Then the broad arm's sampled pass. The narrow arm stays blocked on the
 owner's handling decision.
 
+## Instrument built, spot refused — 2026-10-16, fourth
+
+Branch `claude/fervent-hopper-8ht0h3`.
+
+**Built and green** (805 tests, full `check`): `src/amazebio/similarity.py` is the instrument
+both remaining passes need — D-105's parameters, the three coverage readings as post-filters
+over one relaxed search, identity banding, the saturation guard, and rates with D-109's
+design-effect intervals. `tools/esm3_calibrate.py --measure caps` measures the two items left
+open: the hit cap priced where it *binds* rather than where it is slack, and relaxed coverage
+against D-109's three-cell fallback. The launcher passes the mode through and each mode writes
+its own artefact name, since the corpus bucket has no `DeleteObject`.
+
+**One finding from rehearsing the path locally against the pinned aligner.** The post-filter
+and the aligner's own `--cov-mode 1` do not pick exactly the same records — 138 against 137 on
+1,200 synthetic records. The post-filtered set was a strict *superset* both times, so the
+approximation errs toward overstating leakage rather than understating it, which is the
+defensible side. The run now measures that agreement at corpus scale instead of assuming it.
+D-109's "three readings for the price of one" is therefore approximate, and the write-up has
+to say by how much.
+
+**Spot does not work in this account (D-120).** `RunInstances` with spot options is refused
+with `AuthFailure.ServiceLinkedRoleCreationNotPermitted`: the request needs the
+`AWSServiceRoleForEC2Spot` service-linked role, which EC2 creates via
+`iam:CreateServiceLinkedRole`, and `iam:*` is denied here. A dry run authorizes the same
+request, so no dry run finds this. Nothing was launched or billed. Spot support stays in the
+launcher — the code is right and one IAM action makes it work.
+
+**Left.** The cap measurement has not run: on demand it is about $1 and the launch needs the
+project owner's go-ahead, since the session is not permitted to spend. Then the broad arm's
+sampled pass, whose budget is now an open question rather than a settled $26.
+
+**The budget question is answered (D-121): the spot role gets created**, so D-109's design
+runs unchanged at the price it was designed against. Nothing in the repo is waiting on code.
+
+**Blocked on one external action.** Someone with IAM permissions creating
+`AWSServiceRoleForEC2Spot`, once. `iam:*` is denied here, so this project cannot check whether
+it exists except by attempting a launch — which is also the launch it wants, so the attempt is
+the check. On confirmation, in order: the cap and coverage measurement on spot (well under a
+dollar), then the broad arm's sampled pass (about $26).
+
+**The narrow arm has moved to A1.8** (D-129). A1.6 is the broad viral denylist only, from
+here on: sampled, reporting a rate with an interval. The two arms must not be pooled (D-108).
+
+## The cap run was lost, and what came out of losing it — 2026-10-16, fifth
+
+`i-072947a778cb59a60`, `m6i.2xlarge` spot, launched 16:48 after `r6i.2xlarge` spot capacity was
+refused. It published nothing in four hours on a pass that takes 52 minutes, and terminated on
+its boot-armed timer at 21:09. Cost about $0.60.
+
+**Why is not known.** What is established: the pass never completed (the seed FASTA uploads
+immediately after the first publish, and a failing upload would have raised and taken the
+instance down), and the process stayed alive throughout. Beyond that, nothing — every
+diagnostic channel is closed, which is now recorded in `AGENTS.md`.
+
+**Two causes are consistent with the evidence** and the second is now the stronger. The
+instance type, since all three completed passes ran on `r6i.2xlarge` and this is the only
+`m6i.2xlarge` attempt — a coincidence of one. Or a degrading S3 read: `S3RangeRead` reset its
+retry counter per `read()` call by design, while `self.reconnects` accumulated against no
+bound, so a connection delivering one chunk and then stalling retried for ever at a read
+timeout plus backoff per cycle. That needs only one bad connection and explains three prior
+successes.
+
+**Fixed either way, with tests.** A global reconnect budget bounds the degrading case
+(`src/amazebio/uniref.py`; `S3RangeRead` had no tests at all before — it now has five). A
+corpus-pass heartbeat to object storage makes the next occurrence diagnosable in minutes. And
+`AGENTS.md` carries both findings: that a running instance cannot be observed here, and that
+the boot-armed shutdown timer does fire, reported as `User initiated` rather than as a reclaim.
+
+**The re-run is much smaller than this one was.** D-124 removed the relaxed-coverage half of
+the measurement entirely, so only the hit cap remains, and it runs against a staged sample
+rather than a fresh corpus pass.
+
+## The narrow arm is unblocked — 2026-10-16, sixth
+
+D-125. The project owner's rule, fixed before any result exists because §2 requires analysis
+specs settled before results are inspected, and because an empty result and a non-empty one
+would invite different rules once either was visible: **counts by survival route and homology
+class, never by organism or taxon**, with per-record detail in the disclosure package only and
+the preprint carrying the aggregate. Both branches are covered in advance.
+
+Four things follow rather than being separate calls, and they are in D-125 as amended by
+D-126: the exact per-record manifest is computed, kept and **staged** — aggregation happens at
+the publication boundary, not the computation boundary — never committed, since the public repo
+is a deliverable; A2.* and B3.* inherit the rule for their published outputs; the limit is
+enforced in the harness per the non-negotiables, not left to be remembered; and nothing
+circulates before X3.1.
+
+**D-126 reverses D-125's storage sentence.** D-125 said the manifest must never be staged,
+reasoning that an unwithdrawable object is a liability. That went further than the reporting
+rule required and would have left a pipeline that holds nothing — breaking A3.3's independent
+reimplementation and the manifest A2.* and B3.* consume. The owner's call is to stage it and
+accept permanence, with the key fixed in advance as
+`corpora/results/a1-6/narrow-arm/<release>/<tier>/manifest-<commit>.jsonl`; the commit is in
+the key because an overwrite in this bucket destroys the earlier object irreversibly.
+
+**Nothing on this arm now waits on the owner.** What remains is ours, in order:
+
+1. Two decisions, each its own entry — how the published organism list's names map to taxonomy
+   ids, which the list does not do for you; and which version of that list was in force when the
+   filter ran, since the source cites a 2024 access date and the retrievable page is live and
+   undated.
+2. Build the second seed set. Validation target: 187K sequences, published in the source (D-106).
+3. Score it exhaustively. Cost is linear in query count, so at 187K against 3.16M this arm is
+   roughly a seventeenth of the broad arm's compute — cheap even over the whole corpus, which is
+   what D-108 relied on.
+
+## The cap measurement is complete at one target size — 2026-10-17
+
+Instance `i-059cba6e4273c7345`, `m6i.2xlarge` spot, ~2 h, about $0.25. Six cells at shards=1;
+the run ended before the second target size, so **there is no linearity check** and
+`cap_summary` was never written — the cells carry everything.
+
+Query: 31,381 seeds (1/100 by hash). Target: shard 0 of the staged sample, 417 M residues.
+
+| cap (% of that cell's max hits/seed) | relaxed: wall / records lost | `--cov-mode 1`: wall / records lost |
+|---|---|---|
+| slack, 100,000 | 2,137 s / — | 1,450 s / — |
+| 50% | 770 s / 0.9% | 356 s / 3.3% |
+| 20% | 530 s / 2.3% | 252 s / 9.7% |
+
+**Four findings.**
+
+1. **The cap does not bind** at the pass's scale: 5,078 hits for the worst seed under relaxed
+   coverage, ~1,445 under filtered, against 100,000. D-105's guard is satisfied and D-128 keeps
+   the published value.
+2. **A lower cap costs 3-4x more recall under coverage filtering than under relaxed** — 3.3%
+   against 0.9% at the same fraction of the observed maximum — because the filtered search
+   yields far fewer hits per seed, so truncation reaches real matches sooner. The pass uses
+   filtered coverage, so the cheap-cap option is worse than the relaxed cells alone suggested.
+3. **Relaxed coverage costs 1.47x filtered**, not the 9x first inferred from the relaxed cell
+   against D-104's model. That refutes D-124's *cost* argument while leaving its exactness
+   argument standing (D-124).
+4. **Both cost about 6x D-104's model**, because the model was fitted with `--min-seq-id 0.70`
+   and the pass cannot use an identity floor. This is the finding that moved the broad arm's
+   price from $26 to $300-430 and then to 0.3125% for about $50 (D-128).
+
+**The post-filter agreement check, at real scale:** 32,644 records post-filtered against 32,374
+from the aligner's own `--cov-mode 1`, with 270 found only by the post-filter and **none** found
+only by the aligner. A strict superset, 0.83% wide, so the approximation errs toward
+overstating leakage. The local rehearsal saw 1 record in 138; this is the number to cite.
+
+**Left.** Slice the query so a cell fits one instance run (a full cell is ~40 h), then run the
+first cell of the broad arm against the staged shard.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

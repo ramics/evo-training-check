@@ -819,3 +819,135 @@ def test_a_short_ranged_response_is_completed_rather_than_accepted():
         out.append(chunk)
     reader.close()
     assert b"".join(out) == BODY
+
+
+# --------------------------------------------------------------------------- #
+# S3RangeRead — the reader the corpus pass runs on
+# --------------------------------------------------------------------------- #
+
+
+class _StallingBody:
+    """A body that yields some bytes, then raises for ever — a half-open connection.
+
+    This is the shape that matters: not a connection that dies, which the reader is built
+    to resume, but one that keeps almost working. Each `read` after the first raises, and
+    on reconnect the next body does the same thing again.
+    """
+
+    def __init__(self, data: bytes, good_reads: int = 1) -> None:
+        self._data, self._left = data, good_reads
+
+    def read(self, size: int) -> bytes:
+        if self._left > 0:
+            self._left -= 1
+            chunk, self._data = self._data[:size], self._data[size:]
+            return chunk
+        raise ConnectionResetError("stalled")
+
+    def close(self) -> None:
+        pass
+
+
+class _RangeClient:
+    def __init__(self, payload: bytes, body: type = _StallingBody, **kw: object) -> None:
+        self.payload, self.body, self.kw = payload, body, kw
+        self.opens: list[int] = []
+
+    def get_object(self, Bucket: str, Key: str, Range: str | None = None) -> dict:
+        start = int(Range.split("=")[1].split("-")[0]) if Range else 0
+        self.opens.append(start)
+        rest = self.payload[start:]
+        return {"ContentLength": len(rest), "Body": self.body(rest, **self.kw)}
+
+
+def test_range_read_resumes_from_where_it_stopped() -> None:
+    """The property the class exists for: a dropped connection costs a range header, not the
+    whole transfer."""
+    payload = bytes(range(256)) * 40
+    client = _RangeClient(payload, good_reads=1)
+    reader = uniref.S3RangeRead(client, "buk", "k", sleep=lambda _: None)
+    out = b""
+    while chunk := reader.read(512):
+        out += chunk
+        if len(out) >= len(payload):
+            break
+    assert out == payload
+    assert client.opens[0] == 0
+    assert client.opens[1:] == [
+        512 * i for i in range(1, len(client.opens))
+    ], "each reconnect must resume at the byte already reached, not restart"
+
+
+def test_a_degrading_stream_fails_instead_of_crawling_for_ever() -> None:
+    """Measured 2026-10-16: an instance spent over four hours on a 52-minute pass and
+    reported nothing. `attempt` resets on every read() call, by design, so a connection that
+    delivers one chunk and then stalls was retried indefinitely — a botocore read timeout
+    plus backoff per cycle, for ever, with no failure to act on. The global budget is what
+    turns that into a bounded error."""
+    payload = b"x" * (1 << 16)
+    client = _RangeClient(payload, good_reads=1)
+    reader = uniref.S3RangeRead(client, "buk", "k", max_reconnects=5, sleep=lambda _: None)
+    with pytest.raises(uniref.VerificationError, match="degrading rather than failing"):
+        for _ in range(100):
+            reader.read(8)
+    assert reader.reconnects == 6, "the budget bounds total reconnects, not per-call attempts"
+
+
+def test_a_healthy_stream_spends_none_of_the_budget() -> None:
+    class _Clean:
+        def __init__(self, data: bytes) -> None:
+            self._buf = io.BytesIO(data)
+
+        def read(self, size: int) -> bytes:
+            return self._buf.read(size)
+
+        def close(self) -> None:
+            pass
+
+    payload = b"abcdefgh" * 1000
+    client = _RangeClient(payload, body=_Clean)
+    reader = uniref.S3RangeRead(client, "buk", "k", sleep=lambda _: None)
+    out = b""
+    while chunk := reader.read(64):
+        out += chunk
+    assert out == payload
+    assert reader.reconnects == 0
+    assert client.opens == [0], "a clean transfer opens the object exactly once"
+
+
+def test_occasional_drops_are_still_tolerated() -> None:
+    """The budget must not turn the reader into something that gives up on a long transfer:
+    a stream that drops now and then over tens of gigabytes has to keep going."""
+    payload = b"z" * 4096
+    client = _RangeClient(payload, good_reads=8)
+    reader = uniref.S3RangeRead(client, "buk", "k", max_reconnects=32, sleep=lambda _: None)
+    out = b""
+    while len(out) < len(payload):
+        chunk = reader.read(64)
+        if not chunk:
+            break
+        out += chunk
+    assert out == payload
+    assert 0 < reader.reconnects <= 32
+
+
+def test_a_truncated_object_is_an_error_not_a_short_read() -> None:
+    """A corpus pass that silently stops early would report a lower leakage rate, which looks
+    exactly like a corpus with less in it."""
+
+    class _Short:
+        def __init__(self, data: bytes) -> None:
+            self._buf = io.BytesIO(data[: len(data) // 2])
+
+        def read(self, size: int) -> bytes:
+            return self._buf.read(size)
+
+        def close(self) -> None:
+            pass
+
+    client = _RangeClient(b"y" * 1024, body=_Short)
+    reader = uniref.S3RangeRead(client, "buk", "k", max_attempts=3, sleep=lambda _: None)
+    with pytest.raises(uniref.VerificationError):
+        for _ in range(200):
+            if not reader.read(64):
+                break

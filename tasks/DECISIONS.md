@@ -4739,3 +4739,434 @@ decision has a threshold or parameter in it, the number goes in the entry.
   two different snapshots of the same database, and that difference travels with the result rather
   than being normalised away. Identifying Evo 1's GTDB release from the staged tree is part of this
   staging and belongs in its own entry if it turns out to be unrecoverable, as §A0 requires.
+
+### D-120 — Spot is unavailable in this account, so every spot-priced figure in A1.6 is a price we cannot pay
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Numbering:** appended as D-110 and renumbered to D-120 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-104 priced the exhaustive charitable pass at $240-450 and D-109 priced the broad
+  arm's three-sensitivity sweep at $26 against a $30 ceiling. Both are **spot** figures, and the
+  launcher gained spot support on the strength of them. The first spot launch was refused.
+- **What was measured.** `RunInstances` with `InstanceMarketOptions` returns
+  `AuthFailure.ServiceLinkedRoleCreationNotPermitted`: a spot request needs the
+  `AWSServiceRoleForEC2Spot` service-linked role, which EC2 creates on the caller's behalf on first
+  use through `iam:CreateServiceLinkedRole`. `AGENTS.md` records that `iam:*` is denied in this
+  account, and it is denied for this too — the role cannot be created, inspected or listed from
+  here. Nothing launched and nothing was billed.
+  **A dry run does not find this.** The same request authorized as `DryRunOperation` a minute
+  earlier. `DryRun` never attempts the service-linked role, so this is a second instance of
+  `AGENTS.md`'s rule that a dry run authorizes but does not execute — and the first one it names
+  that cannot be caught by any check inside the instance's own script either, because the refusal
+  happens before there is an instance.
+- **Decision:** treat spot as unavailable rather than as a flag to retry, and keep the support in
+  the launcher. The code is correct and one IAM action makes it work, so removing it would discard
+  the cheaper option; what changes is that nothing may be *planned* against a spot price until that
+  action exists. The launcher classifies this refusal apart from a capacity refusal, because a
+  capacity refusal is a retry and this one cannot be retried into working.
+- **The price consequence, which is the substance of this entry.** On-demand is roughly 3-4x spot
+  for the permitted instance types. So D-109's $26 sweep is about $90-100 on demand and **does not
+  fit the $30 ceiling it was designed against**, and D-104's $240-450 exhaustive charitable pass is
+  roughly $1,000-1,500. The cap and coverage measurement is about $1 on demand and is unaffected in
+  substance.
+- **Rejected:** Re-pricing the broad arm's sample downward to fit $30 on demand — that would be
+  about 0.7% of the corpus, and it trades the measurement's precision against an account
+  configuration rather than against anything about the audit; it is also a decision the project
+  owner should make rather than one taken quietly inside a task. Dropping the sensitivity sweep to
+  one cell to fit — D-109 already rejected that for the reason that the sweep is the only check on
+  whether the number is a property of the filter or of our aligner settings, and an IAM limitation
+  is not a reason to reopen it. Bidding under the going rate with `MaxPrice` — unrelated to this
+  refusal, and already rejected in the launcher's own notes.
+- **Consequence:** **the broad arm's budget is back with the project owner**, with three real
+  options: have someone with IAM permissions create `AWSServiceRoleForEC2Spot` once and run D-109's
+  design as priced; raise the ceiling to about $100 and run the same design on demand; or shrink the
+  sample and accept a wider interval. Until one is chosen the pass does not run. Every figure in
+  D-104 and D-109 keeps its number but gains the qualifier **"on spot, which this account cannot
+  currently request"**, and any future entry pricing work in this repo states which market it
+  assumes.
+### D-121 — The spot service-linked role is to be created, so A1.6's passes run at the prices they were designed against
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Numbering:** appended as D-111 and renumbered to D-121 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-120 established that spot is refused in this account and put three options to the
+  project owner: create the service-linked role, raise the ceiling to about $100 for the same
+  design on demand, or shrink the sample to fit $30 on demand.
+- **Decision (project owner):** create `AWSServiceRoleForEC2Spot`. D-109's design runs unchanged
+  and at the price it was designed against — about $26 of the $30 ceiling for the broad arm's
+  2.5% sample across three sensitivities, and the cap and coverage measurement for well under a
+  dollar rather than about $1 on demand.
+- **Why this is the better of the three rather than merely the cheapest.** The other two both pay
+  for the account's configuration with something that belongs to the audit. Raising the ceiling
+  spends about $75 more for an identical measurement, which is defensible but buys nothing.
+  Shrinking the sample to 0.7% looks like the frugal option and is the expensive one: the binding
+  constraint on this estimate is the realised family count, not the record count (D-109), so a
+  smaller sample widens the interval on every family-level statement in exchange for an IAM
+  limitation. An audit should not have a number in it whose precision was set by a missing role.
+- **Rejected:** the two priced alternatives above, for those reasons. Also rejected: running the
+  cap and coverage measurement on demand first to avoid waiting — it is about $1, so the saving is
+  real but trivial, and it would mean the first authoritative measurement in this arm was taken
+  under a configuration the rest of the arm does not share.
+- **Consequence:** A1.6's remaining work is **blocked on one external action** — someone with IAM
+  permissions creating that role once. Nothing in the repo changes and no code is waiting: the
+  launcher's spot path is already written and tested, and D-120's refusal classifier is what will
+  report it if the role is still absent. On confirmation the order is: the cap and coverage
+  measurement on spot, then the broad arm's sampled pass. `iam:*` is denied here, so this project
+  cannot verify the role exists except by attempting a launch, which is also the launch it wants —
+  so the attempt is the check.
+### D-122 — D-109's $26 is a search price, not a run price: the pass is dozens of launches and each one currently re-reads the corpus
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Numbering:** appended as D-112 and renumbered to D-122 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-109 priced the broad arm's sweep at 1,296 core-hours, $26 of a $30 ceiling, from
+  D-104's fitted model. That model prices **searches**. Neither entry converted the figure into
+  launches, and the conversion is where the money is.
+- **The arithmetic, which is all from D-109's own numbers.** 1,296 core-hours on an 8-vCPU instance
+  is **162 instance-hours — 6.8 days**. The instance shutdown timer this task launches with is
+  260 minutes, and `ec2:ModifyInstanceAttribute` is denied so it cannot be extended after launch.
+  So the broad arm was never one run; it is dozens, and `tools/esm3_calibrate.py` rebuilds the
+  target shards from the full 295 GB corpus on **every** run, because it has no way to load them.
+  The corpus pass is therefore paid once per launch rather than once.
+- **What the corpus pass actually costs, measured today.** The in-flight cap measurement is past
+  2.5 hours on a pass that took 53 minutes in the rate-2000 run it was estimated from. The cause is
+  not the corpus read, which is the same 295 GB either way, but the sample: at rate 50 the pass
+  keeps 40x more records, and every one travels from a worker process to the parent over IPC and is
+  written out by that single parent. **The corpus pass is sample-write-bound, not read-bound**, so a
+  timing taken at one sample rate does not transfer to another. The authoritative pass samples
+  denser still at rate 40, so 2.5-3 hours is the planning figure.
+- **The consequence, as a table.** At a 4.33-hour run cap, 2.5-3 hours of each run is corpus pass
+  and only ~1.6 hours is search, so 1,296 core-hours needs roughly **95 launches and about $66** —
+  2.5x the quoted figure and over the ceiling it was designed against. Longer runs dilute the
+  overhead: a 12-hour cap is roughly 15 launches and about $30. Staging the shards removes it
+  entirely: one corpus pass ever, then launches that are pure search, which returns the figure to
+  about $27.
+- **Decision:** **stage the sampled target shards to object storage once, and have the search runs
+  load them**, in the way the viral seed FASTA is already staged. D-109's $26 stands only with that
+  change; without it the entry's figure is wrong by 2.5x and the ceiling is breached.
+- **Why staging rather than simply longer runs, which is the cheaper-looking alternative.** Longer
+  runs reduce the overhead but raise the exposure: a spot reclaim loses everything the run has done,
+  and the corpus pass is the most expensive thing to lose. The first in-region run established this
+  the hard way — 53 minutes of completed corpus pass went with the searches when it was cut short.
+  With shards staged, a reclaim costs only the search in flight. The two are not exclusive and
+  staging is what makes long runs safe rather than merely cheaper.
+- **Rejected:** Leaving D-109's figure unqualified and reporting the overrun afterwards — the
+  ceiling was a constraint from the project owner, and a 2.5x breach discovered in the invoice is
+  not a measurement problem but a reporting failure. Re-reading the corpus per run as a way to avoid
+  writing staging code — it is the most expensive possible way to save an afternoon. Sizing a bigger
+  instance to shorten the pass — `AGENTS.md` is explicit that a memory or CPU bound is not the test
+  for launching bigger, and the pass is bound by a single parent process writing samples, which more
+  cores do not help.
+- **Consequence:** staging is now a prerequisite for the broad arm's pass, not an optimisation.
+  **Every future entry pricing work in this repo states whether its figure is core-hours of compute
+  or the cost of the runs that deliver them**, since this entry exists because those two were
+  conflated. The cap measurement in flight is unaffected in substance: it is one run, its overhead
+  is one corpus pass, and the ratios it measures do not depend on how the pass is scheduled.
+### D-123 — Correction to D-122: the corpus pass is not sample-write-bound, and the overrun is ~10% rather than 2.5x
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Numbering:** appended as D-113 and renumbered to D-123 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-122 explained a corpus pass running long by claiming it was sample-write-bound —
+  that keeping 40x more records at rate 50 than at rate 2000 moved the cost, because every sampled
+  record crosses from a worker to a single parent that writes it. That claim was reasoning from the
+  code's shape rather than from a measurement, and the measurements were already in the repo's own
+  preserved artefacts. They refute it.
+- **What the artefacts say.** From the two preserved calibration grids, both over UniRef100 2023_02
+  at 350,950,053 clusters:
+  - rate 2000 — 175,010 sampled clusters, 0.066 G residues — corpus pass **3,070 s (51.2 min)**;
+  - rate 10 — 35,092,626 sampled clusters, 13.351 G residues — corpus pass **3,267 s (54.4 min)**.
+  **A 200-fold increase in sampled records costs 3 minutes, about 6%.** The pass is bound by the
+  read, decompress and parse chain and lands near 52 minutes at any sample rate in this range. This
+  is consistent with what was already recorded in `esm3_calibrate.py`'s own `--workers` note:
+  decompression runs at 218 MB/s against 43.6 MB/s for the whole pass single-threaded, so parsing is
+  the bottleneck and the workers are what spread it. Sample writing never entered it.
+- **Correction to D-122's figures.** With a 52-minute pass rather than 2.5-3 hours, a 4.33-hour run
+  spends 0.87 h on the pass and 3.46 h searching, which is 27.7 search core-hours per run. 1,296
+  core-hours therefore needs about **47 launches and about $33** unstaged, against about **38
+  launches and about $26.5** staged. So the overrun against the $30 ceiling is roughly **10%, not
+  2.5x**, and the $66 in D-122 is wrong.
+- **What survives in D-122, and why.** Its decision stands: stage the sampled shards once rather
+  than rebuild them per launch. The reason is now mainly robustness rather than price — a spot
+  reclaim destroys a 52-minute corpus pass along with the searches it was feeding, which is exactly
+  what happened to the first in-region run — with the ~$6.50 as a secondary benefit. Its rule
+  stands too, and this entry is an instance of why: a price must say whether it is core-hours of
+  compute or the cost of the runs delivering them.
+- **What this means for the run in flight.** It is not merely slow. Its pass was due at about 52
+  minutes and it is past 2.5 hours with nothing published, and rate 50 sits between two rates that
+  both completed in 52 minutes, so the sample rate cannot explain it. The only difference from
+  every pass that has completed is the instance type: `m6i.2xlarge` here against `r6i.2xlarge` for
+  all three successful passes, taken because spot capacity for `r6i.2xlarge` was refused. That is a
+  hypothesis and not a finding — with `cloudwatch:GetMetricStatistics`,
+  `ec2:GetConsoleScreenshot`, SSH and SSM all denied there is no way to confirm it from here, which
+  is itself the reason the heartbeat was added.
+- **Rejected:** Editing D-122 in place — the log is append-only and a wrong figure that was briefly
+  load-bearing should stay visible with its correction next to it, not be quietly removed. Treating
+  the slow run as evidence for the sample-write hypothesis — it is one run on an instance type that
+  has never completed a pass here, against three completed passes that directly contradict it.
+- **Consequence:** **a timing claim in this task cites the artefact it came from.** Both numbers in
+  this entry were sitting in object storage while D-122 was being written, and the entry would not
+  have been wrong if they had been read first.
+### D-124 — The three coverage readings come from two aligner-filtered searches, exactly; D-109's relaxed search is withdrawn
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Numbering:** appended as D-114 and renumbered to D-124 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-109 bought the three `--cov-mode` readings of D-107 for the price of one search by
+  relaxing coverage filtering and re-imposing it on the emitted `qcov`/`tcov` columns. It flagged
+  one risk honestly — relaxing admits more rows, so it costs more and may make the hit cap bind —
+  and named three separate cells as the fallback. Two things then landed against it. Rehearsing the
+  path against the pinned aligner showed the post-filter does **not** reproduce the aligner's own
+  `--cov-mode 1` exactly: 138 records against 137, with the post-filtered set a strict superset.
+  And D-104's table shows cost is ~99.5% the per-query term at the broad arm's target size, so the
+  rows a relaxed search adds are not free in the way "one search instead of three" implied.
+- **Decision:** run **two** coverage-filtered searches, `--cov-mode 1` and `--cov-mode 2`, and
+  derive all three readings from them. The construction is exact, and the argument is short enough
+  to check rather than measure:
+  - the mode-1 search returns every pair with `tcov >= c`;
+  - reading 0 is `qcov >= c AND tcov >= c`, so **every** mode-0 pair has `tcov >= c` and is
+    therefore in the mode-1 results, where the `qcov` column the search already emits identifies
+    it. No second pass and no intersection of result sets is needed;
+  - reading 1 is the mode-1 result set itself;
+  - reading 2 is `qcov >= c` with no constraint on `tcov`, which is **not** a subset of the mode-1
+    results, so it needs its own search.
+  Implemented as `similarity.SEARCH_READINGS`, which maps each search to the readings it is
+  authoritative for, with `RecordLedger.extend_from_search` as the only sanctioned call site. A
+  test asserts the two searches reproduce, record for record, what one unfiltered search
+  post-filtered three ways would have produced.
+- **Why this is better than both of D-109's options.** Against the relaxed search: it is exact
+  rather than approximate, and it keeps the aligner's own pruning — under `-c 0.8 --cov-mode 1` a
+  target cannot match a seed shorter than 80% of it, which a relaxed search must align to
+  discover for itself. Against the three-cell fallback: two cells rather than three.
+- **The failure mode this guards.** A `--cov-mode 1` search cannot speak for reading 2, because it
+  omits pairs with `qcov >= c` and `tcov < c`. Counting reading 2 from those rows would yield a
+  floor presented as a measurement — and a floor biases toward understating leakage, which §2
+  treats as the same failure as overstating it. `SEARCH_READINGS` exists so that which search may
+  speak for which reading is one decision in one place, and the coverage predicate is still applied
+  on top, so a misrouted feed narrows a count rather than inflating it.
+- **Rejected:** Keeping the relaxed search and reporting the post-filter's disagreement as a caveat
+  — it is avoidable at no extra cost, and a caveat on the central mechanism of the coverage sweep is
+  worse than one more search. Taking the post-filter's strict-superset behaviour as safe because it
+  errs toward overstating leakage — the direction was measured on 1,200 synthetic records and is not
+  a property anything guarantees at corpus scale. Three separate cells per D-109's fallback — two
+  suffice, and the third would have been bought by not noticing that mode 0 is recoverable from the
+  mode-1 search's own columns.
+- **Consequence:** D-109's coverage mechanism is superseded; its sampling design, identity banding,
+  sensitivity sweep and interval treatment all stand. **The pending hit-cap measurement shrinks
+  accordingly:** its relaxed-coverage half measured a question that no longer exists, so the re-run
+  is the hit cap alone, against a staged sample rather than a fresh corpus pass. The project owner's
+  standing direction is the cheap, provable efficiencies with sampling retained; this is the first
+  of them.
+### D-125 — The narrow arm's handling and reporting rules, fixed before the result exists
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Numbering:** appended as D-115 and renumbered to D-125 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-108 settled the narrow arm's scope — exhaustive against every corpus record — and
+  explicitly left its handling open, because it is the output §4's reporting limits and the X3.1
+  gate are written for. The arm was not to be built until this existed. The question had to be
+  answered **now** rather than when the result lands: §2 and the working conventions fix analysis
+  specs before results are inspected, and an empty result and a non-empty one invite very different
+  rules once either is visible. This entry therefore covers both branches in advance.
+- **Decision (project owner): report counts aggregated by survival route and homology class, never
+  by organism or taxon.** Per-record detail goes to the disclosure package only — Arc Institute,
+  EvolutionaryScale and SecureBio under §4 — and not to the preprint, which carries the aggregate
+  and a pointer. This follows §4's existing precedent for cost curves, where the regime
+  classification publishes by homology class and fold family while per-family curves stay in the
+  disclosure package: the narrow arm's manifest is the same kind of object, and it is organism-
+  attributable by construction because the denylist was reconstructed from an organism list.
+- **Both branches.** An empty result is reported plainly — nothing on the narrow denylist survived,
+  with the proxy qualifier A1.1 requires on every ESM3 result. A non-empty result is reported as
+  counts by survival route (A3.1's frozen taxonomy) and by homology class, with its interval, and
+  nothing finer.
+- **Four consequences that follow rather than being separate choices.**
+  1. **Where the manifest may live.** `artifacts/` is git-ignored and is where it goes. It is **not**
+     committed, because deliverable 7 is a public repo, and it is **not** staged to the corpus
+     bucket, which has no `DeleteObject` — a per-record narrow-arm manifest written there could
+     never be withdrawn. The disclosure package is assembled separately.
+  2. **Downstream inheritance.** D-108 has A2.* and B3.* consuming A1.4's manifest shape from this
+     arm. They inherit this rule: their *published* outputs aggregate the same way. A restriction
+     that stops at A1.6 while a downstream task republishes the detail is not a restriction.
+  3. **Enforced in code, not remembered.** §4's limits are enforced in the harness per the
+     non-negotiables. The narrow arm's reporting path emits aggregates; the per-record manifest is
+     written only under the git-ignored artefacts path, and the upload helper refuses a narrow-arm
+     manifest key. A harness that *could* publish the detail is the thing the non-negotiable
+     forbids, independently of whether anyone would.
+  4. **Nothing circulates before X3.1**, including the aggregate, per §4's disclosure requirement
+     and §7's treatment of the window as substance.
+- **Rejected:** A bare count with no breakdown until the window closes — more conservative, and it
+  would leave the Phase A write-up unable to characterise what survived, which is the audit's
+  actual contribution. The full per-record manifest as the deliverable with only a pointer in the
+  preprint — strongest for the three recipients who can act on it, and it makes the preprint's
+  central narrow-arm claim unverifiable by a reader. Deferring the non-empty branch until a result
+  exists — this is exactly the "fix it before you look" rule, and the asymmetry of the two branches
+  is what makes deferring it tempting and wrong.
+- **Consequence:** **the narrow arm is unblocked.** What remains before it runs is not the owner's:
+  the second seed set is still unbuilt, and two questions gate it, each needing its own entry — how
+  the published organism list's names map to taxonomy ids, which the list does not do for you; and
+  which version of that list was in force when the filter ran, since the source cites a 2024 access
+  date and the retrievable page is live and undated. The reconstruction has a validation target:
+  187K sequences, published in the source (D-106).
+### D-126 — The narrow arm's exact result is retained, staged and permanent; D-125's storage call is reversed
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Numbering:** appended as D-116 and renumbered to D-126 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-125 fixed the narrow arm's reporting rule — counts by survival route and homology
+  class, never by organism or taxon — and then drew a storage conclusion from it that went further
+  than the rule required: that the per-record manifest lives only under the git-ignored artefacts
+  path and is never staged, because an object that cannot be withdrawn is a liability. The project
+  owner's clarification is that the **exact** result is to be held privately; only publication is
+  restricted.
+- **The distinction that was blurred, stated once:** aggregation happens at the **publication**
+  boundary, not the computation boundary. The pass scores every record and keeps the per-record
+  manifest. This is not merely permitted by the conventions, it is required by three of them —
+  "artefacts before prose" means every published number traces to a machine-readable artefact;
+  A3.3 must independently reimplement the headline counts, which cannot be done against a count;
+  and D-108 has A2.* and B3.* consuming A1.4's manifest shape from this arm. A pipeline that only
+  ever emitted aggregates would fail all three, and D-125's storage sentence pointed at exactly
+  that pipeline.
+- **Decision (project owner): stage the manifest to object storage and accept that it is
+  permanent.** The bucket is private, so access is not the issue; the cost is that the copy can
+  never be withdrawn, including if the disclosure process later asks for that. That cost is
+  accepted deliberately rather than discovered, which is the point of recording it here.
+- **Rejected:** Regeneration from pinned inputs as the durable form — the project's definition of
+  done already requires exact regeneration and this arm is cheap to re-run, so it was the
+  recommendation; rejected because a result that exists only as a recipe is not in hand when
+  someone asks for it, and the disclosure package has to be assemblable without a compute run.
+  A staged ciphertext with the key held outside the bucket — durable and retractable, and rejected
+  as a key-management pattern this project has nowhere else and would have to maintain for one
+  artefact.
+- **What changes in D-125, precisely.** Its consequence 1 is reversed: the manifest is staged.
+  Its consequence 3 moves rather than disappearing — enforcement in code is no longer "the upload
+  helper refuses a narrow-arm manifest key", which would now be wrong, but:
+  1. the reporting and write-up path emits aggregates only, by survival route and homology class;
+  2. the manifest is never committed, because the public repo is deliverable 7;
+  3. the manifest's staged key is recorded in the run manifest, so the disclosure package is
+     assembled by reference and a later reader knows the exact result exists and where.
+  Consequences 2 and 4 of D-125 stand unchanged: downstream published outputs inherit the
+  aggregation rule, and nothing circulates before X3.1.
+- **The key scheme, fixed before anything is written**, per `AGENTS.md`'s warning that a bucket
+  with no `DeleteObject` makes a wrong key permanent and that A1.3 left four unremovable 0-byte
+  objects behind: `corpora/results/a1-6/narrow-arm/<release>/<tier>/manifest-<commit>.jsonl`.
+  The commit is in the key so that two runs cannot collide — an overwrite in this bucket is not a
+  tidy replacement but the irreversible loss of the earlier object, which for this artefact would
+  mean destroying a result we had committed to holding.
+- **Consequence:** the narrow arm retains its exact output and publishes only aggregates. The
+  permanence of the staged copy is a known, accepted limitation and belongs in the disclosure
+  conversation at X3.1 rather than being presented as a safeguard.
+### D-127 — The lost runs were a short payload and a shutdown that never fired, not the reader or the instance type; D-123's hypotheses are both refuted
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Numbering:** appended as D-117 and renumbered to D-127 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-123 recorded two candidate causes for an instance that spent four hours on a
+  52-minute corpus pass and published nothing: a degrading S3 read retried without a global bound,
+  or the instance type, since the three passes that completed all ran on `r6i.2xlarge` and that was
+  the only `m6i.2xlarge` attempt. It named the second as weaker and the first as stronger. **Both
+  are refuted.** A second launch failed the same way and its console — still readable, because the
+  failure happens during boot — carried the answer: `ImportError: cannot import name 'shardstore'
+  from 'amazebio'`.
+- **What actually happened, in two faults.**
+  1. **The payload was short.** `ec2_similarity.PAYLOAD` lists the files shipped to the instance and
+     was maintained by hand. `similarity.py` was added to `esm3_calibrate.py`'s imports on
+     2026-10-16 and never added to it; `shardstore.py` followed on 2026-10-17. So the tool died on
+     an `ImportError` about 31 seconds in, having read nothing. The 2026-10-16 run used
+     `--measure caps`, which is exactly the path that imports `similarity`, so it failed the same
+     way — it was never slow, and nothing about rate 50 or the instance type was involved.
+  2. **`shutdown -h now` does not fire while the boot-armed timer is pending.** `UserData` arms
+     `shutdown -h +N` before anything that can fail, by design, and systemd then already has a
+     shutdown scheduled; the immediate one does not replace it. So a script that failed in 31
+     seconds sat idle until the +240 minute timer, burning the whole window. From outside — no
+     console after boot, no artefact, process alive, status checks ok — that is indistinguishable
+     from a four-hour corpus pass, which is why it was diagnosed as one.
+- **Decision — fix both, and make the first unrepeatable rather than remembered.**
+  `PAYLOAD` now lists every first-party module the shipped tools import, and
+  `tests/test_ec2_similarity.py` derives that closure from the source with `ast` and fails if the
+  list is short. `UserData` gains a `die` helper that runs `shutdown -c` before
+  `shutdown -h now`, with `systemctl --no-block poweroff` and `halt -p` as fallbacks, and every
+  exit path goes through it. And the script imports the shipped tool **before** the corpus pass, so
+  a short payload costs two seconds rather than an hour and a launch.
+- **What this says about the two fixes D-123 motivated.** Neither is withdrawn. The reader's global
+  reconnect budget bounds a real unbounded retry loop that remains a bug whether or not it was this
+  bug, and `S3RangeRead` had no tests at all before. The heartbeat is what made this diagnosis take
+  thirty seconds instead of four hours: its absence from object storage after 30 minutes is what
+  prompted looking at the console while the answer was still in it. Both were worth building; the
+  entry that motivated them simply had the wrong cause.
+- **Rejected:** Leaving D-123 standing as the explanation — it is wrong, it is cited from a commit
+  message and from `AGENTS.md`, and a later worker would otherwise plan around a reader fault and an
+  instance-type superstition that cost two launches to invent. Blaming the instance type, which was
+  tempting twice: both failing runs were `m6i.2xlarge` purely because `r6i.2xlarge` spot capacity was
+  refused both times, and the correlation was with the capacity refusal rather than with the machine.
+- **Consequence:** the cost of the two lost launches was about $0.75 and most of a day. The general
+  lesson is the one `AGENTS.md` already states and this breached from a direction it did not cover:
+  a dead man's switch that cannot be superseded turns every fast failure into a full-window
+  failure. **Both are now recorded in `AGENTS.md`** — that an immediate shutdown must cancel the
+  pending one first, and that the payload is derived and tested rather than listed by hand.
+### D-128 — The broad arm runs on one staged shard at 0.3125% with the cap unbound; D-109's 2.5% is superseded
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Numbering:** appended as D-118 and renumbered to D-128 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-109 sized the broad arm at 2.5% for $26, from D-104's cost model. The cap
+  measurement priced the real thing and the model under-predicts by about 6x, because it was fitted
+  with the charitable parameter set's `--min-seq-id 0.70` and the pass cannot use an identity floor
+  — banded reporting needs the rows below the cut (D-105 parameter 6, D-124). Measured on a 417 M
+  residue target with 31,381 seeds: 11,600 core-seconds filtered, 17,095 relaxed. Extrapolated to
+  the full 3,159,223 seeds over 2.5% of the corpus with the sensitivity sweep, D-109's design is
+  **$300-430, not $26**.
+- **Decision (project owner): 0.25% of the corpus at the correct, unbinding hit cap.** Implemented
+  as **one shard of the already-staged 2.5% sample**, which is 0.3125% — slightly more than asked,
+  and free, because it is a hash partition of a sample already built, checksummed and staged
+  (D-122). No new corpus pass. About **$50** with the full three-sensitivity sweep and all three
+  coverage readings retained.
+- **The cap stays at 100,000 and does not bind.** Measured: 5,078 hits for the worst seed against a
+  417 M residue target, 5% of the cap, nothing truncated. At this target size the worst case is
+  about 4,000, so the pass takes no recall loss from truncation. The alternative — capping at half
+  the observed maximum for 2.8x — was available and is **declined**: it loses 0.9% of records, and
+  a lost record is a missed survivor, which §2 treats as the same failure as overstating leakage.
+  D-105 refused `-s 2.0`'s 2x saving on identical reasoning and this entry does not reopen it.
+- **One shard, not eight.** The per-query coefficient is sub-linear in target size, so the sum over
+  many small shards exceeds one search against their union. Sharding exists because no permitted
+  instance can hold the whole corpus (D-094); at 0.3125% the target is about 334 MB and the reason
+  does not apply.
+- **What this costs in precision, stated rather than buried.** Eight times fewer records and
+  correspondingly fewer families than D-109 planned. D-109 established that the binding constraint
+  is the realised **family** count, not the record count, so the interval widens by roughly the
+  square root of that factor and every rate must ship with its realised family count as that entry
+  requires. UniRef and MGnify stay separate and unpooled.
+- **Rejected:** The 2.5% design at its true price — defensible, and fifteen times the ceiling the
+  owner set. One sensitivity at 2.5% — keeps precision, gives up the only check on whether the rate
+  is a property of the filter or of our aligner settings, which D-109 already refused. A lower hit
+  cap — priced at 2.8x for 0.9% of records and declined above.
+- **Consequence:** D-109's sample size is superseded; its hash-sampling rule, identity banding,
+  sensitivity sweep, design-effect intervals and denominator separation all stand. D-104's model is
+  not to be used for any further estimate in this task without stating that it carries an identity
+  floor the pass does not.
+### D-129 — The narrow arm becomes A1.8; A1.6 keeps the broad arm only
+- **Date:** 2026-10-17
+- **Task:** A1.6 / A1.8
+- **Numbering:** appended as D-119 and renumbered to D-129 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-108 split the pass by denylist and both arms stayed inside A1.6. They have since
+  diverged in every respect that matters: method (exhaustive against sampled), budget (roughly a
+  seventeenth of the compute), what may be published (D-125's aggregation rules apply to one arm
+  and not the other), and who is waiting on what. A1.6's own handoff flagged the split as the
+  tidier option under the one-task-per-file rule and as the project owner's call, since ids are
+  permanent and cited. The owner has now asked for it, so that another worker can take the narrow
+  arm in parallel.
+- **Decision:** the narrow arm is **A1.8**, `ready` and unassigned. A1.6 is the broad viral
+  denylist only. `depends_on: [A1.4, A1.5]`, both `done`, so A1.8 is takeable immediately — it is
+  deliberately **not** made to depend on A1.6, because its inputs are the staged proxy corpus and
+  A1.4's manifest format rather than anything A1.6 still has to produce, and a dependency there
+  would block the parallelism this split exists to allow.
+- **What travels with it, explicitly, because a split is where governance gets lost.** D-125 and
+  D-126 are A1.6 entries that now govern A1.8: counts by survival route and homology class and
+  never by organism or taxon; the exact per-record result retained and staged at the key D-126
+  fixes; nothing committed, since the public repo is deliverable 7; nothing circulated before
+  X3.1; and the restriction inherited by A2.* and B3.* for their published outputs. D-106's
+  published 187K is its validation target, and D-108's prohibition on pooling the two arms' outputs
+  now spans two task files rather than sitting inside one.
+- **What stays in A1.6:** the broad arm, now at 0.3125% of the corpus on one staged shard with the
+  cap unbound (D-128), and the instrument both arms use.
+- **Rejected:** Keeping both arms in A1.6 — it is the status quo and it was already the wrong
+  shape; the file had three "waiting on the owner" blocks for two different questions and a reader
+  could not tell which arm a given line governed. Making A1.8 depend on A1.6 — tidier as a graph
+  and it would have left the new task `blocked`, which defeats the point. Renumbering anything —
+  ids are never reused or renumbered.
+- **Consequence:** one coordination point, recorded in A1.8's state block rather than left to be
+  discovered: the instrument A1.8 builds on (`similarity.py`, `shardstore.py`,
+  `tools/esm3_calibrate.py`, `tools/ec2_similarity.py`) is tested and green but sits on A1.6's
+  feature branch and not on `main`. Whoever takes A1.8 should wait for that branch to land or
+  branch from it rather than building a second copy. **That is an argument for landing A1.6's
+  instrument on `main` sooner than its results.**

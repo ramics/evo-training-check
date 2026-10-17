@@ -54,12 +54,38 @@ MMSEQS_URL = (
 )
 MMSEQS_SHA256 = "bd9b0234da5949ad528d5b5f9ea4cda9c1e23dce14b46c0791d4d919a76e61ce"
 
+#: Per measurement, because the two want opposite trades. The curve holds the full seed set
+#: as query and needs a small target for its grid points to complete at all; the cap
+#: measurement subsamples the query and needs a large target, since hits per seed is what the
+#: cap truncates and it scales with the target.
+SAMPLE_RATES = {"curve": 2000, "caps": 50}
+
+#: Used when --hard-stop-minutes is not given. Not an argparse default, because a watcher
+#: attaching to a running instance must be able to tell "I armed this" from "someone else
+#: did": the timer is written into UserData at launch and ec2:ModifyInstanceAttribute is
+#: denied, so no later process can change it or read it back.
+DEFAULT_HARD_STOP_MINUTES = 400
+
+#: Where each measurement's result lands, matching `esm3_calibrate.ARTEFACT_NAMES`. The
+#: watcher polls this key, so a mismatch reads as a run that produced nothing.
+RESULT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
+
 #: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
+#: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
+#:
+#: Every first-party module the shipped tools import, transitively. Keeping this by hand cost
+#: two runs on 2026-10-16 and 2026-10-17: `similarity.py` and then `shardstore.py` were added
+#: to `esm3_calibrate.py` and not here, so the instance died on an ImportError about half a
+#: minute in. `tests/test_ec2_similarity.py` now derives the closure from the source and fails
+#: if this list is short, because the instance is the one place where a missing import costs an
+#: hour and a launch rather than a second.
 PAYLOAD = (
     "src/amazebio/__init__.py",
     "src/amazebio/repro.py",
     "src/amazebio/uniref.py",
     "src/amazebio/seeds.py",
+    "src/amazebio/similarity.py",
+    "src/amazebio/shardstore.py",
     "tools/esm3_calibrate.py",
 )
 
@@ -75,6 +101,19 @@ echo "=== amazebio a1-6 calibration starting $(date -Is) ==="
 # at launch is what makes this a terminate rather than a stop that keeps billing a volume.
 shutdown -h +{hard_stop_minutes} &
 
+# `die` exists because `shutdown -h now` does not work while that timer is pending: systemd
+# already has a shutdown scheduled and the immediate one does not replace it. On 2026-10-16 a
+# run whose script failed 31 seconds in therefore sat idle until the +240 minute timer fired,
+# burning the whole window instead of dying at once — and looked from outside exactly like a
+# wedged four-hour corpus pass. Cancel the schedule first, then go down, with fallbacks
+# because this is the one path that must not fail.
+die() {{
+  echo "=== shutting down: $1 ==="
+  shutdown -c || true
+  shutdown -h now || systemctl --no-block poweroff || halt -p || true
+  exit "${{2:-1}}"
+}}
+
 dnf install -y tar gzip unzip >/dev/null
 
 # Amazon Linux 2023 ships python3.9 as `python3`, and this project needs 3.12.
@@ -84,9 +123,7 @@ for cand in python3.12 python3.11; do
   if command -v "$cand" >/dev/null 2>&1; then PYBIN="$cand"; break; fi
 done
 if [ -z "$PYBIN" ]; then
-  echo "FATAL: no python 3.11+ available; nothing to run"
-  shutdown -h now
-  exit 1
+  die "no python 3.11+ available; nothing to run"
 fi
 echo "=== interpreter: $PYBIN ($($PYBIN -V)) ==="
 "$PYBIN" -m pip install --quiet boto3
@@ -100,9 +137,7 @@ tar xzf code.tar.gz
 # untraceable, which is worse than returning nothing.
 curl -sSL -o mmseqs.tar.gz "{mmseqs_url}"
 echo "{mmseqs_sha256}  mmseqs.tar.gz" | sha256sum -c - || {{
-  echo "FATAL: mmseqs checksum mismatch; refusing to run a different aligner"
-  shutdown -h now
-  exit 1
+  die "mmseqs checksum mismatch; refusing to run a different aligner"
 }}
 tar xzf mmseqs.tar.gz
 export PATH="/opt/amazebio/mmseqs/bin:$PATH"
@@ -113,24 +148,39 @@ mmseqs version
 # dated URL does not need to be made permanent.
 curl -sSL -o taxdmp.zip "{taxdump_url}"
 echo "{taxdump_sha256}  taxdmp.zip" | sha256sum -c - || {{
-  echo "FATAL: taxdump checksum mismatch"
-  shutdown -h now
-  exit 1
+  die "taxdump checksum mismatch"
 }}
+
+# Import the tool before the pass rather than discovering a short payload after it. This is
+# the check that would have turned two lost launches into two seconds.
+"$PYBIN" -c "import sys; sys.path.insert(0,'src'); import tools.esm3_calibrate" 2>/dev/null \
+  || "$PYBIN" - <<'PRECHECK' || die "the shipped payload cannot import; PAYLOAD is short"
+import sys
+sys.path.insert(0, "src")
+import importlib.util
+spec = importlib.util.spec_from_file_location("cal", "tools/esm3_calibrate.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+print("=== payload imports cleanly ===")
+PRECHECK
 
 export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
 ( "$PYBIN" tools/esm3_calibrate.py \
     --release {release} --tier {tier} \
     --taxdump /opt/amazebio/taxdmp.zip \
     --outdir /opt/amazebio/out --workdir /mnt/work \
+    --measure {measure} \
     --sample-rate {sample_rate} --buckets {buckets} --strict-buckets {strict_buckets} \
     --query-fractions {query_fractions} --shard-points {shard_points} \
+    --cap-query-denominator {cap_query_denominator} \
+    --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
+    {sample_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
     --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
 
 echo "=== amazebio a1-6 calibration finished $(date -Is) ==="
-shutdown -h now
+die "run complete" 0
 """
 
 
@@ -184,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     # full-query search against it had not finished in 61 minutes; at 2000 the whole sample
     # is 67 M residues, so every grid point can complete and the fit gets points instead of
     # one timeout.
-    ap.add_argument("--sample-rate", type=int, default=2000)
+    ap.add_argument("--sample-rate", type=int, default=None)
     ap.add_argument("--query-fractions", default="1000,100,10,1")
     ap.add_argument("--shard-points", default="1,2,4,8")
     ap.add_argument("--buckets", type=int, default=8)
@@ -214,10 +264,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--hard-stop-minutes",
         type=int,
-        default=400,
-        help="a shutdown timer armed on the instance at boot, before anything that can "
-        "fail. Independent of the script reaching its own shutdown and of the launcher "
-        "surviving to run its terminate (default: %(default)s)",
+        default=None,
+        help=f"a shutdown timer armed on the instance at boot, before anything that can "
+        f"fail. Independent of the script reaching its own shutdown and of the launcher "
+        f"surviving to run its terminate (default: {DEFAULT_HARD_STOP_MINUTES}). Has no "
+        f"effect with --attach: the timer was armed by the launch, and ec2:"
+        f"ModifyInstanceAttribute is denied, so no later process can change or read it",
     )
     ap.add_argument("--poll-seconds", type=float, default=120.0)
     ap.add_argument(
@@ -232,8 +284,43 @@ def main(argv: list[str] | None = None) -> int:
         help="kill the instance when the watch window expires even if it is still "
         "working. Off by default: doing it unconditionally destroyed a healthy run once.",
     )
+    ap.add_argument(
+        "--stage-sample",
+        action="store_true",
+        help="stage the sample after the corpus pass so later runs skip it (D-122). The "
+        "staging happens before the searches, so a run cut short still leaves the sample",
+    )
+    ap.add_argument(
+        "--sample-from",
+        metavar="S3_URI",
+        help="load a staged sample instead of running the ~52-minute corpus pass (D-123)",
+    )
+    ap.add_argument(
+        "--measure",
+        choices=("curve", "caps"),
+        default="curve",
+        help="what the instance measures. `caps` prices the hit cap where it binds and "
+        "relaxed coverage against D-109's three-cell fallback (default: %(default)s)",
+    )
+    # The cap measurement wants the opposite trade from the cost curve: a *larger* target
+    # against a small query, because hits per seed — the thing the cap truncates — scales
+    # with the target and is a per-seed property the query subsample does not bias. Rate 50
+    # over UniRef100 is about 2 G residues against rate 2000's 67 M, which is the difference
+    # between a cap that can be made to bind and one that cannot.
+    ap.add_argument("--cap-query-denominator", type=int, default=100)
+    ap.add_argument("--cap-shard-points", default="1,2")
+    ap.add_argument("--cap-fractions", default="0.5,0.2")
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
+    ap.add_argument(
+        "--spot",
+        action="store_true",
+        help="request a spot instance. D-104's $240-450 and D-109's $26 are both spot "
+        "figures, so the authoritative passes need this; the price is that the instance "
+        "can be reclaimed mid-run",
+    )
     args = ap.parse_args(argv)
+    if args.sample_rate is None:
+        args.sample_rate = SAMPLE_RATES[args.measure]
 
     if args.volume_size > 200:
         raise SystemExit("the account's policy caps volumes at 200 GB in gp3/gp2")
@@ -275,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     print(f"code commit: {commit}")
 
-    code_key = f"{prefix}/code/a1-6-calibrate-{int(time.time())}.tar.gz"
+    code_key = f"{prefix}/code/a1-6-{args.measure}-{int(time.time())}.tar.gz"
     payload = build_payload(root)
     if not args.dry_run:
         s3.put_object(Bucket=bucket, Key=code_key, Body=payload)
@@ -289,6 +376,11 @@ def main(argv: list[str] | None = None) -> int:
         commit=commit,
         release=args.release,
         tier=args.tier,
+        measure=args.measure,
+        cap_query_denominator=args.cap_query_denominator,
+        cap_shard_points=args.cap_shard_points,
+        cap_fractions=args.cap_fractions,
+        sample_flags=_sample_flags(args),
         sample_rate=args.sample_rate,
         buckets=args.buckets,
         strict_buckets=args.strict_buckets,
@@ -297,7 +389,7 @@ def main(argv: list[str] | None = None) -> int:
         threads=args.threads,
         workers=args.workers,
         budget=args.search_budget_seconds,
-        hard_stop_minutes=args.hard_stop_minutes,
+        hard_stop_minutes=args.hard_stop_minutes or DEFAULT_HARD_STOP_MINUTES,
         mmseqs_url=MMSEQS_URL,
         mmseqs_sha256=MMSEQS_SHA256,
         taxdump_url=seeds.TAXDUMP_2023_04.url,
@@ -309,7 +401,7 @@ def main(argv: list[str] | None = None) -> int:
     tags = [
         {"Key": "Project", "Value": "ClaudeSpike"},
         {"Key": "Owner", "Value": args.owner},
-        {"Key": "Name", "Value": "amazebio-a1-6-calibrate"},
+        {"Key": "Name", "Value": f"amazebio-a1-6-{args.measure}"},
     ]
     launch: dict[str, Any] = dict(
         ImageId=ami,
@@ -331,6 +423,10 @@ def main(argv: list[str] | None = None) -> int:
         InstanceInitiatedShutdownBehavior="terminate",
     )
 
+    market = market_options(args.spot)
+    if market is not None:
+        launch["InstanceMarketOptions"] = market
+
     if args.dry_run:
         try:
             ec2.run_instances(DryRun=True, **launch)
@@ -338,9 +434,16 @@ def main(argv: list[str] | None = None) -> int:
             print("dry run:", type(exc).__name__, str(exc)[:200])
         return 0
 
-    instance = ec2.run_instances(**launch)["Instances"][0]
+    try:
+        instance = ec2.run_instances(**launch)["Instances"][0]
+    except Exception as exc:
+        message = spot_refusal(str(exc)) if args.spot else None
+        if message:
+            raise SystemExit(message) from exc
+        raise
     iid = instance["InstanceId"]
-    print(f"launched {iid} ({args.instance_type}, {args.volume_size} GB gp3)")
+    market = "spot" if args.spot else "on-demand"
+    print(f"launched {iid} ({args.instance_type}, {market}, {args.volume_size} GB gp3)")
 
     return _run_and_collect(ec2, s3, iid, bucket, prefix, args)
 
@@ -370,8 +473,7 @@ def _run_and_collect(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args
         if timed_out and state == "running" and not args.terminate_on_timeout:
             print(
                 f"\nwatch window expired and {iid} is still running — leaving it alone.\n"
-                f"  the instance's own shutdown timer ({args.hard_stop_minutes} min from "
-                f"boot) bounds it.\n"
+                f"  {_shutdown_bound(args)}\n"
                 f"  reattach:  python3 tools/ec2_similarity.py --attach {iid}"
             )
         else:
@@ -383,11 +485,33 @@ def _run_and_collect(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args
     return outcome
 
 
+def _shutdown_bound(args: Any) -> str:
+    """What bounds the instance once this watcher gives up — without inventing a number.
+
+    The first version of this printed `args.hard_stop_minutes` unconditionally, which is a
+    figure the launching process knows and an attaching one does not. On 2026-10-16 a watcher
+    attached with `--attach` and reported a 400-minute bound on an instance launched with 260,
+    which is exactly the sort of line someone later reads as fact when deciding whether an
+    instance has already gone.
+    """
+    if args.hard_stop_minutes is not None:
+        return (
+            f"the instance's own shutdown timer ({args.hard_stop_minutes} min from boot, "
+            f"armed by this launch) bounds it."
+        )
+    return (
+        "the instance's own shutdown timer, armed at launch, bounds it — this process did "
+        "not set it and cannot read it back, so check the launch that created the instance "
+        "for the figure."
+    )
+
+
 def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> tuple[int, bool]:
     """Poll the result key and the console. Returns (exit code, whether time ran out)."""
     deadline = time.monotonic() + args.timeout_minutes * 60
     timed_out = True
-    key = f"{prefix}/results/a1-6/calibration.json"
+    name = RESULT_NAMES[args.measure]
+    key = f"{prefix}/results/a1-6/{name}"
     seen_console = 0
     last_searches = -1
 
@@ -426,11 +550,24 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
         body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
         out = Path("artifacts/a1-6")
         out.mkdir(parents=True, exist_ok=True)
-        (out / "calibration.json").write_bytes(body)
-        print(f"collected s3://{bucket}/{key} -> artifacts/a1-6/calibration.json")
+        (out / name).write_bytes(body)
+        print(f"collected s3://{bucket}/{key} -> artifacts/a1-6/{name}")
         return 0, timed_out
     except Exception as exc:
         print(f"no result at s3://{bucket}/{key}: {type(exc).__name__}")
+        # A spot reclaim and a broken run both end with no result key, and they need
+        # different responses: the first is a re-run of the same code, the second is not.
+        # EC2 says which in StateTransitionReason, so read it rather than guessing.
+        reason = _transition_reason(ec2, iid)
+        if "Server.SpotInstanceTermination" in reason or "Server.Capacity" in reason:
+            print(
+                f"  {iid} was reclaimed by EC2, not failed: {reason!r}.\n"
+                "  the run is interrupted, not refuted — re-run it. Partial results that "
+                "reached S3 before the reclaim are still there."
+            )
+            return 2, timed_out
+        if reason:
+            print(f"  StateTransitionReason: {reason!r}")
         return 1, timed_out
 
 
@@ -440,6 +577,97 @@ def _summarise(done: list[dict[str, Any]]) -> str:
         f" @ {d['residues'] / 1e9:.2f} Gres"
         for d in done
     )
+
+
+def _sample_flags(args: Any) -> str:
+    """The staging flags for `UserData`, or nothing.
+
+    Built here rather than interpolated inline so that the mutually exclusive pair cannot both
+    reach the instance: there is one shot at `UserData` and no way to ask the instance what it
+    thought it was doing.
+    """
+    if args.stage_sample and args.sample_from:
+        raise SystemExit("--stage-sample builds a sample; --sample-from loads one. Pick one.")
+    if args.sample_from:
+        if not args.sample_from.startswith("s3://"):
+            raise SystemExit("--sample-from takes an s3:// uri pointing at a staged manifest")
+        return f"--sample-from {args.sample_from}"
+    return "--stage-sample" if args.stage_sample else ""
+
+
+def spot_refusal(text: str) -> str | None:
+    """Why a spot launch was refused, in terms the next person can act on. `None` if unclear.
+
+    Both refusals this distinguishes mean nothing launched and nothing was billed, and they
+    need opposite responses — which is why they are not one message.
+
+    *The service-linked role.* Measured 2026-10-16, and no dry run finds it: a spot request
+    needs `AWSServiceRoleForEC2Spot`, which EC2 creates on the caller's behalf on first use
+    via `iam:CreateServiceLinkedRole`. AGENTS.md records that `iam:*` is denied in this
+    account, so spot is not a flag that can be turned on from here. It needs one IAM action
+    from someone who has that permission, and until then every spot-priced figure in this
+    task is a price we cannot pay.
+
+    *Capacity.* The ordinary spot refusal: the same request may succeed later, or on another
+    permitted instance type.
+    """
+    if "ServiceLinkedRoleCreationNotPermitted" in text:
+        return (
+            f"spot is unavailable in this account: {text[:160]}\n"
+            "  the EC2 Spot service-linked role does not exist and iam:* is denied, so it "
+            "cannot be created from here.\n"
+            "  nothing launched, nothing billed. Either someone with IAM permissions creates "
+            "AWSServiceRoleForEC2Spot once, or the run goes on demand without --spot at "
+            "roughly 3-4x the price.\n"
+            "  that price difference is not a detail: D-104's $240-450 and D-109's $26 are "
+            "spot figures."
+        )
+    if "Capacity" in text or "capacity" in text:
+        return (
+            f"spot capacity refused: {text[:200]}\n"
+            "  nothing launched and nothing billed. Retry, try another permitted instance "
+            "type, or run on demand without --spot at the higher price."
+        )
+    return None
+
+
+def market_options(spot: bool) -> dict[str, Any] | None:
+    """What to ask EC2 for, market-wise. `None` means say nothing and get on demand.
+
+    Three choices, each of which has a cheaper-looking alternative that is wrong here:
+
+    *One-time, not persistent.* A reclaim on a persistent request re-launches the instance,
+    which restarts a multi-hour pass with nobody watching and bills for it. The pass is
+    re-run deliberately or not at all.
+
+    *Interruption behaviour terminate, not stop or hibernate.* Stop keeps billing the
+    volume, which is the same trap `InstanceInitiatedShutdownBehavior` exists to avoid, and
+    it leaves a resource to forget. That flag stays set independently: it governs the
+    instance's own shutdown, this one governs EC2's reclaim, and both have to say terminate.
+
+    *No maximum price.* Omitting it caps the bid at the on-demand price. The saving this
+    task wants comes from spot being cheaper than on demand, not from bidding under the
+    going rate — a bid below it converts a run that would have cost money into a launch that
+    silently never happens, and nobody is watching to notice.
+    """
+    if not spot:
+        return None
+    return {
+        "MarketType": "spot",
+        "SpotOptions": {
+            "SpotInstanceType": "one-time",
+            "InstanceInterruptionBehavior": "terminate",
+        },
+    }
+
+
+def _transition_reason(ec2: Any, iid: str) -> str:
+    """Why EC2 says the instance changed state. Empty when it does not say."""
+    try:
+        inst = ec2.describe_instances(InstanceIds=[iid])["Reservations"][0]["Instances"][0]
+        return str(inst.get("StateTransitionReason", ""))
+    except Exception:
+        return ""
 
 
 def _state(ec2: Any, iid: str) -> str:
