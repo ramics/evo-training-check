@@ -287,3 +287,38 @@ def test_the_corpus_read_beats_while_it_reads_not_only_when_it_starts():
     read_loop = read_loop[: read_loop.index("read_seconds =")]
     assert "args.heartbeat_seconds" in read_loop
     assert "objects_done" in read_loop and "genomes_sampled" in read_loop
+
+
+def test_each_table_is_uploaded_as_it_is_written_not_batched_at_the_end():
+    """The first band needed ~10 hours against a 12-hour timer.
+
+    A single upload after every manifest would have lost Evo 1's finished tables along with
+    Evo 2's unfinished ones if the timer had won. The end-of-run sweep is a backstop.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    write = source.index("table.write(args.out")
+    nearby = source[write : write + 600]
+    assert "publish(" in nearby, "a finished table must be uploaded where it is written"
+
+
+def test_a_genome_spanning_two_objects_is_merged_not_appended_twice():
+    """Evo 1's reader yields a genome once per object, and contigs straddle shard boundaries.
+
+    Appending both occurrences would count one genome as two surviving records, and give its
+    contigs colliding `<genome>~<n>` names because the index restarts per occurrence — two
+    different sequences entering geNomad under one name, with the attribution back to the host
+    ambiguous and nothing downstream able to show it.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    assert "seen_genomes[genome_id].extend(contigs)" in source
+    assert "batch.append((genome_id, contigs))" not in source
+
+
+def test_contig_indices_are_unique_within_a_merged_genome(tmp_path):
+    """The property the merge exists to preserve, checked on the writer itself."""
+    genomes = [("G1", [("c1", "AAAA"), ("c2", "CCCC"), ("c3", "GGGG")])]
+    path = tmp_path / "batch.fna"
+    dp.write_batch(genomes, path)
+    headers = [line[1:].strip() for line in path.read_text().splitlines() if line.startswith(">")]
+    assert headers == ["G1~0", "G1~1", "G1~2"]
+    assert len(set(headers)) == len(headers)

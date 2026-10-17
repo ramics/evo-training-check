@@ -642,6 +642,25 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:
             print(f"    heartbeat failed: {type(exc).__name__}", flush=True)
 
+    def publish(path: Path, role: str) -> None:
+        """Put one finished artefact in the results prefix, as soon as it exists.
+
+        Not batched at the end of the run. The first band needed about ten hours against a
+        twelve-hour shutdown timer, and a single upload after every manifest would have lost
+        Evo 1's finished tables along with Evo 2's unfinished ones if the timer had won. An
+        artefact that is complete is uploaded; the sweep at the end is a backstop, not the
+        mechanism.
+        """
+        if not args.upload_results:
+            return
+        try:
+            client.put_object(
+                Bucket=bucket, Key=f"{results_prefix}/{path.name}", Body=path.read_bytes()
+            )
+            print(f"  uploaded {role}: {path.name}", flush=True)
+        except Exception as exc:
+            print(f"    upload of {path.name} failed: {type(exc).__name__}", flush=True)
+
     beat("starting", manifests=len(manifests))
 
     with run(
@@ -679,14 +698,24 @@ def main(argv: list[str] | None = None) -> int:
                     keys = keys[: args.max_objects]
                 beat("reading", release=release, component=component)
                 started = time.time()
-                batch: list[tuple[str, list[tuple[str, str]]]] = []
                 last_beat = time.time()
+                seen_genomes: dict[str, list[tuple[str, str]]] = {}
                 for index, key in enumerate(keys):
                     reader = (
                         sampled_genomes_og1 if component == "stage1_gtdb" else sampled_genomes_og2
                     )
                     for genome_id, contigs in reader(client, bucket, key, rate=args.rate):
-                        batch.append((genome_id, contigs))
+                        # Merge rather than append. `sampled_genomes_og1` yields a genome once
+                        # per object, and a genome whose contigs straddle a shard boundary is
+                        # therefore yielded twice. Appending both would count it as two
+                        # surviving records and — worse — give its contigs colliding
+                        # `<genome>~<n>` names, since the index restarts per occurrence, so two
+                        # different sequences would enter geNomad under one name and the
+                        # attribution back to the host would be ambiguous.
+                        if genome_id in seen_genomes:
+                            seen_genomes[genome_id].extend(contigs)
+                        else:
+                            seen_genomes[genome_id] = list(contigs)
                         # Beat *during* the read, not only at its start. The corpus pass is
                         # the longest step — over an hour for Evo 1's 127 GB — and the first
                         # version published nothing between "reading" and the search that
@@ -700,13 +729,14 @@ def main(argv: list[str] | None = None) -> int:
                                 component=component,
                                 objects_done=index,
                                 objects_total=len(keys),
-                                genomes_sampled=len(batch),
+                                genomes_sampled=len(seen_genomes),
                                 elapsed_seconds=round(time.time() - started, 1),
                             )
-                        if args.limit and len(batch) >= args.limit:
+                        if args.limit and len(seen_genomes) >= args.limit:
                             break
-                    if args.limit and len(batch) >= args.limit:
+                    if args.limit and len(seen_genomes) >= args.limit:
                         break
+                batch = list(seen_genomes.items())
                 read_seconds = round(time.time() - started, 1)
 
                 with tempfile.TemporaryDirectory(prefix="a2-4-") as workdir:
@@ -866,6 +896,7 @@ def main(argv: list[str] | None = None) -> int:
                 manifest_run.output_file(
                     args.out / f"{stem}.json", role="per-family prophage hit table"
                 )
+                publish(args.out / f"{stem}.json", "hit table")
                 print(
                     f"  {stem}: {survival['families_with_a_hit']:,} of "
                     f"{survival['families_in_universe']:,} families "
@@ -892,6 +923,7 @@ def main(argv: list[str] | None = None) -> int:
                     + "\n"
                 )
                 manifest_run.output_file(path, role="two-tool concordance")
+                publish(path, "concordance")
         if args.upload_results:
             beat("uploading")
             for path in sorted(args.out.glob("*.json")):
