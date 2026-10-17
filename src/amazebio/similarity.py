@@ -36,6 +36,8 @@ from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from amazebio.seeds import bucket_of
+
 #: The columns the pass asks `convertalis` for, in order. `fident` carries the identity the
 #: threshold reading needs; `qcov` and `tcov` are what make the three coverage readings
 #: recoverable from one search (D-109). Nothing else is emitted: at full corpus scale the hit
@@ -83,6 +85,33 @@ SEARCH_READINGS: dict[int, tuple[int, ...]] = {1: (0, 1), 2: (2,)}
 #: still counted — the literal reading's threshold is undetermined (D-107), so the pass may
 #: not assume the charitable cut is the floor of interest.
 IDENTITY_BAND_EDGES: tuple[float, ...] = (0.0, 0.70, 0.75, 0.80, 0.90, 1.0)
+
+#: D-134's bands on the **seed** axis, as denominators of a hash sample: 1/100, 1/10, all.
+#:
+#: The pass samples seeds rather than slicing them because band counts are per corpus record.
+#: They are additive across shards — the shards are a hash partition of the corpus sample, so
+#: no record is in two — but **not** across query slices: a record matched by seeds in two
+#: slices would be counted once per slice, and its band is a max over all seeds rather than a
+#: sum. Sampling needs no such merge, and the thing it costs is stated rather than hidden, in
+#: `lower_bound` below.
+#:
+#: Band 1's denominator of 100 reproduces the query set the cap measurement already ran, which
+#: is what prices band 2 (D-134).
+SEED_BANDS: tuple[int, ...] = (100, 10, 1)
+
+
+def select_seeds(identifiers: Iterable[str], denominator: int) -> Iterator[str]:
+    """The seeds in a 1/`denominator` hash sample, in input order.
+
+    The same `bucket_of(ident, denominator) == 0` rule the cap measurement used, so a band at
+    100 re-runs exactly that query set and the two are comparable. A denominator of 1 is the
+    whole set and is not a sample.
+    """
+    if denominator < 1:
+        raise ValueError(f"seed denominator must be at least 1, got {denominator!r}")
+    for ident in identifiers:
+        if denominator == 1 or bucket_of(ident, denominator) == 0:
+            yield ident
 
 
 def band_labels() -> tuple[str, ...]:
@@ -428,14 +457,38 @@ class CellKey:
     shard: int
     sensitivity: float
     cov_mode: int
+    seed_denominator: int = 1
+
+    def __post_init__(self) -> None:
+        if self.seed_denominator < 1:
+            raise ValueError(f"seed denominator must be at least 1, got {self.seed_denominator!r}")
 
     def slug(self) -> str:
-        """A stable key for the cell's artefact. Must not change once results exist."""
-        return f"shard{self.shard:02d}-s{self.sensitivity:g}-cov{self.cov_mode}"
+        """A stable key for the cell's artefact. Must not change once results exist.
+
+        The seed band is in the key, because the corpus bucket has no `DeleteObject` and two
+        bands against the same shard would otherwise collide on a name — the second one
+        silently reading as the first. A full-seed cell keeps D-128's original slug, so band 3
+        is not renamed by this having been added.
+        """
+        base = f"shard{self.shard:02d}-s{self.sensitivity:g}-cov{self.cov_mode}"
+        return base if self.seed_denominator == 1 else f"{base}-q{self.seed_denominator}"
 
     @property
     def readings(self) -> tuple[int, ...]:
         return SEARCH_READINGS[self.cov_mode]
+
+    @property
+    def lower_bound(self) -> bool:
+        """Whether this cell's counts understate the truth, which a sampled seed set does.
+
+        A corpus record is counted if **any** seed matches it, so dropping seeds can only drop
+        records and can only lower a record's best identity. The understatement is monotone in
+        the sample fraction and runs toward less apparent leakage, which §2 treats as the same
+        class of failure as overstating it — hence a flag that travels with the number rather
+        than a note in the write-up (D-134).
+        """
+        return self.seed_denominator > 1
 
 
 @dataclass
@@ -454,12 +507,24 @@ class CellResult:
     families: dict[int, list[tuple[int, int]]]
     searched_clusters: int = 0
     searched_residues: int = 0
+    #: The realised size of the seed sample, and the number of families it drew from. Both are
+    #: properties of the *query* set, so they are identical across shards and **summing them
+    #: would be meaningless** — `combine_cells` requires agreement instead. `seed_families` is
+    #: load-bearing: D-134 makes it ship with every rate, because 1/100 of the seeds covers
+    #: materially fewer families than the full set and that, not the record count, is what
+    #: limits anything said at family level.
+    seeds_searched: int = 0
+    seed_families: int = 0
 
     def to_dict(self) -> dict[str, object]:
         return {
             "shard": self.key.shard,
             "sensitivity": self.key.sensitivity,
             "cov_mode": self.key.cov_mode,
+            "seed_denominator": self.key.seed_denominator,
+            "lower_bound": self.key.lower_bound,
+            "seeds_searched": self.seeds_searched,
+            "seed_families": self.seed_families,
             "slug": self.key.slug(),
             "bands": {str(m): self.bands[m] for m in sorted(self.bands)},
             "families": {
@@ -477,7 +542,22 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
     clusters actually searched, never the corpus or the sample as designed: a run that has done
     three shards of eight must report a rate over three shards, or the number is a fiction about
     work not yet paid for.
+
+    **Seed bands are not pooled.** Band counts from two seed samples cover overlapping seed
+    sets, so adding them double counts every record both bands found; and a band's counts mean
+    "at least this many, from this fraction of the seeds", which is not a quantity that
+    survives addition. D-134 makes that a third no-pooling axis alongside D-108's two arms and
+    D-109's two denominators, and this function refuses it rather than trusting a caller to
+    remember.
     """
+    denominators = {cell.key.seed_denominator for cell in cells}
+    if len(denominators) > 1:
+        raise ValueError(
+            "cells span seed bands "
+            + ", ".join(f"1/{d}" for d in sorted(denominators))
+            + "; their counts cover overlapping seed sets, so summing them double counts "
+            "every record both bands found. Combine each band on its own (D-134)."
+        )
     seen: set[tuple[int, float, int]] = set()
     groups: dict[tuple[float, int], dict[str, Any]] = {}
     for cell in cells:
@@ -498,17 +578,39 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
                     "shards": [],
                     "searched_clusters": 0,
                     "searched_residues": 0,
+                    "seeds_searched": cell.seeds_searched,
+                    "seed_families": cell.seed_families,
                 },
             )
+            # The query set is the same on every shard, so these agree rather than add. A
+            # disagreement means two cells ran against different seed sets and their record
+            # counts are not summable at all, which is worth failing on.
+            for name, value in (
+                ("seeds_searched", cell.seeds_searched),
+                ("seed_families", cell.seed_families),
+            ):
+                if slot[name] != value:
+                    raise ValueError(
+                        f"shard {cell.key.shard} reports {name}={value} against "
+                        f"{slot[name]} from an earlier shard at the same sensitivity and "
+                        "reading; the seed set must be identical across shards for their "
+                        "record counts to be summable"
+                    )
             slot["bands"] = [a + b for a, b in zip(slot["bands"], cell.bands[mode], strict=True)]
             slot["families"].extend(cell.families.get(mode, []))
             slot["shards"].append(cell.key.shard)
             slot["searched_clusters"] += cell.searched_clusters
             slot["searched_residues"] += cell.searched_residues
 
-    out: dict[str, Any] = {"band_labels": list(band_labels()), "groups": []}
+    denominator = denominators.pop() if denominators else 1
+    out: dict[str, Any] = {
+        "band_labels": list(band_labels()),
+        "seed_denominator": denominator,
+        "lower_bound": denominator > 1,
+        "groups": [],
+    }
     for (sensitivity, mode), slot in sorted(groups.items()):
-        rate = rate_with_interval(slot["families"])
+        rate = rate_with_interval(slot["families"], lower_bound=denominator > 1)
         out["groups"].append(
             {
                 "sensitivity": sensitivity,
@@ -518,6 +620,8 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
                 "records": sum(slot["bands"]),
                 "searched_clusters": slot["searched_clusters"],
                 "searched_residues": slot["searched_residues"],
+                "seeds_searched": slot["seeds_searched"],
+                "seed_families": slot["seed_families"],
                 "rate": rate.to_dict(),
             }
         )
@@ -536,10 +640,18 @@ class Rate:
     families: int
     records: int
     hits: int
+    #: True when the seed set was sampled, so the rate understates the truth. It sits on the
+    #: estimate rather than beside it because the two qualifiers on this number are different
+    #: in kind and a reader has to keep them apart: the interval is the **corpus** axis, a
+    #: 0.3125% hash sample whose denominator is fully known, while this flag is the **seed**
+    #: axis, which contributes a bound and no interval at all. Collapsing them into one figure
+    #: would be false precision in the direction of understating leakage (D-134).
+    lower_bound: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return {
             "rate": self.rate,
+            "lower_bound": self.lower_bound,
             "standard_error": self.standard_error,
             "ci95": [self.low, self.high],
             "design_effect": self.design_effect,
@@ -548,8 +660,27 @@ class Rate:
             "hits": self.hits,
         }
 
+    def describe(self) -> str:
+        """The rate as a sentence, with "at least" in it when that is what it is.
 
-def rate_with_interval(clusters: Sequence[tuple[int, int]], z: float = 1.96) -> Rate:
+        The non-negotiables require the reporting limits enforced in the harness rather than
+        left to the write-up, and this is that for the bound: a figure formatted from here
+        cannot lose the qualifier on its way into prose.
+        """
+        if self.rate is None:
+            return "no records searched"
+        lead = "at least " if self.lower_bound else ""
+        body = f"{lead}{self.rate:.4%}"
+        if self.low is not None and self.high is not None:
+            body += f" (95% CI {self.low:.4%}-{self.high:.4%} from the corpus sample)"
+        else:
+            body += " (no interval: one family is not a sample of families)"
+        return f"{body}, {self.families} families"
+
+
+def rate_with_interval(
+    clusters: Sequence[tuple[int, int]], z: float = 1.96, lower_bound: bool = False
+) -> Rate:
     """A hit rate and its interval, treating families as the sampling unit.
 
     `clusters` is one `(hits, records)` pair per family drawn into the sample. The estimator
@@ -566,18 +697,23 @@ def rate_with_interval(clusters: Sequence[tuple[int, int]], z: float = 1.96) -> 
 
     `families` travels with every rate because it, not the record count, is the effective
     sample size for anything said at family level.
+
+
+    `lower_bound` marks the estimate as understating the truth, which it does whenever the
+    seed set was sampled. It is a property of the query set rather than of this arithmetic,
+    so it is passed in rather than inferred.
     """
     k = len(clusters)
     total_hits = sum(a for a, _ in clusters)
     total_records = sum(b for _, b in clusters)
     if total_records == 0:
-        return Rate(None, None, None, None, None, k, 0, total_hits)
+        return Rate(None, None, None, None, None, k, 0, total_hits, lower_bound)
 
     r = total_hits / total_records
     if k < 2:
         # One family is not a sample of families. A point estimate with no interval is the
         # honest output, and it is what makes the realised family count load-bearing.
-        return Rate(r, None, None, None, None, k, total_records, total_hits)
+        return Rate(r, None, None, None, None, k, total_records, total_hits, lower_bound)
 
     residual = sum((a - r * b) ** 2 for a, b in clusters)
     var = k * residual / ((k - 1) * total_records**2)
@@ -593,4 +729,5 @@ def rate_with_interval(clusters: Sequence[tuple[int, int]], z: float = 1.96) -> 
         families=k,
         records=total_records,
         hits=total_hits,
+        lower_bound=lower_bound,
     )

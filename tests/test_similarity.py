@@ -10,10 +10,12 @@ interval the pass publishes is the confident-looking wrong one D-104 warned abou
 
 from __future__ import annotations
 
+import itertools
 import math
 
 import pytest
 
+from amazebio import seeds
 from amazebio import similarity as sim
 
 
@@ -357,14 +359,23 @@ def test_a_threshold_inside_a_band_is_refused_not_interpolated() -> None:
 
 
 def _cell(
-    shard: int, s: float, mode: int, bands: list[int], fams: list[tuple[int, int]]
+    shard: int,
+    s: float,
+    mode: int,
+    bands: list[int],
+    fams: list[tuple[int, int]],
+    denominator: int = 1,
+    seeds: int = 3_159_223,
+    seed_families: int = 4_000,
 ) -> sim.CellResult:
     return sim.CellResult(
-        key=sim.CellKey(shard=shard, sensitivity=s, cov_mode=mode),
+        key=sim.CellKey(shard=shard, sensitivity=s, cov_mode=mode, seed_denominator=denominator),
         bands={m: list(bands) for m in sim.SEARCH_READINGS[mode]},
         families={m: list(fams) for m in sim.SEARCH_READINGS[mode]},
         searched_clusters=1_000_000,
         searched_residues=417_000_000,
+        seeds_searched=seeds,
+        seed_families=seed_families,
     )
 
 
@@ -428,3 +439,144 @@ def test_a_cell_slug_is_stable_and_distinct() -> None:
 def test_a_cell_knows_which_readings_it_may_speak_for() -> None:
     assert sim.CellKey(0, 5.7, 1).readings == (0, 1)
     assert sim.CellKey(0, 5.7, 2).readings == (2,)
+
+
+# --- D-134: the seed axis ---------------------------------------------------------------
+
+
+def _ids(n: int) -> list[str]:
+    return [f"UniRef100_A0A{i:06d}" for i in range(n)]
+
+
+def test_the_seed_bands_are_nested_so_the_accumulation_curve_is_monotone() -> None:
+    """The property the whole nested design rests on, and it is not a coincidence of hashing.
+
+    `bucket_of(x, 100) == 0` implies `bucket_of(x, 10) == 0`, because the bucket is a hash
+    modulo the denominator and 100 is a multiple of 10. So band 1's seeds are a *subset* of
+    band 2's, band 2's of the full set, and a record found at 1/100 is found again at 1/10.
+    Without that, the two bands would be different samples rather than a deepening, and the
+    difference between their counts would not be an accumulation of anything.
+    """
+    ids = _ids(5_000)
+    band1 = set(sim.select_seeds(ids, 100))
+    band2 = set(sim.select_seeds(ids, 10))
+    band3 = set(sim.select_seeds(ids, 1))
+    assert band1, "a 1/100 sample of 5,000 ids should not be empty"
+    assert band1 < band2 < band3
+    assert band3 == set(ids)
+    assert all(
+        d1 % d2 == 0 for d1, d2 in itertools.pairwise(sim.SEED_BANDS)
+    ), "every band denominator must divide the one before it, or the bands are not nested"
+
+
+def test_a_seed_sample_is_the_rule_the_cap_run_used() -> None:
+    """Band 1 has to re-run the cap measurement's query set, or it does not price band 2."""
+    ids = _ids(2_000)
+    assert list(sim.select_seeds(ids, 100)) == [i for i in ids if seeds.bucket_of(i, 100) == 0]
+
+
+def test_a_seed_sample_is_stable_across_calls_and_keeps_input_order() -> None:
+    ids = _ids(1_000)
+    first = list(sim.select_seeds(ids, 10))
+    assert first == list(sim.select_seeds(ids, 10))
+    assert first == [i for i in ids if i in set(first)], "order must follow the input"
+
+
+def test_a_seed_denominator_below_one_is_refused() -> None:
+    with pytest.raises(ValueError, match="at least 1"):
+        list(sim.select_seeds(_ids(10), 0))
+    with pytest.raises(ValueError, match="at least 1"):
+        sim.CellKey(0, 5.7, 1, seed_denominator=0)
+
+
+def test_a_full_seed_cell_keeps_the_slug_it_had_before_the_seed_axis_existed() -> None:
+    """D-128's band-3 cells must not be renamed by this field having been added: the corpus
+    bucket has no DeleteObject, so a rename orphans an object rather than replacing it."""
+    assert sim.CellKey(0, 5.7, 1).slug() == "shard00-s5.7-cov1"
+    assert sim.CellKey(0, 5.7, 1, seed_denominator=1).slug() == "shard00-s5.7-cov1"
+
+
+def test_two_seed_bands_against_one_shard_get_different_artefact_names() -> None:
+    """Same reason, the other direction: a shared name means band 2 silently reads as band 1."""
+    keys = {
+        sim.CellKey(0, sv, cm, seed_denominator=d).slug()
+        for sv in sim.SENSITIVITIES
+        for cm in sim.SEARCH_READINGS
+        for d in sim.SEED_BANDS
+    }
+    assert len(keys) == len(sim.SENSITIVITIES) * len(sim.SEARCH_READINGS) * len(sim.SEED_BANDS)
+    assert sim.CellKey(0, 5.7, 1, seed_denominator=100).slug() == "shard00-s5.7-cov1-q100"
+
+
+def test_a_sampled_cell_knows_it_is_a_lower_bound_and_a_full_one_knows_it_is_not() -> None:
+    assert sim.CellKey(0, 5.7, 1, seed_denominator=100).lower_bound is True
+    assert sim.CellKey(0, 5.7, 1, seed_denominator=10).lower_bound is True
+    assert sim.CellKey(0, 5.7, 1, seed_denominator=1).lower_bound is False
+
+
+def test_seed_bands_are_not_pooled() -> None:
+    """Two bands cover overlapping seed sets — nested, in fact — so adding their counts double
+    counts every record both found. D-134's third no-pooling axis."""
+    cells = [
+        _cell(0, 5.7, 1, [10, 0, 0, 0, 0], [(1, 100)], denominator=100, seeds=31_381),
+        _cell(0, 5.7, 1, [40, 0, 0, 0, 0], [(4, 100)], denominator=10, seeds=315_922),
+    ]
+    with pytest.raises(ValueError, match="span seed bands"):
+        sim.combine_cells(cells)
+
+
+def test_the_bound_travels_with_every_rate_rather_than_beside_it() -> None:
+    """The non-negotiables require the limit enforced in the harness. A caller cannot read the
+    rate out of this structure without the qualifier coming too."""
+    out = sim.combine_cells(
+        [_cell(0, 5.7, 1, [10, 2, 1, 0, 0], [(1, 100), (2, 100)], denominator=100, seeds=31_381)]
+    )
+    assert out["lower_bound"] is True
+    assert out["seed_denominator"] == 100
+    for g in out["groups"]:
+        assert g["rate"]["lower_bound"] is True
+        assert g["seeds_searched"] == 31_381
+
+
+def test_a_full_seed_pass_is_not_labelled_a_bound() -> None:
+    out = sim.combine_cells([_cell(0, 5.7, 1, [10, 0, 0, 0, 0], [(1, 100), (2, 100)])])
+    assert out["lower_bound"] is False
+    for g in out["groups"]:
+        assert g["rate"]["lower_bound"] is False
+
+
+def test_the_rate_describes_itself_with_at_least_only_when_it_is_a_bound() -> None:
+    clusters = [(1, 100), (3, 100), (2, 100)]
+    assert sim.rate_with_interval(clusters, lower_bound=True).describe().startswith("at least ")
+    bare = sim.rate_with_interval(clusters).describe()
+    assert not bare.startswith("at least ")
+    assert "95% CI" in bare and "3 families" in bare
+
+
+def test_a_rate_with_no_interval_says_so_rather_than_implying_precision() -> None:
+    said = sim.rate_with_interval([(3, 100)], lower_bound=True).describe()
+    assert "at least" in said and "no interval" in said
+
+
+def test_the_seed_set_must_be_identical_across_shards_for_counts_to_be_summable() -> None:
+    """Shards sum because they partition the corpus, not the query. Two shards run against
+    different seed sets have record counts that are not summable at all."""
+    cells = [
+        _cell(0, 5.7, 1, [10, 0, 0, 0, 0], [(1, 100)], denominator=100, seeds=31_381),
+        _cell(1, 5.7, 1, [10, 0, 0, 0, 0], [(1, 100)], denominator=100, seeds=31_000),
+    ]
+    with pytest.raises(ValueError, match="seeds_searched"):
+        sim.combine_cells(cells)
+
+
+def test_the_seed_family_count_is_carried_not_summed() -> None:
+    """It is a property of the query set, identical on every shard. Summing it would report
+    four thousand families as eight thousand for having searched two shards."""
+    cells = [
+        _cell(0, 5.7, 1, [10, 0, 0, 0, 0], [(1, 100)], denominator=100, seed_families=1_234),
+        _cell(1, 5.7, 1, [20, 0, 0, 0, 0], [(2, 100)], denominator=100, seed_families=1_234),
+    ]
+    out = sim.combine_cells(cells)
+    for g in out["groups"]:
+        assert g["seed_families"] == 1_234
+        assert g["searched_clusters"] == 2_000_000, "the corpus side still sums"
