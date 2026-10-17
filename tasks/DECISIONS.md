@@ -5373,3 +5373,79 @@ decision has a threshold or parameter in it, the number goes in the entry.
   sample than 2.5% — available, and it needs a fresh corpus pass and a new staging for a precision
   gain on a claim that is now a rate either way; revisit it if the realised family count turns out
   to be the binding constraint D-109 found it to be for the broad arm.
+
+### D-134 — A1.6's broad arm runs as nested seed-sample bands reporting a lower bound; D-128's full-seed pass becomes its third band
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Numbering:** appended as D-133 and renumbered to D-134 on 2026-10-17. A1.8 took D-133 for
+  its own sampled-proof-of-concept entry and that one is already on `main`, so this is the
+  cheaper side to move. Nothing published cites this entry as D-133.
+- **Context:** D-128 fixed the broad arm as all 3,159,223 viral seeds against one staged shard —
+  0.3125% of the corpus, six cells, about 413 instance-hours. Two things make that the wrong *next*
+  step rather than the wrong destination. A full cell is about 40 hours, so it does not fit one
+  instance run and needs the query sliced. And **band counts are per corpus record, so they are
+  additive across shards but not across query slices**: the shards are a hash partition of the
+  sample, so no record appears in two and summing cannot double count (`combine_cells` rests on
+  exactly that), whereas a record matched by seeds in two different query slices would be counted
+  once per slice, and its band is a max over all seeds rather than a sum. Slicing the query is
+  therefore new machinery carrying a new correctness argument, built before any result exists, to
+  buy a rate where a bound would do.
+- **The measurement this design rests on.** The cap run (A1.6, 2026-10-17) already scored
+  **31,381 seeds — 1/100 of the seed set by hash — against shard 0**, 417 M residues, at the pass's
+  own parameters: 1,450 s wall for the `--cov-mode 1` search and 2,137 s for the relaxed one, on
+  8 vCPU. With D-105's measured sensitivity ratios (2.08x faster at `-s 2.0`, 2.66x slower at
+  `-s 7.5`) and the relaxed figure standing in for the `--cov-mode 2` search, six cells at 1/100
+  come to about 14,850 s — **4.1 hours, one instance run**. Extrapolation is linear in query count,
+  which is the conservative side: D-104 measured the marginal per-query exponent climbing from 0.5
+  to 0.84 over a 200-fold range, so linear over-predicts. D-104's fitted *cost model* is not used
+  here and must not be, because it carries a `--min-seq-id 0.70` floor the pass cannot use (D-128).
+- **Decision (project owner): nested bands on the seed axis.**
+  - **Band 1 — 1/100 of the seeds, 31,381.** Six cells, about 4.1 h, one instance run. Produces the
+    banded, three-sensitivity, three-reading result with D-109's design-effect intervals.
+  - **Band 2 — 1/10 of the seeds, about 315,922.** Six cells, about 41 h across six launches; the
+    largest single cell is about 15.8 h, so **each cell still fits one instance run and the query
+    is still not sliced**.
+  - **Band 2 is taken if and only if band 1's measured per-seed cost and hit-table size say it
+    fits** — not on this entry's arithmetic. D-132 set that discipline for A2.4's deepening and the
+    reason is the same: these figures come from one measured point.
+- **What sampling seeds does to the claim, and why this is the defensible direction.** A corpus
+  record is counted if **any** seed matches it, so dropping seeds can only drop records, and a
+  dropped seed can only lower a record's best identity. **Every band count at every band is a
+  strict lower bound**, and the understatement is monotone in the sample fraction. That is the same
+  direction D-105 took when it refused `-s 2.0`'s 2x saving and the same direction the coverage
+  post-filter erred in, and §2's symmetry between overstating and understating leakage is why the
+  bound has to be *reported* as one rather than quietly treated as a rate.
+- **The two sampling axes stay separate and are reported separately.** The corpus axis is a
+  0.3125% hash sample whose denominator is fully known, so D-109's design-effect interval applies to
+  it unchanged. The seed axis contributes a **bound, not an interval**. So every figure reads "at
+  least X%, interval from the corpus sample" and never as a point rate — collapsing the two into
+  one number would be false precision in the direction of understating leakage.
+- **Every rate ships its realised seed-family count**, alongside the realised corpus-family count
+  D-109 and D-128 already require. 1/100 of the seeds covers materially fewer viral families than
+  the full set, and the accumulation between band 1 and band 2 is the **only** evidence available
+  about how far below the full-seed rate the bound sits.
+- **Price, which is not what chose this design.** Spot is live and verified by a real launch
+  (D-132), so band 1 is about **$0.50** and band 2 about **$5** on `m6i.2xlarge` spot, against
+  $1.60 and $16 on demand. Either is inside any ceiling this task has had. The slicing correctness
+  argument is what chose the design; the cost is why the nesting is free to have.
+- **D-128 is not withdrawn — its pass becomes band 3**, about 413 instance-hours and about $50 on
+  spot, and it is what the accumulation curve exists to decide on. Its target, parameters, hit cap,
+  banding and interval treatment all stand for every band.
+- **One indication already on the record, and it is not a result.** The cap run found 32,374
+  records under `--cov-mode 1` at slack cap, against roughly 1.10M clusters in shard 0 — about 3%,
+  from 1% of the denylist. It was a `RecordLedger` measurement rather than a pass: unbanded, one
+  sensitivity, one reading, no interval, no family counts. It is the reason to expect band 1 to
+  carry signal, not a number to cite.
+- **Rejected:** Building query slicing and running D-128 now — a non-additive merge needs its own
+  correctness argument and its own tests before any result exists, and it buys a rate where a bound
+  is both cheaper and sufficient for the headline. Sampling the corpus deeper instead of the seeds —
+  D-128 set the corpus depth deliberately, and deepening the corpus at full seed count is the
+  expensive axis, not the cheap one. Band 1 alone — it leaves the gap to the full-seed rate
+  unquantified, and at $0.50 a band the second one is not a real saving. Reporting a point rate from
+  sampled seeds — rejected above.
+- **Consequence:** a seed-sampled band's counts **may not be pooled with any full-seed result**, so
+  D-108's no-pooling rule now has a third axis alongside the two arms and the two denominators. The
+  per-record manifest a seed-sampled band produces is **incomplete by construction**, so A2.* and
+  B3.* consuming it inherit a bound rather than a rate and must be told which band produced what
+  they read. And the write-up carries "at least" in the sentence holding the number, not in a
+  caveat further down.
