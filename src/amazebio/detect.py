@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import itertools
 import json
 from collections import Counter
 from collections.abc import Iterable, Mapping
@@ -62,6 +63,7 @@ __all__ = [
     "ManifestRef",
     "SampleDesign",
     "element_kind_for",
+    "in_band",
     "in_sample",
     "sample_hash",
 ]
@@ -107,6 +109,24 @@ def in_sample(record_id: str, *, seed: int, rate: float) -> bool:
     return sample_hash(record_id, seed=seed) < int(rate * _HASH_MAX)
 
 
+def in_band(record_id: str, *, seed: int, lo: float, hi: float) -> bool:
+    """True when this record falls in the half-open hash band `[lo, hi)`.
+
+    The deepening primitive, and the reason D-078 committed to hash sampling rather than a draw.
+    Because membership is a hash threshold, the sample at rate `r` is a prefix of the sample at
+    any larger rate — so widening from `r` to `R` is exactly the band `[r, R)`, and the records
+    already searched are *not* searched again. A band also bounds one job's cost, which matters
+    here: no single run in this environment may exceed two hours, and a 10x deepening of one
+    release is eight.
+
+    `in_sample(id, rate=r)` is `in_band(id, lo=0, hi=r)`.
+    """
+    if not 0 <= lo < hi <= 1:
+        raise DetectionError(f"band [{lo}, {hi}) is not a half-open band inside [0, 1]")
+    value = sample_hash(record_id, seed=seed)
+    return int(lo * _HASH_MAX) <= value < int(hi * _HASH_MAX)
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class SampleDesign:
     """How much of a source was searched, and under which pins.
@@ -124,6 +144,11 @@ class SampleDesign:
     population: int | None
     method: str = "blake2b(seed, record_id) < rate * 2**64"
     decision_ref: str = "D-078"
+    #: Hash bands actually searched, as [lo, hi) pairs covering `rate`. A single initial pass is
+    #: [(0, rate)]; a deepened sample is that band plus the ones added later (D-099). Recorded
+    #: because "rate 0.02" assembled from bands is a different provenance claim from one pass at
+    #: 0.02, even though it is the same set of records.
+    bands: tuple[tuple[float, float], ...] = ()
 
     @property
     def is_census(self) -> bool:
@@ -137,7 +162,27 @@ class SampleDesign:
             "method": self.method,
             "decision_ref": self.decision_ref,
             "is_census": self.is_census,
+            "bands": [list(band) for band in self.bands],
+            "bands_cover_rate": self.bands_cover_rate(),
         }
+
+    def bands_cover_rate(self) -> bool:
+        """True when the recorded bands tile `[0, rate)` with no gap and no overlap.
+
+        A deepened sample is assembled from several runs, so this is the check that the
+        assembled table's denominator is the rate it claims. A gap means records in the band
+        were never searched while the rate says they were, which would turn a lower bound into
+        an understated one with nothing to show it.
+        """
+        if not self.bands:
+            return False
+        ordered = sorted(self.bands)
+        if ordered[0][0] != 0.0:
+            return False
+        for (_, end), (start, _) in itertools.pairwise(ordered):
+            if abs(end - start) > 1e-12:
+                return False
+        return abs(ordered[-1][1] - self.rate) <= 1e-12
 
 
 # --------------------------------------------------------------------------------------

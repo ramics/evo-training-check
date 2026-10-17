@@ -28,15 +28,20 @@ What it does, in order, per release:
    *named* record has to be recomputed; what is taken from the manifest is the surviving set
    itself, which is the thing A2.1 must not re-derive.
 
-No sequence is written. D-020 holds here as everywhere: residues live in memory for as long as
-the search takes, and the artefacts carry accessions, scores and model coordinates only.
+No sequence reaches an artefact. Residues live in memory, and called proteins in ephemeral
+scratch when several band searches have to read them (D-103); the artefacts carry accessions,
+scores and model coordinates only.
 """
 
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
+import os
+import shutil
 import sys
+import tempfile
 import time
 from collections import Counter
 from pathlib import Path
@@ -54,6 +59,7 @@ from amazebio.detect import (
     check_route_coverage,
     detection_rows,
     element_kind_for,
+    in_band,
 )
 from amazebio.policyspec import Outcome, load_policy_dir
 from amazebio.profiles import (
@@ -88,6 +94,10 @@ SAMPLE_RATES = {
     "imgvr": 0.001,
     "imgpr": 0.001,
 }
+
+#: The deepened rates, declared before the deepening ran (D-099). Ten times the initial rates,
+#: searched as the band [initial, deep) so the records the first pass read are not read again.
+DEEP_RATES = {component: rate * 10 for component, rate in SAMPLE_RATES.items()}
 
 #: Why each unsearched component is unsearched, by corpus component. Reported per manifest rather
 #: than omitted, so a table is never read as a verdict on a release it only partly covers.
@@ -179,6 +189,65 @@ def family_universe(reg: Registry) -> RegistryView:
         family_of_profile={n: n for n in universe},
         restrict_to=None,
     )
+
+
+def hits_dump_path(release: str, band: tuple[float, float] | None, *, root: Path | None) -> Path:
+    """Where a finished search's raw hits are parked before routes are resolved.
+
+    Searching is the expensive step and routing is the fragile one: three faults in this
+    session's scaffolding — a cache keyed wrong, a guard that could not find a wide cache, and a
+    taxonomy round-trip that lost its mapping — each fired *after* a 70-minute search and before
+    its part was written, so each threw the search away. The dump makes that impossible: a run
+    that has searched writes its hits here first, and a re-run with the same release and band
+    reuses them instead of searching again. It holds scores, accessions and lineage, never
+    sequence (D-103).
+    """
+    label = "full" if band is None else f"{band[0]:g}-{band[1]:g}"
+    return (root or CACHE_ROOT) / release / f"hits-{label}.json"
+
+
+def write_hits_dump(
+    path: Path,
+    *,
+    hits: dict[str, list[dict[str, Any]]],
+    per_source: list[dict[str, Any]],
+    records: dict[str, Any],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "hits": hits,
+                "per_source": per_source,
+                "records": {
+                    record_id: {
+                        "component": record.component,
+                        "taxonomy": dict(record.taxonomy or {}),
+                    }
+                    for record_id, record in records.items()
+                },
+            },
+            indent=1,
+        )
+        + "\n"
+    )
+
+
+def read_hits_dump(
+    path: Path,
+) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]], dict[str, Any]]:
+    from amazebio.policyspec import Record
+
+    payload = json.loads(path.read_text())
+    records = {
+        record_id: Record(
+            id=record_id,
+            component=row["component"],
+            taxonomy=dict(row["taxonomy"] or {}),
+        )
+        for record_id, row in payload["records"].items()
+    }
+    return payload["hits"], payload["per_source"], records
 
 
 def hmm_path(reg: Registry) -> Path:
@@ -367,8 +436,8 @@ def searched_sources(
     return chosen
 
 
-def stream_source(client: Any, source: corpora.StagedSource, *, rate: float):
-    """Sampled records with sequence, for one staged source."""
+def stream_source(client: Any, source: corpora.StagedSource, *, lo: float = 0.0, hi: float):
+    """Sampled records with sequence, for one staged source, over the hash band `[lo, hi)`."""
     live = int(client.head_object(Bucket=corpora.BUCKET, Key=source.key)["ContentLength"])
     if source.bytes and live != source.bytes:
         raise SystemExit(
@@ -390,7 +459,8 @@ def stream_source(client: Any, source: corpora.StagedSource, *, rate: float):
             component=source.component,
             record_prefix=source.corpus_component + ":" + Path(source.key).name,
             seed=SEED,
-            rate=rate,
+            lo=lo,
+            hi=hi,
         )
     elif source.reader == "fasta":
         reader: Any = obj.buffered()
@@ -398,9 +468,325 @@ def stream_source(client: Any, source: corpora.StagedSource, *, rate: float):
             from amazebio.uniref import GunzipStream
 
             reader = GunzipStream(reader)
-        yield from iter_fasta_sampled(reader, component=source.component, seed=SEED, rate=rate)
+        yield from iter_fasta_sampled(reader, component=source.component, seed=SEED, lo=lo, hi=hi)
     else:  # pragma: no cover - guarded by the caller
         raise SystemExit(f"no sequence reader for {source.key}")
+
+
+#: Where called proteins live between a read pass and the searches that consume them (D-103).
+#: Ephemeral per-session scratch, outside the working tree: sequence may live here and in memory,
+#: never in the repository, `artifacts/`, or anything a reviewer reads as a result.
+CACHE_ROOT = (
+    Path(
+        os.environ.get("AMAZEBIO_SCRATCH")
+        or os.environ.get("CLAUDE_SCRATCH_DIR")
+        or tempfile.gettempdir()
+    )
+    / "a2-1-proteins"
+)
+
+
+def cache_dir(release: str, *, root: Path | None = None) -> Path:
+    return (root or CACHE_ROOT) / release
+
+
+#: Cache layout version. Bumped when a cached file's meaning changes, so a cache written by
+#: older code is refused with an instruction rather than misread. Version 1 wrote
+#: `Record.taxonomy` as a list, which kept the ranks and dropped every taxon; nothing could
+#: recover those taxa, so a version-1 cache has to be collected again.
+CACHE_FORMAT = 2
+
+
+def cache_stem(component: str, object_name: str, lo: float, hi: float) -> str:
+    """The cache's filename stem for one staged object and band.
+
+    The *object* is in the key, not just the component, because Evo 1 publishes stage 2 as three
+    splits under one component name: a stem keyed on the component alone makes the three collide,
+    and the last write wins. That cost a 23-minute read once — the two empty splits overwrote the
+    full one. Suffixes are concatenated rather than applied with `Path.with_suffix`, which would
+    read the `.02` of a band bound as the suffix to replace.
+    """
+    return f"{component}--{object_name}--{lo:g}-{hi:g}"
+
+
+def write_cache(
+    directory: Path,
+    stem: str,
+    proteins: list[Any],
+    records: dict[str, Any],
+    *,
+    band: tuple[float, float],
+) -> Path:
+    """Write called proteins and their records' metadata for later searching.
+
+    Two files: the proteins as gzipped FASTA named `<record_id>|gene<n>`, and a JSONL of each
+    record's component and lineage, which is what the route resolution needs. No nucleotide
+    sequence is written and nothing here is an artefact — see D-103.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    proteins_path = directory / f"{stem}.faa.gz"
+    with gzip.open(proteins_path, "wt") as handle:
+        for protein in proteins:
+            handle.write(f">{_text(protein.name)}\n{protein.textize().sequence}\n")
+    with open(directory / f"{stem}.records.jsonl", "w") as handle:
+        for record_id, record in records.items():
+            handle.write(
+                json.dumps(
+                    {
+                        "record_id": record_id,
+                        "component": record.component,
+                        # A rank -> taxon mapping, written as one. `list()` of it yields the
+                        # ranks and loses every taxon, and the loss is silent until a rule
+                        # reaches for `.get(rank)` — which is the whole evidence the taxonomy
+                        # rules act on.
+                        "taxonomy": dict(record.taxonomy or {}),
+                        "band": list(band),
+                        "format": CACHE_FORMAT,
+                    },
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+    return proteins_path
+
+
+def read_cache(
+    directory: Path, *, component: str, object_name: str, lo: float, hi: float
+) -> tuple[list[Any], dict[str, Any], dict[str, int]]:
+    """Load cached proteins for one staged *object*, keeping only records in band `[lo, hi)`.
+
+    Keyed by the object, not the component, for the same reason `cache_stem` is: Evo 1's three
+    stage-2 splits share a component name. Globbing on the component alone made each of the
+    three load the whole component's cache, so the band's records were searched once per split
+    and the part would have carried three copies of every detection — inflating each family's
+    hit count threefold while leaving its record count right, which is the kind of error that
+    survives a glance at the table.
+
+    Band membership is recomputed from the record identifier rather than trusted from the file
+    the cache was written by, which is what makes a cache unable to change what a run searched
+    (D-103): a stale or wider cache yields exactly the band asked for, and a missing record
+    yields a smaller count that the source row reports.
+    """
+    from pyhmmer.easel import Alphabet, TextSequence
+
+    from amazebio.policyspec import Record
+
+    amino = Alphabet.amino()
+    proteins: list[Any] = []
+    records: dict[str, Any] = {}
+    stats = Counter({"records": 0, "genes": 0, "residues": 0, "records_without_genes": 0})
+    seen: set[str] = set()
+
+    for meta_path in sorted(directory.glob(f"{component}--{object_name}--*.records.jsonl")):
+        for line in meta_path.read_text().splitlines():
+            if not line:
+                continue
+            row = json.loads(line)
+            if row.get("format") != CACHE_FORMAT:
+                raise SystemExit(
+                    f"{meta_path} was written by cache format "
+                    f"{row.get('format', 1)}, this is {CACHE_FORMAT}. Delete the cache "
+                    "directory and re-run --collect: a format-1 cache stored the taxonomy's "
+                    "ranks without their taxa, and the taxa cannot be recovered from it."
+                )
+            if not in_band(row["record_id"], seed=SEED, lo=lo, hi=hi):
+                continue
+            records[row["record_id"]] = Record(
+                id=row["record_id"],
+                component=row["component"],
+                taxonomy=dict(row["taxonomy"] or {}),
+            )
+    for faa_path in sorted(directory.glob(f"{component}--{object_name}--*.faa.gz")):
+        with gzip.open(faa_path, "rt") as handle:
+            name = None
+            for raw in handle:
+                if raw.startswith(">"):
+                    name = raw[1:].strip()
+                    continue
+                if name is None:
+                    continue
+                record_id = name.partition("|")[0]
+                if record_id in records:
+                    sequence = raw.strip()
+                    proteins.append(
+                        TextSequence(name=name.encode(), sequence=sequence).digitize(amino)
+                    )
+                    stats["genes"] += 1
+                    stats["residues"] += len(sequence)
+                    seen.add(record_id)
+                name = None
+    stats["records"] = len(seen)
+    stats["records_without_genes"] = len(records) - len(seen)
+    return proteins, records, dict(stats)
+
+
+def _detection_from_row(row: dict[str, Any]) -> Any:
+    """Rebuild a `Detection` from a written row, for assembling bands into one table."""
+    from amazebio.survival import Detection, ElementKind, Route
+
+    return Detection(
+        family_id=row["family_id"],
+        registry=row["registry"],
+        registry_version=row["registry_version"],
+        record_id=row["record_id"],
+        route=Route(row["route"]),
+        element_kind=ElementKind(row["element_kind"]),
+        detector=row["detector"],
+        score=row["score"],
+        threshold=row["threshold"],
+    )
+
+
+def _merge_source_rows(parts: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Sum the per-source statistics of several band runs over the same sources.
+
+    Counts add because the bands are disjoint (`amazebio.detect.in_band`); the bands themselves
+    are collected rather than summed, so the assembled table can state which slices of the hash
+    space were actually read and `SampleDesign.bands_cover_rate` can check they tile the rate.
+    """
+    merged: dict[str, dict[str, Any]] = {}
+    for rows in parts:
+        for row in rows:
+            if not row.get("searched"):
+                merged.setdefault(row["corpus_component"] + "|unsearched", dict(row))
+                continue
+            key = row["key"]
+            if key not in merged:
+                merged[key] = {**row, "bands": [row.get("band", [0.0, row["sample_rate"]])]}
+                continue
+            into = merged[key]
+            for field in ("records", "genes", "residues", "records_without_genes"):
+                into[field] = (into.get(field) or 0) + (row.get(field) or 0)
+            into["read_seconds"] = round(
+                into.get("read_seconds", 0) + row.get("read_seconds", 0), 1
+            )
+            for reg_id, seconds in row.get("search_seconds", {}).items():
+                into["search_seconds"][reg_id] = round(
+                    into["search_seconds"].get(reg_id, 0) + seconds, 1
+                )
+            into["bands"].append(row.get("band", [0.0, row["sample_rate"]]))
+            into["sample_rate"] = max(into["sample_rate"], row["sample_rate"])
+    return list(merged.values())
+
+
+def assemble(
+    args: argparse.Namespace, regs: list[Registry], manifests: list[dict[str, Any]]
+) -> int:
+    """Merge the initial tables and every band part into the final tables, searching nothing.
+
+    A deepened sample is produced by several runs because no single run here may exceed two
+    hours (D-099). This is the step that makes them one result: detections are concatenated,
+    per-source counts are summed, and the bands are recorded so the assembled table can prove
+    its own denominator — `bands_cover_rate` is false if the bands leave a gap, which would mean
+    the table claims a rate over records nobody read.
+    """
+    out = args.out
+    views = {r.id: family_universe(r) for r in regs}
+    parts_dir = out / "parts"
+    parts = [json.loads(path.read_text()) for path in sorted(parts_dir.glob("part-*.json"))]
+    print(f"assembling {len(parts)} band part(s) with the initial tables", flush=True)
+
+    # Keep the first pass's tables as written, once, before anything overwrites them. They are
+    # the result that was already reported, and a superseded artefact should stay readable.
+    initial_dir = out / "initial"
+    if not initial_dir.exists():
+        initial_dir.mkdir(parents=True)
+        for path in sorted(out.glob("detections-*.json*")):
+            shutil.copy2(path, initial_dir / path.name)
+        print(f"  kept the initial pass in {initial_dir.relative_to(REPO)}", flush=True)
+
+    with run(
+        "A2.1",
+        seed=SEED,
+        outdir=out,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        manifest_name="run-assemble.json",
+    ) as m:
+        m.parameter("assembled_parts", [part["band_multiple"] for part in parts])
+        m.parameter("sample_seed", SEED)
+        m.parameter("initial_rates", SAMPLE_RATES)
+        m.parameter("deep_rates", DEEP_RATES)
+        for entry in manifests:
+            manifest = entry["manifest"]
+            policy_id = manifest["policy"]["id"]
+            release = manifest["release"]
+            for reg in regs:
+                view = views[reg.id]
+                stem = f"detections-{reg.id}-{policy_id}-{release}"
+                initial_table = json.loads((initial_dir / f"{stem}.json").read_text())
+                rows: list[dict[str, Any]] = []
+                initial_jsonl = initial_dir / f"{stem}.jsonl"
+                if initial_jsonl.exists():
+                    rows += [
+                        json.loads(line) for line in initial_jsonl.read_text().splitlines() if line
+                    ]
+                source_rows = [initial_table["sources"]]
+                for part in parts:
+                    if part["release"] != release:
+                        continue
+                    rows += part["tables"].get(f"{policy_id}|{reg.id}", [])
+                    source_rows.append(part["sources"])
+
+                detections = [_detection_from_row(row) for row in rows]
+                sources = _merge_source_rows(source_rows)
+                searched = [s for s in sources if s.get("searched")]
+                bands = sorted({tuple(b) for s in searched for b in s.get("bands", [])})
+                rate = max((s["sample_rate"] for s in searched), default=1.0)
+                sample = (
+                    SampleDesign(
+                        seed=SEED,
+                        rate=rate,
+                        population=sum(s["records_in_source"] or 0 for s in searched) or None,
+                        bands=tuple(bands),
+                    )
+                    if searched
+                    else None
+                )
+                table = DetectionTable(
+                    task="A2.1",
+                    detector="profile-hmmer",
+                    registry=reg.id,
+                    registry_version=reg.version,
+                    manifest=ManifestRef(**initial_table["manifest"]),
+                    sources=sources,
+                    sample=sample,
+                    rows=build_rows(
+                        detections,
+                        universe=view.universe,
+                        thresholds=view.thresholds_by_family(),
+                    ),
+                    thresholds=initial_table["thresholds"],
+                    notes=[
+                        *initial_table["notes"],
+                        f"Assembled from the initial pass and {len(parts)} band part(s) "
+                        "(D-099). Bands are disjoint, so counts add and nothing was searched "
+                        "twice.",
+                    ],
+                )
+                check_route_coverage(table)
+                if sample is not None and not sample.bands_cover_rate():
+                    raise SystemExit(
+                        f"{stem}: the bands {bands} do not tile [0, {rate}) — the table would "
+                        "claim a rate over records nothing read. Run the missing band before "
+                        "assembling."
+                    )
+                table.write(out / f"{stem}.json")
+                m.output_file(out / f"{stem}.json", role="per-family hit table (assembled)")
+                if detections:
+                    jsonl = out / f"{stem}.jsonl"
+                    jsonl.write_text(
+                        "\n".join(detection_rows(detections, extra={"manifest": policy_id})) + "\n"
+                    )
+                    m.output_file(jsonl, role="record-level detections (assembled)")
+                survival = table.survival()
+                print(
+                    f"  {stem}: {survival['families_with_a_hit']:,} of "
+                    f"{survival['families_in_universe']:,} families at rate {rate} "
+                    f"({survival['estimate_kind']})",
+                    flush=True,
+                )
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -414,10 +800,58 @@ def main(argv: list[str] | None = None) -> int:
         "--limit-records", type=int, default=None, help="stop each source early; probing only"
     )
     parser.add_argument("--plan", action="store_true", help="print what would be read, then stop")
+    parser.add_argument(
+        "--band",
+        help=(
+            "hash band to search, as LO:HI in multiples of the component's own initial rate — "
+            "so 1:2 reads from the initial rate out to twice it, whatever that rate is, and "
+            "1:10 is the whole deepening. Writes a part file rather than tables; --assemble "
+            "merges them. Bands exist because no single run here may exceed two hours while a "
+            "10x pass is eight, and because the hash sample is nested, so a band re-reads "
+            "nothing (D-099)."
+        ),
+    )
+    parser.add_argument(
+        "--collect",
+        action="store_true",
+        help=(
+            "read the band and cache its called proteins to scratch, searching nothing. One "
+            "collect pass then serves several --from-cache searches, so a release is read once "
+            "rather than once per band (D-103)."
+        ),
+    )
+    parser.add_argument(
+        "--from-cache",
+        action="store_true",
+        help="search a band from the cached proteins, reading no corpus",
+    )
+    parser.add_argument(
+        "--assemble",
+        action="store_true",
+        help="merge the initial tables and every part into the final tables, searching nothing",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=None,
+        help=(
+            "where called proteins are cached (D-103). Defaults to a scratch directory outside "
+            "the working tree; never put it under artifacts/ or data/, where a reviewer looks "
+            "for the audit's own artefacts."
+        ),
+    )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     args = parser.parse_args(argv)
 
     regs = [registry(i) for i in (args.registry or sorted(REGISTRIES))]
+    band: tuple[float, float] | None = None
+    if args.band:
+        lo_text, _, hi_text = args.band.partition(":")
+        band = (float(lo_text), float(hi_text))
+        # Multiples of the initial rate, not absolute rates: the upper end is checked per
+        # component against the declared deep rate, which is what bounds it.
+        if not 0 <= band[0] < band[1]:
+            raise SystemExit(f"--band {args.band} is not a half-open band with LO < HI")
     manifests = load_manifests(args.manifests)
     if args.release:
         manifests = [m for m in manifests if m["manifest"]["release"] in args.release]
@@ -425,6 +859,9 @@ def main(argv: list[str] | None = None) -> int:
         manifests = [m for m in manifests if m["manifest"]["policy"]["id"] in args.policy]
     if not manifests:
         raise SystemExit("no manifests selected")
+
+    if args.assemble:
+        return assemble(args, regs, manifests)
 
     policies = load_policy_dir(SPECS)
     by_release: dict[str, list[dict[str, Any]]] = {}
@@ -489,30 +926,116 @@ def main(argv: list[str] | None = None) -> int:
             # One search per (release, source), reused by every reading of that release: the
             # readings differ in what they remove and in the route they imply, not in the
             # residues, and searching the same records three times would buy nothing.
+            part: dict[str, Any] = {
+                "release": release,
+                # Multiples of each component's initial rate, as given on the command line, and
+                # for the filename. The authoritative bands are the *resolved* rates recorded
+                # per source, because components with different initial rates resolve the same
+                # multiple to different bands — the assembler reads those and never this.
+                "band_multiple": list(band) if band else [0.0, 1.0],
+                "sources": [],
+                "tables": {},
+            }
             hits: dict[str, list[dict[str, Any]]] = {r.id: [] for r in regs}
             per_source: list[dict[str, Any]] = []
             sampled_records: dict[str, Any] = {}
             manifest0 = entries[0]["manifest"]
+            dump = hits_dump_path(release, band, root=args.cache_dir)
 
-            for source, row in searched_sources(manifest0, release):
-                rate = SAMPLE_RATES[source.corpus_component]
-                label = f"{source.corpus_component}/{Path(source.key).name}"
-                print(f"\n{release}/{label}: sampling at {rate}", flush=True)
-                started = time.time()
-                batch: list[Any] = []
-                for sampled in stream_source(client, source, rate=rate):
-                    batch.append(sampled)
-                    sampled_records[sampled.id] = sampled.record
-                    if args.limit_records and len(batch) >= args.limit_records:
-                        break
-                read_seconds = time.time() - started
+            if dump.exists() and not args.collect:
+                # A previous run searched this band and something downstream failed. Reuse the
+                # search rather than repeat it; the registries and thresholds are pins, so the
+                # hits cannot have changed, and the dump records which bands they came from.
+                hits, per_source, sampled_records = read_hits_dump(dump)
                 print(
-                    f"  {len(batch):,} records sampled in {read_seconds / 60:.1f} min; "
-                    "calling genes",
+                    f"\n{release}: reusing the finished search in {dump} "
+                    f"({sum(len(v) for v in hits.values()):,} hits over "
+                    f"{len(sampled_records):,} records)",
                     flush=True,
                 )
-                proteins, stats = call_genes(batch)
-                del batch
+                m.note(f"Reused the search parked in {dump.name} rather than re-searching.")
+
+            for source, row in [] if per_source else searched_sources(manifest0, release):
+                initial = SAMPLE_RATES[source.corpus_component]
+                deep = DEEP_RATES[source.corpus_component]
+                # A band is given in rate units of the *initial* design, so --band 1:10 reads
+                # "from the initial rate out to ten times it" whatever the component's rate is.
+                # That keeps one flag meaningful across sources whose rates differ.
+                lo, hi = (band[0] * initial, band[1] * initial) if band else (0.0, initial)
+                if hi > deep:
+                    raise SystemExit(
+                        f"--band {args.band} reaches rate {hi} for {source.corpus_component}, "
+                        f"beyond the declared deep rate {deep} (D-099). A rate past the "
+                        "pre-registered one is a new decision, not a flag."
+                    )
+                label = f"{source.corpus_component}/{Path(source.key).name}"
+                print(
+                    f"\n{release}/{label}: band [{lo}, {hi})",
+                    flush=True,
+                )
+                started = time.time()
+                if args.from_cache:
+                    proteins, cached_records, stats = read_cache(
+                        cache_dir(release, root=args.cache_dir),
+                        component=source.corpus_component,
+                        object_name=Path(source.key).name,
+                        lo=lo,
+                        hi=hi,
+                    )
+                    sampled_records.update(cached_records)
+                    read_seconds = time.time() - started
+                    # Any cache file for this object counts, not one named for the band being
+                    # searched: a collect pass caches a wide band and each search takes a
+                    # sub-band out of it by recomputing membership, which is the whole point of
+                    # keying on the record id. Looking for an exact stem match cost a finished
+                    # 70-minute search once — the guard fired after the work and before the
+                    # part was written.
+                    cached_any = any(
+                        cache_dir(release, root=args.cache_dir).glob(
+                            f"{source.corpus_component}--{Path(source.key).name}--*.faa.gz"
+                        )
+                    )
+                    if not proteins and not cached_any:
+                        raise SystemExit(
+                            f"{label}: no cache for band [{lo}, {hi}). Run --collect for this "
+                            "band first; searching nothing would write a part that silently "
+                            "covers no records."
+                        )
+                    print(
+                        f"  {stats['records']:,} records from cache in "
+                        f"{read_seconds:.1f}s ({stats['genes']:,} genes, "
+                        f"{stats['residues']:,} residues)",
+                        flush=True,
+                    )
+                else:
+                    batch: list[Any] = []
+                    for sampled in stream_source(client, source, lo=lo, hi=hi):
+                        batch.append(sampled)
+                        sampled_records[sampled.id] = sampled.record
+                        if args.limit_records and len(batch) >= args.limit_records:
+                            break
+                    read_seconds = time.time() - started
+                    print(
+                        f"  {len(batch):,} records sampled in {read_seconds / 60:.1f} min; "
+                        "calling genes",
+                        flush=True,
+                    )
+                    proteins, stats = call_genes(batch)
+                    records_here = {s.id: s.record for s in batch}
+                    del batch
+                    if args.collect:
+                        written_to = write_cache(
+                            cache_dir(release, root=args.cache_dir),
+                            cache_stem(source.corpus_component, Path(source.key).name, lo, hi),
+                            proteins,
+                            records_here,
+                            band=(lo, hi),
+                        )
+                        print(
+                            f"  cached {stats['genes']:,} genes "
+                            f"({stats['residues']:,} residues) to {written_to}",
+                            flush=True,
+                        )
                 print(
                     f"  {stats['genes']:,} genes, {stats['residues']:,} residues "
                     f"({stats['records_without_genes']:,} records with no gene called)",
@@ -523,12 +1046,16 @@ def main(argv: list[str] | None = None) -> int:
                     "corpus_component": source.corpus_component,
                     "key": source.key,
                     "searched": True,
-                    "sample_rate": rate,
+                    "sample_rate": hi,
+                    "band": [lo, hi],
                     "records_in_source": row.get("records"),
                     **stats,
                     "read_seconds": round(read_seconds, 1),
                     "search_seconds": {},
                 }
+                if args.collect:
+                    del proteins
+                    continue
                 for reg in regs:
                     if not proteins:
                         # A source the sample drew nothing from still costs a full pass over
@@ -552,6 +1079,18 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 del proteins
                 per_source.append(source_row)
+
+            if per_source and not args.collect and not dump.exists():
+                write_hits_dump(dump, hits=hits, per_source=per_source, records=sampled_records)
+                print(f"  parked the search in {dump}", flush=True)
+
+            if args.collect:
+                # A collect run searched nothing, so it must write no part: a part whose tables
+                # are empty would be merged by --assemble as a band that was searched and found
+                # nothing, which is an understated bound with nothing to show it. The coverage
+                # check cannot catch that — the bands would tile correctly.
+                print(f"  collected {release}; searched nothing and wrote no part", flush=True)
+                continue
 
             for entry in entries:
                 manifest = entry["manifest"]
@@ -651,6 +1190,22 @@ def main(argv: list[str] | None = None) -> int:
                         ],
                     )
                     check_route_coverage(table)
+                    if band is not None:
+                        # A band run writes a part, not a table: a table built from one band
+                        # would report a rate it did not search. `--assemble` merges them.
+                        part["tables"][f"{manifest['policy']['id']}|{reg.id}"] = list(
+                            detection_rows(detections, extra={"manifest": ref.policy_id})
+                        )
+                        part["tables"][f"{manifest['policy']['id']}|{reg.id}"] = [
+                            json.loads(line)
+                            for line in part["tables"][f"{manifest['policy']['id']}|{reg.id}"]
+                        ]
+                        print(
+                            f"  {manifest['policy']['id']}/{reg.id}: {len(detections):,} "
+                            "detections in this band",
+                            flush=True,
+                        )
+                        continue
                     stem = f"detections-{reg.id}-{manifest['policy']['id']}-{manifest['release']}"
                     table.write(out / f"{stem}.json")
                     m.output_file(out / f"{stem}.json", role="per-family hit table")
@@ -670,6 +1225,15 @@ def main(argv: list[str] | None = None) -> int:
                         f"({survival['estimate_kind']})",
                         flush=True,
                     )
+
+            if band is not None:
+                part["sources"] = [*per_source, *unsearched]
+                parts_dir = out / "parts"
+                parts_dir.mkdir(parents=True, exist_ok=True)
+                name = f"part-{release}-{band[0]:g}-{band[1]:g}.json"
+                (parts_dir / name).write_text(json.dumps(part, indent=2) + "\n")
+                m.output_file(parts_dir / name, role="band part")
+                written.append(f"parts/{name}")
 
         index = {
             "task": "A2.1",
