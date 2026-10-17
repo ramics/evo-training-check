@@ -5974,3 +5974,75 @@ decision has a threshold or parameter in it, the number goes in the entry.
   still a detection. What the band buys beyond its own result is the measured per-genome cost on
   real draft assemblies, which is the number every later decision about depth depends on, and
   which no amount of further arithmetic from D-117's single genome can supply.
+
+### D-146 — One list entry carries 98.5% of the select-agent seed set; the reading stands and the reporting splits
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Context:** The full-tier seed pass finished (UniRef100 2023_02, all 118.68 GB of staged
+  object, 54 minutes, commit `b00640f`) and returned **1,079,124 seeded clusters of
+  350,950,053** — 5.8x the 187K ESM3 publishes for this denylist (D-106). D-137 had named both
+  directions of expected discrepancy but no magnitude, so the artefact could report the gap and
+  not decompose it.
+
+  **It decomposes into one entry.** "Avian influenza virus" maps to Influenza A (taxid 11320),
+  and descending it contributes **112,716 of the 114,467 expanded taxa — 98.5%**. The other 52
+  taxon-naming entries contribute about 1,750 between them. Influenza A is also among the most
+  heavily sequenced taxa in UniProt, so its share of *clusters* is larger still. The regulation
+  restricts highly pathogenic avian influenza; the pinned taxonomy has no node for that, so
+  D-137 took the species and recorded the over-inclusion. What is new is the size of it.
+
+  **The lab's own figure says they did not read it this way.** ESM3 reports 147K non-viral plus
+  40K viral. All of Influenza A does not fit in 40K viral sequences by any counting. So the
+  denylist being audited and the denylist being reconstructed differ, and they differ almost
+  entirely in this one entry.
+
+  **It also breaks D-133's budget, twice over.** That entry priced the sampled pass at one
+  launch, about nineteen hours and about $3. Two things are wrong with the figure, and they
+  compound. It assumed 187K seeds, and the seed set is 1,079,124. And it costed a *single*
+  search, where the pass runs six cells per shard — three sensitivities (D-105) against two
+  coverage-filtered searches (D-124). On the same measurement D-133 used — 31,381 seeds against
+  shard 0's 417 M residues, A1.6's cap run of 2026-10-17 (D-128) — the full 2.5% sample is about
+  **1,135 instance-hours and $180**, not one launch. D-133's *comparison* against the exhaustive
+  pass survives, because both sides of it were costed single-cell; its absolute figure does not.
+- **Decision (project owner): measure the split, then report it as two strata. The reading in
+  D-137 is not changed.**
+
+  1. The seed pass is re-run with per-entry attribution, so the influenza share is a measured
+     number rather than an inference from taxon counts. About an hour and under a dollar; it
+     also closes a provenance gap the first pass exposed (below).
+  2. The **primary** result is the seed set with the entry's exclusively-claimed clusters
+     removed — the agents the list names that are not seasonal influenza. This is the figure
+     expected to reconcile against the published 187K, and the one the scoring pass is sized
+     against.
+  3. The influenza contribution is reported as a **separate, named stratum**, not dropped and
+     not pooled. It is a real consequence of a reading the regulation's own wording forces on
+     the pinned taxonomy, and §A0 treats that as a finding.
+- **Why the reading is not simply narrowed, which was the tidier option.** Restricting the entry
+  to H5/H7 lineages would produce one clean reconciled number, and it would do it by overwriting
+  a reading already recorded, argued and pinned — replacing a measured over-inclusion with a
+  curated guess at what the lab meant, in the same artefact that is supposed to show where
+  readings bite. The split keeps both numbers visible and costs an hour.
+- **What "exclusively claimed" means, because the arithmetic depends on it.** A cluster is
+  seeded if *any* member is on the list, so a cluster can be claimed by more than one entry.
+  `claimed` counts a cluster once per claiming entry; `exclusive` counts only clusters a single
+  entry claims alone. Removing an entry removes its exclusive clusters and no others, so
+  `exclusive` is the only one of the two a decision can rest on. `seeds.EntryCounts` keeps them
+  apart and the largest contributor is named from the measurement, so a later re-pin reports
+  whichever entry then dominates rather than this one.
+- **A provenance gap found in the same place, fixed in the same commit.** `repro.run` writes its
+  manifest when its block exits, so `select_agent_seeds.py`'s upload — which sat inside that
+  block — had no file to send. The first pass staged its results and left its `run.json` on an
+  instance that then terminated. The instance has no checkout and no shell, so a manifest that
+  does not leave by object storage does not leave at all, and AGENTS.md is explicit that an
+  untraceable result is not citable. The first pass's figures are recoverable only through its
+  code tarball key; the re-run supersedes it at the same keys.
+- **Consequence for what A1.8 may say.** The arm already makes no all-clear (D-133). It now also
+  may not report a single denylist survival figure without saying which stratum it is: a pooled
+  rate over the reconstructed seed set would be a statement mostly about seasonal influenza
+  wearing a select-agent label, which is precisely the kind of number §7's adversarial reader
+  should catch. Per-stratum reporting is the default, as §B5 already requires elsewhere.
+- **Rejected:** Narrowing the entry and rebuilding — above. Running the pass on the pooled seed
+  set and explaining the composition in the write-up — it spends 1,135 instance-hours mostly on
+  influenza and leaves the headline needing a paragraph of correction. Dropping the entry
+  outright — it is on the list, and an audit that silently declines to look for a listed agent
+  has chosen its own scope.
