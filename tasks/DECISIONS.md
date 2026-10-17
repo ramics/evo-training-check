@@ -5449,3 +5449,57 @@ decision has a threshold or parameter in it, the number goes in the entry.
   B3.* consuming it inherit a bound rather than a rate and must be told which band produced what
   they read. And the write-up carries "at least" in the sentence holding the number, not in a
   caveat further down.
+
+### D-135 — Evo 2's version of record states the GTDB releases word for word, and it was open access all along
+- **Date:** 2026-10-17
+- **Task:** A2.4 / A7.4
+- **Context:** D-130 established both releases' GTDB versions but flagged that the **Evo 2** side
+  came from the preprint. `S-EVO2-NATURE-METHODS` was registered `unretrieved`, with the blocker
+  that the Methods are absent from both the article HTML and the article PDF. `AGENTS.md` is
+  emphatic about this exact situation — A2.1 spent twenty hours of compute on figures resting on
+  a preprint — so it was escalated to the project owner rather than built on.
+- **What it actually was.** Not a paywall. **The paper is open access, CC BY-NC-ND 4.0**, stated
+  in the article's own XML, and deposited as `PMC13128491`. The obstruction was a *route*:
+  `nature.com/articles/s41586-026-10176-5` returns `303` to `idp.nature.com/authorize`, a
+  federated-login redirect, which from this environment is indistinguishable from a paywall if
+  the only thing tried is the article URL. Europe PMC's REST API serves both the full text and
+  the supplementary files without authentication.
+  And the Methods were not missing from the article — they were never *in* it. They are in the
+  Supplementary Information (`MOESM1`, captioned by the publisher "This file contains Methods,
+  supplementary text and appendix", 45 pages), which is where `AGENTS.md` already says a methods
+  appendix usually settles things, on the strength of ESM3's.
+- **Decision:** Retrieve it, verify it, store it, and discharge D-130's caveat.
+  Retrieved via `https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13128491/supplementaryFiles`.
+  **Verified against the publisher's own digest**: the article XML states
+  `md5 94fdc619ad34335e7051031447ec7100` and `1030230` bytes for `MOESM1`, and the retrieved file
+  matches both exactly. Stored at `pdfs/s41586-026-10176-5_sm.pdf` on the owner's call, with the
+  licence and attribution in the register, so the id is quotable.
+- **What it says, which is what the preprint says.** §A.2.1 "Data curation": "Our previously
+  published OpenGenome dataset was used in its entirety as part of the training data for this
+  study. This included representative prokaryotic genomes available through GTDB release v214.1,
+  and curated phage and plasmid sequences retrieved through IMG/VR and IMG/PR. As previously
+  described, the OpenGenome dataset was curated to exclude genomic sequences of viruses which
+  infect eukaryotic hosts." And: "New prokaryotic reference genomes made available through the
+  GTDB release 220.0 update were added to the training data for this study. New genomes were
+  identified by selecting all species' reference genomes that had no previously published
+  (release 214.1) genomes within their species cluster, resulting in 28,174 additional
+  prokaryotic genomes."
+  The only difference from the preprint is the word "prokaryotic" in the final figure; the
+  number, the releases and the selection rule are identical. **D-110 found the same for Evo 1,
+  so both labs' versions of record now agree with their preprints on the corpus statements this
+  audit rests on** — which is a result worth having rather than an absence of one, because it is
+  what licenses using either.
+- **Rejected:** Waiting for the owner once the ask had been made. The ask was right at the moment
+  the blocker was believed, and withdrawing it the moment the blocker turned out to be a route
+  problem is the same discipline, not a reversal of it. One check of an open-access mirror cost a
+  minute and saved them the errand.
+  Treating "the Methods are absent from the HTML and the PDF" as settled because it was already in
+  the register. It was accurate and it was not the whole picture; a registered blocker is a record
+  of what was tried, not a proof that nothing else works.
+  Quoting from `S-EVO2-NATURE`, which stays `retrieved_not_stored` and therefore unquotable. The
+  Methods are a separate deposit with its own licence note, and that is the id this entry cites.
+- **Consequence:** **A7.4 is unblocked** and may assert against the version of record, which §7
+  requires of any claim naming a laboratory. D-130's "currently preprint-sourced" caveat is
+  discharged for the GTDB statements. The general lesson is cheap and worth recording: before
+  escalating a publisher URL, check whether the paper is in PMC or Europe PMC — a `303` to an
+  identity provider says nothing about the licence, and this one was openly licensed the whole time.
