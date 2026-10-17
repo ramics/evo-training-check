@@ -100,11 +100,22 @@ pass cannot use (D-128).
 handling rules exist (D-125, D-126) and its two open questions are the worker's to decide and
 record.
 
-**One coordination note.** The instrument this task builds on — `src/amazebio/similarity.py`,
-`src/amazebio/shardstore.py`, `tools/esm3_calibrate.py`, `tools/ec2_similarity.py` — is tested
-and green but currently sits on A1.6's feature branch `claude/fervent-hopper-8ht0h3`, not on
-`main`. Whoever picks this up should either wait for that branch to land or branch from it,
-rather than building a second copy.
+**The instrument is on `main`,** as of PR #20 on 2026-10-17: `src/amazebio/similarity.py`
+(fixed parameters, the three coverage readings, identity banding, the saturation guard, rates
+with design-effect intervals), `src/amazebio/shardstore.py` (staged, checksummed corpus
+samples), `tools/esm3_calibrate.py` and `tools/ec2_similarity.py`. Build on them rather than a
+second copy.
+
+**Two things already paid for that this task should not pay again.** A staged 2.5% sample of
+UniRef100 2023_02 sits at
+`s3://amazebio-corpora-897641797669/corpora/samples/a1-6/uniref100/2023_02/rate40/`, with a
+checksummed manifest, the full seed counts and the exact denominators (350,950,053 clusters,
+3,159,223 viral-seeded). `--sample-from <that manifest>` skips the 52-minute corpus pass
+entirely. And the cap and coverage behaviour is measured (D-128, and A1.6's state block): the
+100,000 cap does not bind at sample scale but would at exhaustive scale, which is this task's
+scale — so **check the saturation guard rather than assuming the broad arm's finding carries
+over**, and note that a lower cap costs 3-4x more recall under coverage filtering than under
+relaxed.
 
 ## Notes
 
