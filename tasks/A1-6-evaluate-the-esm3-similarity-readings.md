@@ -325,6 +325,44 @@ the key because an overwrite in this bucket destroys the earlier object irrevers
    roughly a seventeenth of the broad arm's compute — cheap even over the whole corpus, which is
    what D-108 relied on.
 
+## The cap measurement is complete at one target size — 2026-10-17
+
+Instance `i-059cba6e4273c7345`, `m6i.2xlarge` spot, ~2 h, about $0.25. Six cells at shards=1;
+the run ended before the second target size, so **there is no linearity check** and
+`cap_summary` was never written — the cells carry everything.
+
+Query: 31,381 seeds (1/100 by hash). Target: shard 0 of the staged sample, 417 M residues.
+
+| cap (% of that cell's max hits/seed) | relaxed: wall / records lost | `--cov-mode 1`: wall / records lost |
+|---|---|---|
+| slack, 100,000 | 2,137 s / — | 1,450 s / — |
+| 50% | 770 s / 0.9% | 356 s / 3.3% |
+| 20% | 530 s / 2.3% | 252 s / 9.7% |
+
+**Four findings.**
+
+1. **The cap does not bind** at the pass's scale: 5,078 hits for the worst seed under relaxed
+   coverage, ~1,445 under filtered, against 100,000. D-105's guard is satisfied and D-128 keeps
+   the published value.
+2. **A lower cap costs 3-4x more recall under coverage filtering than under relaxed** — 3.3%
+   against 0.9% at the same fraction of the observed maximum — because the filtered search
+   yields far fewer hits per seed, so truncation reaches real matches sooner. The pass uses
+   filtered coverage, so the cheap-cap option is worse than the relaxed cells alone suggested.
+3. **Relaxed coverage costs 1.47x filtered**, not the 9x first inferred from the relaxed cell
+   against D-104's model. That refutes D-124's *cost* argument while leaving its exactness
+   argument standing (D-124).
+4. **Both cost about 6x D-104's model**, because the model was fitted with `--min-seq-id 0.70`
+   and the pass cannot use an identity floor. This is the finding that moved the broad arm's
+   price from $26 to $300-430 and then to 0.3125% for about $50 (D-128).
+
+**The post-filter agreement check, at real scale:** 32,644 records post-filtered against 32,374
+from the aligner's own `--cov-mode 1`, with 270 found only by the post-filter and **none** found
+only by the aligner. A strict superset, 0.83% wide, so the approximation errs toward
+overstating leakage. The local rehearsal saw 1 record in 138; this is the number to cite.
+
+**Left.** Slice the query so a cell fits one instance run (a full cell is ~40 h), then run the
+first cell of the broad arm against the staged shard.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
