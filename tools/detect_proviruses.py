@@ -63,6 +63,10 @@ from amazebio.survival import Detection, ElementKind, Route
 
 REPO = Path(__file__).resolve().parent.parent
 
+#: Where `tools/stage_profiles.py` puts the pinned registries. The same root A2.1 reads, so
+#: both detectors search the same staged bytes.
+PROFILE_DATA = REPO / "data" / "profiles"
+
 #: Shared with A2.1 so that "was this record in both samples" is answerable without storing
 #: either list (D-115). Not a new seed, deliberately.
 SEED = 20261015
@@ -454,7 +458,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--registry", action="append", help="registry id; repeatable")
     parser.add_argument("--release", action="append", help="release key; repeatable")
     parser.add_argument(
-        "--limit", type=int, default=None, help="stop after this many sampled genomes; probing"
+        "--limit",
+        type=int,
+        default=None,
+        help="stop after this many sampled genomes. Exercises the whole path and writes NO "
+        "table: a limited run's denominator is not the sample's, so any survival figure from "
+        "it would be a null over data nobody read",
     )
     parser.add_argument("--plan", action="store_true", help="print the scope and stop")
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
@@ -492,7 +501,7 @@ def main(argv: list[str] | None = None) -> int:
     bucket, _ = split_uri(os.environ["AMAZEBIO_S3_URI"])
     client = s3_client()
     registries = [load_registry(rid) for rid in (args.registry or ["pfam", "rvdb-prot"])]
-    views = {reg.id: profilesearch.family_universe(reg, REPO / "data") for reg in registries}
+    views = {reg.id: profilesearch.family_universe(reg, PROFILE_DATA) for reg in registries}
     args.out.mkdir(parents=True, exist_ok=True)
 
     with run(
@@ -553,7 +562,7 @@ def main(argv: list[str] | None = None) -> int:
                                 reg,
                                 proteins,
                                 restrict_to=views[reg.id].restrict_to,
-                                hmm_file=profilesearch.hmm_path(reg, REPO / "data"),
+                                hmm_file=profilesearch.hmm_path(reg, PROFILE_DATA),
                             )
                             search_seconds[reg.id] = round(time.time() - began, 1)
                             detections_by_registry[reg.id] += detections_from_hits(
@@ -628,11 +637,26 @@ def main(argv: list[str] | None = None) -> int:
                         genomes=genomes_total, proviruses=proviruses_total, concordance=None
                     ),
                 )
+                survival = table.survival()
+                if args.limit:
+                    # A probe stops here. `estimate_kind` is derived from the sample rate, so a
+                    # `--limit 1 --rate 1.0` run would write `population` over one genome — a
+                    # Wilson interval of [0, 0.002] across 1,719 families, computed from 25 kb.
+                    # That is a precise-looking null from almost no data, which is the one
+                    # artefact `AGENTS.md` forbids this pipeline to be able to produce. The
+                    # counts are printed; nothing is written.
+                    print(
+                        f"  [probe] {stem}: {survival['families_with_a_hit']:,} of "
+                        f"{survival['families_in_universe']:,} families, "
+                        f"{proviruses_total:,} provirus call(s) in {genomes_total:,} genome(s)"
+                        " — not written, --limit makes the denominator meaningless",
+                        flush=True,
+                    )
+                    continue
                 table.write(args.out / f"{stem}.json")
                 manifest_run.output_file(
                     args.out / f"{stem}.json", role="per-family prophage hit table"
                 )
-                survival = table.survival()
                 print(
                     f"  {stem}: {survival['families_with_a_hit']:,} of "
                     f"{survival['families_in_universe']:,} families "

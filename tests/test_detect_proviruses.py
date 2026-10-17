@@ -184,3 +184,32 @@ def test_notes_warn_when_no_concordance_was_run():
     notes = dp.table_notes(genomes=10, proviruses=3, concordance=None)
     assert any("one instrument" in n for n in notes)
     assert any("lower bound" in n.lower() for n in notes)
+
+
+# --------------------------------------------------------------------------------------
+# A probe must not look like a result
+# --------------------------------------------------------------------------------------
+
+
+def test_limit_is_documented_as_writing_nothing():
+    """The first end-to-end run wrote `estimate_kind: population` from one genome.
+
+    `--limit 1 --rate 1.0` read 25,792 bases of a single genome and the table reported a census
+    over the whole component, with a Wilson interval of [0, 0.0022] across 1,719 families. The
+    number was arithmetically correct and completely misleading: a precise-looking null computed
+    from almost no data, which is exactly what `AGENTS.md` forbids the pipeline to be able to
+    produce. A limited run now prints its counts and writes no table.
+    """
+    parser_help = dp.main.__doc__ or ""
+    source = pathlib.Path(dp.__file__).read_text()
+    assert "--limit" in source
+    assert "writes NO" in source or "not written" in source
+    assert parser_help is not None
+
+
+def test_the_probe_branch_precedes_any_write():
+    """Structural: the `--limit` guard must come before `table.write`, not after it."""
+    source = pathlib.Path(dp.__file__).read_text()
+    guard = source.index("if args.limit:")
+    write = source.index("table.write(")
+    assert guard < write, "a probe must stop before anything is written"
