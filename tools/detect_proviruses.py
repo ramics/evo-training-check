@@ -1,0 +1,646 @@
+#!/usr/bin/env python3
+"""Detect integrated elements in the surviving bacterial genomes — task A2.4.
+
+    pixi run -e dev python tools/detect_proviruses.py --plan
+    pixi run -e dev python tools/detect_proviruses.py --genomad-db data/genomad_db --limit 20
+
+One table per registry x manifest, in `metrics/detections.md`'s shared shape, with
+`detector: provirus-genomad` so A3.2 can keep A2.1's profile hits and A2.4's prophage hits
+apart (D-113).
+
+The pass is in two halves, and keeping them apart is the whole design.
+
+**Where.** geNomad's `annotate` plus `find-proviruses` runs over sampled genomes and returns an
+interval in a host contig. This, and only this, is what licenses `element_kind: prophage` — the
+kind D-079 reserved for A2.4 to establish rather than for A2.1 to infer from a profile hit.
+
+**Which family.** The proteins geNomad already called *inside* that interval are searched against
+the registries A2.1 pinned, at D-076's thresholds unchanged. The family never comes from
+geNomad's marker-consensus taxonomy, because that is taxonomy, and `DESIGN.md` §A2 opens by
+ruling the filter's own instrument out of the audit.
+
+So a detection says: this surviving bacterial genome carries an integrated element, and inside it
+is a protein of this viral family. Both halves are measured, by different instruments, and the
+artefact records which said what.
+
+**What the numbers are.** A lower bound twice over, in one direction (D-115, D-113): a genome
+outside the sample is not read, and a viral-family protein outside a provirus call is not counted.
+A detection is evidence; an absence is not evidence of absence, and `estimate_kind` says so.
+
+**Scope.** Evo 2's `gtdb` and Evo 1's `stage1_gtdb`, and nothing else. Every other component of
+every manifest appears as a row with `searched: false` and a reason — the convention
+`metrics/detections.md` fixed so that a table never reads as a verdict on a release it only
+partly covered. Evo 1 and Evo 2 are **not** pooled and neither substitutes for the other
+(D-116): they pin different GTDB snapshots, v214.1 against v214.1 plus a 220.0 increment (D-130).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from amazebio import gtdb, profilesearch
+from amazebio.apply import route_for
+from amazebio.detect import (
+    DetectionTable,
+    ManifestRef,
+    SampleDesign,
+    build_rows,
+    in_sample,
+)
+from amazebio.policyspec import Outcome
+from amazebio.profiles import registry as load_registry
+from amazebio.proviruses import GENOMAD, SCOPE_NOTE, VIBRANT, read_genomad_proviruses
+from amazebio.survival import Detection, ElementKind, Route
+
+REPO = Path(__file__).resolve().parent.parent
+
+#: Shared with A2.1 so that "was this record in both samples" is answerable without storing
+#: either list (D-115). Not a new seed, deliberately.
+SEED = 20261015
+
+#: The first band. D-118 fixed the shape — nested bands, the first one its own calibration —
+#: and D-132 restored spot, so the deepening to ~10% is affordable if the measured cost allows.
+FIRST_BAND_RATE = 0.025
+
+OUTDIR = REPO / "artifacts" / "a2-4"
+
+#: The corpus components A2.4 answers for. Everything else is reported unsearched, with a reason.
+BACTERIAL_COMPONENTS = {"gtdb_v220", "stage1_gtdb"}
+
+#: Why each component A2.4 does not touch is not touched. Keyed by corpus component, with a
+#: default for anything added later — an unexplained `searched: false` is as opaque as an
+#: omission.
+NOT_SEARCHED_WHY: dict[str, str] = {
+    "stage2": "Evo 1's viral component: free virus, not an integrated element. A2.1 searches it.",
+    "imgvr": "Evo 2's viral component: free virus, not an integrated element. A2.1 searches it.",
+    "imgpr": "Plasmids. A2.4 detects integrated elements in host genomes; A2.1 covers this.",
+    "ncbi_eukaryotic_genomes": "Eukaryotic host genomes are A2.3's endogenous elements, not A2.4's "
+    "prophage, and the component is not staged.",
+    "eukaryotic_genic_windows": "Same: eukaryotic, A2.3's, and not staged.",
+    "metagenomes": "Unassembled metagenomic sequence; not a host genome, and not staged.",
+    "mrna": "Transcripts, eukaryote-derived; no host genome to carry an integrated element.",
+    "ncrna": "Transcripts; no host genome to carry an integrated element.",
+    "promoters": "Regulatory windows; no host genome to carry an integrated element.",
+    "organelles": "Organelle genomes; prophage detection is not defined over them.",
+    "stage1_imgpr": "Plasmids, and not staged.",
+    # ESM3-open's proxy corpus is protein. There is no nucleotide genome to find an integrated
+    # element in, so these are not a gap in A2.4's coverage but a category it is not defined over.
+    "uniref_2023_02": "Protein sequences. An integrated element is a nucleotide feature of a "
+    "host genome, so this detector is not defined over a protein corpus at all.",
+    "mgnify_2023_02": "Protein sequences; same as UniRef.",
+    "pdb": "Protein structures; same.",
+    "jgi": "Not staged, and protein in any case.",
+}
+_DEFAULT_WHY = "Not a bacterial host genome, so A2.4's instruments are not defined over it."
+
+
+class RunError(RuntimeError):
+    """Raised when the pass cannot produce a table it would be honest to publish."""
+
+
+# --------------------------------------------------------------------------------------
+# Manifests and scope
+# --------------------------------------------------------------------------------------
+
+
+def load_manifests(manifest_dir: Path) -> list[dict[str, Any]]:
+    """A1.4's manifests, as written. A2.4 consumes them rather than re-deriving a surviving set."""
+    index = manifest_dir / "index.json"
+    if not index.exists():
+        raise SystemExit(
+            f"no A1.4 manifests at {manifest_dir}: run tools/apply_policies.py first. A2.4 "
+            "consumes the manifests rather than re-deriving a surviving set (D-059)."
+        )
+    produced = json.loads(index.read_text())
+    entries = produced.get("manifests", produced if isinstance(produced, list) else [])
+    out = []
+    for entry in entries:
+        name = entry.get("manifest") or entry.get("file")
+        path = manifest_dir / name if name else None
+        if path is None or not path.exists():
+            raise SystemExit(f"manifest listed in index.json is missing: {entry}")
+        out.append({"path": path, "manifest": json.loads(path.read_text())})
+    return out
+
+
+def source_rows(manifest: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split a manifest's sources into the ones A2.4 searches and the ones it reports unsearched.
+
+    Every source appears in one list or the other and none is dropped. `metrics/manifests.md`
+    took this decision for A1.4 and `metrics/detections.md` repeats it for detectors, for the
+    reason D-080 gives: a table that silently covered part of a release reads as a verdict on
+    all of it.
+    """
+    searched, skipped = [], []
+    for row in manifest.get("sources", []):
+        component = row.get("corpus_component") or row.get("component") or ""
+        if component in BACTERIAL_COMPONENTS:
+            searched.append(row)
+        else:
+            skipped.append(
+                {
+                    "component": row.get("component"),
+                    "corpus_component": component,
+                    "searched": False,
+                    "why": NOT_SEARCHED_WHY.get(component, _DEFAULT_WHY),
+                    "records_in_source": row.get("records"),
+                }
+            )
+    return searched, skipped
+
+
+def route_of_source(source: dict[str, Any]) -> Route:
+    """The survival route every genome in a bacterial source takes, from the manifest.
+
+    `metrics/detections.md` says a detector recomputes the route of a *named* record, because
+    the manifest carries outcome counts rather than a per-record outcome. That applies to an
+    enumerated component. These are not enumerated: no rule in any reading reaches GTDB, so A1.4
+    records a single `uniform_outcome` for the whole component and A2.4 reads it rather than
+    re-deriving it. Re-deriving would mean this tool re-implementing the policy evaluation A1.4
+    exists to be the single source of, which is what D-059 forbids.
+
+    The route differs by reading, and that is the finding rather than an inconsistency: under
+    the charitable and literal readings GTDB is `out_of_scope` — the filter never looked at it,
+    which is D-007's headline — while the strict reading's wildcard scope examines it and keeps
+    it, which is `retained_by_design`. The same prophage therefore sits on different routes in
+    different manifests, and A3.2 cross-tabulates exactly that.
+    """
+    outcome = source.get("uniform_outcome")
+    if not outcome:
+        raise RunError(
+            f"source {source.get('corpus_component')!r} carries no uniform_outcome, so it was "
+            "enumerated rather than resolved uniformly. A2.4 would have to recompute a route "
+            "per record, which this pass does not do — regenerate the manifest or extend it."
+        )
+    return route_for(Outcome(outcome))
+
+
+# --------------------------------------------------------------------------------------
+# Reading the bacterial components
+# --------------------------------------------------------------------------------------
+
+
+def objects_under(client: Any, bucket: str, prefix: str) -> list[str]:
+    """Every staged object under a prefix, smallest first.
+
+    Smallest first so a `--limit` probe reads the small object rather than opening a 10 GB
+    shard to take two genomes from it.
+    """
+    found: list[tuple[int, str]] = []
+    for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            if obj["Size"] > 0:
+                found.append((obj["Size"], obj["Key"]))
+    return [key for _, key in sorted(found)]
+
+
+def sampled_genomes_og2(client: Any, bucket: str, key: str, *, rate: float):
+    """Yield `(assembly_accession, contigs)` for sampled genomes of one Evo 2 GTDB tar.
+
+    Sampling decides on the assembly accession, which the publisher supplies, so membership is
+    a property of the genome's own identifier and nothing is derived (D-136).
+    """
+    for accession, contigs in gtdb.iter_og2_genomes(gtdb.tar_stream(client, bucket, key)):
+        if in_sample(accession, seed=SEED, rate=rate):
+            yield accession, contigs
+
+
+def sampled_genomes_og1(client: Any, bucket: str, key: str, *, rate: float):
+    """Yield `(genome_key, contigs)` for sampled genomes of one Evo 1 GTDB Parquet object.
+
+    Evo 1 publishes contigs with no genome column, so the genome is derived from the WGS project
+    accession (D-136) and the sampling decides on *that*, never on the contig — sampling contigs
+    would read a different fraction of every genome and make "a genome was searched" meaningless.
+
+    Contigs of one genome are not guaranteed adjacent in the file, so in-sample contigs are
+    accumulated and yielded at the end of the object. Only sampled genomes are held, so the
+    memory is the sample rather than the shard. A genome whose contigs span two objects is
+    yielded once per object; the caller merges on the id.
+    """
+    import pyarrow.parquet as pq
+
+    from amazebio.objectstore import S3RandomRead
+
+    held: dict[str, list[tuple[str, str]]] = {}
+    handle = pq.ParquetFile(S3RandomRead(client, bucket, key))
+    for accession, sequence in gtdb.iter_og1_contigs(handle):
+        genome = gtdb.genome_key(accession).key
+        if in_sample(genome, seed=SEED, rate=rate):
+            held.setdefault(genome, []).append((accession, sequence))
+    yield from held.items()
+
+
+def write_batch(genomes: list[tuple[str, list[tuple[str, str]]]], path: Path) -> dict[str, int]:
+    """Write sampled genomes to one FASTA under :func:`contig_header` names.
+
+    One multi-FASTA rather than a file per genome: geNomad's cost is dominated by loading the
+    marker database, so a call per genome would pay that once per genome instead of once per
+    batch (D-117 measured annotation at 97% of the run).
+    """
+    stats = {"genomes": 0, "contigs": 0, "bases": 0}
+    with path.open("w") as out:
+        for genome_id, contigs in genomes:
+            if not contigs:
+                continue
+            stats["genomes"] += 1
+            for index, (_, sequence) in enumerate(contigs):
+                if not sequence:
+                    continue
+                stats["contigs"] += 1
+                stats["bases"] += len(sequence)
+                out.write(f">{contig_header(genome_id, index)}\n{sequence}\n")
+    return stats
+
+
+# --------------------------------------------------------------------------------------
+# Running the tools
+# --------------------------------------------------------------------------------------
+
+
+def genomad(
+    fasta: Path, outdir: Path, database: Path, *, splits: int = 8, threads: int | None = None
+) -> Path:
+    """Run `annotate` then `find-proviruses`, and return the provirus table.
+
+    Two calls rather than `end-to-end` because end-to-end also runs the virus/plasmid classifier
+    and the score calibration, which A2.4 does not read: the provirus boundary is what it wants,
+    and paying for a classification it will not use would be most of the run. `annotate` is 97%
+    of the cost either way (D-117).
+
+    `--splits` for the reason `AGENTS.md` records against A4.2: the marker index wants about
+    24 GB in one pass and a session container has 16, and splitting the target database changed
+    nothing about the result.
+    """
+    for module, extra in (("annotate", ["--splits", str(splits)]), ("find-proviruses", [])):
+        cmd = [
+            "pixi",
+            "run",
+            "-e",
+            "proviruses",
+            "genomad",
+            module,
+            str(fasta),
+            str(outdir),
+            str(database),
+            *extra,
+        ]
+        if threads:
+            cmd += ["--threads", str(threads)]
+        result = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            raise RunError(
+                f"genomad {module} failed ({result.returncode}): {result.stderr[-2000:]}"
+            )
+    stem = fasta.name.split(".")[0]
+    table = outdir / f"{stem}_find_proviruses" / f"{stem}_provirus.tsv"
+    if not table.exists():
+        raise RunError(
+            f"genomad find-proviruses wrote no provirus table at {table}. An empty run and a "
+            "failed run must not look alike, so this stops rather than reporting zero."
+        )
+    return table
+
+
+def provirus_proteins(table: Path) -> Path:
+    """The proteins geNomad called inside the delineated proviruses, beside its table."""
+    faa = table.with_name(table.name.replace("_provirus.tsv", "_provirus_proteins.faa"))
+    if not faa.exists():
+        raise RunError(
+            f"no provirus proteins at {faa}: find-proviruses writes them beside its table, so "
+            "their absence means the run did not complete rather than that nothing was found."
+        )
+    return faa
+
+
+def read_faa(path: Path):
+    """Yield `(name, sequence)` from a FASTA of proteins."""
+    name, chunks = None, []
+    for line in path.read_text().splitlines():
+        if line.startswith(">"):
+            if name is not None:
+                yield name, "".join(chunks)
+            name, chunks = line[1:].split()[0], []
+        elif name is not None:
+            chunks.append(line.strip())
+    if name is not None:
+        yield name, "".join(chunks)
+
+
+#: Separator between a genome id and its contig index in the FASTA this pass feeds geNomad.
+#: A tilde because neither INSDC accessions nor assembly accessions contain one, and because
+#: geNomad's own names use `|`, which must stay unambiguous — see :func:`host_of_protein`.
+CONTIG_SEP = "~"
+
+
+def contig_header(genome_id: str, index: int) -> str:
+    """The name one sampled contig is given on its way into geNomad.
+
+    Both releases are reduced to the same shape here: `<genome_id>~<n>`. Evo 2 publishes a
+    genome per tar member and Evo 1's is derived from WGS project accessions (D-136), and once
+    a contig is named this way the rest of the pass does not need to know which release it came
+    from — which is what lets one code path produce two tables that differ only in their inputs.
+    """
+    if CONTIG_SEP in genome_id:
+        raise RunError(
+            f"genome id {genome_id!r} contains {CONTIG_SEP!r}, which this pass uses to separate "
+            "a genome from its contig; the attribution back to the host would be ambiguous"
+        )
+    return f"{genome_id}{CONTIG_SEP}{index}"
+
+
+def host_of_protein(protein_name: str) -> str:
+    """The genome a provirus protein is counted on.
+
+    geNomad names a provirus `<source_seq>|provirus_<start>_<end>` and its proteins
+    `<provirus_name>_<n>`, and `source_seq` here is the `<genome_id>~<n>` of
+    :func:`contig_header`. So the genome is everything before the first `|`, then everything
+    before the last `~`.
+
+    Counting on the genome rather than on the fragment is what D-113 requires. The fragment name
+    is geNomad's invention: counting on it would make every provirus its own record, inflating
+    the denominator and attributing a prophage's families to a sequence that exists nowhere
+    outside this run. Counting on the contig would be wrong the other way — two proviruses in one
+    genome would be two surviving records.
+    """
+    source_seq = protein_name.split("|")[0]
+    genome, sep, _ = source_seq.rpartition(CONTIG_SEP)
+    return genome if sep else source_seq
+
+
+# --------------------------------------------------------------------------------------
+# Detections
+# --------------------------------------------------------------------------------------
+
+
+def detections_from_hits(
+    hits: list[dict[str, Any]],
+    *,
+    registry_id: str,
+    registry_version: str,
+    thresholds: dict[str, float],
+    route: Route,
+    profile_to_family: dict[str, str],
+) -> list[Detection]:
+    """Profile hits inside proviruses, as schema detections with `prophage` as the kind.
+
+    The element kind is `PROPHAGE` and is not inferred from the families that were hit — it is
+    what the provirus finder established about the interval these proteins came from (D-079,
+    D-113). A hit whose profile is outside the pinned universe stops the run rather than being
+    counted, because a family id the registry does not know changes the denominator silently.
+    """
+    out: list[Detection] = []
+    for hit in hits:
+        family = profile_to_family.get(hit["profile"])
+        if family is None:
+            raise RunError(
+                f"profile {hit['profile']!r} is not in {registry_id}'s pinned universe; the "
+                "registry version and the searched profiles disagree, which would change the "
+                "denominator without showing it"
+            )
+        out.append(
+            Detection(
+                family_id=family,
+                registry=registry_id,
+                registry_version=registry_version,
+                record_id=hit["record_id"],
+                route=route,
+                element_kind=ElementKind.PROPHAGE,
+                detector="provirus-genomad",
+                score=float(hit["score"]),
+                threshold=float(thresholds[family]),
+            )
+        )
+    return out
+
+
+def table_notes(*, genomes: int, proviruses: int, concordance: dict[str, Any] | None) -> list[str]:
+    """Caveats that travel with the numbers, not a changelog."""
+    notes = [
+        SCOPE_NOTE,
+        f"{proviruses:,} provirus call(s) across {genomes:,} sampled genome(s). The family "
+        "universe and thresholds are A2.1's, unchanged (D-113), so an A2.1 table and this one "
+        "differ only in route, element kind and the records searched.",
+        "Localisation is geNomad's and identity is the registries'. The family is never taken "
+        "from geNomad's marker-consensus taxonomy: that is the filter's own instrument, and "
+        "DESIGN.md §A2 rules it out of the audit.",
+        f"Instruments: geNomad {GENOMAD.version} against marker database {GENOMAD.database_version}"
+        f", pinned apart from A4.2's 1.1.0 object of study (D-112); VIBRANT {VIBRANT.version} for "
+        "concordance (D-114).",
+    ]
+    if concordance is None:
+        notes.append(
+            "No concordance subsample was run, so this table rests on one instrument. The "
+            "agreement figure D-114 requires is not in it, and the prophage count must not be "
+            "quoted as instrument-independent until it is."
+        )
+    return notes
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifests", default=REPO / "artifacts" / "a1-4", type=Path)
+    parser.add_argument("--out", default=OUTDIR, type=Path)
+    parser.add_argument("--genomad-db", type=Path, help="the pinned marker database directory")
+    parser.add_argument("--rate", type=float, default=FIRST_BAND_RATE)
+    parser.add_argument("--registry", action="append", help="registry id; repeatable")
+    parser.add_argument("--release", action="append", help="release key; repeatable")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="stop after this many sampled genomes; probing"
+    )
+    parser.add_argument("--plan", action="store_true", help="print the scope and stop")
+    parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
+    args = parser.parse_args(argv)
+
+    manifests = load_manifests(args.manifests)
+    if args.release:
+        manifests = [m for m in manifests if m["manifest"]["release"] in set(args.release)]
+
+    if args.plan:
+        for entry in manifests:
+            manifest = entry["manifest"]
+            searched, skipped = source_rows(manifest)
+            print(f"\n{manifest['policy']['id']} x {manifest['release']}")
+            for row in searched:
+                print(f"  SEARCH {row.get('corpus_component')}  {row.get('key', '')}")
+            for row in skipped:
+                print(f"  skip   {row['corpus_component']}: {row['why']}")
+            if not searched:
+                print(
+                    "  -> estimate_kind: not_searched. No bacterial component in this manifest, "
+                    "so every count would be zero by construction (D-116)."
+                )
+        return 0
+
+    if not args.genomad_db:
+        raise SystemExit("--genomad-db is required for a search pass; use --plan for the scope")
+
+    import os
+
+    from amazebio.objectstore import client as s3_client
+    from amazebio.objectstore import split_uri
+    from amazebio.repro import run, sha256_file
+
+    bucket, _ = split_uri(os.environ["AMAZEBIO_S3_URI"])
+    client = s3_client()
+    registries = [load_registry(rid) for rid in (args.registry or ["pfam", "rvdb-prot"])]
+    views = {reg.id: profilesearch.family_universe(reg, REPO / "data") for reg in registries}
+    args.out.mkdir(parents=True, exist_ok=True)
+
+    with run(
+        "A2.4", seed=SEED, outdir=args.out, allow_dirty=args.allow_dirty, repo=REPO
+    ) as manifest_run:
+        manifest_run.parameter("sample_seed", SEED)
+        manifest_run.parameter("sample_rate", args.rate)
+        manifest_run.parameter("genomad", GENOMAD.to_dict())
+        manifest_run.parameter("vibrant", VIBRANT.to_dict())
+        manifest_run.parameter("bacterial_components", sorted(BACTERIAL_COMPONENTS))
+
+        for entry in manifests:
+            manifest = entry["manifest"]
+            policy_id = manifest["policy"]["id"]
+            release = manifest["release"]
+            searched, skipped = source_rows(manifest)
+            rows: list[dict[str, Any]] = list(skipped)
+            detections_by_registry: dict[str, list[Detection]] = {r.id: [] for r in registries}
+            genomes_total = proviruses_total = 0
+
+            for source in searched:
+                component = source.get("corpus_component")
+                prefix = source.get("key") or ""
+                keys = objects_under(client, bucket, prefix) if prefix else []
+                started = time.time()
+                batch: list[tuple[str, list[tuple[str, str]]]] = []
+                for key in keys:
+                    reader = (
+                        sampled_genomes_og1 if component == "stage1_gtdb" else sampled_genomes_og2
+                    )
+                    for genome_id, contigs in reader(client, bucket, key, rate=args.rate):
+                        batch.append((genome_id, contigs))
+                        if args.limit and len(batch) >= args.limit:
+                            break
+                    if args.limit and len(batch) >= args.limit:
+                        break
+                read_seconds = round(time.time() - started, 1)
+
+                with tempfile.TemporaryDirectory(prefix="a2-4-") as workdir:
+                    work = Path(workdir)
+                    fasta = work / f"{release}-{component}.fna"
+                    counts = write_batch(batch, fasta)
+                    genomes_total += counts["genomes"]
+                    search_seconds: dict[str, float] = {}
+                    calls = []
+                    if counts["genomes"]:
+                        table_path = genomad(fasta, work, args.genomad_db)
+                        calls = read_genomad_proviruses(table_path)
+                        proviruses_total += len(calls)
+                        proteins_faa = provirus_proteins(table_path)
+                        proteins, pstats = profilesearch.proteins_from_fasta(
+                            read_faa(proteins_faa), record_of=host_of_protein
+                        )
+                        route = route_of_source(source)
+                        for reg in registries:
+                            began = time.time()
+                            hits = profilesearch.search(
+                                reg,
+                                proteins,
+                                restrict_to=views[reg.id].restrict_to,
+                                hmm_file=profilesearch.hmm_path(reg, REPO / "data"),
+                            )
+                            search_seconds[reg.id] = round(time.time() - began, 1)
+                            detections_by_registry[reg.id] += detections_from_hits(
+                                hits,
+                                registry_id=reg.id,
+                                registry_version=reg.version,
+                                thresholds=views[reg.id].thresholds_by_family(),
+                                route=route,
+                                profile_to_family=views[reg.id].family_of_profile,
+                            )
+                    else:
+                        pstats = {"records": 0, "genes": 0, "residues": 0}
+
+                rows.append(
+                    {
+                        "component": source.get("component"),
+                        "corpus_component": component,
+                        "searched": True,
+                        "objects": len(keys),
+                        "sample_rate": args.rate,
+                        "records_in_source": source.get("records"),
+                        "records": counts["genomes"],
+                        "contigs": counts["contigs"],
+                        "bases": counts["bases"],
+                        "proviruses": len(calls),
+                        "genes": pstats.get("genes", 0),
+                        "residues": pstats.get("residues", 0),
+                        "proteins_unplaced": pstats.get("proteins_unplaced", 0),
+                        "read_seconds": read_seconds,
+                        "search_seconds": search_seconds,
+                        "limited": bool(args.limit),
+                    }
+                )
+
+            for reg in registries:
+                stem = f"detections-{reg.id}-{policy_id}-{release}"
+                table = DetectionTable(
+                    task="A2.4",
+                    detector="provirus-genomad",
+                    registry=reg.id,
+                    registry_version=reg.version,
+                    manifest=ManifestRef(
+                        policy_id=policy_id,
+                        release=release,
+                        path=str(entry["path"].relative_to(REPO)),
+                        sha256=sha256_file(entry["path"]),
+                        removed_records=manifest.get("removed", {}).get("records", 0),
+                    ),
+                    sources=rows,
+                    sample=(
+                        SampleDesign(
+                            seed=SEED,
+                            rate=args.rate,
+                            population=None,
+                            bands=((0.0, args.rate),),
+                        )
+                        if any(r.get("searched") for r in rows)
+                        else None
+                    ),
+                    rows=build_rows(
+                        detections_by_registry[reg.id],
+                        universe=views[reg.id].universe,
+                        thresholds=views[reg.id].thresholds_by_family(),
+                    ),
+                    thresholds={
+                        "source": "D-076, unchanged from A2.1 so the two tables compare",
+                        "pfam": "per-model gathering cutoff, sequence half, as published",
+                        "rvdb-prot": "pinned E-value against the pinned Z, per model",
+                        "min_model_coverage": profilesearch.MIN_MODEL_COVERAGE,
+                    },
+                    notes=table_notes(
+                        genomes=genomes_total, proviruses=proviruses_total, concordance=None
+                    ),
+                )
+                table.write(args.out / f"{stem}.json")
+                manifest_run.output_file(
+                    args.out / f"{stem}.json", role="per-family prophage hit table"
+                )
+                survival = table.survival()
+                print(
+                    f"  {stem}: {survival['families_with_a_hit']:,} of "
+                    f"{survival['families_in_universe']:,} families "
+                    f"({survival['estimate_kind']})",
+                    flush=True,
+                )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -67,11 +67,8 @@ from amazebio.profiles import (
     PINNED_E_VALUE,
     PINNED_Z,
     REGISTRIES,
-    ProfileError,
     Registry,
-    iter_profile_headers,
     registry,
-    select_viral_families,
 )
 from amazebio.repro import run, sha256_file
 from amazebio.seqstream import iter_fasta_sampled, iter_stage2_sampled
@@ -129,64 +126,12 @@ NOT_SEARCHED = {
 # --------------------------------------------------------------------------------------
 
 
-class RegistryView:
-    """One registry resolved for searching: its universe, its thresholds, and what to search.
-
-    Three keyings have to be kept straight and conflating them is the easy mistake. A *profile
-    name* is what the HMM file calls a model and what a hit comes back under. A *family id* is
-    what the survival counts are keyed on — Pfam's stable accession, RVDB's family name. And
-    `restrict_to` is the set of profile names to search at all: Pfam is cut to the viral
-    selection (D-075), while RVDB-prot is searched whole because its publisher's curation *is*
-    the membership criterion.
-    """
-
-    def __init__(
-        self,
-        *,
-        universe: dict[str, str],
-        thresholds: dict[str, float],
-        family_of_profile: dict[str, str],
-        restrict_to: set[str] | None,
-    ) -> None:
-        self.universe = universe
-        self.thresholds = thresholds
-        self.family_of_profile = family_of_profile
-        self.restrict_to = restrict_to
-
-    def thresholds_by_family(self) -> dict[str, float]:
-        return {self.family_of_profile[n]: t for n, t in self.thresholds.items()}
+RegistryView = profilesearch.RegistryView
 
 
-def family_universe(reg: Registry) -> RegistryView:
-    """Resolve one pinned registry into the view the search and the tables need."""
-    if reg.id == "pfam":
-        selected = select_viral_families(reg.staged_dir(DATA) / "Pfam-A.hmm.dat.gz")
-        return RegistryView(
-            universe={a: m.name for a, m in selected.items()},
-            # Pfam's own curated per-model gathering cutoff, sequence half. Used as published.
-            thresholds={m.name: m.gathering[0] for m in selected.values() if m.gathering},
-            family_of_profile={m.name: a for a, m in selected.items()},
-            restrict_to={m.name for m in selected.values()},
-        )
-
-    path = reg.staged_dir(DATA) / reg.files[0].local_name
-    universe: dict[str, str] = {}
-    thresholds: dict[str, float] = {}
-    for header in iter_profile_headers(path):
-        universe[header.name] = header.accession or header.name
-        thresholds[header.name] = header.bit_threshold(e_value=PINNED_E_VALUE, z=PINNED_Z)
-    if reg.profile_count is not None and len(universe) != reg.profile_count:
-        raise ProfileError(
-            f"{reg.key}: {len(universe)} profiles read, publisher states {reg.profile_count}. "
-            "The family universe is the denominator of every figure from this registry, so a "
-            "disagreement about its size voids them all."
-        )
-    return RegistryView(
-        universe=universe,
-        thresholds=thresholds,
-        family_of_profile={n: n for n in universe},
-        restrict_to=None,
-    )
+def family_universe(reg: Registry) -> profilesearch.RegistryView:
+    """This tool's data root, bound to the shared `profilesearch.family_universe`."""
+    return profilesearch.family_universe(reg, DATA)
 
 
 def hits_dump_path(release: str, band: tuple[float, float] | None, *, root: Path | None) -> Path:
