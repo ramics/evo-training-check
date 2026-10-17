@@ -179,11 +179,27 @@ failure as overstating leakage. And the sample is UniRef100 only, so MGnify90 is
 neither arm; that gap is older than this decision but D-108's "every corpus record" was the one
 place in the plan that would have closed it.
 
-**Plan, in order.**
+**Plan, in order.** Steps 1 and 2 are done; 3 onwards remain.
 
-1. The two readings, each its own decision entry: the organism-name to taxonomy-id mapping, and
-   which version of the published list was in force.
-2. The narrow seed-set builder on `src/amazebio/seeds.py`, with tests and `check` green.
-3. One in-region full-tier pass to build the seed set and reconcile against 187K. ~1 h, ~$0.20.
-4. One shard as a smoke test, then the 2.5% sample. ~$3.
-5. The aggregate, with its interval, its realised family count and the no-all-clear statement.
+1. ~~The two readings, each its own decision entry.~~ **Done — D-137 and D-138.**
+2. ~~The list reconstructed as taxa.~~ **Done** — `src/amazebio/selectagents.py`,
+   `policies/specs/select-agents-2024-06-01.json`, the three pinned CFR captures and
+   `tests/test_selectagents.py`, on the branch. Full `check` green, 926 passed.
+3. ~~Settle the naming of the shared seed machinery.~~ **Done — D-139.** The counters are
+   renamed denylist-neutral (`viral` to `denylist_taxids`, `viral_seeded` to `seeded`, and so
+   on), A1.6's call sites updated in the same commit. The serialised keys accept both spellings,
+   because the staged sample manifest carries the old one and cannot be rewritten.
+4. The narrow seed-set builder itself: scan the staged UniRef100 tier for clusters whose members
+   carry the taxa D-137 names, reusing `seeds.ScanConfig` rather than a second copy.
+5. One in-region full-tier pass to build the seed set and reconcile against the published 187K.
+   ~1 h, well under a dollar. Needed under any depth: a seed set rebuilt from a corpus sample
+   cannot be reconciled against a published total.
+6. One shard as a smoke test, then the 2.5% sample. ~$3 (D-133).
+7. The aggregate, with its interval, its realised family count and the no-all-clear statement.
+
+**What step 4 will have to reconcile against, and the gap to expect.** The literal reading names
+53 taxa expanding to 114,206, and 16 of the 70 list entries contribute no taxon at all — nine
+toxins, two constructs, one functional predicate, four absent from the pinned taxonomy. So the
+reconstruction is not expected to land on 187K exactly, and the direction of each discrepancy is
+recorded in D-137 rather than reverse-engineered later. Three entries are deliberately
+over-inclusive, which overstates the denylist; the 16 non-contributing entries understate it.
