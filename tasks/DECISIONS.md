@@ -5818,3 +5818,53 @@ decision has a threshold or parameter in it, the number goes in the entry.
   it to interpret the interval. One general lesson worth carrying past this entry: both of D-140's
   variance claims were checkable in about a minute, and the one that was asserted was wrong by a
   factor of eleven in the opposite direction.
+
+### D-142 — The staged sample cannot describe its own strata, so band 1 owes one corpus pass; the cluster's family is its representative's
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-140 made taxonomic family the interval's sampling unit and priced it at zero
+  extra compute, on the reasoning that "the shard FASTA carries the taxid and the taxonomy is
+  already a pinned input". The first half is false. `seeds.write_fasta` writes a bare cluster id
+  with no description, deliberately — MMseqs2 keys results on the first whitespace-delimited
+  token, so anything after it is carried through the whole pipeline for nothing — and the staged
+  2.5% sample (D-122) was written by it. **The staged sample does not carry taxids.**
+
+  It cannot be recovered afterwards from the hit table either, and this is the part worth being
+  precise about: the interval's denominator is the records *searched* per stratum, not the records
+  that matched, so it needs a family for every sampled cluster including every miss. The hit table
+  contains no misses by construction. Looking up only the hit targets would give a numerator with
+  no denominator.
+- **Decision, three parts.**
+  1. **The strata travel in a sidecar.** The corpus pass writes one `cluster_id\ttaxid` row per
+     sampled cluster, per shard, beside the FASTA. A sample staged from here is self-describing
+     and owes nothing later. The format states an unplaced cluster explicitly rather than omitting
+     it, because an absent row and a row saying "no taxid" are different claims and only one of
+     them survives a truncated file; and a malformed row raises rather than being skipped, since a
+     row silently dropped is a record silently removed from the denominator, which moves the rate
+     **up**.
+  2. **A cluster's family is its representative's**, not a union over its members. A union would
+     put one cluster in several families and break the partition the ratio estimator needs — a
+     record in two strata is counted twice in the denominator, which `FamilyIndex.build` now
+     refuses outright. The cost of the choice is already measured rather than argued: D-092 put
+     the representative-versus-member gap at 1.06% of viral-seeded clusters on this tier, and that
+     figure travels with the interval as it does with the seed count.
+  3. **Band 1 owes one corpus pass**, about 52 minutes and roughly $0.20 on spot, to produce the
+     sidecar for the already-staged sample. The selection is deterministic — `bucket_of` on the
+     cluster id at the same rate and bucket count — so the pass reproduces exactly the clusters
+     already staged, and the sidecar's per-shard row count is checked against the staged shard's
+     record count before any rate is computed. D-122's "no new corpus pass" no longer holds for
+     this arm, and saying so is cheaper than discovering it at the head of the band.
+- **What this does to D-140's costing.** "Zero extra compute" becomes one 52-minute pass, once,
+  shared by every band and by A1.8 if it takes the same split. Band 1 goes from about $0.50 to
+  about $0.70 and from one launch to two. Neither changes the design, and D-134's figures are
+  otherwise unaffected.
+- **Rejected:** Putting the taxid in the FASTA header — it would be carried through every search,
+  every hit table and every sort for the whole pass, to be used once at the end, and it would
+  invalidate the staged sample's checksums for no gain. Re-staging the sample with taxids — a
+  fresh corpus pass *and* a fresh staging into a bucket that cannot delete, where a sidecar costs
+  the pass alone. Taking the family from the member taxids — breaks the partition, as above.
+  Deriving strata for the hit targets only — gives a numerator with no denominator, as above.
+- **Consequence:** the sidecar is a new input to the rate, so it is pinned and checksummed like
+  any other, and the write-up states that the interval's strata come from a sidecar built by a
+  later pass than the sample it describes. A1.8 inherits the same gap and the same fix if it takes
+  D-140's split; it is not assumed there.
