@@ -106,12 +106,15 @@ with design-effect intervals), `src/amazebio/shardstore.py` (staged, checksummed
 samples), `tools/esm3_calibrate.py` and `tools/ec2_similarity.py`. Build on them rather than a
 second copy.
 
-**Two things already paid for that this task should not pay again.** A staged 2.5% sample of
+**A staged sample exists, and it is *not* this task's target.** A 2.5% hash sample of
 UniRef100 2023_02 sits at
 `s3://amazebio-corpora-897641797669/corpora/samples/a1-6/uniref100/2023_02/rate40/`, with a
 checksummed manifest, the full seed counts and the exact denominators (350,950,053 clusters,
-3,159,223 viral-seeded). `--sample-from <that manifest>` skips the 52-minute corpus pass
-entirely. And the cap and coverage behaviour is measured (D-128, and A1.6's state block): the
+3,159,223 viral-seeded). `--sample-from <that manifest>` skips the 52-minute corpus pass — which
+makes it the right target for a **calibration** run, and the wrong one for the pass itself. This
+arm is exhaustive against **every** record (D-108), because what it buys is an all-clear that a
+sample cannot support. Scoring 2.5% and reporting it as exhaustive is the one mistake this note
+exists to prevent; the real pass reads A1.5's staged tiers in full. And the cap and coverage behaviour is measured (D-128, and A1.6's state block): the
 100,000 cap does not bind at sample scale but would at exhaustive scale, which is this task's
 scale — so **check the saturation guard rather than assuming the broad arm's finding carries
 over**, and note that a lower cap costs 3-4x more recall under coverage filtering than under
