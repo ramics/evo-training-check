@@ -2,7 +2,7 @@
 id: A2.1
 title: Profile-based detection of surviving families
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
@@ -15,7 +15,8 @@ owner: claude
 
 **Design reference:** DESIGN.md §A2 · **Deliverable 1**
 
-**Branch:** `ccr-a85b7882-p8ohv8`. Project management on `main` as usual.
+**Merged:** PR #17 (pins, schema, search) and PR #19 (ten-fold deepening, protein cache,
+RVDB labels). Artefacts in `artifacts/a2-1/`, with the first pass kept in `initial/`.
 
 **Pre-registered before anything was searched:** D-075..D-080 (registries, thresholds, gene
 calling, sampling, element kind, scope) and D-083 (the Pfam selection's measured blind spot).
@@ -53,9 +54,9 @@ finding carried downstream: the released records carry none of the metadata thre
 published rules read, so **survival here is measurable while its route is not determinable from
 what ships with the release.**
 
-### Where it stands
+### Done
 
-Every Done-when criterion is met, so this is `review`:
+Every Done-when criterion is demonstrably met:
 
 - Per-family hit tables exist for all seven manifests, both registries — 14 tables, zero-filled
   across the pinned universes, with `bands_cover_rate: true` on every sampled one.
@@ -65,6 +66,11 @@ Every Done-when criterion is met, so this is `review`:
   in `metrics/manifests.md` while consuming it are closed.
 - RVDB's opaque family ids are joined to derived labels in `registries/rvdb-families.json`
   (D-097); `family_id` remains the only identity a figure may cite.
+
+**The procedure was verified against the version of record after the fact** (D-110): the
+paper's own words, machine-compared, differ from the preprint in two copy-edits across 1,169
+characters, and all 19 families, 12 orders and 8 stop taxa match in both directions. The
+figures above rest on the published procedure, not on a draft of it.
 
 What a reviewer should know went wrong: the protein cache added mid-flight (D-103) cost five
 scaffolding faults and about five hours — a mis-keyed write, a component-wide read that would
