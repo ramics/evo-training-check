@@ -49,7 +49,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import corpora
+from amazebio import corpora, profilesearch
 from amazebio.apply import resolve, route_for
 from amazebio.detect import (
     DetectionTable,
@@ -64,14 +64,12 @@ from amazebio.detect import (
 from amazebio.policyspec import Outcome, load_policy_dir
 from amazebio.profiles import (
     MIN_MODEL_COVERAGE,
-    PINNED_DOM_Z,
     PINNED_E_VALUE,
     PINNED_Z,
     REGISTRIES,
     ProfileError,
     Registry,
     iter_profile_headers,
-    open_profiles,
     registry,
     select_viral_families,
 )
@@ -251,119 +249,19 @@ def read_hits_dump(
 
 
 def hmm_path(reg: Registry) -> Path:
-    name = "Pfam-A.hmm.gz" if reg.id == "pfam" else reg.files[0].local_name
-    return reg.staged_dir(DATA) / name
-
-
-# --------------------------------------------------------------------------------------
-# Searching
-# --------------------------------------------------------------------------------------
+    """This tool's data root, bound to the shared `profilesearch.hmm_path`."""
+    return profilesearch.hmm_path(reg, DATA)
 
 
 def call_genes(records: list[Any]) -> tuple[list[Any], dict[str, int]]:
-    """Call genes on sampled nucleotide records; returns digital protein sequences and counts.
-
-    Metagenomic mode (D-077). Records whose genes cannot be called are counted rather than
-    absorbed into "no hit": that population is a limit of the method and has to be visible.
-    """
-    import pyrodigal
-    from pyhmmer.easel import Alphabet, TextSequence
-
-    amino = Alphabet.amino()
-    finder = pyrodigal.GeneFinder(meta=True)
-    proteins: list[Any] = []
-    stats = Counter({"records": 0, "records_without_genes": 0, "genes": 0, "residues": 0})
-    for sampled in records:
-        stats["records"] += 1
-        genes = finder.find_genes(sampled.sequence)
-        if not len(genes):
-            stats["records_without_genes"] += 1
-            continue
-        for i, gene in enumerate(genes):
-            protein = gene.translate().rstrip("*")
-            if not protein:
-                continue
-            stats["genes"] += 1
-            stats["residues"] += len(protein)
-            # The gene index travels in the name so a hit can be placed back on its record
-            # without the artefact carrying any sequence.
-            name = f"{sampled.id}|gene{i}".encode()
-            proteins.append(TextSequence(name=name, sequence=protein).digitize(amino))
-    return proteins, dict(stats)
+    """A2.1's gene calling. Lives in `amazebio.profilesearch` so A2.4 calls the same one."""
+    return profilesearch.call_genes(records)
 
 
 def search(reg: Registry, proteins: list[Any], *, restrict_to: set[str] | None) -> list[Any]:
-    """Search one registry over called proteins, returning accepted `(hit, profile)` rows.
-
-    Pfam is searched at its own gathering cutoffs; RVDB at the pinned E-value against the pinned
-    `Z`, which is the same thing as the per-model bit score `bit_threshold` derives (D-076).
-    Both are then held to :data:`MIN_MODEL_COVERAGE` of the model's length, measured on the
-    best-covering domain of the hit.
-    """
-    import pyhmmer
-    from pyhmmer.easel import Alphabet, DigitalSequenceBlock
-
-    amino = Alphabet.amino()
-    block = DigitalSequenceBlock(amino, proteins)
-    accepted: list[dict[str, Any]] = []
-    options: dict[str, Any] = (
-        {"bit_cutoffs": "gathering"}
-        if reg.curated_cutoffs
-        else {"Z": PINNED_Z, "domZ": PINNED_DOM_Z, "E": PINNED_E_VALUE}
-    )
-
-    with open_profiles(hmm_path(reg)) as handle, pyhmmer.plan7.HMMFile(handle) as hmms:
-        models = hmms if restrict_to is None else (h for h in hmms if _name(h) in restrict_to)
-        for top in pyhmmer.hmmsearch(models, block, cpus=3, **options):
-            query_name = _text(top.query.name)
-            query_length = top.query.M
-            for hit in top:
-                if hit.included is False:
-                    continue
-                coverage = _best_model_coverage(hit, query_length)
-                if coverage < MIN_MODEL_COVERAGE:
-                    continue
-                record_id, _, gene = _text(hit.name).partition("|")
-                accepted.append(
-                    {
-                        "profile": query_name,
-                        "model_length": query_length,
-                        "record_id": record_id,
-                        "gene": gene,
-                        "score": float(hit.score),
-                        "evalue": float(hit.evalue),
-                        "coverage": coverage,
-                    }
-                )
-    return accepted
-
-
-def _text(value: Any) -> str:
-    """A pyhmmer name as text. The library returns `bytes` in some versions and `str` in others."""
-    return value.decode() if isinstance(value, bytes) else str(value)
-
-
-def _name(hmm: Any) -> str:
-    return _text(hmm.name)
-
-
-def _best_model_coverage(hit: Any, model_length: int) -> float:
-    """Fraction of the model covered by the hit's best-covering domain.
-
-    Per domain rather than summed across domains: a family detected because four unrelated
-    fragments of its model matched in different places is not the same claim as a family
-    detected because one region matched most of the model, and A2.1 reports the stronger one.
-    """
-    if not model_length:
-        return 0.0
-    best = 0.0
-    for domain in hit.domains:
-        if domain.included is False:
-            continue
-        alignment = domain.alignment
-        covered = (alignment.hmm_to - alignment.hmm_from + 1) / model_length
-        best = max(best, covered)
-    return best
+    """A2.1's search, at D-076's thresholds. Shared with A2.4 so the two tables can be joined
+    rather than reconciled (D-113)."""
+    return profilesearch.search(reg, proteins, restrict_to=restrict_to, hmm_file=hmm_path(reg))
 
 
 # --------------------------------------------------------------------------------------
@@ -527,7 +425,7 @@ def write_cache(
     proteins_path = directory / f"{stem}.faa.gz"
     with gzip.open(proteins_path, "wt") as handle:
         for protein in proteins:
-            handle.write(f">{_text(protein.name)}\n{protein.textize().sequence}\n")
+            handle.write(f">{profilesearch.text_of(protein.name)}\n{protein.textize().sequence}\n")
     with open(directory / f"{stem}.records.jsonl", "w") as handle:
         for record_id, record in records.items():
             handle.write(
