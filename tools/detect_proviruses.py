@@ -537,6 +537,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--registry", action="append", help="registry id; repeatable")
     parser.add_argument("--release", action="append", help="release key; repeatable")
     parser.add_argument(
+        "--max-objects",
+        type=int,
+        default=None,
+        help="read at most this many staged objects per source, smallest first. Like --limit "
+        "it makes the denominator meaningless, so it writes no table either.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -565,6 +572,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--heartbeat-seconds", type=float, default=300.0)
     args = parser.parse_args(argv)
+
+    # Either flag makes the sample a probe: both read less than the rate says, and
+    # `estimate_kind` is derived from the rate alone, so a table from either would report a
+    # census over records nobody read (D-143). One condition, so neither can be added later
+    # without the guard following it.
+    args.probe = bool(args.limit or args.max_objects)
 
     manifests = load_manifests(args.manifests)
     if args.release:
@@ -662,6 +675,8 @@ def main(argv: list[str] | None = None) -> int:
                 component = source.get("corpus_component")
                 prefix = source.get("key") or ""
                 keys = objects_under(client, bucket, prefix) if prefix else []
+                if args.max_objects:
+                    keys = keys[: args.max_objects]
                 beat("reading", release=release, component=component)
                 started = time.time()
                 batch: list[tuple[str, list[tuple[str, str]]]] = []
@@ -768,7 +783,7 @@ def main(argv: list[str] | None = None) -> int:
                         "proteins_unplaced": pstats.get("proteins_unplaced", 0),
                         "read_seconds": read_seconds,
                         "search_seconds": search_seconds,
-                        "limited": bool(args.limit),
+                        "limited": bool(args.probe),
                     }
                 )
 
@@ -815,7 +830,7 @@ def main(argv: list[str] | None = None) -> int:
                     ),
                 )
                 survival = table.survival()
-                if args.limit:
+                if args.probe:
                     # A probe stops here. `estimate_kind` is derived from the sample rate, so a
                     # `--limit 1 --rate 1.0` run would write `population` over one genome — a
                     # Wilson interval of [0, 0.002] across 1,719 families, computed from 25 kb.
@@ -826,7 +841,7 @@ def main(argv: list[str] | None = None) -> int:
                         f"  [probe] {stem}: {survival['families_with_a_hit']:,} of "
                         f"{survival['families_in_universe']:,} families, "
                         f"{proviruses_total:,} provirus call(s) in {genomes_total:,} genome(s)"
-                        " — not written, --limit makes the denominator meaningless",
+                        " — not written: --limit/--max-objects make the denominator meaningless",
                         flush=True,
                     )
                     continue
@@ -841,7 +856,7 @@ def main(argv: list[str] | None = None) -> int:
                     flush=True,
                 )
 
-            if concordance_tables and not args.limit:
+            if concordance_tables and not args.probe:
                 # Its own artefact, not a field on the hit tables. The agreement is between
                 # instruments over records; it is not per registry, and copying it into each
                 # table would invite it being read as a per-registry figure.

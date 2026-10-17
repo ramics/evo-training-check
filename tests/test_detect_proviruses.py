@@ -207,10 +207,21 @@ def test_limit_is_documented_as_writing_nothing():
     assert parser_help is not None
 
 
+def test_max_objects_shares_the_probe_guard_with_limit():
+    """Both read less than the rate says, so both must suppress the table.
+
+    One condition rather than two checks, so a third flag with the same property cannot be
+    added without the guard following it.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    assert "args.probe = bool(args.limit or args.max_objects)" in source
+    assert "if args.probe:" in source
+
+
 def test_the_probe_branch_precedes_any_write():
     """Structural: the `--limit` guard must come before `table.write`, not after it."""
     source = pathlib.Path(dp.__file__).read_text()
-    guard = source.index("if args.limit:")
+    guard = source.index("if args.probe:")
     write = source.index("table.write(")
     assert guard < write, "a probe must stop before anything is written"
 

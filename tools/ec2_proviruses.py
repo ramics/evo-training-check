@@ -251,6 +251,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-spot", dest="spot", action="store_false")
     ap.add_argument("--release", action="append", help="restrict to one release; repeatable")
     ap.add_argument("--no-concordance", action="store_true")
+    ap.add_argument(
+        "--max-objects",
+        type=int,
+        default=None,
+        help="read at most this many staged objects per source. For a proving run: it exercises "
+        "the whole UserData path for pennies, and writes no table because its denominator is "
+        "meaningless (D-143).",
+    )
     ap.add_argument("--hard-stop-minutes", type=int, default=None)
     ap.add_argument("--timeout-minutes", type=float, default=90.0)
     ap.add_argument("--poll-seconds", type=float, default=30.0)
@@ -285,6 +293,8 @@ def main(argv: list[str] | None = None) -> int:
         extra += ["--release", release]
     if args.no_concordance:
         extra.append("--no-concordance")
+    if args.max_objects:
+        extra += ["--max-objects", str(args.max_objects)]
 
     user_data = USER_DATA.format(
         bucket=bucket,
