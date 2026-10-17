@@ -231,15 +231,24 @@ indefinitely. Both, not either.
 project needs 3.12; `datetime.UTC` alone is 3.11+. Install `python3.12` and invoke it by name. A
 run that trusts `python3` dies on an `ImportError` about half a minute in, having read nothing.
 
-**You cannot see a running instance work, so it must report to S3.** Observed 2026-10-16:
-`GetConsoleOutput` stops recording once cloud-init finishes, so everything a long run prints after
-boot is invisible. In this account `cloudwatch:GetMetricStatistics` and `ec2:GetConsoleScreenshot`
-are both denied as well, on top of the SSH and SSM denials above, and `DescribeInstanceStatus` only
-reports that the OS is alive. An instance spent four hours on a 52-minute pass and nothing could
-distinguish work from a wedge. Anything that runs longer than a few minutes therefore writes a
-heartbeat to object storage on an interval — `esm3_calibrate.py` is the worked example — and
-publishes each measurement as it is taken rather than at the end. Silence is not progress and it is
-not failure either; without a heartbeat it is nothing at all.
+**Make a long run report to object storage, and do not trust silence.** `GetConsoleOutput` does
+keep recording well after boot — verified 2026-10-17, with per-cell progress lines arriving 103
+minutes in — so it is a real channel, just a best-effort one with no guarantee of freshness. What
+it cannot do is distinguish a process that has died from one that is printing nothing: on
+2026-10-16 two runs died 31 seconds in, the console held only their boot output, and that looked
+exactly like a long pass with a quiet console. Four hours were spent on that reading, and the
+correction is in D-117.
+
+The other channels are genuinely closed here: `cloudwatch:GetMetricStatistics` and
+`ec2:GetConsoleScreenshot` are both denied, on top of the SSH and SSM denials above, and
+`DescribeInstanceStatus` only reports that the OS is alive. One channel that *is* allowed and
+worth knowing: `ec2:DescribeInstanceAttribute` returns the instance's `UserData`, which settles
+what a running instance was actually told to do.
+
+So anything that runs longer than a few minutes writes a heartbeat to object storage on an
+interval and publishes each measurement as it is taken — `esm3_calibrate.py` is the worked
+example, and it took three attempts to apply that to every stage rather than only to the one that
+had just failed. A step with no heartbeat is a step whose silence means nothing at all.
 
 **The boot-armed shutdown timer works, and it also blocks the immediate shutdown — cancel it
 first.** Arm `shutdown -h +N` in `UserData` before anything that can fail; observed 2026-10-16, it
