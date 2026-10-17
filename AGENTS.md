@@ -231,6 +231,49 @@ indefinitely. Both, not either.
 project needs 3.12; `datetime.UTC` alone is 3.11+. Install `python3.12` and invoke it by name. A
 run that trusts `python3` dies on an `ImportError` about half a minute in, having read nothing.
 
+**Make a long run report to object storage, and do not trust silence.** `GetConsoleOutput` does
+keep recording well after boot — verified 2026-10-17, with per-cell progress lines arriving 103
+minutes in — so it is a real channel, just a best-effort one with no guarantee of freshness. What
+it cannot do is distinguish a process that has died from one that is printing nothing: on
+2026-10-16 two runs died 31 seconds in, the console held only their boot output, and that looked
+exactly like a long pass with a quiet console. Four hours were spent on that reading, and the
+correction is in D-127.
+
+The other channels are genuinely closed here: `cloudwatch:GetMetricStatistics` and
+`ec2:GetConsoleScreenshot` are both denied, on top of the SSH and SSM denials above, and
+`DescribeInstanceStatus` only reports that the OS is alive. One channel that *is* allowed and
+worth knowing: `ec2:DescribeInstanceAttribute` returns the instance's `UserData`, which settles
+what a running instance was actually told to do.
+
+So anything that runs longer than a few minutes writes a heartbeat to object storage on an
+interval and publishes each measurement as it is taken — `esm3_calibrate.py` is the worked
+example, and it took three attempts to apply that to every stage rather than only to the one that
+had just failed. A step with no heartbeat is a step whose silence means nothing at all.
+
+**The boot-armed shutdown timer works, and it also blocks the immediate shutdown — cancel it
+first.** Arm `shutdown -h +N` in `UserData` before anything that can fail; observed 2026-10-16, it
+fires on time, four hours after a watcher had been killed and the launcher could no longer
+terminate anything, and EC2 reports it in `StateTransitionReason` as `User initiated` — the same
+wording as a manual termination, and **not** `Server.SpotInstanceTermination`, so that field
+distinguishes a reclaim from a shutdown but not a shutdown from a human.
+
+The trap is the other direction. **`shutdown -h now` does nothing while that timer is pending**:
+systemd already has a shutdown scheduled and the immediate one does not replace it. So a script
+that fails in thirty seconds sits idle until the timer fires, burning the whole window, and from
+outside — no console after boot, no artefact, process alive, status checks `ok` — that is
+indistinguishable from a long pass still working. It cost two launches and most of a day to
+diagnose as exactly that (D-127). Run `shutdown -c` before `shutdown -h now`, keep
+`systemctl --no-block poweroff` and `halt -p` as fallbacks, and route every exit path through one
+helper; `tools/ec2_similarity.py`'s `die` is the worked example.
+
+**Ship the payload by derivation, not by hand.** The instance has no checkout, so the launcher
+tars up a list of files. Twice — 2026-10-16 and 2026-10-17 — a module was added to a tool's
+imports and not to that list, and the instance died on an `ImportError` about half a minute in,
+having read nothing. Derive the first-party import closure from the source and test it, as
+`tests/test_ec2_similarity.py` does, and import the shipped tool on the instance **before** the
+long work starts: on the instance a missing import costs an hour and a launch, and in a test it
+costs a second.
+
 **A dry run authorizes; it does not execute.** `DryRun=True` checks permissions and parameters and
 returns `DryRunOperation` on success, which is worth doing. It runs no `UserData`, so it cannot
 catch a missing dependency, a wrong interpreter or a broken script. Those checks belong inside the

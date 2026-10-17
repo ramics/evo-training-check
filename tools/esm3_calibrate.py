@@ -48,7 +48,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import repro, seeds, uniref
+from amazebio import repro, seeds, shardstore, similarity, uniref
 from amazebio.repro import ReproError
 
 S3_REGION = "us-east-1"
@@ -62,6 +62,15 @@ CHUNK = 8 << 20
 #: sets no identity floor.
 CHARITABLE = ("--min-seq-id", "0.70", "-c", "0.8", "--cov-mode", "1")
 STRICT = ("-c", "0.8", "--cov-mode", "1", "-s", "7.5")
+
+#: One artefact name per mode, because the corpus bucket has no DeleteObject: a second mode
+#: writing to the first's key would overwrite a preserved grid permanently.
+ARTEFACT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
+
+#: Progress keys, one per mode for the same reason the artefacts are. Separate from the
+#: artefact because a heartbeat is not a deliverable, and small because it is overwritten
+#: every few minutes in a bucket that cannot delete anything.
+HEARTBEAT_NAMES = {"curve": "progress-curve.json", "caps": "progress-caps.json"}
 
 
 def human(n: float) -> str:
@@ -166,10 +175,72 @@ def main(argv: list[str] | None = None) -> int:
         "curve for a guarantee the run ends and reports. 0 means no budget, which is "
         "only safe where something else bounds the run.",
     )
+    ap.add_argument(
+        "--stage-sample",
+        action="store_true",
+        help="after the corpus pass, stage the sample — shards, seed set and a checksummed "
+        "manifest — so later runs skip the pass. Refuses rather than overwriting: the "
+        "corpus bucket has no DeleteObject",
+    )
+    ap.add_argument(
+        "--sample-from",
+        metavar="S3_URI",
+        help="s3:// uri of a staged sample's manifest. Loads and verifies it instead of "
+        "running the corpus pass, which costs about 52 minutes whatever the sample rate "
+        "(D-122, D-123)",
+    )
+    ap.add_argument(
+        "--measure",
+        choices=("curve", "caps"),
+        default="curve",
+        help="`curve` times the cost model's grid, which is what D-104 was fitted on. "
+        "`caps` measures the two items D-105 and D-109 left open: what the hit cap costs "
+        "where it binds, and what relaxing coverage costs to buy the three readings from "
+        "one search (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--artefact-name",
+        default="",
+        help="result filename, which is also its S3 key. Defaults per --measure, and the "
+        "default is never shared between modes: the corpus bucket has no DeleteObject, so "
+        "writing one mode's artefact over another's preserved grid cannot be undone",
+    )
+    ap.add_argument(
+        "--cap-query-denominator",
+        type=int,
+        default=100,
+        help="query subsample for the cap measurement. Hits per seed is a per-seed "
+        "property, so subsampling the query does not bias it — it only makes the "
+        "measurement affordable (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--cap-shard-points",
+        type=lambda s: [int(x) for x in s.split(",")],
+        default=[1, 2, 4],
+        help="cumulative shard counts the cap measurement runs at. More than one because "
+        "the question is whether hits per seed grows linearly in target size, which is "
+        "what decides whether the cap binds at the pass's scale (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--cap-fractions",
+        type=lambda s: [float(x) for x in s.split(",")],
+        default=[0.5, 0.2],
+        help="caps to also run, as fractions of the maximum hits per seed the slack run "
+        "observed. These are the caps that bind at this scale; the published cap stays "
+        "D-105's 100,000 (default: %(default)s)",
+    )
     args = ap.parse_args(argv)
 
     if args.buckets < 1:
         raise SystemExit("--buckets must be at least 1")
+    if args.stage_sample and args.sample_from:
+        raise SystemExit("--stage-sample builds a sample; --sample-from loads one. Pick one.")
+    if args.sample_from and not args.sample_from.startswith("s3://"):
+        raise SystemExit("--sample-from takes an s3:// uri pointing at a staged manifest")
+    if args.measure == "caps" and max(args.cap_shard_points) > args.buckets:
+        raise SystemExit("--cap-shard-points cannot exceed --buckets")
+    if any(not 0 < f <= 1 for f in args.cap_fractions):
+        raise SystemExit("--cap-fractions are fractions of the observed maximum, in (0, 1]")
     if args.strict_buckets > args.buckets:
         raise SystemExit("--strict-buckets cannot exceed --buckets")
 
@@ -187,7 +258,14 @@ def main(argv: list[str] | None = None) -> int:
             "s3",
             region_name=S3_REGION,
             endpoint_url=S3_ENDPOINT,
-            config=Config(retries={"max_attempts": 10, "mode": "standard"}),
+            config=Config(
+                retries={"max_attempts": 10, "mode": "standard"},
+                # Without these a stalled call waits on botocore's defaults and a hung one
+                # never returns at all; 2026-10-17 lost a run to 25 minutes of silence in a
+                # step that should take under a minute.
+                connect_timeout=15,
+                read_timeout=120,
+            ),
         )
 
     if shutil.which("mmseqs") is None and not args.skip_search:
@@ -215,7 +293,7 @@ def _reader(args: argparse.Namespace, client: Any, bucket: str, prefix: str):
     return reader, f"s3://{bucket}/{key}"
 
 
-def _chunks(stream: Any, limit: int, progress_seconds: float) -> Any:
+def _chunks(stream: Any, limit: int, progress_seconds: float, heartbeat: Any = None) -> Any:
     read = 0
     started = last = time.monotonic()
     while True:
@@ -229,12 +307,53 @@ def _chunks(stream: Any, limit: int, progress_seconds: float) -> Any:
         read += len(chunk)
         now = time.monotonic()
         if progress_seconds and now - last >= progress_seconds:
+            elapsed = now - started
             print(
-                f"    {human(read)} decompressed, {human(read / max(now - started, 1e-9))}/s",
+                f"    {human(read)} decompressed, {human(read / max(elapsed, 1e-9))}/s",
                 flush=True,
             )
+            if heartbeat is not None:
+                heartbeat(read, elapsed)
             last = now
         yield chunk
+
+
+def _make_heartbeat(client: Any, bucket: str, prefix: str, name: str, commit: str | None) -> Any:
+    """Write a few hundred bytes to S3 saying how far the corpus pass has got.
+
+    Measured need, 2026-10-16: an instance ran 95 minutes on a pass due in 53 with no way to
+    tell work from a wedge. The console froze at the boot line — `GetConsoleOutput` is
+    best-effort and stopped there — and in this account `cloudwatch:GetMetricStatistics` and
+    `ec2:GetConsoleScreenshot` are both denied, as are SSH and SSM by policy. So every channel
+    was closed except S3, and the pass published nothing until it finished: the only signal
+    arrived after the thing it would have reported on.
+
+    A heartbeat closes that. It is its own key rather than part of the result artefact,
+    because the result is a deliverable and a progress file is not, and because the corpus
+    bucket has no `DeleteObject` — overwriting one small key repeatedly is the cheapest thing
+    to leave behind. `None` when there is no client, so a local run is unaffected.
+    """
+    if client is None:
+        return None
+    key = f"{prefix}/results/a1-6/{name}"
+
+    def beat(read: int, elapsed: float) -> None:
+        body = {
+            "decompressed_bytes": read,
+            "elapsed_seconds": round(elapsed, 1),
+            "bytes_per_second": round(read / max(elapsed, 1e-9)),
+            "stage": "corpus-pass",
+            "code_commit": commit,
+            "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        try:
+            client.put_object(
+                Bucket=bucket, Key=key, Body=json.dumps(body, sort_keys=True).encode()
+            )
+        except Exception as exc:  # A failed heartbeat must never fail the run it reports on.
+            print(f"    heartbeat failed: {type(exc).__name__}", flush=True)
+
+    return beat
 
 
 def _mmseqs(*argv: str) -> float:
@@ -248,13 +367,247 @@ def _mmseqs(*argv: str) -> float:
     return elapsed
 
 
+def _sort_by_target(tsv: Path, work: Path, memory: str = "1G") -> Path:
+    """Sort a hit table by its target column, so it can be aggregated in constant memory.
+
+    `LC_ALL=C` is not cosmetic. `similarity.TargetStream` verifies order with Python string
+    comparison, which is codepoint order, while `sort` under a UTF-8 locale uses collation
+    that ignores case and punctuation differently — so a locale-sorted file is *not* sorted by
+    the comparison the aggregator checks, and the run would die claiming its own sorted input
+    was unsorted. Byte order on both sides, or neither.
+
+    Sorting is the trade `TargetStream` exists to make: bounded disk and a bounded `-S` budget
+    instead of a dictionary whose size is the result the pass is trying to measure.
+    """
+    out = tsv.with_name(tsv.stem + ".by-target.tsv")
+    subprocess.run(
+        ["sort", "-t", "\t", "-k", "2,2", "-S", memory, "-T", str(work), "-o", str(out), str(tsv)],
+        check=True,
+        env={**os.environ, "LC_ALL": "C"},
+    )
+    return out
+
+
+def _stream_hit_rows(path: Path) -> Any:
+    """Parse a hit table row by row, holding one row at a time."""
+    with path.open() as handle:
+        yield from similarity.parse_hits(handle)
+
+
+def _put_large(client: Any, bucket: str, key: str, path: Path) -> None:
+    """Upload one file, by managed transfer where the client offers one.
+
+    `put_object(Body=path.read_bytes())` reads the whole file into memory and sends it as a
+    single request, which for a 450 MB shard means one long-running call that a read timeout
+    can strand and a retry must restart from zero. `upload_file` chunks it, retries parts and
+    streams from disk. The fallback keeps the local stand-ins and tests working, where the
+    files are bytes rather than gigabytes.
+    """
+    started = time.monotonic()
+    size = path.stat().st_size
+    if hasattr(client, "upload_file"):
+        client.upload_file(str(path), bucket, key)
+    else:
+        client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
+    elapsed = max(time.monotonic() - started, 1e-9)
+    print(
+        f"  staged {key}  ({size:,} bytes, {elapsed:.0f}s, {size / elapsed / 1e6:.0f} MB/s)",
+        flush=True,
+    )
+
+
+def _progress(
+    client: Any, bucket: str, prefix: str, args: argparse.Namespace, **fields: Any
+) -> None:
+    """Write a progress object for any stage, not just the corpus pass.
+
+    The corpus pass got a heartbeat this morning because an unobservable hour cost a day. The
+    staging step was written after that and got none, and then hung — so the same blindness
+    returned in the code added to cure it. Every step that can take minutes reports.
+    """
+    if client is None:
+        return
+    key = f"{prefix}/results/a1-6/{HEARTBEAT_NAMES[args.measure]}"
+    body = {
+        "code_commit": args.code_commit,
+        "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        **fields,
+    }
+    try:
+        client.put_object(Bucket=bucket, Key=key, Body=json.dumps(body, sort_keys=True).encode())
+    except Exception as exc:  # Never fail the run for the sake of reporting on it.
+        print(f"    progress write failed: {type(exc).__name__}", flush=True)
+
+
+def _parse_s3_uri(uri: str) -> tuple[str, str]:
+    bucket, _, key = uri[5:].partition("/")
+    return bucket, key
+
+
+def _load_staged_sample(
+    args: argparse.Namespace,
+    client: Any,
+    work: Path,
+    seed_fasta: Path,
+    shard_paths: list[Path],
+) -> tuple[seeds.SeedCounts, list[int], list[int], shardstore.ShardManifest]:
+    """Fetch a staged sample, verify every object, and skip the corpus pass.
+
+    The pass costs about 52 minutes whatever the sample rate (D-123) and is currently paid on
+    every launch, while the broad arm's sweep is dozens of launches (D-122). This is the other
+    half of that fix: the sample is built once and verified on every load.
+
+    Verification is not optional and not sampled. The corpus bucket has no `DeleteObject`, so
+    a bad staged shard can only be superseded, never removed — checking every digest on load is
+    the only thing standing between that and a published number.
+    """
+    if client is None:
+        raise SystemExit("--sample-from needs S3; it cannot be combined with --source")
+    bucket, key = _parse_s3_uri(args.sample_from)
+    print(f"loading staged sample from {args.sample_from}", flush=True)
+    body = client.get_object(Bucket=bucket, Key=key)["Body"].read()
+    staged = shardstore.ShardManifest.from_json(body)
+    staged.check_self_consistent()
+
+    if staged.release != args.release or staged.tier != args.tier:
+        raise SystemExit(
+            f"staged sample is {staged.tier} {staged.release}, this run asked for "
+            f"{args.tier} {args.release}"
+        )
+    if staged.buckets != args.buckets:
+        raise SystemExit(
+            f"staged sample has {staged.buckets} shards and this run is configured for "
+            f"{args.buckets}. Shards 1..k is only a valid sample at k times the rate if the "
+            f"partition matches, so this is refused rather than reinterpreted."
+        )
+    if staged.sample_rate != args.sample_rate:
+        print(
+            f"  note: staged at rate {staged.sample_rate}, run configured for "
+            f"{args.sample_rate}; the staged rate is what the sample is",
+            flush=True,
+        )
+        args.sample_rate = staged.sample_rate
+
+    local: dict[str, Path] = {}
+    for obj, dest in [(staged.seed_fasta, seed_fasta)] + [
+        (sh, shard_paths[sh.index]) for sh in staged.shards
+    ]:
+        client.download_file(bucket, obj.key, str(dest))
+        local[obj.key] = dest
+        print(f"  fetched {obj.key} ({obj.bytes:,} bytes)", flush=True)
+    shardstore.verify_all(staged, local)
+    print(f"  verified {len(local)} objects against their staged digests", flush=True)
+
+    counts = seeds.SeedCounts()
+    if staged.seed_counts:
+        for name in (
+            "clusters",
+            "residues",
+            "viral_seeded",
+            "viral_residues",
+            "representative_not_viral",
+            "mixed",
+        ):
+            value = staged.seed_counts.get(name)
+            if value is not None:
+                setattr(counts, name, value)
+    else:
+        # Only the denominators were carried. Set those and leave the rest at zero rather
+        # than inventing them — but say so, because a zero that reads as a measurement is
+        # the failure this branch exists to avoid.
+        counts.clusters = staged.corpus_clusters
+        counts.viral_seeded = staged.viral_seeded_clusters
+        print(
+            "  note: this manifest carries only the denominators, so the "
+            "representative-versus-member counts are absent rather than zero",
+            flush=True,
+        )
+    return (
+        counts,
+        [sh.clusters for sh in staged.shards],
+        [sh.residues for sh in staged.shards],
+        staged,
+    )
+
+
+def _stage_sample(
+    args: argparse.Namespace,
+    client: Any,
+    bucket: str,
+    prefix: str,
+    seed_fasta: Path,
+    shard_paths: list[Path],
+    counts: seeds.SeedCounts,
+    shard_counts: list[int],
+    shard_residues: list[int],
+) -> str | None:
+    """Stage the sample so no later run pays for the corpus pass again.
+
+    Refuses on a key that already exists. In a bucket with no `DeleteObject` an overwrite is
+    not a replacement but the irreversible loss of the earlier object, and `AGENTS.md` records
+    what that already cost once.
+    """
+    if client is None:
+        print("  --stage-sample needs S3; nothing staged", flush=True)
+        return None
+    # Under the run's prefix, not at the bucket root. Measured the hard way on 2026-10-17:
+    # `sample_prefix` returns a path relative to the project prefix, and staging used it as an
+    # absolute key, which would have written several gigabytes outside `corpora/` — permanently,
+    # in a bucket with no DeleteObject.
+    sample_root = f"{prefix}/{shardstore.sample_prefix(args.release, args.tier, args.sample_rate)}"
+    plan = shardstore.plan_uploads(sample_root, shard_paths, seed_fasta)
+    manifest_key = f"{sample_root}/{shardstore.MANIFEST_NAME}"
+
+    present = shardstore.existing_keys(client, bucket, sample_root + "/")
+    clashes = sorted(({k for _, k in plan} | {manifest_key}) & present)
+    if clashes:
+        raise SystemExit(
+            "refusing to stage over existing objects — this bucket has no DeleteObject, so "
+            f"an overwrite destroys the earlier object irreversibly: {clashes[:4]}"
+        )
+
+    total = len(plan)
+    print(f"  staging {total} objects under s3://{bucket}/{sample_root}/", flush=True)
+    staged_shards = []
+    for (path, key), index in zip(plan[1:], range(len(shard_paths)), strict=True):
+        _put_large(client, bucket, key, path)
+        staged_shards.append(
+            shardstore.describe_shard(
+                path, key, index=index, clusters=shard_counts[index], residues=shard_residues[index]
+            )
+        )
+        _progress(client, bucket, prefix, args, stage="staging", done=index + 1, total=total)
+    seed_path, seed_key = plan[0]
+    _put_large(client, bucket, seed_key, seed_path)
+    _progress(client, bucket, prefix, args, stage="staging", done=total, total=total)
+
+    staged = shardstore.ShardManifest(
+        release=args.release,
+        tier=args.tier,
+        sample_rate=args.sample_rate,
+        buckets=args.buckets,
+        corpus_clusters=counts.clusters,
+        viral_seeded_clusters=counts.viral_seeded,
+        seed_fasta=shardstore.describe(seed_path, seed_key),
+        shards=staged_shards,
+        seed_counts={k: v for k, v in counts.to_dict().items() if isinstance(v, int)},
+        code_commit=args.code_commit,
+        taxdump_pin=seeds.TAXDUMP_2023_04.date,
+    )
+    staged.check_self_consistent()
+    client.put_object(Bucket=bucket, Key=manifest_key, Body=staged.to_json().encode())
+    uri = f"s3://{bucket}/{manifest_key}"
+    print(f"  staged manifest {uri}", flush=True)
+    return uri
+
+
 def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) -> int:
     args.outdir.mkdir(parents=True, exist_ok=True)
     work = args.workdir
     work.mkdir(parents=True, exist_ok=True)
     seed_fasta = work / "viral-seeds.faa"
     shard_paths = [work / f"shard-{i:02d}.faa" for i in range(args.buckets)]
-    timing_path = args.outdir / "calibration.json"
+    timing_path = args.outdir / (args.artefact_name or ARTEFACT_NAMES[args.measure])
 
     print(f"loading taxonomy from {args.taxdump}", flush=True)
     taxonomy = seeds.Taxonomy.from_taxdump_zip(args.taxdump)
@@ -281,6 +634,12 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             ("workers", args.workers),
             ("batch_bytes", args.batch_bytes),
             ("limit_bytes", args.limit_bytes),
+            ("measure", args.measure),
+            ("cap_query_denominator", args.cap_query_denominator),
+            ("cap_shard_points", ",".join(str(x) for x in args.cap_shard_points)),
+            ("cap_fractions", ",".join(str(x) for x in args.cap_fractions)),
+            ("published_hit_cap", similarity.HIT_CAP),
+            ("coverage", similarity.COVERAGE),
             ("charitable_params", " ".join(CHARITABLE)),
             ("strict_params", " ".join(STRICT)),
             ("taxdump_pin", seeds.TAXDUMP_2023_04.date),
@@ -289,50 +648,83 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 manifest.parameter(name, value)
         manifest.input_file(args.taxdump, role="taxonomy")
 
-        reader, label = _reader(args, client, bucket, prefix)
-        print(f"reading {label}", flush=True)
-        if args.source:
-            manifest.input_file(args.source, role="corpus")
+        staged: shardstore.ShardManifest | None = None
+        if args.sample_from:
+            # The corpus pass is skipped entirely. The shards, the seed set and the
+            # denominators all come from the staged manifest, and every object is verified
+            # against its recorded digest before anything is searched against it.
+            manifest.parameter("sample_from", args.sample_from)
+            counts, shard_counts, shard_residues, staged = _load_staged_sample(
+                args, client, work, seed_fasta, shard_paths
+            )
+            manifest.parameter("staged_sample_commit", staged.code_commit)
+            reader = None
+            stream = None
+            label = args.sample_from
+            corpus_seconds = 0.0
         else:
-            manifest.parameter("corpus_object", label)
+            reader, label = _reader(args, client, bucket, prefix)
+            print(f"reading {label}", flush=True)
+            if args.source:
+                manifest.input_file(args.source, role="corpus")
+            else:
+                manifest.parameter("corpus_object", label)
 
-        counts = seeds.SeedCounts()
-        shard_counts = [0] * args.buckets
-        shard_residues = [0] * args.buckets
-        started = time.monotonic()
-        stream = uniref.GunzipStream(reader)
-        handles = [p.open("wb") for p in shard_paths]
-        # The sample and the seed set are independent: a viral cluster can be in both, and
-        # must be, or the target would be missing exactly the records the filter is
-        # supposed to remove.
-        config = seeds.ScanConfig(
-            viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
-        )
-        try:
-            with seed_fasta.open("wb") as seedfh:
-                for batch in seeds.scan_parallel(
-                    _chunks(stream, args.limit_bytes, args.progress_seconds),
-                    config,
-                    workers=args.workers,
-                    batch_bytes=args.batch_bytes,
-                ):
-                    counts.merge(batch.counts)
-                    for cluster_id, sequence in batch.seeds:
-                        seeds.write_fasta(seedfh, cluster_id, sequence)
-                    for shard, cluster_id, sequence in batch.samples:
-                        seeds.write_fasta(handles[shard], cluster_id, sequence)
-                        shard_counts[shard] += 1
-                        shard_residues[shard] += len(sequence)
-        finally:
-            for handle in handles:
-                handle.close()
-        corpus_seconds = time.monotonic() - started
+            counts = seeds.SeedCounts()
+            shard_counts = [0] * args.buckets
+            shard_residues = [0] * args.buckets
+            started = time.monotonic()
+            stream = uniref.GunzipStream(reader)
+            handles = [p.open("wb") for p in shard_paths]
+            # The sample and the seed set are independent: a viral cluster can be in both, and
+            # must be, or the target would be missing exactly the records the filter is
+            # supposed to remove.
+            config = seeds.ScanConfig(
+                viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
+            )
+            try:
+                with seed_fasta.open("wb") as seedfh:
+                    for batch in seeds.scan_parallel(
+                        _chunks(
+                            stream,
+                            args.limit_bytes,
+                            args.progress_seconds,
+                            _make_heartbeat(
+                                client,
+                                bucket,
+                                prefix,
+                                HEARTBEAT_NAMES[args.measure],
+                                args.code_commit,
+                            ),
+                        ),
+                        config,
+                        workers=args.workers,
+                        batch_bytes=args.batch_bytes,
+                    ):
+                        counts.merge(batch.counts)
+                        for cluster_id, sequence in batch.seeds:
+                            seeds.write_fasta(seedfh, cluster_id, sequence)
+                        for shard, cluster_id, sequence in batch.samples:
+                            seeds.write_fasta(handles[shard], cluster_id, sequence)
+                            shard_counts[shard] += 1
+                            shard_residues[shard] += len(sequence)
+            finally:
+                for handle in handles:
+                    handle.close()
+            corpus_seconds = time.monotonic() - started
 
-        print(
-            f"\ncorpus pass: {counts.clusters:,} clusters in {corpus_seconds:.0f}s"
-            f"  ({counts.viral_seeded:,} viral-seeded)",
-            flush=True,
-        )
+        if staged is not None:
+            print(
+                f"\nstaged sample: {counts.clusters:,} clusters in the corpus it was drawn "
+                f"from ({counts.viral_seeded:,} viral-seeded), no corpus pass run",
+                flush=True,
+            )
+        else:
+            print(
+                f"\ncorpus pass: {counts.clusters:,} clusters in {corpus_seconds:.0f}s"
+                f"  ({counts.viral_seeded:,} viral-seeded)",
+                flush=True,
+            )
         print(
             f"  sample: {sum(shard_counts):,} clusters, "
             f"{sum(shard_residues) / 1e9:.3f} G residues across {args.buckets} shards",
@@ -340,11 +732,15 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         )
 
         payload: dict[str, Any] = {
+            "measure": args.measure,
             "release": args.release,
             "tier": args.tier,
             "bounded": bool(args.limit_bytes),
             "threads": args.threads,
-            "corpus_pass_seconds": round(corpus_seconds, 1),
+            # None rather than 0 on the staged path: a zero here would read as a corpus
+            # pass that took no time, which is exactly the kind of number that gets cited.
+            "corpus_pass_seconds": None if staged is not None else round(corpus_seconds, 1),
+            "sample_source": args.sample_from if staged is not None else "corpus-pass",
             "compressed_bytes_read": getattr(reader, "tell", lambda: 0)() or 0,
             "decompressed_bytes_read": getattr(stream, "tell", lambda: 0)() or 0,
             "seed_counts": counts.to_dict(),
@@ -386,17 +782,52 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         publish()
         upload(seed_fasta, "viral-seed-set")
 
-        if not args.skip_search:
-            _time_searches(
+        if args.stage_sample:
+            staged_uri = _stage_sample(
                 args,
-                work,
+                client,
+                bucket,
+                prefix,
                 seed_fasta,
                 shard_paths,
-                shard_residues,
                 counts,
-                payload["searches"],
-                publish,
+                shard_counts,
+                shard_residues,
             )
+            if staged_uri:
+                payload["staged_sample"] = staged_uri
+                # An output, not a parameter. `repro` closes the parameter window as soon as
+                # an output is recorded — the rule that thresholds are fixed before results
+                # are inspected — and the seed set has already been uploaded by this point, so
+                # declaring this as a parameter is refused and takes the run down with it.
+                manifest.output_object(staged_uri, role="staged-sample")
+                publish()
+
+        if not args.skip_search:
+            if args.measure == "caps":
+                _measure_caps(
+                    args,
+                    work,
+                    seed_fasta,
+                    shard_paths,
+                    shard_residues,
+                    payload,
+                    publish,
+                    client,
+                    bucket,
+                    prefix,
+                )
+            else:
+                _time_searches(
+                    args,
+                    work,
+                    seed_fasta,
+                    shard_paths,
+                    shard_residues,
+                    counts,
+                    payload["searches"],
+                    publish,
+                )
 
         timing_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         manifest.output_file(timing_path, role="calibration")
@@ -567,6 +998,396 @@ def _time_searches(
                 )
                 publish()
     return results
+
+
+#: The cap measurement holds sensitivity at D-105's fixed value rather than sweeping it.
+#: The two questions here are about the cap and about coverage, and entangling them with the
+#: one axis D-109 is already paying to sweep would make neither answer clean.
+CAP_SENSITIVITY = 5.7
+
+
+def _build_targets(
+    args: argparse.Namespace,
+    work: Path,
+    db: Path,
+    shard_paths: list[Path],
+    shard_residues: list[int],
+    points: list[int],
+) -> list[tuple[int, int, Path]]:
+    """Cumulative target databases at the requested shard counts.
+
+    Shards 1..k of a hash partition is itself a hash sample, which is what makes a size
+    sweep one corpus pass rather than k of them.
+    """
+    targets: list[tuple[int, int, Path]] = []
+    cumulative = work / "cap-cumulative.faa"
+    if cumulative.exists():
+        cumulative.unlink()
+    wanted = sorted({min(k, args.buckets) for k in points})
+    for k in range(1, max(wanted) + 1):
+        with cumulative.open("ab") as out, shard_paths[k - 1].open("rb") as src:
+            shutil.copyfileobj(src, out)
+        if k not in wanted:
+            continue
+        residues = sum(shard_residues[:k])
+        if residues == 0:
+            print(f"  shards 1..{k}: empty, skipped", flush=True)
+            continue
+        target = db / f"CT{k}"
+        build = _mmseqs("createdb", str(cumulative), str(target))
+        print(
+            f"  createdb(target 1..{k}) {build:.1f}s, {residues / 1e6:.0f} M residues", flush=True
+        )
+        targets.append((k, residues, target))
+    return targets
+
+
+def _cap_cell(
+    args: argparse.Namespace,
+    work: Path,
+    db: Path,
+    qdb: Path,
+    target: Path,
+    *,
+    cap: int,
+    coverage_mode: int | None,
+    label: str,
+) -> tuple[float, int, similarity.RecordLedger, similarity.Saturation]:
+    """One search, read back through the instrument the pass itself will use.
+
+    Reading the hit table through `similarity` rather than counting lines is the point: the
+    distinct-record counts per coverage reading are what decide whether the post-filter buys
+    the three readings, and they cannot be recovered from a row count.
+    """
+    out_db = db / f"R-{label}"
+    tmp = work / "tmp"
+    if tmp.exists():
+        shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True, exist_ok=True)
+    params = similarity.search_argv(
+        sensitivity=CAP_SENSITIVITY, cap=cap, coverage_mode=coverage_mode
+    )
+    elapsed = _mmseqs(
+        "search",
+        str(qdb),
+        str(target),
+        str(out_db),
+        str(tmp),
+        *params,
+        "--threads",
+        str(args.threads),
+    )
+    tsv = work / f"cap-hits-{label}.tsv"
+    _mmseqs(
+        "convertalis",
+        str(qdb),
+        str(target),
+        str(out_db),
+        str(tsv),
+        "--format-output",
+        similarity.CONVERTALIS_FORMAT,
+    )
+    ledger = similarity.RecordLedger()
+    guard = similarity.Saturation(cap=cap)
+    rows = 0
+    with tsv.open() as handle:
+        for row in similarity.parse_hits(handle):
+            rows += 1
+            ledger.observe(row)
+            guard.observe(row.query)
+    tsv.unlink(missing_ok=True)
+    return elapsed, rows, ledger, guard
+
+
+def _measure_caps(
+    args: argparse.Namespace,
+    work: Path,
+    seed_fasta: Path,
+    shard_paths: list[Path],
+    shard_residues: list[int],
+    payload: dict[str, Any],
+    publish: Any,
+    client: Any = None,
+    bucket: str = "",
+    prefix: str = "",
+) -> None:
+    """Measure the two things D-105 and D-109 left open, in the one run where they interact.
+
+    **The hit cap, where it binds.** D-105 measured raising 300 to 5,000 at a scale where the
+    cap did not bind — 1.62x for 0.21% more records — which prices the wrong thing: a slack
+    cap costs what it costs. What matters is the cap that truncates, because truncation is
+    worst for the records matching the most seeds, which are the most viral-like ones. So the
+    slack run reports the maximum hits per seed at each target size, and the binding runs are
+    caps set as fractions of *that*. Hits per seed against target size is also what says
+    whether 100,000 binds at the pass's scale, by extrapolation rather than by assertion.
+
+    **Relaxed coverage.** D-109 buys the three coverage readings from one relaxed search and
+    flagged the risk honestly: relaxing admits more rows, so it costs more and makes the cap
+    likelier to bind. Running both coverage settings here prices that, and the two questions
+    share a run because the interaction is the thing — a relaxed search with a binding cap is
+    the cell where the design could fail.
+
+    The fallback is already decided. If relaxed costs more than three separate `--cov-mode`
+    cells, three cells is the design and D-109 is superseded; this run is what picks.
+    """
+    db = work / "db"
+    db.mkdir(exist_ok=True)
+    spent = 0.0
+    cells: list[dict[str, Any]] = payload["searches"]
+
+    qpath = work / "cap-query.faa"
+    qseqs, qres = _subsample_fasta(seed_fasta, qpath, args.cap_query_denominator)
+    if qseqs == 0:
+        print("  cap measurement: query subsample is empty, nothing to measure", flush=True)
+        return
+    qdb = db / "QCAP"
+    _mmseqs("createdb", str(qpath), str(qdb))
+    print(
+        f"\ncap measurement: query 1/{args.cap_query_denominator} = {qseqs:,} seeds, "
+        f"{qres / 1e6:.0f} M residues",
+        flush=True,
+    )
+    payload["cap_query"] = {
+        "denominator": args.cap_query_denominator,
+        "sequences": qseqs,
+        "residues": qres,
+        "sensitivity": CAP_SENSITIVITY,
+    }
+    # Published now rather than with the first cell. Everything between here and that cell —
+    # subsampling the seed set, the query database, concatenating shards, two target databases
+    # — is tens of minutes of real work, and leaving it unpublished made a working run
+    # indistinguishable from a stuck one for the third time in a day (D-127).
+    publish()
+
+    _progress(
+        client, bucket, prefix, args, stage="cap-build-targets", points=str(args.cap_shard_points)
+    )
+    targets = _build_targets(args, work, db, shard_paths, shard_residues, args.cap_shard_points)
+    _progress(client, bucket, prefix, args, stage="cap-targets-ready", targets=len(targets))
+
+    # Reading 1 is the only one both coverage settings can produce, which makes it the one
+    # place the post-filter can be checked against the aligner doing the filtering itself.
+    # D-109 assumes they agree; a local rehearsal on 1,200 synthetic records disagreed by one
+    # record, so the agreement is measured here rather than assumed.
+    relaxed_reading1: dict[int, set[str]] = {}
+
+    for k, residues, target in targets:
+        # Relaxed first. It is the design under test, and if the budget runs out after one
+        # coverage setting the useful half is the one that was not already decided.
+        for coverage_mode in (None, 1):
+            name = "relaxed" if coverage_mode is None else f"covmode{coverage_mode}"
+            base = {
+                "measurement": "hit-cap",
+                "reading": name,
+                "shards": k,
+                "residues": residues,
+                "query_sequences": qseqs,
+                "coverage_mode": coverage_mode,
+            }
+            if args.search_budget_seconds and spent >= args.search_budget_seconds:
+                print(
+                    f"  budget of {args.search_budget_seconds:.0f}s spent; stopping before "
+                    f"{name} x shards 1..{k}",
+                    flush=True,
+                )
+                cells.append({**base, "skipped": "search budget exhausted"})
+                publish()
+                return
+
+            _progress(
+                client,
+                bucket,
+                prefix,
+                args,
+                stage="cap-search",
+                cell=f"{name}-shards{k}-slack",
+                residues=residues,
+            )
+            try:
+                elapsed, rows, ledger, guard = _cap_cell(
+                    args,
+                    work,
+                    db,
+                    qdb,
+                    target,
+                    cap=similarity.HIT_CAP,
+                    coverage_mode=coverage_mode,
+                    label=f"{name}-{k}-slack",
+                )
+            except RuntimeError as exc:
+                print(f"  {name} x 1..{k} slack: FAILED {exc}", flush=True)
+                cells.append({**base, "cap": similarity.HIT_CAP, "error": str(exc)})
+                publish()
+                continue
+            spent += elapsed
+            slack_records = {m: len(ledger.records(m)) for m in similarity.COVERAGE_READINGS}
+            agreement: dict[str, Any] | None = None
+            if coverage_mode is None:
+                relaxed_reading1[k] = ledger.records(1)
+            elif coverage_mode == 1 and k in relaxed_reading1:
+                post = relaxed_reading1[k]
+                native = ledger.records(1)
+                union = post | native
+                agreement = {
+                    "post_filtered_records": len(post),
+                    "aligner_filtered_records": len(native),
+                    "only_post_filtered": len(post - native),
+                    "only_aligner_filtered": len(native - post),
+                    "jaccard": (len(post & native) / len(union)) if union else None,
+                }
+                print(
+                    f"    reading-1 agreement: post {len(post):,} vs aligner {len(native):,}, "
+                    f"jaccard {agreement['jaccard']}",
+                    flush=True,
+                )
+            cells.append(
+                {
+                    **base,
+                    **({"reading1_agreement": agreement} if agreement else {}),
+                    "cap": similarity.HIT_CAP,
+                    "binding": guard.saturated,
+                    "search_wall_seconds": round(elapsed, 1),
+                    "search_core_seconds": round(elapsed * args.threads, 1),
+                    "hit_rows": rows,
+                    "records_by_reading": {str(m): n for m, n in slack_records.items()},
+                    "bands_by_reading": {
+                        str(m): ledger.counts_by_band(m) for m in similarity.COVERAGE_READINGS
+                    },
+                    "saturation": guard.to_dict(),
+                }
+            )
+            print(
+                f"  {name} x 1..{k} cap {similarity.HIT_CAP}: {elapsed:.1f}s wall, {rows:,} rows, "
+                f"max {guard.max_hits:,} hits/seed, records {slack_records}",
+                flush=True,
+            )
+            publish()
+
+            # The caps that bind are defined by what this scale actually produced, so they
+            # are derived here rather than guessed before the run. The published cap is
+            # unchanged by anything measured here: D-105 fixed it, and this prices it.
+            reference = ledger.records(1)
+            for fraction in args.cap_fractions:
+                cap = max(1, int(guard.max_hits * fraction))
+                if cap >= guard.max_hits:
+                    continue
+                if args.search_budget_seconds and spent >= args.search_budget_seconds:
+                    cells.append({**base, "cap": cap, "skipped": "search budget exhausted"})
+                    publish()
+                    return
+                try:
+                    elapsed, rows, ledger_c, guard_c = _cap_cell(
+                        args,
+                        work,
+                        db,
+                        qdb,
+                        target,
+                        cap=cap,
+                        coverage_mode=coverage_mode,
+                        label=f"{name}-{k}-cap{cap}",
+                    )
+                except RuntimeError as exc:
+                    print(f"  {name} x 1..{k} cap {cap}: FAILED {exc}", flush=True)
+                    cells.append({**base, "cap": cap, "error": str(exc)})
+                    publish()
+                    continue
+                spent += elapsed
+                found = ledger_c.records(1)
+                lost = len(reference - found)
+                cells.append(
+                    {
+                        **base,
+                        "cap": cap,
+                        "cap_fraction_of_observed_max": fraction,
+                        "binding": guard_c.saturated,
+                        "search_wall_seconds": round(elapsed, 1),
+                        "search_core_seconds": round(elapsed * args.threads, 1),
+                        "hit_rows": rows,
+                        "records_by_reading": {
+                            str(m): len(ledger_c.records(m)) for m in similarity.COVERAGE_READINGS
+                        },
+                        "records_lost_vs_slack": lost,
+                        "record_loss_fraction": (lost / len(reference)) if reference else None,
+                        "saturation": guard_c.to_dict(),
+                    }
+                )
+                print(
+                    f"  {name} x 1..{k} cap {cap}: {elapsed:.1f}s wall, {rows:,} rows, "
+                    f"lost {lost:,} of {len(reference):,} records",
+                    flush=True,
+                )
+                publish()
+
+    payload["cap_summary"] = _cap_summary(cells)
+    publish()
+
+
+def _cap_summary(cells: list[dict[str, Any]]) -> dict[str, Any]:
+    """The two numbers the run exists to produce, derived from the cells.
+
+    Derived here rather than in a notebook so the instance reports a conclusion even if
+    nothing downstream ever reads the cells: there is no shell on it, and a run whose
+    arithmetic waits until it is home is a run that can come home without it.
+    """
+    slack = [c for c in cells if c.get("cap") == similarity.HIT_CAP and "search_wall_seconds" in c]
+    by_shards: dict[int, dict[str, dict[str, Any]]] = {}
+    for cell in slack:
+        by_shards.setdefault(cell["shards"], {})[cell["reading"]] = cell
+
+    coverage_cost: list[dict[str, Any]] = []
+    for shards, readings in sorted(by_shards.items()):
+        relaxed, filtered = readings.get("relaxed"), readings.get("covmode1")
+        if not (relaxed and filtered):
+            continue
+        ratio = relaxed["search_wall_seconds"] / filtered["search_wall_seconds"]
+        coverage_cost.append(
+            {
+                "shards": shards,
+                "residues": relaxed["residues"],
+                "relaxed_wall_seconds": relaxed["search_wall_seconds"],
+                "filtered_wall_seconds": filtered["search_wall_seconds"],
+                "cost_ratio": round(ratio, 3),
+                # Three separate --cov-mode searches is the fallback D-109 names, so the
+                # relaxed search is only worth it below 3x. Stated as the comparison rather
+                # than as a verdict, because the verdict is a decision entry's job.
+                "cheaper_than_three_cells": ratio < len(similarity.COVERAGE_READINGS),
+                "row_ratio": round(relaxed["hit_rows"] / max(1, filtered["hit_rows"]), 3),
+            }
+        )
+
+    hits_per_seed = [
+        {
+            "shards": c["shards"],
+            "residues": c["residues"],
+            "reading": c["reading"],
+            "max_hits_per_seed": c["saturation"]["max_hits_per_query"],
+            "max_hits_per_seed_per_g_residue": round(
+                c["saturation"]["max_hits_per_query"] / (c["residues"] / 1e9), 1
+            )
+            if c["residues"]
+            else None,
+        }
+        for c in slack
+    ]
+    return {
+        "coverage_cost": coverage_cost,
+        "hits_per_seed": hits_per_seed,
+        # The check on D-109's premise rather than its price: if the post-filter and the
+        # aligner's own --cov-mode 1 do not pick the same records, the three readings are
+        # recovered approximately and the write-up has to say by how much.
+        "reading1_agreement": [
+            {"shards": c["shards"], **c["reading1_agreement"]}
+            for c in cells
+            if c.get("reading1_agreement")
+        ],
+        "published_cap": similarity.HIT_CAP,
+        "note": (
+            "max_hits_per_seed_per_g_residue extrapolates linearly to the pass's target size "
+            "and is what says whether the published cap binds there. The caps run below the "
+            "observed maximum price truncation at this scale; they do not change the "
+            "published cap, which D-105 fixed."
+        ),
+    }
 
 
 def _hit_count(query: Path, target: Path, result: Path, work: Path) -> int:

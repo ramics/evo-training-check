@@ -1046,6 +1046,7 @@ class S3RangeRead:
         key: str,
         *,
         max_attempts: int = 8,
+        max_reconnects: int = 32,
         sleep: Callable[[float], None] = time.sleep,
         on_reconnect: Callable[[int, int, BaseException], None] | None = None,
     ) -> None:
@@ -1053,6 +1054,7 @@ class S3RangeRead:
         self.bucket = bucket
         self.key = key
         self._max_attempts = max_attempts
+        self._max_reconnects = max_reconnects
         self._sleep = sleep
         self._on_reconnect = on_reconnect
         self._body: Any = None
@@ -1071,6 +1073,15 @@ class S3RangeRead:
         return response["Body"]
 
     def read(self, size: int) -> bytes:
+        # `attempt` is deliberately per-call: a stream that drops once an hour over a
+        # tens-of-gigabytes transfer should keep going, and that is what this class exists
+        # for. `self.reconnects` is the global budget on top, because without it the two
+        # behaviours are indistinguishable — a connection that delivers one chunk and then
+        # stalls is retried for ever, at a botocore read timeout plus backoff per cycle,
+        # and the transfer crawls instead of failing. Measured 2026-10-16: an instance spent
+        # over four hours on a 52-minute pass and never reported anything, and this path is
+        # one of the two mechanisms consistent with that. Degrading without a bound is worse
+        # than stopping, because a bounded failure can be retried deliberately.
         attempt = 0
         while True:
             if self._body is None:
@@ -1104,6 +1115,13 @@ class S3RangeRead:
         self.reconnects += 1
         if self._on_reconnect is not None:
             self._on_reconnect(attempt, self.pos, exc)
+        if self._max_reconnects and self.reconnects > self._max_reconnects:
+            raise VerificationError(
+                f"s3://{self.bucket}/{self.key}: {self.reconnects} reconnects by byte "
+                f"{self.pos:,} exceeds the budget of {self._max_reconnects}. The transfer is "
+                f"degrading rather than failing, which is worse: last error "
+                f"{type(exc).__name__}. Re-run it deliberately."
+            ) from exc
         self._sleep(min(2.0 * attempt, 30.0))
 
     def close(self) -> None:
