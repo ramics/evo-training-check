@@ -5974,3 +5974,112 @@ decision has a threshold or parameter in it, the number goes in the entry.
   still a detection. What the band buys beyond its own result is the measured per-genome cost on
   real draft assemblies, which is the number every later decision about depth depends on, and
   which no amount of further arithmetic from D-117's single genome can supply.
+
+### D-146 — One list entry carries 98.5% of the select-agent seed set; the reading stands and the reporting splits
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Context:** The full-tier seed pass finished (UniRef100 2023_02, all 118.68 GB of staged
+  object, 54 minutes, commit `b00640f`) and returned **1,079,124 seeded clusters of
+  350,950,053** — 5.8x the 187K ESM3 publishes for this denylist (D-106). D-137 had named both
+  directions of expected discrepancy but no magnitude, so the artefact could report the gap and
+  not decompose it.
+
+  **It decomposes into one entry.** "Avian influenza virus" maps to Influenza A (taxid 11320),
+  and descending it contributes **112,716 of the 114,467 expanded taxa — 98.5%**. The other 52
+  taxon-naming entries contribute about 1,750 between them. Influenza A is also among the most
+  heavily sequenced taxa in UniProt, so its share of *clusters* is larger still. The regulation
+  restricts highly pathogenic avian influenza; the pinned taxonomy has no node for that, so
+  D-137 took the species and recorded the over-inclusion. What is new is the size of it.
+
+  **The lab's own figure says they did not read it this way.** ESM3 reports 147K non-viral plus
+  40K viral. All of Influenza A does not fit in 40K viral sequences by any counting. So the
+  denylist being audited and the denylist being reconstructed differ, and they differ almost
+  entirely in this one entry.
+
+  **It also breaks D-133's budget, twice over.** That entry priced the sampled pass at one
+  launch, about nineteen hours and about $3. Two things are wrong with the figure, and they
+  compound. It assumed 187K seeds, and the seed set is 1,079,124. And it costed a *single*
+  search, where the pass runs six cells per shard — three sensitivities (D-105) against two
+  coverage-filtered searches (D-124). On the same measurement D-133 used — 31,381 seeds against
+  shard 0's 417 M residues, A1.6's cap run of 2026-10-17 (D-128) — the full 2.5% sample is about
+  **1,135 instance-hours and $180**, not one launch. D-133's *comparison* against the exhaustive
+  pass survives, because both sides of it were costed single-cell; its absolute figure does not.
+- **Decision (project owner): measure the split, then report it as two strata. The reading in
+  D-137 is not changed.**
+
+  1. The seed pass is re-run with per-entry attribution, so the influenza share is a measured
+     number rather than an inference from taxon counts. About an hour and under a dollar; it
+     also closes a provenance gap the first pass exposed (below).
+  2. The **primary** result is the seed set with the entry's exclusively-claimed clusters
+     removed — the agents the list names that are not seasonal influenza. This is the figure
+     expected to reconcile against the published 187K, and the one the scoring pass is sized
+     against.
+  3. The influenza contribution is reported as a **separate, named stratum**, not dropped and
+     not pooled. It is a real consequence of a reading the regulation's own wording forces on
+     the pinned taxonomy, and §A0 treats that as a finding.
+- **Why the reading is not simply narrowed, which was the tidier option.** Restricting the entry
+  to H5/H7 lineages would produce one clean reconciled number, and it would do it by overwriting
+  a reading already recorded, argued and pinned — replacing a measured over-inclusion with a
+  curated guess at what the lab meant, in the same artefact that is supposed to show where
+  readings bite. The split keeps both numbers visible and costs an hour.
+- **What "exclusively claimed" means, because the arithmetic depends on it.** A cluster is
+  seeded if *any* member is on the list, so a cluster can be claimed by more than one entry.
+  `claimed` counts a cluster once per claiming entry; `exclusive` counts only clusters a single
+  entry claims alone. Removing an entry removes its exclusive clusters and no others, so
+  `exclusive` is the only one of the two a decision can rest on. `seeds.EntryCounts` keeps them
+  apart and the largest contributor is named from the measurement, so a later re-pin reports
+  whichever entry then dominates rather than this one.
+- **A provenance gap found in the same place, fixed in the same commit.** `repro.run` writes its
+  manifest when its block exits, so `select_agent_seeds.py`'s upload — which sat inside that
+  block — had no file to send. The first pass staged its results and left its `run.json` on an
+  instance that then terminated. The instance has no checkout and no shell, so a manifest that
+  does not leave by object storage does not leave at all, and AGENTS.md is explicit that an
+  untraceable result is not citable. The first pass's figures are recoverable only through its
+  code tarball key; the re-run supersedes it at the same keys.
+- **Consequence for what A1.8 may say.** The arm already makes no all-clear (D-133). It now also
+  may not report a single denylist survival figure without saying which stratum it is: a pooled
+  rate over the reconstructed seed set would be a statement mostly about seasonal influenza
+  wearing a select-agent label, which is precisely the kind of number §7's adversarial reader
+  should catch. Per-stratum reporting is the default, as §B5 already requires elsewhere.
+- **Rejected:** Narrowing the entry and rebuilding — above. Running the pass on the pooled seed
+  set and explaining the composition in the write-up — it spends 1,135 instance-hours mostly on
+  influenza and leaves the headline needing a paragraph of correction. Dropping the entry
+  outright — it is on the list, and an audit that silently declines to look for a listed agent
+  has chosen its own scope.
+
+### D-147 — Correction to D-144: Evo 1 is 275 Gbp, not 127, and the running band measured it
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Numbering:** appended as D-146 and renumbered to D-147 on 2026-10-17. A1.8's D-146 was already on `main` when this was written and is the one cited elsewhere; this entry was cited only from its own commit message, so it is the cheaper one to move. The commit "A2.4: D-146 — Evo 1 is 275 Gbp" refers to this entry.
+- **Context:** D-144 corrected D-117's corpus size and got one of its two halves wrong in the
+  same way. It reported Evo 1's Parquet at **1.00 bases per byte**, concluding that the staged
+  byte count was a fair proxy for its base count. That ratio came from comparing bases against
+  `RowGroupMetaData.total_byte_size`, which is the **uncompressed** size. Comparing sequence
+  bytes to the uncompressed size of the column holding them returns 1.00 by construction. It is
+  not a measurement, it is a tautology, and it looked like a confirmation.
+- **What the real figures are, from two independent directions.**
+  Summing the per-column `total_compressed_size` on the same row group gives 11,288,188
+  compressed bytes for 24,379,463 bases: **2.16 bases per compressed byte**. Evo 1's 127,261,074,759
+  staged bytes are therefore about **274,850 Mb**, not 127,261.
+  The first band measured it independently while this was being worked out: at rate 0.0025 it
+  sampled **375 genomes and 699,031,198 bases** of Evo 1, implying **279,612 Mb**. The two agree
+  to **1.7%**, which is the confirmation D-144 thought it had.
+  **Corrected total: Evo 1 ~277,000 Mb plus Evo 2 ~357,000 Mb, about 634,000 Mb.** A full census
+  is roughly **29,000 core-hours**; 0.25% is about 72 core-hours, and 2.5% about 720 — 90 wall
+  hours at the 8 vCPU ceiling.
+- **Decision:** Record the corrected figure and the method that produced it, and treat the
+  *measured* number as authoritative over either byte-count derivation. The band exists to
+  produce measurements; the first thing it measured was the size of the thing it is sampling.
+- **Rejected:** Quietly amending D-144. It is append-only and its arithmetic was cited in the
+  question that set this band's depth; a reader who finds 127,261 Mb there needs to find this
+  entry too.
+  Treating the 1.7% gap as disagreement. The sample is 375 genomes drawn by hash, so a couple of
+  percent either way is what it should do; the point is that two derivations that share no step
+  landed in the same place.
+- **Consequence:** **The same mistake has now been made three times in this task** — D-117 read
+  staged bytes as bases, D-144 half-corrected it and read an uncompressed size as a compressed
+  one, and both times the wrong number looked right enough to act on. The common factor is
+  deriving a quantity from a field whose meaning was assumed rather than checked. Any later
+  figure here is measured from a pass or stated as an estimate with its derivation shown.
+  Nothing about the band's depth changes: 0.25% was chosen because 2.5% was 69 hours, and at the
+  corrected size 2.5% is 90 hours, so the decision is more right than it was, not less.
