@@ -441,6 +441,69 @@ fits.
 
 **Nothing waits on the project owner.**
 
+
+## Band 1 is built and the launch is the only thing left — 2026-10-17
+
+Branch `ccr-81045ff3-7u9p0a`, 940 tests, full `check` green, including a band run end to end
+against the pinned aligner.
+
+**`--measure band` is the pass.** Six cells over one staged shard, each published as it
+finishes rather than at the end — a run that dies on cell five has paid for four, which is the
+lesson `AGENTS.md` records from the runs that published nothing in four hours. Plumbed through
+the launcher, so the mode the instance invokes is the mode that exists.
+
+**Verified against the bucket rather than against a reading of the code.** The staged sample is
+10 objects at rate 40: 8 shards and the seed set, **no sidecars**, so D-142's gap is real.
+Shard 0 holds **1,097,174 clusters and 417,056,773 residues** — the cap run's target exactly,
+so its 1/100-seed timings transfer without adjustment. The version-1 manifest reads cleanly
+with the new optional `sidecars` field, which is what D-142 required of it.
+
+**Three things found by building it, each now a test.**
+
+- `Saturation` had no way to act on itself; every caller was left to remember the check D-105
+  requires. It raises now, because a cap-truncated lower bound and a seed-sampled one are
+  different claims and failing is the only way they cannot be confused.
+- The band's functions sat below the `__main__` guard, so `main()` ran before they were defined
+  and the mode was unreachable with a `NameError`. Only the end-to-end smoke test catches that.
+- The upload plan is seed, shards, sidecars, so the shard loop slices by length; left
+  open-ended it would have paired a sidecar with a shard index under a strict zip.
+
+**One launch, not two.** D-142 left band 1 owing a corpus pass for the sidecars and then the
+band. `shardstore.verify_rebuilt` checks the rebuilt shards against the staged manifest's own
+digests before anything is searched, so the two can be one run: the band is a result about the
+staged sample because the bytes are proved identical, not because the sampling rule is
+deterministic and ought to agree.
+
+**Left: the launch.** `--measure band --spot --verify-sample-against <manifest>`, about 5 hours
+and roughly $0.70 — the 52-minute corpus pass for the sidecars, then band 1's six cells. The
+session is not permitted to spend, so this needs the project owner's go-ahead.
+
+**Waiting on the project owner:** authorisation to launch. Nothing in the repo waits on code.
+
+
+## Band 1 is running — 2026-10-17
+
+Instance **`i-0d81555e994423a79`**, `m6i.2xlarge` spot, 120 GB gp3, launched from commit
+`ba33811`. Owner authorised the spend; about $0.70 expected.
+
+Dry run returned `DryRunOperation` first, so the parameters and the spot path authorise. Note
+what that does **not** establish, per D-120: a dry run runs no `UserData`, so the end-to-end
+smoke test is what covers the script itself.
+
+One run, two stages. The 52-minute corpus pass rebuilds the sample and its strata sidecars,
+then `shardstore.verify_rebuilt` checks the rebuilt shards against the staged manifest's own
+digests **before anything is searched** — if they differ the run stops having cost only the
+pass. Then band 1's six cells over shard 0, each published to the results prefix as it
+finishes.
+
+Expected: about 5 hours. Boot-armed shutdown at 480 minutes, which D-127 established does fire
+and is reported as `User initiated`. Watch it with `--attach i-0d81555e994423a79`.
+
+What to look for in `band.json`: `searched_records` should be **1,097,174** and
+`searched_residues` **417,056,773**, which are shard 0's figures from the staged manifest and
+the cap run's target exactly. Six distinct cell slugs, all carrying `-q100`. Nine groups, each
+with `lower_bound: true`.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
