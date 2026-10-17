@@ -6047,9 +6047,10 @@ decision has a threshold or parameter in it, the number goes in the entry.
   outright — it is on the list, and an audit that silently declines to look for a listed agent
   has chosen its own scope.
 
-### D-146 — Correction to D-144: Evo 1 is 275 Gbp, not 127, and the running band measured it
+### D-147 — Correction to D-144: Evo 1 is 275 Gbp, not 127, and the running band measured it
 - **Date:** 2026-10-17
 - **Task:** A2.4
+- **Numbering:** appended as D-146 and renumbered to D-147 on 2026-10-17. A1.8's D-146 was already on `main` when this was written and is the one cited elsewhere; this entry was cited only from its own commit message, so it is the cheaper one to move. The commit "A2.4: D-146 — Evo 1 is 275 Gbp" refers to this entry.
 - **Context:** D-144 corrected D-117's corpus size and got one of its two halves wrong in the
   same way. It reported Evo 1's Parquet at **1.00 bases per byte**, concluding that the staged
   byte count was a fair proxy for its base count. That ratio came from comparing bases against
