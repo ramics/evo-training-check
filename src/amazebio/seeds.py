@@ -90,25 +90,53 @@ TAXDUMP_2023_04 = TaxdumpPin(
 class Taxonomy:
     """The parent-of relation from `nodes.dmp`, and descent queries over it."""
 
-    __slots__ = ("parent",)
+    __slots__ = ("parent", "rank")
 
-    def __init__(self, parent: dict[int, int]) -> None:
+    def __init__(self, parent: dict[int, int], rank: dict[int, str] | None = None) -> None:
         self.parent = parent
+        self.rank = rank if rank is not None else {}
 
     @classmethod
     def from_nodes_dmp(cls, lines: Iterable[bytes | str]) -> Taxonomy:
-        """Parse `nodes.dmp`. Each row is `taxid\\t|\\tparent\\t|\\t...`."""
+        """Parse `nodes.dmp`. Each row is `taxid\\t|\\tparent\\t|\\trank\\t|\\t...`."""
         parent: dict[int, int] = {}
+        rank: dict[int, str] = {}
         for raw in lines:
             line = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw
-            fields = line.split("\t|\t", 2)
+            fields = line.split("\t|\t", 3)
             if len(fields) < 2:
                 continue
             try:
-                parent[int(fields[0])] = int(fields[1])
+                taxid = int(fields[0])
+                parent[taxid] = int(fields[1])
             except ValueError:
                 continue
-        return cls(parent)
+            if len(fields) > 2:
+                # The row continues past the rank, and on the fixture's three-field rows it
+                # ends with a bare `\t|`. Either way the rank is what precedes the next
+                # delimiter, so cut there rather than trusting the split to have done it.
+                rank[taxid] = fields[2].split("\t|", 1)[0].strip()
+        return cls(parent, rank)
+
+    def ancestor_at_rank(self, taxid: int, rank: str = "family") -> int | None:
+        """The ancestor of `taxid` at `rank`, or None if the lineage has no node there.
+
+        Climbs rather than descends because the caller has one taxid and wants one answer.
+        Returns None rather than a nearest-rank substitute: a cluster whose lineage carries
+        no family node is not a member of some other family, and D-140 keeps those as their
+        own stratum instead of attributing them.
+        """
+        node = taxid
+        seen: set[int] = set()
+        while node not in seen:
+            seen.add(node)
+            if self.rank.get(node) == rank:
+                return node
+            par = self.parent.get(node)
+            if par is None or par == node:
+                return None
+            node = par
+        return None
 
     @classmethod
     def from_taxdump_zip(cls, path: str | Path) -> Taxonomy:
