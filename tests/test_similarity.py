@@ -731,3 +731,38 @@ def test_the_stream_still_works_without_strata() -> None:
     stream.extend([sim.HitRow("s1", "recA", 0.95, 0.9, 0.9)]).close()
     assert stream.records[1] == 1
     assert stream.stratum_hits[1] == {}
+
+
+def test_a_cell_is_assembled_from_the_search_and_the_index() -> None:
+    tax = _Tax({10: 11157, 11: 11158})
+    idx = sim.FamilyIndex.build([("recA", 10), ("recB", 11)], tax)
+    stream = sim.TargetStream(derive=sim.SEARCH_READINGS[2], index=idx)
+    stream.extend([sim.HitRow("s1", "recA", 0.95, 0.9, 0.9)]).close()
+    cell = sim.cell_from_stream(
+        sim.CellKey(0, 5.7, 2, seed_denominator=100),
+        stream,
+        idx,
+        seeds_searched=31_381,
+        seed_families=1_200,
+        searched_residues=417_000_000,
+    )
+    assert cell.searched_clusters == 2, "the denominator comes from the index, not the caller"
+    assert sorted(cell.families[2]) == [(0, 1), (1, 1)]
+    assert cell.to_dict()["lower_bound"] is True
+    assert cell.to_dict()["slug"] == "shard00-s5.7-cov2-q100"
+
+
+def test_a_cell_cannot_report_a_reading_its_search_does_not_support() -> None:
+    """D-124's whole argument is which search speaks for which reading. A cell built from the
+    wrong one would publish mode 2 numbers under a mode 0/1 search."""
+    idx = sim.FamilyIndex.build([("recA", 10)], _Tax({10: 11157}))
+    stream = sim.TargetStream(derive=(2,), index=idx)
+    with pytest.raises(ValueError, match="speaks for"):
+        sim.cell_from_stream(
+            sim.CellKey(0, 5.7, 1),
+            stream,
+            idx,
+            seeds_searched=1,
+            seed_families=1,
+            searched_residues=1,
+        )

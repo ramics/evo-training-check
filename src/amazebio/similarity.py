@@ -836,3 +836,35 @@ class FamilyIndex:
                 )
             out.append((got, records))
         return out
+
+
+def cell_from_stream(
+    key: CellKey,
+    stream: TargetStream,
+    index: FamilyIndex,
+    *,
+    seeds_searched: int,
+    seed_families: int,
+    searched_residues: int,
+) -> CellResult:
+    """Assemble one cell's artefact from the search it just read.
+
+    `searched_clusters` is taken from the index rather than passed in, because the denominator
+    has to be the records the search actually ran against and the index is the only thing that
+    counted them. Passing it separately is how a rate ends up quoted over the sample as
+    designed instead of the shard that ran.
+    """
+    if tuple(stream.derive) != key.readings:
+        raise ValueError(
+            f"the search read readings {tuple(stream.derive)} but cell {key.slug()} speaks "
+            f"for {key.readings}; a cell must not report a reading its search cannot support"
+        )
+    return CellResult(
+        key=key,
+        bands={mode: list(stream.bands[mode]) for mode in stream.derive},
+        families={mode: index.pairs(stream.stratum_hits[mode]) for mode in stream.derive},
+        searched_clusters=index.searched_records,
+        searched_residues=searched_residues,
+        seeds_searched=seeds_searched,
+        seed_families=seed_families,
+    )
