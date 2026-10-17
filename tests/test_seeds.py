@@ -297,8 +297,9 @@ def test_the_family_of_a_lineage_is_found_by_climbing() -> None:
 
 
 def test_a_lineage_with_no_family_node_returns_none_rather_than_a_substitute() -> None:
-    """D-140 keeps unplaced clusters as their own stratum. Attributing them to the nearest
-    rank would invent a family membership the taxonomy does not assert."""
+    """D-140 keeps unplaced clusters as their own stratum, for the reason D-141 establishes.
+    Attributing them to the nearest rank would invent a membership the taxonomy does not
+    assert."""
     tax = _taxonomy()
     assert tax.ancestor_at_rank(1280) is None, "species under a superkingdom has no family"
     assert tax.ancestor_at_rank(99999) is None, "an unknown taxid is not placed"

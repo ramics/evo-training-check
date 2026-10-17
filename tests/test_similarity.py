@@ -580,3 +580,39 @@ def test_the_seed_family_count_is_carried_not_summed() -> None:
     for g in out["groups"]:
         assert g["seed_families"] == 1_234
         assert g["searched_clusters"] == 2_000_000, "the corpus side still sums"
+
+
+def test_pooling_unplaced_records_makes_the_interval_track_one_strata_rate() -> None:
+    """D-141's measurement, pinned so the refutation is in the suite and not only in the log.
+
+    D-140 asserted that pooling the taxonomy-unplaced records into one pseudo-family would
+    understate the interval. It does not have a direction: a pooled stratum contributes
+    `(A - r*B)^2`, which vanishes when its own rate equals the overall one and explodes when
+    it does not. With A4.2's 36% unplaced fraction behind it, that is the whole interval.
+    """
+    placed = [(100 if i % 10 == 0 else 0, 100) for i in range(640)]
+    n = 36_000
+
+    # Unplaced records whose rate matches the overall one: pooling barely moves the interval.
+    same = [(1 if i % 10 == 0 else 0, 1) for i in range(n)]
+    se_single = sim.rate_with_interval(placed + same).standard_error
+    se_pooled = sim.rate_with_interval([*placed, (sum(a for a, _ in same), n)]).standard_error
+    assert se_single is not None and se_pooled is not None
+    assert 0.99 < se_pooled / se_single < 1.0, "the understatement D-140 claimed is negligible"
+
+    # Unplaced records at a different rate: pooling inflates it by an order of magnitude.
+    hot = [(1 if i % 2 == 0 else 0, 1) for i in range(n)]
+    se_single_hot = sim.rate_with_interval(placed + hot).standard_error
+    se_pooled_hot = sim.rate_with_interval([*placed, (sum(a for a, _ in hot), n)]).standard_error
+    assert se_single_hot is not None and se_pooled_hot is not None
+    assert se_pooled_hot / se_single_hot > 10, "pooling runs the other way, and far"
+
+
+def test_singleton_strata_contribute_the_binomial_term_and_nothing_more() -> None:
+    """Which is the positive reason for the singleton treatment: records the taxonomy cannot
+    place carry no family information, and that is exactly what a design effect of 1 says."""
+    singles = [(1 if i % 4 == 0 else 0, 1) for i in range(4_000)]
+    rate = sim.rate_with_interval(singles)
+    assert rate.design_effect is not None
+    assert math.isclose(rate.design_effect, 1.0, rel_tol=1e-3)
+    assert math.isclose(rate.rate or 0.0, 0.25)

@@ -123,8 +123,10 @@ class Taxonomy:
 
         Climbs rather than descends because the caller has one taxid and wants one answer.
         Returns None rather than a nearest-rank substitute: a cluster whose lineage carries
-        no family node is not a member of some other family, and D-140 keeps those as their
-        own stratum instead of attributing them.
+        no family node is not a member of some other family. D-140 keeps those as their own
+        stratum and D-141 says why: pooling them makes the interval a function of that one
+        stratum's own rate, measured at 10.9x the singleton standard error when the rates
+        differ.
         """
         node = taxid
         seen: set[int] = set()
