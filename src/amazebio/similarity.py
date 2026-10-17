@@ -34,6 +34,7 @@ import itertools
 import math
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
 #: The columns the pass asks `convertalis` for, in order. `fident` carries the identity the
 #: threshold reading needs; `qcov` and `tcov` are what make the three coverage readings
@@ -413,6 +414,114 @@ class TargetStream:
             "records": {str(m): self.records[m] for m in self.derive},
             "band_labels": list(band_labels()),
         }
+
+
+@dataclass(frozen=True)
+class CellKey:
+    """One unit of the pass: a shard, a sensitivity, a coverage-filtered search.
+
+    The pass is incremental because this is the atom. A cell costs roughly $6-17, writes its own
+    artefact, and is skipped if its artefact already exists — so the spend decision is taken
+    once per cell rather than once for the whole arm, and "carry on" costs nothing already paid.
+    """
+
+    shard: int
+    sensitivity: float
+    cov_mode: int
+
+    def slug(self) -> str:
+        """A stable key for the cell's artefact. Must not change once results exist."""
+        return f"shard{self.shard:02d}-s{self.sensitivity:g}-cov{self.cov_mode}"
+
+    @property
+    def readings(self) -> tuple[int, ...]:
+        return SEARCH_READINGS[self.cov_mode]
+
+
+@dataclass
+class CellResult:
+    """What one cell contributes to the aggregate, and nothing more.
+
+    Band counts per reading, plus per-family `(hits, records)` pairs for the interval. Both are
+    **additive across shards**, which is the property the whole incremental design rests on:
+    the shards are a hash partition of the sample, so no corpus record appears in two of them
+    and summing cannot double count. Summing across *sensitivities* would double count, and
+    `combine` refuses it.
+    """
+
+    key: CellKey
+    bands: dict[int, list[int]]
+    families: dict[int, list[tuple[int, int]]]
+    searched_clusters: int = 0
+    searched_residues: int = 0
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "shard": self.key.shard,
+            "sensitivity": self.key.sensitivity,
+            "cov_mode": self.key.cov_mode,
+            "slug": self.key.slug(),
+            "bands": {str(m): self.bands[m] for m in sorted(self.bands)},
+            "families": {
+                str(m): [list(p) for p in self.families[m]] for m in sorted(self.families)
+            },
+            "searched_clusters": self.searched_clusters,
+            "searched_residues": self.searched_residues,
+        }
+
+
+def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
+    """Aggregate completed cells into banded counts and rates, per sensitivity and reading.
+
+    Grouped by `(sensitivity, reading)` and summed over shards only. The denominator is the
+    clusters actually searched, never the corpus or the sample as designed: a run that has done
+    three shards of eight must report a rate over three shards, or the number is a fiction about
+    work not yet paid for.
+    """
+    seen: set[tuple[int, float, int]] = set()
+    groups: dict[tuple[float, int], dict[str, Any]] = {}
+    for cell in cells:
+        for mode in cell.bands:
+            token = (cell.key.shard, cell.key.sensitivity, mode)
+            if token in seen:
+                raise ValueError(
+                    f"shard {cell.key.shard} already contributed reading {mode} at "
+                    f"sensitivity {cell.key.sensitivity:g}; summing it twice would inflate "
+                    "every count"
+                )
+            seen.add(token)
+            slot = groups.setdefault(
+                (cell.key.sensitivity, mode),
+                {
+                    "bands": [0] * (len(IDENTITY_BAND_EDGES) - 1),
+                    "families": [],
+                    "shards": [],
+                    "searched_clusters": 0,
+                    "searched_residues": 0,
+                },
+            )
+            slot["bands"] = [a + b for a, b in zip(slot["bands"], cell.bands[mode], strict=True)]
+            slot["families"].extend(cell.families.get(mode, []))
+            slot["shards"].append(cell.key.shard)
+            slot["searched_clusters"] += cell.searched_clusters
+            slot["searched_residues"] += cell.searched_residues
+
+    out: dict[str, Any] = {"band_labels": list(band_labels()), "groups": []}
+    for (sensitivity, mode), slot in sorted(groups.items()):
+        rate = rate_with_interval(slot["families"])
+        out["groups"].append(
+            {
+                "sensitivity": sensitivity,
+                "reading": mode,
+                "shards": sorted(slot["shards"]),
+                "bands": slot["bands"],
+                "records": sum(slot["bands"]),
+                "searched_clusters": slot["searched_clusters"],
+                "searched_residues": slot["searched_residues"],
+                "rate": rate.to_dict(),
+            }
+        )
+    return out
 
 
 @dataclass(frozen=True)

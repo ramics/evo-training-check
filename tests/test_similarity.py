@@ -354,3 +354,77 @@ def test_a_threshold_inside_a_band_is_refused_not_interpolated() -> None:
     stream = sim.TargetStream().extend([sim.HitRow("s1", "recA", 0.9, 0.9, 0.9)]).close()
     with pytest.raises(ValueError, match="cannot be recovered"):
         stream.counts_at_or_above(1, 0.72)
+
+
+def _cell(
+    shard: int, s: float, mode: int, bands: list[int], fams: list[tuple[int, int]]
+) -> sim.CellResult:
+    return sim.CellResult(
+        key=sim.CellKey(shard=shard, sensitivity=s, cov_mode=mode),
+        bands={m: list(bands) for m in sim.SEARCH_READINGS[mode]},
+        families={m: list(fams) for m in sim.SEARCH_READINGS[mode]},
+        searched_clusters=1_000_000,
+        searched_residues=417_000_000,
+    )
+
+
+def test_cells_from_different_shards_sum_exactly() -> None:
+    """The property the incremental design rests on: shards are a disjoint hash partition, so
+    no corpus record is in two of them and counts add without double counting."""
+    cells = [
+        _cell(0, 5.7, 1, [10, 1, 2, 3, 4], [(1, 100), (0, 100)]),
+        _cell(1, 5.7, 1, [20, 2, 4, 6, 8], [(3, 100)]),
+    ]
+    out = sim.combine_cells(cells)
+    (g0, g1) = sorted(out["groups"], key=lambda g: g["reading"])
+    assert g1["bands"] == [30, 3, 6, 9, 12]
+    assert g1["shards"] == [0, 1]
+    assert g1["searched_clusters"] == 2_000_000
+    assert g1["rate"]["families"] == 3, "families accumulate across shards"
+
+
+def test_the_denominator_is_what_was_searched_not_what_was_planned() -> None:
+    """Three shards of eight must report a rate over three shards. Anything else is a claim
+    about work not yet paid for."""
+    out = sim.combine_cells([_cell(0, 5.7, 1, [1, 0, 0, 0, 0], [(1, 50)])])
+    g = out["groups"][0]
+    assert g["searched_clusters"] == 1_000_000
+    assert g["shards"] == [0]
+
+
+def test_the_same_shard_counted_twice_is_refused() -> None:
+    """A re-run that appends instead of replacing would inflate every band silently."""
+    cells = [_cell(0, 5.7, 1, [1, 1, 1, 1, 1], [(1, 10)])] * 2
+    with pytest.raises(ValueError, match="already contributed"):
+        sim.combine_cells(cells)
+
+
+def test_sensitivities_are_grouped_not_summed() -> None:
+    """Summing across sensitivities would double count the same records."""
+    out = sim.combine_cells(
+        [
+            _cell(0, 5.7, 1, [10, 0, 0, 0, 0], [(1, 100)]),
+            _cell(0, 7.5, 1, [12, 0, 0, 0, 0], [(1, 100)]),
+        ]
+    )
+    sens = sorted({g["sensitivity"] for g in out["groups"]})
+    assert sens == [5.7, 7.5]
+    for g in out["groups"]:
+        assert sum(g["bands"]) in (10, 12), "each sensitivity keeps its own count"
+
+
+def test_a_cell_slug_is_stable_and_distinct() -> None:
+    """It is an artefact key: once results exist under it, it must not change."""
+    assert sim.CellKey(0, 5.7, 1).slug() == "shard00-s5.7-cov1"
+    keys = {
+        sim.CellKey(s, sv, cm).slug()
+        for s in (0, 1)
+        for sv in sim.SENSITIVITIES
+        for cm in sim.SEARCH_READINGS
+    }
+    assert len(keys) == 2 * len(sim.SENSITIVITIES) * len(sim.SEARCH_READINGS)
+
+
+def test_a_cell_knows_which_readings_it_may_speak_for() -> None:
+    assert sim.CellKey(0, 5.7, 1).readings == (0, 1)
+    assert sim.CellKey(0, 5.7, 2).readings == (2,)
