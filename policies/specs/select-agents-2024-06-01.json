@@ -1,5 +1,5 @@
 {
-  "note": "The reading taken for every entry of the Select Agents and Toxins List as codified at 2024-06-01 (42 CFR 73.3, 73.4; 9 CFR 121.3; 7 CFR 331.3 \u2014 9 CFR 121.4 duplicates 42 CFR 73.4 and is dropped). Curation decides the taxon and the pinned 2023-04-01 NCBI taxonomy only validates it: name matching against names.dmp resolves several entries into the wrong kingdom. See DECISIONS.md D-134 for the mapping reading and D-135 for the version reading, and src/amazebio/selectagents.py for why each field exists.",
+  "note": "The reading taken for every entry of the Select Agents and Toxins List as codified at 2024-06-01 (42 CFR 73.3, 73.4; 9 CFR 121.3; 7 CFR 331.3 \u2014 9 CFR 121.4 duplicates 42 CFR 73.4 and is dropped). Curation decides the taxon and the pinned 2023-04-01 NCBI taxonomy only validates it: name matching against names.dmp resolves several entries into the wrong kingdom. See DECISIONS.md D-137 for the mapping reading and D-138 for the version reading, and src/amazebio/selectagents.py for why each field exists.",
   "list_as_of": "2024-06-01",
   "taxonomy": "taxdmp_2023-04-01.zip",
   "entries": [
@@ -154,7 +154,7 @@
         694009
       ],
       "descend": false,
-      "note": "The one entry where descent is refused. The pinned taxonomy has no 'SARS coronavirus' species: the containing node is 694009, 'Severe acute respiratory syndrome-related coronavirus', whose 222 children include SARS-CoV-2 (2697049). The regulation lists SARS-CoV and does not list SARS-CoV-2 \u2014 it regulates SARS-CoV/SARS-CoV-2 chimeras separately, which only makes sense if SARS-CoV-2 is not itself listed. Descending would therefore import the largest viral sequence space in UniProt on the strength of a node name, inflating the denylist and overstating what the filter should have removed. Taken as the named node without descent; the per-strain alternative is noted in D-134 and declined because it would miss SARS-CoV isolates absent from the 2023-04 dump."
+      "note": "The one entry where descent is refused. The pinned taxonomy has no 'SARS coronavirus' species: the containing node is 694009, 'Severe acute respiratory syndrome-related coronavirus', whose 222 children include SARS-CoV-2 (2697049). The regulation lists SARS-CoV and does not list SARS-CoV-2 \u2014 it regulates SARS-CoV/SARS-CoV-2 chimeras separately, which only makes sense if SARS-CoV-2 is not itself listed. Descending would therefore import the largest viral sequence space in UniProt on the strength of a node name, inflating the denylist and overstating what the filter should have removed. Taken as the named node without descent; the per-strain alternative is noted in D-137 and declined because it would miss SARS-CoV isolates absent from the 2023-04 dump."
     },
     {
       "entry": "SARS-CoV/SARS-CoV-2 chimeric viruses resulting from any deliberate manipulation of SARS-CoV-2 to incorporate nucleic acids coding for SARS-CoV virulence factors",
@@ -240,7 +240,7 @@
       "taxids": [
         11084
       ],
-      "note": "Listed with two subtypes restricting it. The pinned taxonomy has no node for either subtype \u2014 it carries a Western subtype node and strain nodes \u2014 so the list's scope cannot be represented exactly in either direction: the species is broader than the list because it includes the unlisted Western subtype, and the subtypes themselves are unrepresentable. Taken as the species, which overstates the denylist here rather than understating it, and recorded in D-134 as a known over-inclusion."
+      "note": "Listed with two subtypes restricting it. The pinned taxonomy has no node for either subtype \u2014 it carries a Western subtype node and strain nodes \u2014 so the list's scope cannot be represented exactly in either direction: the species is broader than the list because it includes the unlisted Western subtype, and the subtypes themselves are unrepresentable. Taken as the species, which overstates the denylist here rather than understating it, and recorded in D-137 as a known over-inclusion."
     },
     {
       "entry": "Far Eastern subtype",
@@ -311,7 +311,7 @@
       "taxids": [
         235
       ],
-      "note": "Resolves directly. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-135)."
+      "note": "Resolves directly. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-138)."
     },
     {
       "entry": "Brucella melitensis",
@@ -319,7 +319,7 @@
       "taxids": [
         29459
       ],
-      "note": "Resolves directly. Delisted by the December 2024 amendment (D-135)."
+      "note": "Resolves directly. Delisted by the December 2024 amendment (D-138)."
     },
     {
       "entry": "Brucella suis",
@@ -327,7 +327,7 @@
       "taxids": [
         29461
       ],
-      "note": "Resolves directly. Delisted by the December 2024 amendment (D-135)."
+      "note": "Resolves directly. Delisted by the December 2024 amendment (D-138)."
     },
     {
       "entry": "Burkholderia mallei",
@@ -383,7 +383,7 @@
       "taxids": [
         40050
       ],
-      "note": "Resolves directly. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-135)."
+      "note": "Resolves directly. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-138)."
     },
     {
       "entry": "African swine fever virus",
@@ -399,7 +399,7 @@
       "taxids": [
         11320
       ],
-      "note": "Not a taxon as worded. The name resolves to Influenza A virus (11320) as an equivalent name, and descending it takes in tens of thousands of strain nodes including human seasonal influenza, which the regulation does not list. The regulation's own scope is a virulence criterion on the isolate \u2014 a sequence-level property with no taxonomic expression at all, which is a \u00a7A0 under-specification finding in the list rather than in ESM3. Taken as Influenza A virus with descent, the widest of the three readings, because for an audit of a safeguard an over-inclusive denylist overstates what should have been removed rather than understating it. D-134 records the two narrower readings declined."
+      "note": "Not a taxon as worded. The name resolves to Influenza A virus (11320) as an equivalent name, and descending it takes in tens of thousands of strain nodes including human seasonal influenza, which the regulation does not list. The regulation's own scope is a virulence criterion on the isolate \u2014 a sequence-level property with no taxonomic expression at all, which is a \u00a7A0 under-specification finding in the list rather than in ESM3. Taken as Influenza A virus with descent, the widest of the three readings, because for an audit of a safeguard an over-inclusive denylist overstates what should have been removed rather than understating it. D-137 records the two narrower readings declined."
     },
     {
       "entry": "Classical swine fever virus",
@@ -439,7 +439,7 @@
       "taxids": [
         2095
       ],
-      "note": "The regulation restricts this to subspecies capripneumoniae; the species is taken, which over-includes the other subspecies. Recorded in D-134 as a known over-inclusion rather than resolved, because the restriction is in a footnote the parser prunes by design."
+      "note": "The regulation restricts this to subspecies capripneumoniae; the species is taken, which over-includes the other subspecies. Recorded in D-137 as a known over-inclusion rather than resolved, because the restriction is in a footnote the parser prunes by design."
     },
     {
       "entry": "Mycoplasma mycoides",
@@ -503,7 +503,7 @@
       "taxids": [
         886948
       ],
-      "note": "Resolves once the parenthetical is stripped. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-135)."
+      "note": "Resolves once the parenthetical is stripped. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-138)."
     },
     {
       "entry": "Ralstonia solanacearum",

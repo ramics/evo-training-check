@@ -3,7 +3,7 @@
 ESM3-open's narrow denylist is described in one sentence — "all sequences in UniProt
 belonging to organisms on the Select Agents and Toxins List" — and that sentence hides two
 questions the source does not answer. *Which version* of the list, and *which taxa* its
-entries name. Both are readings, both are recorded in DECISIONS.md, and this module is where
+entries name. Both are readings, both are recorded in DECISIONS.md (D-137 for the mapping, D-138 for the version), and this module is where
 they are executed rather than assumed.
 
 **Which version: the list is the regulation, not the webpage.** The model card links
