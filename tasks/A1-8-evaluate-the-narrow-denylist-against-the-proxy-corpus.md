@@ -2,13 +2,13 @@
 id: A1.8
 title: Evaluate the narrow denylist against the ESM3-open proxy corpus
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
 design_ref: "§A0, §A1"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A1.8 — Evaluate the narrow denylist against the ESM3-open proxy corpus
@@ -123,3 +123,31 @@ relaxed.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Claimed — 2026-10-17
+
+`in-progress`, owner `claude`. **Branch `ccr-51fc983f-tyojje`** carries the work; `main` has
+this file, the board and the decisions.
+
+**The depth question is open and is the project owner's.** D-108 fixed this arm as exhaustive
+against every corpus record, and the owner has asked for a proof-of-concept returning
+preliminary results instead. That reverses a settled commitment, so it is a decision entry and
+not a judgement call made mid-task — the question is being put with its priced options, and
+whichever way it goes is recorded before the pass runs. Nothing below Stage 2 depends on the
+answer.
+
+**Three things are needed either way, and are being built now:**
+
+1. The two readings this task owns, each its own decision entry — how the published organism
+   list's names map to NCBI taxonomy ids, and which version of that list was in force when the
+   filter ran.
+2. The narrow seed-set builder, reusing `src/amazebio/seeds.py` rather than a second copy. The
+   narrow list is 147K non-viral plus 40K viral (D-106), so the existing viral seed FASTA covers
+   at most a fifth of it and a fresh taxid-set pass is unavoidable.
+3. One in-region full-tier pass to build that seed set and reconcile it against the published
+   187K. About 52 minutes and well under a dollar; the depth decision does not change it,
+   because a seed set reconstructed from a corpus sample cannot be reconciled against a
+   published total.
+
+**Waiting on the project owner:** the depth of the scoring pass — see the question put
+2026-10-17.
