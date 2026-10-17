@@ -144,6 +144,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --query-fractions {query_fractions} --shard-points {shard_points} \
     --cap-query-denominator {cap_query_denominator} \
     --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
+    {sample_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
     --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
@@ -254,6 +255,17 @@ def main(argv: list[str] | None = None) -> int:
         "working. Off by default: doing it unconditionally destroyed a healthy run once.",
     )
     ap.add_argument(
+        "--stage-sample",
+        action="store_true",
+        help="stage the sample after the corpus pass so later runs skip it (D-112). The "
+        "staging happens before the searches, so a run cut short still leaves the sample",
+    )
+    ap.add_argument(
+        "--sample-from",
+        metavar="S3_URI",
+        help="load a staged sample instead of running the ~52-minute corpus pass (D-113)",
+    )
+    ap.add_argument(
         "--measure",
         choices=("curve", "caps"),
         default="curve",
@@ -338,6 +350,7 @@ def main(argv: list[str] | None = None) -> int:
         cap_query_denominator=args.cap_query_denominator,
         cap_shard_points=args.cap_shard_points,
         cap_fractions=args.cap_fractions,
+        sample_flags=_sample_flags(args),
         sample_rate=args.sample_rate,
         buckets=args.buckets,
         strict_buckets=args.strict_buckets,
@@ -534,6 +547,22 @@ def _summarise(done: list[dict[str, Any]]) -> str:
         f" @ {d['residues'] / 1e9:.2f} Gres"
         for d in done
     )
+
+
+def _sample_flags(args: Any) -> str:
+    """The staging flags for `UserData`, or nothing.
+
+    Built here rather than interpolated inline so that the mutually exclusive pair cannot both
+    reach the instance: there is one shot at `UserData` and no way to ask the instance what it
+    thought it was doing.
+    """
+    if args.stage_sample and args.sample_from:
+        raise SystemExit("--stage-sample builds a sample; --sample-from loads one. Pick one.")
+    if args.sample_from:
+        if not args.sample_from.startswith("s3://"):
+            raise SystemExit("--sample-from takes an s3:// uri pointing at a staged manifest")
+        return f"--sample-from {args.sample_from}"
+    return "--stage-sample" if args.stage_sample else ""
 
 
 def spot_refusal(text: str) -> str | None:

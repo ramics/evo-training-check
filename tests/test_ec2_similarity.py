@@ -27,6 +27,8 @@ import pathlib
 import sys
 from typing import Any
 
+import pytest
+
 _PATH = pathlib.Path(__file__).resolve().parent.parent / "tools" / "ec2_similarity.py"
 _spec = importlib.util.spec_from_file_location("ec2_similarity_under_test", _PATH)
 tool = importlib.util.module_from_spec(_spec)
@@ -161,6 +163,11 @@ class _Args:
         self.hard_stop_minutes = hard_stop_minutes
 
 
+class _Flags:
+    def __init__(self, stage_sample: bool = False, sample_from: str | None = None) -> None:
+        self.stage_sample, self.sample_from = stage_sample, sample_from
+
+
 def test_a_launching_watcher_names_the_timer_it_armed() -> None:
     msg = tool._shutdown_bound(_Args(260))
     assert "260 min" in msg and "armed by this launch" in msg
@@ -180,3 +187,22 @@ def test_the_launch_still_arms_a_timer_when_none_is_given() -> None:
     assert isinstance(tool.DEFAULT_HARD_STOP_MINUTES, int)
     assert tool.DEFAULT_HARD_STOP_MINUTES > 0
     assert "{hard_stop_minutes}" in tool.USER_DATA
+
+
+def test_staging_flags_reach_the_instance() -> None:
+    assert tool._sample_flags(_Flags(stage_sample=True)) == "--stage-sample"
+    assert tool._sample_flags(_Flags(sample_from="s3://b/k/manifest.json")) == (
+        "--sample-from s3://b/k/manifest.json"
+    )
+    assert tool._sample_flags(_Flags()) == ""
+
+
+def test_the_two_staging_flags_cannot_both_reach_the_instance() -> None:
+    """One shot at UserData, and no way to ask the instance what it thought it was doing."""
+    with pytest.raises(SystemExit, match="Pick one"):
+        tool._sample_flags(_Flags(stage_sample=True, sample_from="s3://b/k/manifest.json"))
+
+
+def test_a_non_s3_sample_uri_is_refused_before_launch() -> None:
+    with pytest.raises(SystemExit, match="s3:// uri"):
+        tool._sample_flags(_Flags(sample_from="/local/manifest.json"))
