@@ -267,3 +267,106 @@ def test_check_inputs_does_not_touch_the_corpus(tmp_path: Path) -> None:
     """It exists to fail in a second on the instance rather than an hour in."""
     assert tool.main(["--taxdump", str(TAXDUMP), "--check-inputs"]) == 0
     assert not list(tmp_path.glob("*.faa"))
+
+
+@needs_taxonomy
+def test_the_artefact_records_real_throughput(tmp_path: Path) -> None:
+    """A zero here is what a broken heartbeat looks like after the fact.
+
+    The first version asked the stream for `tell()` with a zero fallback. `GunzipStream` has
+    no `tell` — it exposes `read_bytes` — so every progress line printed `0.0 GB` for an hour
+    and the artefact recorded no throughput at all. Asserting the fields exist would have
+    passed; asserting they are non-zero is what catches it.
+    """
+    corpus = _mini_corpus(tmp_path / "mini.xml.gz")
+    outdir = tmp_path / "out"
+    tool.main(
+        [
+            "--taxdump",
+            str(TAXDUMP),
+            "--source",
+            str(corpus),
+            "--outdir",
+            str(outdir),
+            "--workers",
+            "1",
+            "--allow-dirty",
+        ]
+    )
+    payload = json.loads((outdir / "seed-counts-2023_02-uniref100.json").read_text())
+    assert payload["decompressed_bytes_read"] > 0
+    assert payload["compressed_bytes_read"] > 0
+    assert payload["decompressed_bytes_per_second"]
+
+
+def test_the_heartbeat_counts_what_it_yields() -> None:
+    """The progress count comes from the chunks, not from a method the stream may not have."""
+
+    class Stream:
+        """Deliberately has no `tell`, exactly like GunzipStream."""
+
+        def __init__(self) -> None:
+            self.left = 3
+
+        def read(self, size: int) -> bytes:
+            if self.left <= 0:
+                return b""
+            self.left -= 1
+            return b"x" * size
+
+    assert sum(len(c) for c in tool._chunks(Stream(), 0, 0)) == 3 * tool.CHUNK
+
+
+def test_the_byte_limit_actually_stops_the_read() -> None:
+    """The zero fallback silently disabled this, and a one-chunk fixture hid it."""
+
+    class Endless:
+        def read(self, size: int) -> bytes:
+            return b"x" * size
+
+    produced = sum(len(c) for c in tool._chunks(Endless(), 100, 0))
+    assert produced == 100
+
+
+def test_the_heartbeat_overwrites_one_key_rather_than_accumulating() -> None:
+    """The corpus bucket has no DeleteObject, so a key per beat is permanent litter.
+
+    A1.3 left four objects behind that cannot be removed. Overwriting a single key destroys
+    only the previous beat, which is all a heartbeat is for.
+    """
+    import argparse
+
+    puts: list[str] = []
+
+    class FakeS3:
+        def put_object(self, **kw: object) -> None:
+            puts.append(str(kw["Key"]))
+
+    beat = tool._heartbeat(
+        FakeS3(), "bucket", "corpora", argparse.Namespace(tier="uniref100", release="2023_02")
+    )
+    for n in range(5):
+        beat({"clusters": n})
+    assert len(set(puts)) == 1, f"heartbeat wrote {len(set(puts))} distinct keys"
+    assert "a1-8" in puts[0]
+
+
+def test_a_failing_heartbeat_does_not_take_the_pass_down() -> None:
+    """Losing the diagnosis is bad; losing an hour of corpus reading is worse."""
+    import argparse
+
+    class Broken:
+        def put_object(self, **kw: object) -> None:
+            raise RuntimeError("no")
+
+    beat = tool._heartbeat(
+        Broken(), "bucket", "corpora", argparse.Namespace(tier="uniref100", release="2023_02")
+    )
+    beat({"clusters": 1})  # must not raise
+
+
+def test_a_local_run_needs_no_heartbeat_client() -> None:
+    import argparse
+
+    beat = tool._heartbeat(None, "", "", argparse.Namespace(tier="uniref100", release="2023_02"))
+    beat({"clusters": 1})

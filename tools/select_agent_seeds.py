@@ -216,25 +216,70 @@ def _chunks(stream: Any, limit: int, progress_seconds: float) -> Any:
 
     A step with no heartbeat is a step whose silence means nothing at all (AGENTS.md): this
     pass runs for about an hour on a machine with no shell and a best-effort console.
+
+    The count is accumulated here, from the chunks actually yielded. An earlier version asked
+    the stream with `getattr(stream, "tell", ...)` and a zero fallback — and `GunzipStream` has
+    no `tell`, it exposes `read_bytes`. So every heartbeat printed `0.0 GB` forever, which is
+    worse than printing nothing: a heartbeat that always reads zero cannot distinguish a wedged
+    pass from a working one, and that reading cost four hours once already (D-127). The same
+    fallback also silently disabled `--limit-bytes`, and the local test passed anyway because a
+    one-chunk stream ends on its own before any limit matters.
     """
+    read = 0
     last = time.monotonic()
     started = last
     while True:
-        chunk = stream.read(CHUNK)
+        want = CHUNK if not limit else min(CHUNK, limit - read)
+        if want <= 0:
+            print(f"    stopping at --limit-bytes {limit:,}", flush=True)
+            return
+        chunk = stream.read(want)
         if not chunk:
             return
+        read += len(chunk)
         yield chunk
         now = time.monotonic()
         if progress_seconds and now - last >= progress_seconds:
-            read = getattr(stream, "tell", lambda: 0)() or 0
-            rate = read / (now - started) if now > started else 0
+            rate = read / max(now - started, 1e-9)
             print(
-                f"  {read / 1e9:.1f} GB decompressed, {rate / 1e6:.1f} MB/s",
+                f"    {read / 1e9:.2f} GB decompressed, {rate / 1e6:.1f} MB/s",
                 flush=True,
             )
             last = now
-        if limit and (getattr(stream, "tell", lambda: 0)() or 0) >= limit:
-            return
+
+
+def _heartbeat(client: Any, bucket: str, prefix: str, args: argparse.Namespace) -> Any:
+    """Return a function that publishes progress to object storage.
+
+    AGENTS.md requires this of anything running longer than a few minutes, and the first
+    attempt at this pass is why: it heartbeat only to the serial console, the console went
+    quiet after four minutes, and with no second channel there was no way to tell a wedged
+    pass from a working one — so a possibly healthy run was terminated to regain a diagnosis.
+    A console is best-effort and has no guaranteed freshness; an object either appears or does
+    not.
+
+    **One key, overwritten.** The corpus bucket has no `DeleteObject`, so an interval that
+    wrote a new key each beat would leave dozens of permanent objects per run — A1.3 left four
+    behind that cannot be removed. Overwriting a single key destroys only the previous beat,
+    which is exactly what a heartbeat is for, and keeps the permanent footprint at one object.
+    """
+    if client is None:
+        return lambda _payload: None
+    key = f"{prefix}/heartbeat/a1-8/{args.tier}-{args.release}.json"
+    started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    def publish(payload: dict[str, Any]) -> None:
+        body = dict(payload)
+        body["run_started_at"] = started
+        body["written_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        try:
+            client.put_object(Bucket=bucket, Key=key, Body=json.dumps(body, indent=2).encode())
+        except Exception as exc:
+            # A heartbeat that fails must not take the pass down with it: losing the
+            # diagnosis is bad, losing an hour of reading is worse.
+            print(f"    heartbeat failed: {type(exc).__name__}: {exc}", flush=True)
+
+    return publish
 
 
 def _open_tier(args: argparse.Namespace, client: Any, bucket: str, prefix: str) -> tuple[Any, str]:
@@ -324,6 +369,13 @@ def main(argv: list[str] | None = None) -> int:
         "discover it, and a manifest without it cannot be traced to the code behind it",
     )
     ap.add_argument("--progress-seconds", type=float, default=120.0)
+    ap.add_argument(
+        "--heartbeat-seconds",
+        type=float,
+        default=120.0,
+        help="how often to publish progress to object storage. A step with no "
+        "heartbeat is a step whose silence means nothing (default: %(default)s)",
+    )
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) - 1))
     ap.add_argument("--batch-bytes", type=int, default=8 << 20)
     args = ap.parse_args(argv)
@@ -429,6 +481,8 @@ def _execute(
         # survive to be reaped later, which `--limit-bytes` turns from a tidiness point into a
         # real leak — and on an instance with no shell, a leaked S3 reader is a connection
         # nobody can see holding open.
+        beat = _heartbeat(client, bucket, prefix, args)
+        last_beat = time.monotonic()
         try:
             with open(fasta_path, "wb") as fasta:
                 for batch in seeds.scan_parallel(
@@ -440,9 +494,24 @@ def _execute(
                     counts.merge(batch.counts)
                     for cluster_id, sequence in batch.seeds:
                         seeds.write_fasta(fasta, cluster_id, sequence)
+                    now = time.monotonic()
+                    if now - last_beat >= args.heartbeat_seconds:
+                        beat(
+                            {
+                                "elapsed_seconds": round(now - started, 1),
+                                "decompressed_bytes": getattr(stream, "read_bytes", 0),
+                                "compressed_bytes": getattr(stream, "compressed_bytes", 0),
+                                "clusters": counts.clusters,
+                                "seeded": counts.seeded,
+                            }
+                        )
+                        last_beat = now
             elapsed = time.monotonic() - started
-            compressed = getattr(reader, "tell", lambda: 0)() or 0
-            decompressed = getattr(stream, "tell", lambda: 0)() or 0
+            # `GunzipStream` counts both itself; it has no `tell`, and asking for one with a
+            # zero fallback wrote a throughput of nought into the artefact while looking
+            # perfectly reasonable in the source.
+            compressed = getattr(stream, "compressed_bytes", 0)
+            decompressed = getattr(stream, "read_bytes", 0)
         finally:
             for handle in (stream, reader):
                 closer = getattr(handle, "close", None)
