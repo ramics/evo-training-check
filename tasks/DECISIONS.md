@@ -5684,3 +5684,221 @@ decision has a threshold or parameter in it, the number goes in the entry.
   retrievable. Asking the project owner to retrieve the snapshot — the escalation AGENTS.md
   requires when a source is blocked for an agent, and not needed here: the blocked source was the
   inferior one, and the better source was never blocked.
+
+### D-139 — The seed machinery's counters are renamed denylist-neutral, and the serialised keys accept both spellings because the staged manifest is permanent
+- **Date:** 2026-10-17
+- **Task:** A1.8 (changes code A1.6 owns)
+- **Context:** `src/amazebio/seeds.py` was written for A1.6's viral arm and its generality was
+  accidental: `ScanConfig.viral`, `SeedCounts.viral_seeded`, `viral_residues`,
+  `representative_not_viral`, and `UniRefEntry.is_viral_seeded` all take or count an arbitrary
+  taxid set, with nothing viral in the logic. A1.8 needs exactly that machinery for the
+  select-agent denylist (D-137), so the names would have described the wrong thing for the second
+  arm — and D-126 stages A1.8's per-record manifest permanently in a bucket with no
+  `DeleteObject`, so a mislabelled field is a mislabelled field for good.
+- **Decision (project owner): rename, rather than wrap the call or let it ride.**
+
+  | was | is |
+  |---|---|
+  | `ScanConfig.viral` | `denylist_taxids` |
+  | `SeedCounts.viral_seeded` | `seeded` |
+  | `SeedCounts.viral_residues` | `seeded_residues` |
+  | `SeedCounts.representative_not_viral` | `representative_not_seeded` |
+  | `UniRefEntry.is_viral_seeded` | `is_seeded` |
+  | `UniRefEntry.representative_is_viral` | `representative_is_seeded` |
+
+  `to_dict`'s keys follow, so `viral_share` becomes `seeded_share` and
+  `representative_not_viral_share` becomes `representative_not_seeded_share`.
+- **What is deliberately *not* renamed, because "viral" is sometimes the correct word.** The
+  rename covers the machinery that is generic over which denylist is in play, and nothing else.
+  `VIRAL_ROOT` stays — it is the Viruses superkingdom. Every `viral` in `misassignment.py`,
+  `ictv.py`, `genomad.py` and `survival.py` stays: those are about viruses, not about denylists,
+  and a blanket rename would have been 270 occurrences across 54 files instead of the 11
+  identifiers that were actually mislabelled. `ShardManifest.viral_seeded_clusters` also stays,
+  with a comment recording why: it is not a generic counter but a fact about *one* staged sample,
+  which the broad arm drew with viral seeds, and A1.8 reads that sample rather than drawing its
+  own.
+- **The serialisation boundary, which is the part with a permanence consequence.** The staged
+  2.5% sample manifest (D-122) carries `viral_seeded` inside its `seed_counts`, it is the input
+  A1.8's pass reads under D-133, and it cannot be rewritten. `ShardManifest.from_json` refuses
+  any manifest whose `version` it does not recognise — deliberately, so that it never guesses
+  which fields still mean what they did — so **bumping `MANIFEST_VERSION` would refuse exactly
+  the manifest this arm needs.** The version therefore stays at 1 and
+  `check_self_consistent` accepts either spelling, with tests for the legacy key, the new key,
+  and a self-contradicting manifest under both. Accepting two spellings is a cost; refusing a
+  permanent artefact the pass depends on is a larger one.
+- **Consequence:** A1.6's call sites in `tools/esm3_seeds.py` and `tools/esm3_calibrate.py` are
+  updated in the same commit, so nothing is left half-renamed for the other track to trip over.
+  A1.6 is still `in-progress`, so whoever resumes it should expect these names rather than the
+  ones its handoff notes quote; the counters mean exactly what they meant, and
+  `tools/esm3_seeds.py` still prints "viral-seeded" because for that arm it is viral. Any future
+  arm gets correctly-labelled provenance without a third naming decision.
+- **Rejected:** A narrow-arm wrapper relabelling on output — zero risk to the in-progress broad
+  arm, and it leaves a module whose internal names misdescribe both arms plus a relabelling step
+  a later arm can get wrong. Passing the set through unchanged and explaining it in the write-up
+  — smallest diff, and it writes a misleading field name into a staged object that cannot be
+  withdrawn. A manifest version bump alongside the rename — the tidy-looking option, and
+  `from_json`'s own refusal semantics turn it into a broken pipeline.
+
+### D-140 — The interval's sampling unit is taxonomic family; published family counts stay with A2.1's registries
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-109 committed the broad arm's rates to an interval estimated from
+  between-family variance rather than a binomial one, because viral material is clumped by
+  family and the binomial error at this sample size is under 0.01% — a confident-looking number
+  for the wrong quantity. `rate_with_interval` has wanted one `(hits, records)` pair per family
+  since it was written, and **nothing in the pass tooling produces a family for a UniRef
+  cluster**: `grep -n famil tools/esm3_calibrate.py` returns nothing. So the interval D-109
+  promised had no sampling unit, and band 1 could not have reported one.
+- **Decision (project owner): split the label by what it is used for**, in the manner D-113
+  split localisation from identity in A2.4.
+  - **The variance unit is the taxonomic family**, from the taxonomy already pinned for the
+    seed set — `taxdmp_2023-04-01`, contemporaneous with UniRef 2023_02 rather than current.
+    A cluster's family is its `TaxID` climbed to family rank. Zero extra compute: the shard
+    FASTA carries the taxid and the taxonomy is already a pinned input.
+  - **Published family counts stay with A2.1's pinned profile registries**, which is what
+    D-022's frozen detection schema requires and what D-125's reporting rule means by homology
+    class. A1.6 does not publish a family-level survival claim from a taxonomic label.
+- **Why this is not the thing §A2 forbids.** §A2 says the audit must not *rest* on taxonomy, and
+  A4.2 measured that tool failing to place 36% of the genomes the denylist targets. The use here
+  is strictly the sampling unit of a variance estimate: it affects how wide the interval is, not
+  which records were found, not the rate, and not any statement about which families survived.
+  Every detection and every published family count still comes from a curated registry. The
+  distinction is recorded because it is exactly the kind of use that looks like the forbidden one
+  from a distance.
+- **An unplaced cluster is its own stratum, not attributed.** `ancestor_at_rank` returns `None`
+  rather than substituting the nearest rank, because a lineage carrying no family node is not a
+  member of some other family. Given A4.2's 36%, the unplaced set is expected to be large, and
+  pooling it into one pseudo-family would understate between-family variance — the direction that
+  makes the interval look tighter than the evidence supports. Each realised stratum is reported
+  with the rate, as D-109 already requires of the family count.
+- **Rejected:** Registry families for the interval as well — schema-consistent end to end and
+  directly comparable with A2.1 and A2.4, but it adds a profile search over the hit set whose cost
+  is unmeasured, which would stop band 1 being the one-run job that makes it worth running first.
+  Revisit it if the realised stratum count turns out to be the binding constraint. Taxonomic
+  families for the published counts too — cheapest, and it would put the weakest label in Phase A
+  underneath a headline claim, which §A2 and A4.2 both refuse.
+- **Consequence:** the interval's unit is a *reading* of the corpus rather than a measurement of
+  it, so the write-up states which label produced the interval and which produced the family
+  counts. The same split is available to A1.8, whose arm has the same gap, and it is not assumed
+  there: that arm takes its own entry if it wants it.
+
+### D-141 — Correction to D-140: pooling the unplaced clusters does not understate the interval, it destabilises it
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-140 kept each unplaced cluster as its own stratum and justified it by claiming
+  that pooling them into one pseudo-family "would understate between-family variance — the
+  direction that makes the interval look tighter than the evidence supports". That reasoning was
+  asserted, not measured. Measuring it refutes it as a general claim.
+- **What the estimator actually does.** Against 64,000 records in 640 clumped families plus
+  36,000 unplaced — A4.2's 36% unplaced fraction, which is why the magnitude matters:
+  - unplaced set's hit rate **equal** to the overall rate: pooled standard error is **0.998x**
+    the singleton one. D-140's direction, and negligible.
+  - unplaced set's hit rate **different** from the overall rate (0.5 against 0.1): pooled standard
+    error is **10.9x** the singleton one.
+
+  The mechanism is visible in the formula. A pooled stratum contributes `(A - r*B)^2` for its own
+  totals, which is **zero** when its rate happens to equal the overall rate and enormous when it
+  does not. So pooling does not bias the interval in a direction; it makes the interval a function
+  of one stratum's own rate, with a third of the data behind it.
+- **Decision:** the singleton treatment stands, and **its justification is replaced**. Each
+  unplaced cluster is its own stratum because that is the only treatment whose interval is stable
+  against a quantity the audit has not measured — the hit rate of the records the taxonomy cannot
+  place. Singletons contribute the binomial term for that portion, which is the honest statement
+  that those records carry no family information, rather than a variance estimate driven by
+  whether their rate coincides with the pooled one.
+- **What does not change.** The split in D-140: taxonomic family for the variance unit, A2.1's
+  registries for every published family count. `ancestor_at_rank` returning `None` rather than a
+  nearest-rank substitute. The realised stratum count shipping with every rate.
+- **Rejected:** Letting D-140's sentence stand because the implementation it justified is the one
+  we keep. A reader checking the reasoning would find it false and have no way to tell whether the
+  conclusion survived it, and §7's adversarial reader is the one who checks. Pooling after all —
+  refuted above.
+- **Consequence:** the write-up reports the realised stratum count **and the unplaced fraction**,
+  because with singletons the design effect is diluted by exactly that fraction and a reader needs
+  it to interpret the interval. One general lesson worth carrying past this entry: both of D-140's
+  variance claims were checkable in about a minute, and the one that was asserted was wrong by a
+  factor of eleven in the opposite direction.
+
+### D-142 — The staged sample cannot describe its own strata, so band 1 owes one corpus pass; the cluster's family is its representative's
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-140 made taxonomic family the interval's sampling unit and priced it at zero
+  extra compute, on the reasoning that "the shard FASTA carries the taxid and the taxonomy is
+  already a pinned input". The first half is false. `seeds.write_fasta` writes a bare cluster id
+  with no description, deliberately — MMseqs2 keys results on the first whitespace-delimited
+  token, so anything after it is carried through the whole pipeline for nothing — and the staged
+  2.5% sample (D-122) was written by it. **The staged sample does not carry taxids.**
+
+  It cannot be recovered afterwards from the hit table either, and this is the part worth being
+  precise about: the interval's denominator is the records *searched* per stratum, not the records
+  that matched, so it needs a family for every sampled cluster including every miss. The hit table
+  contains no misses by construction. Looking up only the hit targets would give a numerator with
+  no denominator.
+- **Decision, three parts.**
+  1. **The strata travel in a sidecar.** The corpus pass writes one `cluster_id\ttaxid` row per
+     sampled cluster, per shard, beside the FASTA. A sample staged from here is self-describing
+     and owes nothing later. The format states an unplaced cluster explicitly rather than omitting
+     it, because an absent row and a row saying "no taxid" are different claims and only one of
+     them survives a truncated file; and a malformed row raises rather than being skipped, since a
+     row silently dropped is a record silently removed from the denominator, which moves the rate
+     **up**.
+  2. **A cluster's family is its representative's**, not a union over its members. A union would
+     put one cluster in several families and break the partition the ratio estimator needs — a
+     record in two strata is counted twice in the denominator, which `FamilyIndex.build` now
+     refuses outright. The cost of the choice is already measured rather than argued: D-092 put
+     the representative-versus-member gap at 1.06% of viral-seeded clusters on this tier, and that
+     figure travels with the interval as it does with the seed count.
+  3. **Band 1 owes one corpus pass**, about 52 minutes and roughly $0.20 on spot, to produce the
+     sidecar for the already-staged sample. The selection is deterministic — `bucket_of` on the
+     cluster id at the same rate and bucket count — so the pass reproduces exactly the clusters
+     already staged, and the sidecar's per-shard row count is checked against the staged shard's
+     record count before any rate is computed. D-122's "no new corpus pass" no longer holds for
+     this arm, and saying so is cheaper than discovering it at the head of the band.
+- **What this does to D-140's costing.** "Zero extra compute" becomes one 52-minute pass, once,
+  shared by every band and by A1.8 if it takes the same split. Band 1 goes from about $0.50 to
+  about $0.70 and from one launch to two. Neither changes the design, and D-134's figures are
+  otherwise unaffected.
+- **Rejected:** Putting the taxid in the FASTA header — it would be carried through every search,
+  every hit table and every sort for the whole pass, to be used once at the end, and it would
+  invalidate the staged sample's checksums for no gain. Re-staging the sample with taxids — a
+  fresh corpus pass *and* a fresh staging into a bucket that cannot delete, where a sidecar costs
+  the pass alone. Taking the family from the member taxids — breaks the partition, as above.
+  Deriving strata for the hit targets only — gives a numerator with no denominator, as above.
+- **Consequence:** the sidecar is a new input to the rate, so it is pinned and checksummed like
+  any other, and the write-up states that the interval's strata come from a sidecar built by a
+  later pass than the sample it describes. A1.8 inherits the same gap and the same fix if it takes
+  D-140's split; it is not assumed there.
+
+### D-143 — A run that read a limited sample publishes no survival figure at all
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** `tools/detect_proviruses.py` gained a `--limit` flag for exercising the path
+  cheaply. Its first end-to-end run, `--limit 1 --rate 1.0` over Evo 1's GTDB, finished cleanly
+  and wrote three tables reporting **`estimate_kind: population`, 0 of 1,719 Pfam viral families,
+  Wilson interval [0, 0.0022]**. Every number in that is arithmetically correct. It was computed
+  from **one genome and 25,792 bases**.
+  The mechanism is ordinary and worth naming: `estimate_kind` is derived from the sampling rate,
+  `--limit` does not change the rate, and the fact that the run stopped early lived in a
+  `limited: true` field on the source row where nothing computing the estimate could see it. The
+  exit code was 0 and the run looked successful; only reading the artefact showed it.
+- **Decision:** A run with `--limit` prints its counts and **writes no table**, only the
+  `run.json` that records what was done. The guard sits before the write, and a test pins that
+  ordering structurally rather than by behaviour, because the failure is one of sequence.
+  `--limit` is documented as exercising the path, not as a small pass.
+- **Rejected:** Deriving a realized rate from the limited run and reporting a `lower_bound`.
+  There is no honest realized rate: the population of the component is unknown — A1.4 does not
+  enumerate GTDB — so the denominator of "one genome out of how many" does not exist, and an
+  invented one would be a worse artefact than none.
+  Keeping the table and adding a caveat to `notes`. `AGENTS.md` is explicit that a caveat at the
+  end of a long run is not an ask and arrives after the damage; the same applies to a caveat
+  beside a number that should not exist. A figure that must not be quoted should not be written.
+  Removing `--limit`. Exercising the whole path against the real corpus for pennies is how this
+  fault was found in the first place, and the probe is worth keeping — it just must not
+  masquerade as a result.
+- **Consequence:** The null this task is most likely to report — no viral families surviving in
+  sampled bacterial genomes — can no longer be manufactured by a run that read almost nothing.
+  `DESIGN.md` §2 makes the null publishable and `AGENTS.md` forbids designing the pipeline so a
+  null is harder to see; this is the mirror of that rule, which the same sentence implies and
+  which is easier to break: a null must not be *easier* to produce than it is to earn.
+  The general lesson is the cheap one: a clean exit code and a plausible-looking table are not a
+  verified run. This was found by reading the artefact, not by reading the log.

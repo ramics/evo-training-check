@@ -64,10 +64,15 @@ D-019 and D-020.
 - **Qualify every Evo claim by the verdicts above**, and state plainly that the audited procedure
   is Evo 1's while one of the two audited outputs is Evo 2's.
 
-## State — 2026-10-15
+## State — 2026-10-15, pointer corrected 2026-10-17
 
-`review`, on branch `ccr-2e82b91e-hou4gf`, open as **PR #8** — pushed and green, **not merged
-into `main`**, so the files named here are absent from a `main` checkout.
+`review`. **The work merged to `main` in PR #8 and PR #9** (branch `ccr-2e82b91e-hou4gf`, now
+merged). Nothing is left on a branch: `src/amazebio/conformance.py`,
+`tools/conformance_scan.py`, `tools/conformance_diff.py` and their tests are all on `main`.
+
+This block said until 2026-10-17 that the work was unmerged and absent from a `main` checkout.
+That was true when written and became false when PR #8 merged; the findings below were accurate
+throughout and are unchanged.
 
 **The result.** Of 2,653,047 records in Evo 1's own released viral component, **95 (0.004%)
 survive a rule Evo 1 published**, and **not one record assigned to any of the 19 denylisted
@@ -105,9 +110,10 @@ discharge it. Move A7.1 to `done` when A3.3 has reproduced the 95 and the zero b
 method. Until then, per §4 and X3.1, these numbers do not circulate outside the project.
 
 **Waiting on the project owner:** nothing. The one call this task raised — whether acquiring
-IMG/VR v4 should be its own task — was made, and **A1.7** is open and `ready` for it. It is the
-single blocker for the converse check, for Evo 2's arm, and for the three rules D-047 records as
-unrunnable.
+IMG/VR v4 should be its own task — was made, and **A1.7** took it; A1.7 is now `done`. The gaps
+it unblocked — the converse check, Evo 2's arm, and the three rules D-047 records as unrunnable —
+are **A7.2**'s, not this task's, and A7.2 closed all five (see its state block). The 95 and the
+zero below reproduced unchanged from the input side.
 
 
 ## Notes
