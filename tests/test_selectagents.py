@@ -366,3 +366,103 @@ def test_expansion_runs_once_rather_than_once_per_root(
     elapsed = time.monotonic() - started
     assert expanded >= taxa.named
     assert elapsed < 30, f"expansion took {elapsed:.0f}s; per-root rebuild is back"
+
+
+# --- Per-entry expansion (D-146) -------------------------------------------------------
+
+
+def test_expand_by_entry_keeps_entries_apart_and_respects_each_descent_flag() -> None:
+    """Descent is per-entry, so a pooled walk cannot be split up after the fact."""
+    nodes = "\n".join(
+        [
+            "1\t|\t1\t|\tno rank\t|",
+            "10\t|\t1\t|\tspecies\t|",
+            "11\t|\t10\t|\tstrain\t|",
+            "20\t|\t1\t|\tspecies\t|",
+            "21\t|\t20\t|\tstrain\t|",
+        ]
+    )
+    taxonomy = Taxonomy.from_nodes_dmp(nodes.splitlines())
+    entries = (
+        sa.ListEntry(section="73.3", ordinal=1, text="Descending agent", tier1=False),
+        sa.ListEntry(section="73.3", ordinal=2, text="Exact agent", tier1=False),
+    )
+    mapping = {
+        entries[0].key: sa.MappedEntry(
+            key=entries[0].key, kind=sa.EntryKind.ORGANISM, taxids=(10,), note="", descend=True
+        ),
+        entries[1].key: sa.MappedEntry(
+            key=entries[1].key, kind=sa.EntryKind.ORGANISM, taxids=(20,), note="", descend=False
+        ),
+    }
+    by_entry = sa.expand_by_entry(entries, mapping, taxonomy)
+    assert by_entry[entries[0].key] == {10, 11}
+    assert by_entry[entries[1].key] == {20}
+
+
+def test_an_entry_contributing_nothing_is_present_and_empty() -> None:
+    """A missing key reads as an oversight; an empty set is the reported finding."""
+    taxonomy = Taxonomy.from_nodes_dmp(["1\t|\t1\t|\tno rank\t|"])
+    entry = sa.ListEntry(section="73.3", ordinal=1, text="Abrin", tier1=False)
+    mapping = {
+        entry.key: sa.MappedEntry(
+            key=entry.key,
+            kind=sa.EntryKind.TOXIN,
+            taxids=(),
+            note="",
+            producer_taxids=(1,),
+        )
+    }
+    assert sa.expand_by_entry([entry], mapping, taxonomy) == {entry.key: frozenset()}
+    producers = sa.expand_by_entry([entry], mapping, taxonomy, include_toxin_producers=True)
+    assert producers == {entry.key: frozenset({1})}
+
+
+def test_an_unmapped_entry_is_an_error_here_too() -> None:
+    """Same refusal as `seed_taxa`: a re-pin that adds an entry must not silently drop it."""
+    taxonomy = Taxonomy.from_nodes_dmp(["1\t|\t1\t|\tno rank\t|"])
+    entry = sa.ListEntry(section="73.3", ordinal=1, text="Something new", tier1=False)
+    with pytest.raises(KeyError):
+        sa.expand_by_entry([entry], {}, taxonomy)
+
+
+@needs_taxonomy
+def test_the_per_entry_expansion_unions_to_the_pooled_one_exactly(
+    entries: tuple[sa.ListEntry, ...], mapping: dict[str, sa.MappedEntry], taxonomy: Taxonomy
+) -> None:
+    """The decomposition has to be *of* the seed set, not merely near it.
+
+    Two functions walking the taxonomy separately is exactly the arrangement that drifts, and
+    a reconciliation built on a decomposition that no longer sums to the measurement would be
+    worse than no decomposition at all.
+    """
+    for toxins, alternatives in ((False, False), (True, False), (False, True)):
+        pooled = sa.seed_taxa(
+            entries, mapping, include_toxin_producers=toxins, use_alternatives=alternatives
+        ).expand(taxonomy)
+        by_entry = sa.expand_by_entry(
+            entries,
+            mapping,
+            taxonomy,
+            include_toxin_producers=toxins,
+            use_alternatives=alternatives,
+        )
+        assert frozenset().union(*by_entry.values()) == pooled
+
+
+@needs_taxonomy
+def test_one_entry_carries_almost_the_whole_expansion(
+    entries: tuple[sa.ListEntry, ...], mapping: dict[str, sa.MappedEntry], taxonomy: Taxonomy
+) -> None:
+    """D-146's finding, pinned as a measurement rather than left in a decision entry.
+
+    The avian influenza entry reads onto Influenza A entire, which is the most heavily
+    sequenced thing on the list by a wide margin. If a re-pin or a re-reading ever changes
+    that, this test is where it should be noticed — the figure drives both the reconciliation
+    and the cost of the pass that follows it.
+    """
+    by_entry = sa.expand_by_entry(entries, mapping, taxonomy)
+    largest = max(by_entry.items(), key=lambda kv: len(kv[1]))
+    total = len(frozenset().union(*by_entry.values()))
+    assert "influenza" in largest[0].lower()
+    assert len(largest[1]) / total > 0.95

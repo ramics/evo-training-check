@@ -370,3 +370,156 @@ def test_a_local_run_needs_no_heartbeat_client() -> None:
 
     beat = tool._heartbeat(None, "", "", argparse.Namespace(tier="uniref100", release="2023_02"))
     beat({"clusters": 1})
+
+
+# --- Per-entry attribution and the manifest's own upload (D-146) -------------------------
+
+
+@needs_taxonomy
+def test_the_pass_attributes_seeded_clusters_to_the_entries_that_claimed_them(
+    tmp_path: Path,
+) -> None:
+    """A pooled count cannot be decomposed afterwards, which is what D-146 ran into."""
+    corpus = _mini_corpus(tmp_path / "mini.xml.gz")
+    outdir = tmp_path / "out"
+    tool.main(
+        # fmt: off
+        [
+            "--taxdump",
+            str(TAXDUMP),
+            "--source",
+            str(corpus),
+            "--outdir",
+            str(outdir),
+            "--workers",
+            "1",
+            "--allow-dirty",
+        ]
+        # fmt: on
+    )
+    payload = json.loads((outdir / "seed-counts-2023_02-uniref100.json").read_text())
+    exclusive = payload["seeded_by_entry"]["exclusive"]
+    named = " ".join(exclusive).lower()
+    assert "yersinia pestis" in named
+    assert "bacillus anthracis" in named
+    assert sum(exclusive.values()) == payload["counts"]["seeded"]
+
+
+@needs_taxonomy
+def test_the_expansion_is_recorded_per_entry_even_where_no_cluster_carries_it() -> None:
+    """An entry naming 100,000 taxa and seeding nothing is not the same as naming none."""
+    _, prov = tool.load_reading(CAPTURES, MAPPING, toxin_producers=False, alternatives=False)
+    assert "expanded_taxa_by_entry" not in prov, "load_reading's contract is unchanged"
+    from amazebio.seeds import Taxonomy
+
+    _, counts = tool.load_attribution(
+        CAPTURES,
+        MAPPING,
+        Taxonomy.from_taxdump_zip(TAXDUMP),
+        toxin_producers=False,
+        alternatives=False,
+    )
+    assert sum(counts.values()) >= 114_000
+    assert max(counts.values()) / sum(counts.values()) > 0.95
+
+
+def test_the_largest_contributor_is_named_from_the_measurement_not_the_source() -> None:
+    """A re-pin that changes which entry dominates must report the new one."""
+    from amazebio.seeds import EntryCounts
+
+    counts = EntryCounts()
+    for _ in range(90):
+        counts.observe(("flu",))
+    for _ in range(10):
+        counts.observe(("anthrax",))
+    top = tool._largest_contributor(100, counts)
+    assert top is not None
+    assert top["entry"] == "flu"
+    assert top["exclusive_clusters"] == 90
+    assert top["seeded_without_it"] == 10
+    assert top["share_of_seed_set"] == pytest.approx(0.9)
+
+
+def test_a_shared_cluster_is_not_counted_as_removable_with_one_entry() -> None:
+    """`seeded_without_it` must not promise a reduction another entry would keep."""
+    from amazebio.seeds import EntryCounts
+
+    counts = EntryCounts()
+    counts.observe(("flu",))
+    counts.observe(("flu", "newcastle"))
+    top = tool._largest_contributor(2, counts)
+    assert top is not None
+    assert top["exclusive_clusters"] == 1
+    assert top["seeded_without_it"] == 1
+
+
+def test_no_contributor_is_reported_when_nothing_was_attributed() -> None:
+    from amazebio.seeds import EntryCounts
+
+    assert tool._largest_contributor(0, EntryCounts()) is None
+
+
+@needs_taxonomy
+def test_the_run_manifest_is_uploaded_with_the_results(tmp_path: Path) -> None:
+    """The first pass staged its results and left its provenance on a terminated instance.
+
+    `repro.run` writes the manifest when its block exits, so an upload inside that block has
+    no file to send. There is no shell on the instance and nobody can fetch it afterwards, so
+    a manifest that does not leave this way does not leave at all — and a result that cannot
+    be traced to the code that produced it is not citable.
+    """
+    corpus = _mini_corpus(tmp_path / "mini.xml.gz")
+    outdir = tmp_path / "out"
+    uploaded: dict[str, bytes] = {}
+
+    class FakeS3:
+        def put_object(self, **kw: Any) -> None:
+            uploaded[str(kw["Key"])] = bytes(kw["Body"])
+
+    import argparse
+
+    args = argparse.Namespace(
+        release="2023_02",
+        tier="uniref100",
+        taxdump=TAXDUMP,
+        captures=CAPTURES,
+        mapping=MAPPING,
+        source=str(corpus),
+        outdir=outdir,
+        limit_bytes=0,
+        workers=1,
+        batch_bytes=1 << 20,
+        upload_results=True,
+        allow_dirty=True,
+        code_commit="deadbeef",
+        progress_seconds=1e9,
+        heartbeat_seconds=1e9,
+        toxin_producers=False,
+        alternatives=False,
+    )
+    taxa, provenance = tool.load_reading(
+        CAPTURES, MAPPING, toxin_producers=False, alternatives=False
+    )
+    from amazebio.seeds import Taxonomy
+
+    taxonomy = Taxonomy.from_taxdump_zip(TAXDUMP)
+    attribution, _ = tool.load_attribution(
+        CAPTURES, MAPPING, taxonomy, toxin_producers=False, alternatives=False
+    )
+    assert (
+        tool._execute(
+            args,
+            FakeS3(),
+            "bucket",
+            "corpora",
+            taxa.expand(taxonomy),
+            provenance,
+            attribution,
+        )
+        == 0
+    )
+    manifest_key = "corpora/results/a1-8/run-select-agent-seeds-uniref100.json"
+    assert manifest_key in uploaded, sorted(uploaded)
+    manifest = json.loads(uploaded[manifest_key])
+    assert manifest["parameters"]["code_commit"] == "deadbeef"
+    assert manifest["outputs"], "a manifest with no outputs traces nothing"

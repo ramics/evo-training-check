@@ -47,8 +47,8 @@ from __future__ import annotations
 import hashlib
 import re
 import zipfile
-from collections import deque
-from collections.abc import Iterable, Iterator
+from collections import Counter, deque
+from collections.abc import Iterable, Iterator, Mapping
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -295,6 +295,73 @@ class SeedCounts:
         }
 
 
+@dataclass(frozen=True)
+class Attribution:
+    """Which denylist entry each taxon came from, for a pass that reports the split.
+
+    Optional, and off by default: A1.6's viral arm has one entry — the Viruses superkingdom —
+    so attributing it would cost a dict lookup per seeded cluster to learn nothing.
+
+    `by_taxid`'s values are shared tuple objects, one per distinct combination of entries
+    rather than one per taxon. That is not a micro-optimisation: this map goes to every
+    worker at pool start, and pickle preserves object identity within a pickling, so sharing
+    turns a hundred thousand tuples on the wire into a few dozen.
+    """
+
+    by_taxid: dict[int, tuple[str, ...]]
+
+    @classmethod
+    def from_entry_taxa(cls, taxa_by_entry: Mapping[str, frozenset[int]]) -> Attribution:
+        """Invert an entry-to-taxa map, interning the values as the class requires."""
+        claims: dict[int, list[str]] = {}
+        for entry, taxa in taxa_by_entry.items():
+            for taxid in taxa:
+                claims.setdefault(taxid, []).append(entry)
+        shared: dict[tuple[str, ...], tuple[str, ...]] = {}
+        by_taxid: dict[int, tuple[str, ...]] = {}
+        for taxid, entries in claims.items():
+            key = tuple(sorted(entries))
+            by_taxid[taxid] = shared.setdefault(key, key)
+        return cls(by_taxid)
+
+    def claiming(self, taxids: Iterable[int]) -> tuple[str, ...]:
+        """Every entry that claims any of these taxa, in a stable order."""
+        found: set[str] = set()
+        for taxid in taxids:
+            found.update(self.by_taxid.get(taxid, ()))
+        return tuple(sorted(found))
+
+
+@dataclass
+class EntryCounts:
+    """Seeded clusters attributed to the denylist entries that claimed them.
+
+    Two counters because one cannot answer the question that matters. `claimed` counts a
+    cluster once for every entry claiming it, so it says how much each entry contributes and
+    its total may exceed the seeded count. `exclusive` counts only the clusters a single
+    entry claims alone, which is what says how much the seed set would *lose* if that entry
+    were read differently — the one number a reconciliation can act on.
+    """
+
+    claimed: Counter[str] = field(default_factory=Counter)
+    exclusive: Counter[str] = field(default_factory=Counter)
+
+    def observe(self, entries: tuple[str, ...]) -> None:
+        self.claimed.update(entries)
+        if len(entries) == 1:
+            self.exclusive[entries[0]] += 1
+
+    def merge(self, other: EntryCounts) -> None:
+        self.claimed.update(other.claimed)
+        self.exclusive.update(other.exclusive)
+
+    def to_dict(self) -> dict[str, dict[str, int]]:
+        return {
+            "claimed": dict(self.claimed.most_common()),
+            "exclusive": dict(self.exclusive.most_common()),
+        }
+
+
 def bucket_of(key: str, buckets: int) -> int:
     """Which bucket a key falls in, from a stable hash of it.
 
@@ -324,15 +391,24 @@ class ScanConfig:
     denylist_taxids: frozenset[int]
     sample_rate: int = 0
     buckets: int = 1
+    #: Which entry each taxon came from, where the pass reports the split (D-146). The
+    #: lookup runs only on seeded clusters — a fraction of a percent of UniRef100 — so the
+    #: cost falls on the clusters being attributed rather than on the whole corpus.
+    attribution: Attribution | None = None
 
     def scan(self, blocks: Iterable[bytes]) -> BatchResult:
         result = BatchResult()
+        if self.attribution is not None:
+            result.entries = EntryCounts()
         for block in blocks:
             entry = _parse_entry(block)
             if entry is None:
                 continue
             if result.counts.observe(entry, self.denylist_taxids):  # type: ignore[arg-type]
                 result.seeds.append((entry.cluster_id, entry.sequence))
+                if result.entries is not None:
+                    assert self.attribution is not None
+                    result.entries.observe(self.attribution.claiming(entry.member_taxids))
             if self.sample_rate and bucket_of(entry.cluster_id, self.sample_rate) == 0:
                 shard = bucket_of(entry.cluster_id + "#shard", self.buckets)
                 result.samples.append((shard, entry.cluster_id, entry.sequence))
@@ -346,6 +422,9 @@ class BatchResult:
     counts: SeedCounts = field(default_factory=SeedCounts)
     seeds: list[tuple[str, str]] = field(default_factory=list)
     samples: list[tuple[int, str, str]] = field(default_factory=list)
+    #: Present only where the run asked for the per-entry split, so a pass that did not ask
+    #: for it carries no empty counter back from every worker.
+    entries: EntryCounts | None = None
 
 
 def iter_entry_blocks(chunks: Iterable[bytes], batch_bytes: int = 8 << 20) -> Iterator[list[bytes]]:

@@ -180,7 +180,41 @@ def load_reading(
     return taxa, provenance
 
 
-def reconcile(seeded: int) -> dict[str, Any]:
+def load_attribution(
+    captures: Path,
+    mapping_path: Path,
+    taxonomy: seeds.Taxonomy,
+    *,
+    toxin_producers: bool,
+    alternatives: bool,
+) -> tuple[seeds.Attribution, dict[str, int]]:
+    """Which list entry each denylisted taxon came from, and how many each contributes.
+
+    Separate from `load_reading` rather than folded into it because the pooled seed set is
+    what the pass needs and this is what the *reconciliation* needs; keeping them apart
+    leaves `load_reading`'s contract alone. Re-parsing the three captures costs milliseconds
+    against the hour the pass spends reading corpus.
+
+    The taxon counts come back alongside so the manifest records the expansion by entry even
+    for entries no cluster turns out to carry — an entry contributing 100,000 taxa and no
+    seeded cluster says something quite different from one contributing neither.
+    """
+    entries = selectagents.parse_all(
+        (section, (captures / name).read_bytes()) for section, name in SECTION_FILES.items()
+    )
+    mapping = selectagents.load_mapping(mapping_path)
+    taxa_by_entry = selectagents.expand_by_entry(
+        entries,
+        mapping,
+        taxonomy,
+        include_toxin_producers=toxin_producers,
+        use_alternatives=alternatives,
+    )
+    counts = {entry: len(taxa) for entry, taxa in taxa_by_entry.items() if taxa}
+    return seeds.Attribution.from_entry_taxa(taxa_by_entry), counts
+
+
+def reconcile(seeded: int, entry_counts: seeds.EntryCounts | None = None) -> dict[str, Any]:
     """Compare the rebuilt count with the published figure, with both biases named.
 
     A bare delta would invite reading a shortfall as a reconstruction failure. Under-count and
@@ -188,7 +222,7 @@ def reconcile(seeded: int) -> dict[str, Any]:
     read as evidence rather than as a score.
     """
     delta = seeded - PUBLISHED_SEQUENCES
-    return {
+    out: dict[str, Any] = {
         "published_sequences": PUBLISHED_SEQUENCES,
         "published_source": "D-106, ESM3 version of record: 147K non-viral + 40K viral",
         "rebuilt_sequences": seeded,
@@ -207,6 +241,37 @@ def reconcile(seeded: int) -> dict[str, Any]:
             "A match is not expected in either direction and a mismatch is not a failure. "
             "Compared against UniRef clusters, not UniProtKB entries, so the "
             "representative-versus-member gap in amazebio.seeds applies here too."
+        ),
+    }
+    if entry_counts is not None:
+        out["by_entry"] = entry_counts.to_dict()
+        out["largest_contributor"] = _largest_contributor(seeded, entry_counts)
+    return out
+
+
+def _largest_contributor(seeded: int, entry_counts: seeds.EntryCounts) -> dict[str, Any] | None:
+    """The single entry carrying the most of the seed set alone, and the set without it.
+
+    Named from the measurement rather than written into the source, so a re-pin that changes
+    which entry dominates reports the new one instead of the one that dominated in 2026.
+    `without` counts the clusters no other entry also claims, which is exactly what reading
+    that entry differently would remove — not the entry's whole `claimed` total, part of
+    which another entry would keep.
+    """
+    if not entry_counts.exclusive:
+        return None
+    entry, exclusive = entry_counts.exclusive.most_common(1)[0]
+    without = seeded - exclusive
+    return {
+        "entry": entry,
+        "exclusive_clusters": exclusive,
+        "share_of_seed_set": (exclusive / seeded if seeded else None),
+        "seeded_without_it": without,
+        "delta_without_it": without - PUBLISHED_SEQUENCES,
+        "note": (
+            "Reported because D-146 found one entry carrying almost the whole seed set. "
+            "`seeded_without_it` is the count with this entry's exclusively-claimed clusters "
+            "removed; it is a decomposition of the measurement and not a second reading."
         ),
     }
 
@@ -391,6 +456,16 @@ def main(argv: list[str] | None = None) -> int:
     taxonomy = seeds.Taxonomy.from_taxdump_zip(args.taxdump)
     denylist = taxa.expand(taxonomy)
     provenance["expanded_taxa"] = len(denylist)
+    attribution, taxa_by_entry = load_attribution(
+        args.captures,
+        args.mapping,
+        taxonomy,
+        toxin_producers=args.toxin_producers,
+        alternatives=args.alternatives,
+    )
+    provenance["expanded_taxa_by_entry"] = dict(
+        sorted(taxa_by_entry.items(), key=lambda kv: (-kv[1], kv[0]))
+    )
     print(
         f"  {len(taxonomy.parent):,} taxa; the list names {len(taxa.named):,}, "
         f"expanding to {len(denylist):,}",
@@ -426,7 +501,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     try:
-        return _execute(args, client, bucket, prefix, denylist, provenance)
+        return _execute(args, client, bucket, prefix, denylist, provenance, attribution)
     except ReproError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
@@ -439,17 +514,19 @@ def _execute(
     prefix: str,
     denylist: frozenset[int],
     provenance: dict[str, Any],
+    attribution: seeds.Attribution,
 ) -> int:
     args.outdir.mkdir(parents=True, exist_ok=True)
     fasta_path = args.outdir / f"select-agent-seeds-{args.release}-{args.tier}.faa"
     counts_path = args.outdir / f"seed-counts-{args.release}-{args.tier}.json"
 
+    manifest_name = f"run-select-agent-seeds-{args.tier}.json"
     with repro.run(
         "A1.8",
         seed=None,  # one forward read of a pinned object: nothing here is random
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
-        manifest_name=f"run-select-agent-seeds-{args.tier}.json",
+        manifest_name=manifest_name,
     ) as manifest:
         if args.code_commit:
             manifest.parameter("code_commit", args.code_commit)
@@ -475,7 +552,8 @@ def _execute(
         counts = seeds.SeedCounts()
         started = time.monotonic()
         stream = uniref.GunzipStream(reader)
-        config = seeds.ScanConfig(denylist_taxids=frozenset(denylist))
+        config = seeds.ScanConfig(denylist_taxids=frozenset(denylist), attribution=attribution)
+        entry_counts = seeds.EntryCounts()
         # The reader is closed explicitly rather than left to the garbage collector. On a
         # bounded or failed run the generator stops early and the descriptor would otherwise
         # survive to be reaped later, which `--limit-bytes` turns from a tidiness point into a
@@ -492,6 +570,8 @@ def _execute(
                     batch_bytes=args.batch_bytes,
                 ):
                     counts.merge(batch.counts)
+                    if batch.entries is not None:
+                        entry_counts.merge(batch.entries)
                     for cluster_id, sequence in batch.seeds:
                         seeds.write_fasta(fasta, cluster_id, sequence)
                     now = time.monotonic()
@@ -530,9 +610,10 @@ def _execute(
             "list_provenance": provenance,
             "counts": counts.to_dict(),
         }
+        payload["seeded_by_entry"] = entry_counts.to_dict()
         # A bounded run's count is a prefix of the tier, so reconciling it against a published
         # total would compare a fragment with a whole and read as a 99% shortfall.
-        payload["reconciliation"] = None if bounded else reconcile(counts.seeded)
+        payload["reconciliation"] = None if bounded else reconcile(counts.seeded, entry_counts)
         counts_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
         manifest.output_file(fasta_path, role="select-agent-seed-set")
@@ -564,6 +645,16 @@ def _execute(
                 "a match is not expected in either direction, see D-137",
                 flush=True,
             )
+            top = rec.get("largest_contributor")
+            if top is not None:
+                print(
+                    f"  largest single contributor: {top['entry']} — "
+                    f"{top['exclusive_clusters']:,} clusters claimed by it alone "
+                    f"({100 * (top['share_of_seed_set'] or 0):.1f}% of the seed set); "
+                    f"without them {top['seeded_without_it']:,} "
+                    f"({top['delta_without_it']:+,} against the published figure)",
+                    flush=True,
+                )
 
         if args.upload_results and client is not None:
             for path, role in (
@@ -574,6 +665,17 @@ def _execute(
                 client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
                 manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
                 print(f"  uploaded s3://{bucket}/{key}", flush=True)
+
+    # Outside the block on purpose. `repro.run` writes the manifest on exit, so inside it
+    # there is no file to upload — which is why the first pass left its results in the
+    # bucket and its provenance on a terminated instance's disk. The instance has no
+    # checkout and nobody can log in to fetch it, so a manifest that does not leave this way
+    # does not leave at all, and an unprovenanced result is not citable (AGENTS.md).
+    if args.upload_results and client is not None:
+        local = args.outdir / manifest_name
+        key = f"{prefix}/results/a1-8/{manifest_name}"
+        client.put_object(Bucket=bucket, Key=key, Body=local.read_bytes())
+        print(f"  uploaded s3://{bucket}/{key}", flush=True)
     return 0
 
 

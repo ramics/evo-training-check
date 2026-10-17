@@ -482,3 +482,62 @@ def unresolved(
         if mapped is not None and mapped.kind in kinds:
             out.append(mapped)
     return tuple(out)
+
+
+def expand_by_entry(
+    entries: Iterable[ListEntry],
+    mapping: dict[str, MappedEntry],
+    taxonomy: Taxonomy,
+    *,
+    include_toxin_producers: bool = False,
+    use_alternatives: bool = False,
+) -> dict[str, frozenset[int]]:
+    """The taxa each list entry contributes, separately rather than pooled.
+
+    `seed_taxa` answers "which taxa does the list name", which is what builds a seed set.
+    This answers "which entry did each of them come from", which is what lets a reconciliation
+    say *where* a discrepancy lives instead of reporting one number that is out by a factor
+    and cannot be decomposed. D-146 is the case that forced it: one entry contributed 98.5% of
+    the expansion, and nothing in the pooled artefact could have shown that.
+
+    Same reading and the same descent rules as `seed_taxa`, so the union over entries is the
+    pooled set exactly — a test asserts it rather than trusting the two to stay in step. The
+    children map is built once and walked per entry, for the reason `SeedTaxa.expand` gives.
+
+    Entries contributing nothing are present with an empty set, because "this entry is not
+    represented in the seed set" is the reported number `unresolved` exists for and a missing
+    key reads as an oversight.
+    """
+    children: dict[int, list[int]] = {}
+    for child, parent in taxonomy.parent.items():
+        if child != parent:
+            children.setdefault(parent, []).append(child)
+
+    out: dict[str, frozenset[int]] = {}
+    for entry in entries:
+        mapped = mapping.get(entry.key)
+        if mapped is None:
+            raise KeyError(f"no recorded reading for list entry: {entry.key!r}")
+        if mapped.kind is EntryKind.TOXIN:
+            roots = mapped.producer_taxids if include_toxin_producers else ()
+            descend = True
+        else:
+            roots = (
+                mapped.alternative_taxids
+                if use_alternatives and mapped.alternative_taxids
+                else mapped.taxids
+            )
+            descend = mapped.descend
+        if not descend:
+            out[entry.key] = frozenset(roots)
+            continue
+        seen: set[int] = set()
+        stack = list(roots)
+        while stack:
+            node = stack.pop()
+            if node in seen:
+                continue
+            seen.add(node)
+            stack.extend(children.get(node, ()))
+        out[entry.key] = frozenset(seen)
+    return out
