@@ -231,3 +231,15 @@ def test_the_terminate_guard_mentions_the_dead_man_timer():
     source = _PATH.read_text()
     guard = source.index("if not observed_end")
     assert "shutdown timer" in source[guard : guard + 800]
+
+
+def test_a_stale_heartbeat_is_not_reported_as_this_runs():
+    """The bucket has no DeleteObject, so the previous run's heartbeat sits at the same key.
+
+    Observed: a 0.25% run that had not started its pass showed `stage: finished, rate: 1.0`
+    for ten minutes, because that was the last run's. A signal read as fresh when it is stale
+    is the failure mode AGENTS.md spends a paragraph on.
+    """
+    source = _PATH.read_text()
+    assert "started_at" in source
+    assert 'beat.get("written_at", "")) >= started_at' in source

@@ -395,14 +395,30 @@ def watch_and_collect(
     deadline = time.monotonic() + args.timeout_minutes * 60
     seen = 0
     observed_end = False
+    # The corpus bucket has no DeleteObject, so the previous run's heartbeat is still at this
+    # key and reads as this run's until the instance overwrites it. Observed doing exactly
+    # that: a 0.25% run that had not started its pass showed `stage: finished, rate: 1.0` for
+    # ten minutes. Anything written before this process began belongs to somebody else.
+    started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    said_waiting = False
     try:
         while time.monotonic() < deadline:
             time.sleep(args.poll_seconds)
             try:
-                beat = s3.get_object(Bucket=bucket, Key=f"{RESULTS_PREFIX}/heartbeat.json")[
-                    "Body"
-                ].read()
-                print(f"  heartbeat: {json.loads(beat)}", flush=True)
+                beat = json.loads(
+                    s3.get_object(Bucket=bucket, Key=f"{RESULTS_PREFIX}/heartbeat.json")[
+                        "Body"
+                    ].read()
+                )
+                if str(beat.get("written_at", "")) >= started_at:
+                    print(f"  heartbeat: {beat}", flush=True)
+                elif not said_waiting:
+                    said_waiting = True
+                    print(
+                        "  (the heartbeat at this key predates this launch — ignoring it "
+                        "until the instance overwrites it)",
+                        flush=True,
+                    )
             except Exception:
                 pass
             try:
