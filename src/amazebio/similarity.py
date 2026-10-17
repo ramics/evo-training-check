@@ -731,3 +731,90 @@ def rate_with_interval(
         hits=total_hits,
         lower_bound=lower_bound,
     )
+
+
+#: How a stratum id is spelled. Placed clusters share their family's id; an unplaced cluster is
+#: its own stratum (D-140, for the reason D-141 establishes), so its id carries the cluster.
+#: Two prefixes rather than a bare int because the two kinds must never collide in a dict, and
+#: a reader of a published stratum count needs to see which kind they are looking at.
+PLACED_PREFIX = "f:"
+UNPLACED_PREFIX = "u:"
+
+
+def stratum_id(cluster_id: str, family: int | None) -> str:
+    """The stratum a corpus record belongs to, for the interval's sampling unit."""
+    return f"{PLACED_PREFIX}{family}" if family is not None else f"{UNPLACED_PREFIX}{cluster_id}"
+
+
+@dataclass
+class FamilyIndex:
+    """Which stratum each searched corpus record is in, and how many records each holds.
+
+    The interval needs one `(hits, records)` pair per stratum, and `records` counts every
+    record **searched** in that stratum rather than every record that hit — so it cannot come
+    from the hit table, which only ever shows the hits. It comes from the target shard, which
+    is the only place the misses appear at all.
+
+    `totals` is therefore the denominator side of the ratio estimator and `of` is what turns a
+    hit row's target into the stratum it contributes to.
+    """
+
+    of: dict[str, str] = field(default_factory=dict)
+    totals: dict[str, int] = field(default_factory=dict)
+
+    @classmethod
+    def build(
+        cls, entries: Iterable[tuple[str, int | None]], taxonomy: Any, rank: str = "family"
+    ) -> FamilyIndex:
+        """Index a shard from its `(cluster_id, taxid)` pairs.
+
+        `taxonomy` is an `amazebio.seeds.Taxonomy`; it is typed loosely to keep this module
+        importable without one, which is what lets the tests run the estimator on synthetic
+        strata. A cluster with no taxid is unplaced, the same as one whose lineage carries no
+        node at `rank` — in both cases the taxonomy does not assert a family for it, which is
+        the only thing the distinction would be used for.
+        """
+        index = cls()
+        for cluster_id, taxid in entries:
+            family = None if taxid is None else taxonomy.ancestor_at_rank(taxid, rank)
+            key = stratum_id(cluster_id, family)
+            if index.of.setdefault(cluster_id, key) != key:
+                raise ValueError(
+                    f"{cluster_id!r} appears twice in the shard with different families; a "
+                    "record in two strata would be counted twice in the denominator"
+                )
+            index.totals[key] = index.totals.get(key, 0) + 1
+        return index
+
+    @property
+    def unplaced_records(self) -> int:
+        return sum(n for k, n in self.totals.items() if k.startswith(UNPLACED_PREFIX))
+
+    @property
+    def searched_records(self) -> int:
+        return sum(self.totals.values())
+
+    def pairs(self, hits: dict[str, int]) -> list[tuple[int, int]]:
+        """One `(hits, records)` pair per stratum, for `rate_with_interval`.
+
+        Every searched stratum is included, **including those with no hits**: a family that
+        was searched and matched nothing is evidence about the rate, and dropping it would
+        divide by a denominator the search did not use. That is the same error as reporting a
+        rate over the sample as designed rather than the shards actually run.
+        """
+        unknown = set(hits) - set(self.totals)
+        if unknown:
+            raise ValueError(
+                f"{len(unknown)} strata have hits but were never searched, e.g. "
+                f"{sorted(unknown)[0]!r}; the hit table and the target shard disagree"
+            )
+        out = []
+        for key, records in self.totals.items():
+            got = hits.get(key, 0)
+            if got > records:
+                raise ValueError(
+                    f"stratum {key!r} has {got} hit records against {records} searched; a "
+                    "record counted more than once inflates the rate"
+                )
+            out.append((got, records))
+        return out

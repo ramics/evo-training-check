@@ -616,3 +616,75 @@ def test_singleton_strata_contribute_the_binomial_term_and_nothing_more() -> Non
     assert rate.design_effect is not None
     assert math.isclose(rate.design_effect, 1.0, rel_tol=1e-3)
     assert math.isclose(rate.rate or 0.0, 0.25)
+
+
+# --- D-140/D-141: the interval's strata ---------------------------------------------------
+
+
+class _Tax:
+    """A stand-in for `seeds.Taxonomy` with the one method the index uses."""
+
+    def __init__(self, families: dict[int, int | None]) -> None:
+        self.families = families
+
+    def ancestor_at_rank(self, taxid: int, rank: str = "family") -> int | None:
+        return self.families.get(taxid)
+
+
+def test_the_denominator_counts_records_searched_not_records_hit() -> None:
+    """The misses only appear in the target shard, so the denominator can only come from
+    there. A denominator built from the hit table would make every rate 100%."""
+    tax = _Tax({10: 11157, 11: 11157, 12: None})
+    idx = sim.FamilyIndex.build([("A", 10), ("B", 11), ("C", 12)], tax)
+    assert idx.totals == {"f:11157": 2, "u:C": 1}
+    assert idx.searched_records == 3
+    assert sim.rate_with_interval(idx.pairs({"f:11157": 1})).rate == pytest.approx(1 / 3)
+
+
+def test_a_searched_stratum_with_no_hits_still_counts() -> None:
+    """Dropping it would divide by a denominator the search did not use — the same error as
+    reporting a rate over the sample as designed instead of the shards actually run."""
+    tax = _Tax({10: 11157, 20: 11158})
+    idx = sim.FamilyIndex.build([("A", 10), ("B", 20)], tax)
+    pairs = idx.pairs({"f:11157": 1})
+    assert sorted(pairs) == [(0, 1), (1, 1)]
+
+
+def test_an_unplaced_cluster_is_its_own_stratum() -> None:
+    tax = _Tax({10: None, 11: None})
+    idx = sim.FamilyIndex.build([("A", 10), ("B", 11)], tax)
+    assert idx.totals == {"u:A": 1, "u:B": 1}
+    assert idx.unplaced_records == 2
+
+
+def test_a_cluster_with_no_taxid_is_unplaced_rather_than_dropped() -> None:
+    idx = sim.FamilyIndex.build([("A", None)], _Tax({}))
+    assert idx.totals == {"u:A": 1}
+
+
+def test_placed_and_unplaced_stratum_ids_cannot_collide() -> None:
+    """They live in one dict. A family id that happened to spell a cluster id would merge two
+    strata and silently change the denominator."""
+    assert sim.stratum_id("11157", 11157) != sim.stratum_id("11157", None)
+
+
+def test_a_record_in_two_strata_is_refused() -> None:
+    tax = _Tax({10: 11157, 20: 11158})
+    with pytest.raises(ValueError, match="different families"):
+        sim.FamilyIndex.build([("A", 10), ("A", 20)], tax)
+
+
+def test_hits_in_a_stratum_that_was_never_searched_are_refused() -> None:
+    """The hit table and the target shard must describe the same records, or the rate is over
+    a denominator that does not contain its numerator."""
+    idx = sim.FamilyIndex.build([("A", 10)], _Tax({10: 11157}))
+    with pytest.raises(ValueError, match="never searched"):
+        idx.pairs({"f:99999": 1})
+
+
+def test_more_hits_than_records_in_a_stratum_is_refused() -> None:
+    """The guard on the one bug that would overstate leakage: a record counted twice. Rows
+    arriving unsorted is how it would happen, and `TargetStream` refuses that too."""
+    idx = sim.FamilyIndex.build([("A", 10)], _Tax({10: 11157}))
+    with pytest.raises(ValueError, match="inflates the rate"):
+        idx.pairs({"f:11157": 2})
