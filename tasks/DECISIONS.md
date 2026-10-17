@@ -4643,3 +4643,41 @@ decision has a threshold or parameter in it, the number goes in the entry.
   owner buys the staging.** That is a coverage gap in a headline route and it belongs in the write-up
   as one, not in a footnote. A3.2 reads the `not_searched` tables and must not pool them with the
   searched ones.
+
+### D-117 — A first calibration puts a full GTDB census in the same range as A1.6's pass, and the rate still waits on a better one
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-115 fixed A2.4's sampling *design* and deliberately left the *rate* open, to be
+  set by a measured cost rather than guessed. This is the first measurement. It is also the point
+  at which A2.1's history is worth remembering: D-078 assumed a census was arithmetically out of
+  reach and sampled accordingly, and D-098 then found the figure wrong by a factor of thirty and
+  a census affordable after all. A cost assumed is a design decision taken by accident.
+- **Decision:** Record the measurement, and **do not fix the rate on it**.
+  **Measured.** geNomad 1.12.0 against marker database v1.9, on *E. coli* K-12 MG1655
+  (`NC_000913.3`, 4,641,652 bp), 4 vCPU, `--splits 8`: `annotate` 12 min 17 s CPU in 3 min 42 s
+  wall, `find-proviruses` 22 s CPU in 20 s wall. **12.65 core-minutes for the genome, 2.73
+  core-minutes per Mb.** Annotation is 97% of it; the provirus step itself is close to free, so
+  the cost of this task is the cost of calling and marker-searching genes.
+  **Extrapolated.** OpenGenome2's staged GTDB v220 component is 109 GB across four tar archives,
+  so of order 107,000 Mbp, giving **about 4,900 core-hours for a full census**. That is the same
+  order as A1.6's authoritative charitable pass (D-104), which the owner priced at $240-450 on
+  spot. A census is therefore a real option and not an arithmetic impossibility, and D-115's
+  sampled design is a choice about spend rather than a constraint.
+  **Why the rate is still open.** This is *one* genome, and not a typical one. `annotate`'s cost
+  tracks gene count rather than bases, and *E. coli* K-12 is a gene-dense, well-behaved, complete
+  genome — GTDB v220 is mostly draft assemblies in many contigs, with a size distribution running
+  from ~0.6 Mb symbionts to ~15 Mb myxobacteria. Per-Mb cost on fragmented assemblies is not
+  assumed to match. The run also happened in the session container rather than in region.
+  So the rate is fixed by a **size-stratified in-region calibration**, in its own entry, and this
+  entry exists to stop the single-genome figure being quoted as if it were that.
+- **Rejected:** Fixing a rate on this number because it is the number in hand. It is a
+  one-genome extrapolation across two orders of magnitude of assembly quality.
+  Declaring the census affordable and planning it. The figure supports "same order as a pass the
+  owner has already priced", which is a reason to ask, not a reason to launch — and `AGENTS.md`
+  is explicit that an instance costs money and that the question goes to the owner first.
+  Discarding the measurement as too weak to record. It is the difference between a census being
+  conceivable and not, and leaving it unrecorded is how D-078's assumption survived for weeks.
+- **Consequence:** The spend question goes to the project owner with a range attached rather than
+  as an open-ended ask. Whichever way it is answered, `estimate_kind` carries it: `population` for
+  a census, `lower_bound` for a sample, and `metrics/detections.md` already forbids A3.2 pooling
+  the two.
