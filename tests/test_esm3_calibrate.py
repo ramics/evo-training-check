@@ -332,3 +332,55 @@ def test_loading_refuses_a_different_shard_count(tmp_path) -> None:
 
 def test_s3_uri_parsing() -> None:
     assert tool._parse_s3_uri("s3://buk/a/b/manifest.json") == ("buk", "a/b/manifest.json")
+
+
+def test_hit_tables_are_sorted_in_byte_order_so_the_aggregator_agrees(tmp_path) -> None:
+    """LC_ALL=C is load-bearing, not cosmetic. TargetStream verifies order with Python string
+    comparison (codepoint order); a UTF-8 locale sort collates case and punctuation
+    differently, so a locale-sorted file is not sorted by the comparison the aggregator checks
+    and the run would die claiming its own sorted input was unsorted. These identifiers are
+    chosen to order differently under the two rules."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(_PATH.parent.parent / "src"))
+    from amazebio import similarity as sim
+
+    tsv = tmp_path / "hits.tsv"
+    tsv.write_text(
+        "".join(
+            f"s{i}\t{t}\t0.90\t0.90\t0.90\n"
+            for i, t in enumerate(["UniRef100_b2", "UniRef100_B1", "UniRef100_a1", "UniRef100_A2"])
+        )
+    )
+    out = tool._sort_by_target(tsv, tmp_path)
+    targets = [line.split("\t")[1] for line in out.read_text().splitlines()]
+    assert targets == sorted(targets), "byte order, which is what the aggregator checks"
+
+    # The whole point: the sorted file must feed the aggregator without an order complaint.
+    stream = sim.TargetStream().extend(tool._stream_hit_rows(out)).close()
+    assert stream.records[1] == 4
+
+
+def test_streaming_a_hit_table_reproduces_the_in_memory_ledger(tmp_path) -> None:
+    import sys as _sys
+
+    _sys.path.insert(0, str(_PATH.parent.parent / "src"))
+    from amazebio import similarity as sim
+
+    rows = [
+        ("q1", "recC", 0.95, 0.9, 0.9),
+        ("q2", "recA", 0.71, 0.9, 0.9),
+        ("q3", "recA", 0.93, 0.9, 0.9),
+        ("q4", "recB", 0.80, 0.2, 0.9),
+    ]
+    tsv = tmp_path / "hits.tsv"
+    tsv.write_text("".join(f"{q}\t{t}\t{f}\t{qc}\t{tc}\n" for q, t, f, qc, tc in rows))
+
+    ledger = sim.RecordLedger().extend(sim.HitRow(q, t, f, qc, tc) for q, t, f, qc, tc in rows)
+    stream = (
+        sim.TargetStream()
+        .extend(tool._stream_hit_rows(tool._sort_by_target(tsv, tmp_path)))
+        .close()
+    )
+    for mode in sim.COVERAGE_READINGS:
+        assert stream.bands[mode] == ledger.counts_by_band(mode)

@@ -297,6 +297,124 @@ class RecordLedger:
         return {rec for rec, slot in self.best.items() if slot[i] >= 0}
 
 
+@dataclass
+class TargetStream:
+    """Per-reading band counts from rows **sorted by target**, in constant memory.
+
+    `RecordLedger` holds one entry per corpus record that hit — measured at 172 bytes each,
+    so 1.51 GB if 8.8M sampled records all hit. The reason to avoid it in the pass is not that
+    figure, which is the pathological end: the ledger grows with the number of *hit* records,
+    and the hit rate is precisely the quantity the pass exists to measure. **A pass whose
+    memory requirement is a function of its own unknown result cannot be sized in advance**,
+    and the failure mode is an out-of-memory kill hours into a run that has published nothing.
+    Constant memory removes the question instead of guessing an answer.
+
+    The trade is an external sort of the hit table by target, which is cheap on disk and
+    bounded, against a data structure that is neither. Rows for one target then arrive
+    contiguously, so the best identity per reading can be reduced as they stream past.
+
+    **Order is verified, not trusted.** If the input is not sorted by target, a record's rows
+    arrive in several runs and each run is counted separately — inflating every band count,
+    silently, in the direction of more apparent leakage. Since remembering which targets have
+    been seen is the memory this class exists to avoid, it instead requires the target key to
+    be non-decreasing and raises when it is not.
+
+    `RecordLedger` stays for the cap measurement, which needs set differences between runs and
+    operates at a scale where holding them is free.
+    """
+
+    coverage: float = COVERAGE
+    derive: tuple[int, ...] = COVERAGE_READINGS
+    bands: dict[int, list[int]] = field(default_factory=dict)
+    records: dict[int, int] = field(default_factory=dict)
+    rows: int = 0
+    _target: str | None = None
+    _best: list[float] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.derive = tuple(self.derive)
+        for mode in self.derive:
+            if mode not in COVERAGE_READINGS:
+                raise ValueError(f"unknown coverage reading {mode!r}")
+            self.bands.setdefault(mode, [0] * (len(IDENTITY_BAND_EDGES) - 1))
+            self.records.setdefault(mode, 0)
+
+    @classmethod
+    def for_search(cls, cov_mode: int, coverage: float = COVERAGE) -> TargetStream:
+        """The readings one coverage-filtered search may speak for (D-114)."""
+        if cov_mode not in SEARCH_READINGS:
+            raise ValueError(
+                f"--cov-mode {cov_mode!r} is not one of the searches the pass runs "
+                f"({sorted(SEARCH_READINGS)})"
+            )
+        return cls(coverage=coverage, derive=SEARCH_READINGS[cov_mode])
+
+    def observe(self, row: HitRow) -> None:
+        if self._target is not None and row.target != self._target:
+            if row.target < self._target:
+                raise ValueError(
+                    f"hit rows are not sorted by target: {row.target!r} follows "
+                    f"{self._target!r}. Aggregating unsorted rows counts a record once per "
+                    "run it appears in, which inflates every band count."
+                )
+            self._flush()
+        if self._target is None or row.target != self._target:
+            self._target = row.target
+            self._best = [-1.0] * len(self.derive)
+        self.rows += 1
+        for i, mode in enumerate(self.derive):
+            if (
+                coverage_passes(mode, row.qcov, row.tcov, self.coverage)
+                and row.fident > self._best[i]
+            ):
+                self._best[i] = row.fident
+
+    def extend(self, rows: Iterable[HitRow]) -> TargetStream:
+        for row in rows:
+            self.observe(row)
+        return self
+
+    def _flush(self) -> None:
+        for i, mode in enumerate(self.derive):
+            best = self._best[i]
+            if best >= 0:
+                self.bands[mode][band_of(best)] += 1
+                self.records[mode] += 1
+        self._target = None
+        self._best = []
+
+    def close(self) -> TargetStream:
+        """Fold in the final target. Idempotent, so calling it twice cannot double-count."""
+        if self._target is not None:
+            self._flush()
+        return self
+
+    def counts_at_or_above(self, mode: int, threshold: float) -> int:
+        """Records at or above a threshold, from the bands — exact only on a band edge.
+
+        The identity sweep is free from banded counts (D-109) but only at the edges the bands
+        were cut on, which is why `IDENTITY_BAND_EDGES` carries the charitable reading's 0.70
+        and the 0.70-0.75 split. A threshold inside a band has no answer here and saying so is
+        better than interpolating one.
+        """
+        edges = IDENTITY_BAND_EDGES
+        if threshold not in edges:
+            raise ValueError(
+                f"threshold {threshold!r} is not a band edge {edges}; a count inside a band "
+                "cannot be recovered from banded counts"
+            )
+        start = edges.index(threshold)
+        return sum(self.bands[mode][start:])
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "rows": self.rows,
+            "bands": {str(m): self.bands[m] for m in self.derive},
+            "records": {str(m): self.records[m] for m in self.derive},
+            "band_labels": list(band_labels()),
+        }
+
+
 @dataclass(frozen=True)
 class Rate:
     """A rate with the interval D-109 requires, and the evidence for its own precision."""

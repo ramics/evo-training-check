@@ -360,6 +360,33 @@ def _mmseqs(*argv: str) -> float:
     return elapsed
 
 
+def _sort_by_target(tsv: Path, work: Path, memory: str = "1G") -> Path:
+    """Sort a hit table by its target column, so it can be aggregated in constant memory.
+
+    `LC_ALL=C` is not cosmetic. `similarity.TargetStream` verifies order with Python string
+    comparison, which is codepoint order, while `sort` under a UTF-8 locale uses collation
+    that ignores case and punctuation differently — so a locale-sorted file is *not* sorted by
+    the comparison the aggregator checks, and the run would die claiming its own sorted input
+    was unsorted. Byte order on both sides, or neither.
+
+    Sorting is the trade `TargetStream` exists to make: bounded disk and a bounded `-S` budget
+    instead of a dictionary whose size is the result the pass is trying to measure.
+    """
+    out = tsv.with_name(tsv.stem + ".by-target.tsv")
+    subprocess.run(
+        ["sort", "-t", "\t", "-k", "2,2", "-S", memory, "-T", str(work), "-o", str(out), str(tsv)],
+        check=True,
+        env={**os.environ, "LC_ALL": "C"},
+    )
+    return out
+
+
+def _stream_hit_rows(path: Path) -> Any:
+    """Parse a hit table row by row, holding one row at a time."""
+    with path.open() as handle:
+        yield from similarity.parse_hits(handle)
+
+
 def _parse_s3_uri(uri: str) -> tuple[str, str]:
     bucket, _, key = uri[5:].partition("/")
     return bucket, key

@@ -275,3 +275,82 @@ def test_search_readings_covers_every_reading_exactly_once() -> None:
 def test_an_unknown_search_mode_is_refused_rather_than_guessed() -> None:
     with pytest.raises(ValueError, match="not one of the searches"):
         sim.RecordLedger().extend_from_search([], 0)
+
+
+def _rows_sorted(rows: list[sim.HitRow]) -> list[sim.HitRow]:
+    return sorted(rows, key=lambda r: r.target)
+
+
+def test_streaming_aggregate_matches_the_ledger_exactly() -> None:
+    """The streaming path is only worth having if it is the same answer in constant memory."""
+    rows = [
+        sim.HitRow("s1", "recA", 0.71, 0.9, 0.9),
+        sim.HitRow("s2", "recA", 0.93, 0.9, 0.9),
+        sim.HitRow("s3", "recB", 0.80, 0.2, 0.9),
+        sim.HitRow("s4", "recC", 0.72, 0.9, 0.9),
+        sim.HitRow("s5", "recC", 0.55, 0.9, 0.9),
+        sim.HitRow("s6", "recD", 1.00, 0.9, 0.9),
+    ]
+    ledger = sim.RecordLedger().extend(rows)
+    stream = sim.TargetStream().extend(_rows_sorted(rows)).close()
+    for mode in sim.COVERAGE_READINGS:
+        assert stream.bands[mode] == ledger.counts_by_band(mode), f"reading {mode}"
+        assert stream.records[mode] == len(ledger.records(mode))
+
+
+def test_streaming_aggregate_keeps_only_the_current_target() -> None:
+    """The property the whole item rests on: memory does not grow with hit records, which is
+    the quantity the pass exists to measure and therefore cannot be used to size a machine."""
+    stream = sim.TargetStream()
+    for i in range(20000):
+        stream.observe(sim.HitRow("s1", f"rec{i:06d}", 0.9, 0.9, 0.9))
+    stream.close()
+    assert stream.records[1] == 20000
+    assert stream._target is None and stream._best == []
+
+
+def test_unsorted_rows_are_refused_rather_than_double_counted() -> None:
+    """Unsorted input splits a record across runs and counts it once per run — inflating every
+    band count in the direction of more apparent leakage. Remembering seen targets is the
+    memory this class avoids, so order is required and checked."""
+    stream = sim.TargetStream()
+    stream.observe(sim.HitRow("s1", "recB", 0.9, 0.9, 0.9))
+    with pytest.raises(ValueError, match="not sorted by target"):
+        stream.observe(sim.HitRow("s2", "recA", 0.9, 0.9, 0.9))
+
+
+def test_close_is_idempotent() -> None:
+    stream = sim.TargetStream().extend([sim.HitRow("s1", "recA", 0.9, 0.9, 0.9)])
+    stream.close()
+    stream.close()
+    assert stream.records[1] == 1
+
+
+def test_a_stream_for_one_search_derives_only_its_readings() -> None:
+    rows = _rows_sorted([sim.HitRow("s1", "recA", 0.95, 0.9, 0.9)])
+    stream = sim.TargetStream.for_search(1).extend(rows).close()
+    assert set(stream.bands) == {0, 1}
+    assert 2 not in stream.records, "the mode-1 search cannot speak for reading 2 (D-114)"
+
+
+def test_threshold_counts_come_free_at_a_band_edge() -> None:
+    rows = _rows_sorted(
+        [
+            sim.HitRow("s1", "recA", 0.55, 0.9, 0.9),
+            sim.HitRow("s2", "recB", 0.71, 0.9, 0.9),
+            sim.HitRow("s3", "recC", 0.88, 0.9, 0.9),
+            sim.HitRow("s4", "recD", 1.00, 0.9, 0.9),
+        ]
+    )
+    stream = sim.TargetStream().extend(rows).close()
+    assert stream.counts_at_or_above(1, 0.70) == 3
+    assert stream.counts_at_or_above(1, 0.75) == 2
+    assert stream.counts_at_or_above(1, 0.90) == 1
+
+
+def test_a_threshold_inside_a_band_is_refused_not_interpolated() -> None:
+    """Banded reporting buys every threshold on a band edge and none between them. Saying so
+    is better than returning a number nobody can reproduce."""
+    stream = sim.TargetStream().extend([sim.HitRow("s1", "recA", 0.9, 0.9, 0.9)]).close()
+    with pytest.raises(ValueError, match="cannot be recovered"):
+        stream.counts_at_or_above(1, 0.72)
