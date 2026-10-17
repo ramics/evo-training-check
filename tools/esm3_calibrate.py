@@ -48,7 +48,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import repro, seeds, similarity, uniref
+from amazebio import repro, seeds, shardstore, similarity, uniref
 from amazebio.repro import ReproError
 
 S3_REGION = "us-east-1"
@@ -176,6 +176,20 @@ def main(argv: list[str] | None = None) -> int:
         "only safe where something else bounds the run.",
     )
     ap.add_argument(
+        "--stage-sample",
+        action="store_true",
+        help="after the corpus pass, stage the sample — shards, seed set and a checksummed "
+        "manifest — so later runs skip the pass. Refuses rather than overwriting: the "
+        "corpus bucket has no DeleteObject",
+    )
+    ap.add_argument(
+        "--sample-from",
+        metavar="S3_URI",
+        help="s3:// uri of a staged sample's manifest. Loads and verifies it instead of "
+        "running the corpus pass, which costs about 52 minutes whatever the sample rate "
+        "(D-112, D-113)",
+    )
+    ap.add_argument(
         "--measure",
         choices=("curve", "caps"),
         default="curve",
@@ -219,6 +233,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.buckets < 1:
         raise SystemExit("--buckets must be at least 1")
+    if args.stage_sample and args.sample_from:
+        raise SystemExit("--stage-sample builds a sample; --sample-from loads one. Pick one.")
+    if args.sample_from and not args.sample_from.startswith("s3://"):
+        raise SystemExit("--sample-from takes an s3:// uri pointing at a staged manifest")
     if args.measure == "caps" and max(args.cap_shard_points) > args.buckets:
         raise SystemExit("--cap-shard-points cannot exceed --buckets")
     if any(not 0 < f <= 1 for f in args.cap_fractions):
@@ -342,6 +360,161 @@ def _mmseqs(*argv: str) -> float:
     return elapsed
 
 
+def _parse_s3_uri(uri: str) -> tuple[str, str]:
+    bucket, _, key = uri[5:].partition("/")
+    return bucket, key
+
+
+def _load_staged_sample(
+    args: argparse.Namespace,
+    client: Any,
+    work: Path,
+    seed_fasta: Path,
+    shard_paths: list[Path],
+) -> tuple[seeds.SeedCounts, list[int], list[int], shardstore.ShardManifest]:
+    """Fetch a staged sample, verify every object, and skip the corpus pass.
+
+    The pass costs about 52 minutes whatever the sample rate (D-113) and is currently paid on
+    every launch, while the broad arm's sweep is dozens of launches (D-112). This is the other
+    half of that fix: the sample is built once and verified on every load.
+
+    Verification is not optional and not sampled. The corpus bucket has no `DeleteObject`, so
+    a bad staged shard can only be superseded, never removed — checking every digest on load is
+    the only thing standing between that and a published number.
+    """
+    if client is None:
+        raise SystemExit("--sample-from needs S3; it cannot be combined with --source")
+    bucket, key = _parse_s3_uri(args.sample_from)
+    print(f"loading staged sample from {args.sample_from}", flush=True)
+    body = client.get_object(Bucket=bucket, Key=key)["Body"].read()
+    staged = shardstore.ShardManifest.from_json(body)
+    staged.check_self_consistent()
+
+    if staged.release != args.release or staged.tier != args.tier:
+        raise SystemExit(
+            f"staged sample is {staged.tier} {staged.release}, this run asked for "
+            f"{args.tier} {args.release}"
+        )
+    if staged.buckets != args.buckets:
+        raise SystemExit(
+            f"staged sample has {staged.buckets} shards and this run is configured for "
+            f"{args.buckets}. Shards 1..k is only a valid sample at k times the rate if the "
+            f"partition matches, so this is refused rather than reinterpreted."
+        )
+    if staged.sample_rate != args.sample_rate:
+        print(
+            f"  note: staged at rate {staged.sample_rate}, run configured for "
+            f"{args.sample_rate}; the staged rate is what the sample is",
+            flush=True,
+        )
+        args.sample_rate = staged.sample_rate
+
+    local: dict[str, Path] = {}
+    for obj, dest in [(staged.seed_fasta, seed_fasta)] + [
+        (sh, shard_paths[sh.index]) for sh in staged.shards
+    ]:
+        client.download_file(bucket, obj.key, str(dest))
+        local[obj.key] = dest
+        print(f"  fetched {obj.key} ({obj.bytes:,} bytes)", flush=True)
+    shardstore.verify_all(staged, local)
+    print(f"  verified {len(local)} objects against their staged digests", flush=True)
+
+    counts = seeds.SeedCounts()
+    if staged.seed_counts:
+        for name in (
+            "clusters",
+            "residues",
+            "viral_seeded",
+            "viral_residues",
+            "representative_not_viral",
+            "mixed",
+        ):
+            value = staged.seed_counts.get(name)
+            if value is not None:
+                setattr(counts, name, value)
+    else:
+        # Only the denominators were carried. Set those and leave the rest at zero rather
+        # than inventing them — but say so, because a zero that reads as a measurement is
+        # the failure this branch exists to avoid.
+        counts.clusters = staged.corpus_clusters
+        counts.viral_seeded = staged.viral_seeded_clusters
+        print(
+            "  note: this manifest carries only the denominators, so the "
+            "representative-versus-member counts are absent rather than zero",
+            flush=True,
+        )
+    return (
+        counts,
+        [sh.clusters for sh in staged.shards],
+        [sh.residues for sh in staged.shards],
+        staged,
+    )
+
+
+def _stage_sample(
+    args: argparse.Namespace,
+    client: Any,
+    bucket: str,
+    seed_fasta: Path,
+    shard_paths: list[Path],
+    counts: seeds.SeedCounts,
+    shard_counts: list[int],
+    shard_residues: list[int],
+) -> str | None:
+    """Stage the sample so no later run pays for the corpus pass again.
+
+    Refuses on a key that already exists. In a bucket with no `DeleteObject` an overwrite is
+    not a replacement but the irreversible loss of the earlier object, and `AGENTS.md` records
+    what that already cost once.
+    """
+    if client is None:
+        print("  --stage-sample needs S3; nothing staged", flush=True)
+        return None
+    prefix = shardstore.sample_prefix(args.release, args.tier, args.sample_rate)
+    plan = shardstore.plan_uploads(prefix, shard_paths, seed_fasta)
+    manifest_key = f"{prefix}/{shardstore.MANIFEST_NAME}"
+
+    present = shardstore.existing_keys(client, bucket, prefix + "/")
+    clashes = sorted(({k for _, k in plan} | {manifest_key}) & present)
+    if clashes:
+        raise SystemExit(
+            "refusing to stage over existing objects — this bucket has no DeleteObject, so "
+            f"an overwrite destroys the earlier object irreversibly: {clashes[:4]}"
+        )
+
+    staged_shards = []
+    for (path, key), index in zip(plan[1:], range(len(shard_paths)), strict=True):
+        client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
+        staged_shards.append(
+            shardstore.describe_shard(
+                path, key, index=index, clusters=shard_counts[index], residues=shard_residues[index]
+            )
+        )
+        print(f"  staged {key}", flush=True)
+    seed_path, seed_key = plan[0]
+    client.put_object(Bucket=bucket, Key=seed_key, Body=seed_path.read_bytes())
+    print(f"  staged {seed_key}", flush=True)
+
+    staged = shardstore.ShardManifest(
+        release=args.release,
+        tier=args.tier,
+        sample_rate=args.sample_rate,
+        buckets=args.buckets,
+        corpus_clusters=counts.clusters,
+        viral_seeded_clusters=counts.viral_seeded,
+        seed_fasta=shardstore.describe(seed_path, seed_key),
+        shards=staged_shards,
+        seed_counts={k: v for k, v in counts.to_dict().items() if isinstance(v, int)},
+        code_commit=args.code_commit,
+        taxdump_pin=seeds.TAXDUMP_2023_04.date,
+    )
+    staged.check_self_consistent()
+    client.put_object(Bucket=bucket, Key=manifest_key, Body=staged.to_json().encode())
+    uri = f"s3://{bucket}/{manifest_key}"
+    print(f"  staged manifest {uri}", flush=True)
+    return uri
+
+
 def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) -> int:
     args.outdir.mkdir(parents=True, exist_ok=True)
     work = args.workdir
@@ -389,61 +562,83 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 manifest.parameter(name, value)
         manifest.input_file(args.taxdump, role="taxonomy")
 
-        reader, label = _reader(args, client, bucket, prefix)
-        print(f"reading {label}", flush=True)
-        if args.source:
-            manifest.input_file(args.source, role="corpus")
+        staged: shardstore.ShardManifest | None = None
+        if args.sample_from:
+            # The corpus pass is skipped entirely. The shards, the seed set and the
+            # denominators all come from the staged manifest, and every object is verified
+            # against its recorded digest before anything is searched against it.
+            manifest.parameter("sample_from", args.sample_from)
+            counts, shard_counts, shard_residues, staged = _load_staged_sample(
+                args, client, work, seed_fasta, shard_paths
+            )
+            manifest.parameter("staged_sample_commit", staged.code_commit)
+            reader = None
+            stream = None
+            label = args.sample_from
+            corpus_seconds = 0.0
         else:
-            manifest.parameter("corpus_object", label)
+            reader, label = _reader(args, client, bucket, prefix)
+            print(f"reading {label}", flush=True)
+            if args.source:
+                manifest.input_file(args.source, role="corpus")
+            else:
+                manifest.parameter("corpus_object", label)
 
-        counts = seeds.SeedCounts()
-        shard_counts = [0] * args.buckets
-        shard_residues = [0] * args.buckets
-        started = time.monotonic()
-        stream = uniref.GunzipStream(reader)
-        handles = [p.open("wb") for p in shard_paths]
-        # The sample and the seed set are independent: a viral cluster can be in both, and
-        # must be, or the target would be missing exactly the records the filter is
-        # supposed to remove.
-        config = seeds.ScanConfig(
-            viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
-        )
-        try:
-            with seed_fasta.open("wb") as seedfh:
-                for batch in seeds.scan_parallel(
-                    _chunks(
-                        stream,
-                        args.limit_bytes,
-                        args.progress_seconds,
-                        _make_heartbeat(
-                            client,
-                            bucket,
-                            prefix,
-                            HEARTBEAT_NAMES[args.measure],
-                            args.code_commit,
+            counts = seeds.SeedCounts()
+            shard_counts = [0] * args.buckets
+            shard_residues = [0] * args.buckets
+            started = time.monotonic()
+            stream = uniref.GunzipStream(reader)
+            handles = [p.open("wb") for p in shard_paths]
+            # The sample and the seed set are independent: a viral cluster can be in both, and
+            # must be, or the target would be missing exactly the records the filter is
+            # supposed to remove.
+            config = seeds.ScanConfig(
+                viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
+            )
+            try:
+                with seed_fasta.open("wb") as seedfh:
+                    for batch in seeds.scan_parallel(
+                        _chunks(
+                            stream,
+                            args.limit_bytes,
+                            args.progress_seconds,
+                            _make_heartbeat(
+                                client,
+                                bucket,
+                                prefix,
+                                HEARTBEAT_NAMES[args.measure],
+                                args.code_commit,
+                            ),
                         ),
-                    ),
-                    config,
-                    workers=args.workers,
-                    batch_bytes=args.batch_bytes,
-                ):
-                    counts.merge(batch.counts)
-                    for cluster_id, sequence in batch.seeds:
-                        seeds.write_fasta(seedfh, cluster_id, sequence)
-                    for shard, cluster_id, sequence in batch.samples:
-                        seeds.write_fasta(handles[shard], cluster_id, sequence)
-                        shard_counts[shard] += 1
-                        shard_residues[shard] += len(sequence)
-        finally:
-            for handle in handles:
-                handle.close()
-        corpus_seconds = time.monotonic() - started
+                        config,
+                        workers=args.workers,
+                        batch_bytes=args.batch_bytes,
+                    ):
+                        counts.merge(batch.counts)
+                        for cluster_id, sequence in batch.seeds:
+                            seeds.write_fasta(seedfh, cluster_id, sequence)
+                        for shard, cluster_id, sequence in batch.samples:
+                            seeds.write_fasta(handles[shard], cluster_id, sequence)
+                            shard_counts[shard] += 1
+                            shard_residues[shard] += len(sequence)
+            finally:
+                for handle in handles:
+                    handle.close()
+            corpus_seconds = time.monotonic() - started
 
-        print(
-            f"\ncorpus pass: {counts.clusters:,} clusters in {corpus_seconds:.0f}s"
-            f"  ({counts.viral_seeded:,} viral-seeded)",
-            flush=True,
-        )
+        if staged is not None:
+            print(
+                f"\nstaged sample: {counts.clusters:,} clusters in the corpus it was drawn "
+                f"from ({counts.viral_seeded:,} viral-seeded), no corpus pass run",
+                flush=True,
+            )
+        else:
+            print(
+                f"\ncorpus pass: {counts.clusters:,} clusters in {corpus_seconds:.0f}s"
+                f"  ({counts.viral_seeded:,} viral-seeded)",
+                flush=True,
+            )
         print(
             f"  sample: {sum(shard_counts):,} clusters, "
             f"{sum(shard_residues) / 1e9:.3f} G residues across {args.buckets} shards",
@@ -456,7 +651,10 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             "tier": args.tier,
             "bounded": bool(args.limit_bytes),
             "threads": args.threads,
-            "corpus_pass_seconds": round(corpus_seconds, 1),
+            # None rather than 0 on the staged path: a zero here would read as a corpus
+            # pass that took no time, which is exactly the kind of number that gets cited.
+            "corpus_pass_seconds": None if staged is not None else round(corpus_seconds, 1),
+            "sample_source": args.sample_from if staged is not None else "corpus-pass",
             "compressed_bytes_read": getattr(reader, "tell", lambda: 0)() or 0,
             "decompressed_bytes_read": getattr(stream, "tell", lambda: 0)() or 0,
             "seed_counts": counts.to_dict(),
@@ -497,6 +695,15 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         # sat after them in this function. Deliverables ship when they exist.
         publish()
         upload(seed_fasta, "viral-seed-set")
+
+        if args.stage_sample:
+            staged_uri = _stage_sample(
+                args, client, bucket, seed_fasta, shard_paths, counts, shard_counts, shard_residues
+            )
+            if staged_uri:
+                payload["staged_sample"] = staged_uri
+                manifest.parameter("staged_sample", staged_uri)
+                publish()
 
         if not args.skip_search:
             if args.measure == "caps":

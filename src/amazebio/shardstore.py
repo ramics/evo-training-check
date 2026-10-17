@@ -96,6 +96,12 @@ class ShardManifest:
     viral_seeded_clusters: int
     seed_fasta: StagedObject
     shards: list[StagedShard]
+    #: The full `SeedCounts` dict from the pass that produced this sample. The two scalars
+    #: above are the denominators the reporting needs and are kept as fields because they are
+    #: cited directly; this carries everything else the pass measured — the
+    #: representative-versus-member gap among them (D-092, D-100) — so a run that skips the
+    #: pass reports what was measured rather than a default that reads like a zero.
+    seed_counts: dict[str, Any] | None = None
     code_commit: str | None = None
     taxdump_pin: str | None = None
     created_at: str = field(
@@ -153,6 +159,17 @@ class ShardManifest:
             )
         if self.viral_seeded_clusters > self.corpus_clusters:
             raise ShardStoreError("more viral-seeded clusters than clusters")
+        if self.seed_counts:
+            for field_name, scalar in (
+                ("clusters", self.corpus_clusters),
+                ("viral_seeded", self.viral_seeded_clusters),
+            ):
+                carried = self.seed_counts.get(field_name)
+                if carried is not None and carried != scalar:
+                    raise ShardStoreError(
+                        f"manifest disagrees with itself: seed_counts[{field_name!r}] is "
+                        f"{carried:,} but the field says {scalar:,}"
+                    )
 
 
 def sample_prefix(release: str, tier: str, sample_rate: int) -> str:

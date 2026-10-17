@@ -22,6 +22,8 @@ import importlib.util
 import pathlib
 import sys
 
+import pytest
+
 _PATH = pathlib.Path(__file__).resolve().parent.parent / "tools" / "esm3_calibrate.py"
 _spec = importlib.util.spec_from_file_location("esm3_calibrate_under_test", _PATH)
 tool = importlib.util.module_from_spec(_spec)
@@ -197,3 +199,136 @@ def test_a_failed_heartbeat_does_not_fail_the_run_it_reports_on() -> None:
 def test_no_client_means_no_heartbeat_rather_than_a_crash() -> None:
     """A local run against --source has no S3 client and must be unaffected."""
     assert tool._make_heartbeat(None, "", "", "progress-caps.json", None) is None
+
+
+class _StageS3:
+    """Enough S3 to exercise staging: puts, a listing, and one readable manifest."""
+
+    def __init__(self, existing: list[str] | None = None, manifest: bytes | None = None) -> None:
+        self.existing = existing or []
+        self.manifest = manifest
+        self.puts: list[str] = []
+
+    def put_object(self, Bucket: str, Key: str, Body: bytes) -> None:
+        self.puts.append(Key)
+
+    def list_objects_v2(self, **kw: object) -> dict:
+        prefix = str(kw.get("Prefix", ""))
+        return {
+            "Contents": [{"Key": k} for k in self.existing if k.startswith(prefix)],
+            "IsTruncated": False,
+        }
+
+    def get_object(self, Bucket: str, Key: str) -> dict:
+        class _B:
+            def __init__(self, data: bytes) -> None:
+                self.data = data
+
+            def read(self) -> bytes:
+                return self.data
+
+        return {"Body": _B(self.manifest or b"{}")}
+
+
+def _stage_args(tmp_path, **over):
+    import argparse
+
+    base = dict(
+        release="2023_02",
+        tier="uniref100",
+        sample_rate=40,
+        buckets=2,
+        code_commit="abc123",
+        sample_from=None,
+    )
+    base.update(over)
+    return argparse.Namespace(**base)
+
+
+def _staged_files(tmp_path):
+    seed = tmp_path / "viral-seeds.faa"
+    seed.write_bytes(b">UniRef100_S1\nMKVL\n")
+    shards = []
+    for i in range(2):
+        p = tmp_path / f"shard-{i:02d}.faa"
+        p.write_bytes(f">UniRef100_C{i}\nMKVLAAAA\n".encode())
+        shards.append(p)
+    return seed, shards
+
+
+def test_staging_refuses_to_overwrite_an_existing_object(tmp_path) -> None:
+    """The corpus bucket has no DeleteObject, so an overwrite is not a replacement but the
+    irreversible loss of the earlier object. AGENTS.md records what that cost once already."""
+    from amazebio import seeds as sd
+    from amazebio import shardstore as ss
+
+    seed, shards = _staged_files(tmp_path)
+    prefix = ss.sample_prefix("2023_02", "uniref100", 40)
+    client = _StageS3(existing=[f"{prefix}/shard-00.faa"])
+    counts = sd.SeedCounts(clusters=10, viral_seeded=4)
+    with pytest.raises(SystemExit, match="refusing to stage over existing objects"):
+        tool._stage_sample(
+            _stage_args(tmp_path), client, "buk", seed, shards, counts, [1, 1], [8, 8]
+        )
+    assert client.puts == [], "nothing may be written once a clash is known"
+
+
+def test_staging_writes_every_object_and_a_manifest(tmp_path) -> None:
+    from amazebio import seeds as sd
+
+    seed, shards = _staged_files(tmp_path)
+    client = _StageS3()
+    counts = sd.SeedCounts(clusters=10, residues=80, viral_seeded=4, viral_residues=32)
+    uri = tool._stage_sample(
+        _stage_args(tmp_path), client, "buk", seed, shards, counts, [1, 1], [8, 8]
+    )
+    assert uri and uri.endswith("manifest.json")
+    assert len(client.puts) == 4, "two shards, the seed set, and the manifest"
+
+
+def test_loading_refuses_a_sample_from_another_release_or_tier(tmp_path) -> None:
+    """Shards from one release paired with this run's seeds would be undetectable downstream."""
+    from amazebio import seeds as sd
+    from amazebio import shardstore as ss
+
+    seed, shards = _staged_files(tmp_path)
+    manifest = ss.ShardManifest(
+        release="2021_04",
+        tier="uniref100",
+        sample_rate=40,
+        buckets=2,
+        corpus_clusters=100,
+        viral_seeded_clusters=4,
+        seed_fasta=ss.describe(seed, "k/viral-seeds.faa"),
+        shards=[ss.describe_shard(p, f"k/{p.name}", i, 1, 8) for i, p in enumerate(shards)],
+    )
+    client = _StageS3(manifest=manifest.to_json().encode())
+    args = _stage_args(tmp_path, sample_from="s3://buk/k/manifest.json")
+    with pytest.raises(SystemExit, match="staged sample is"):
+        tool._load_staged_sample(args, client, tmp_path, seed, shards)
+    assert isinstance(sd.SeedCounts(), sd.SeedCounts)
+
+
+def test_loading_refuses_a_different_shard_count(tmp_path) -> None:
+    """Shards 1..k is only a valid sample at k times the rate if the partition matches."""
+    from amazebio import shardstore as ss
+
+    seed, shards = _staged_files(tmp_path)
+    manifest = ss.ShardManifest(
+        release="2023_02",
+        tier="uniref100",
+        sample_rate=40,
+        buckets=2,
+        corpus_clusters=100,
+        viral_seeded_clusters=4,
+        seed_fasta=ss.describe(seed, "k/viral-seeds.faa"),
+        shards=[ss.describe_shard(p, f"k/{p.name}", i, 1, 8) for i, p in enumerate(shards)],
+    )
+    client = _StageS3(manifest=manifest.to_json().encode())
+    args = _stage_args(tmp_path, buckets=4, sample_from="s3://buk/k/manifest.json")
+    with pytest.raises(SystemExit, match="refused rather than reinterpreted"):
+        tool._load_staged_sample(args, client, tmp_path, seed, shards)
+
+
+def test_s3_uri_parsing() -> None:
+    assert tool._parse_s3_uri("s3://buk/a/b/manifest.json") == ("buk", "a/b/manifest.json")
