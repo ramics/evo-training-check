@@ -4357,3 +4357,70 @@ decision has a threshold or parameter in it, the number goes in the entry.
   A larger sample inside the same budget by dropping to `-s 2.0` only — D-105 already refused that
   setting on measured recall loss that biases toward understating leakage, and the budget is not a
   reason to reopen it.
+
+### D-110 — Evo 1's version of record is retrieved, and the procedure A2.1 re-executed is word-for-word the published one
+- **Date:** 2026-10-17
+- **Task:** A2.1 (bearing on A0.1, A0.3, A1.1, A7.1)
+- **Context:** Every Phase A result against Evo rests on `policies/specs/evo1-*.yaml`, which are this
+  project's machine-readable reading of **the preprint**. The version of record was registered as
+  blocked since A1.1 (`S-EVO1-SCIENCE`: science.org 403; Europe PMC holds PMC12057570 but serves
+  a reCAPTCHA behind an HTTP 200). A2.1 had re-executed all six rules over both releases and spent
+  about twenty hours of compute on a ten-fold deepening on that footing. The project owner asked
+  the obvious question — are the rules identical to the ones the developers used — and then
+  supplied the four files.
+- **Decision:** The version of record is retrieved, registered and checked, and the specs are
+  **left unchanged**, because the check found nothing to change. What was verified, by machine
+  rather than by eye:
+  **The procedure is in the main text, not the supplement** — p12, "OpenGenome datasets". This is
+  the opposite of ESM3 (D-106), where the main text deferred everywhere to an appendix, and it is
+  why the supplement was not the file that settled this.
+  **The procedure paragraph is character-for-character identical to the preprint's Appendix B.2**,
+  after normalising whitespace and the hyphenation the PDF extractor inserts, **except for two
+  copy-edits**: `High-confidence` is lowercased to `high-confidence`, and an `and` is inserted
+  before the last of the twelve orders. Nothing else differs across 1,169 characters.
+  **All three enumerations match in both directions.** Every one of the 19 families, 12 orders and
+  8 stop taxa in the specs appears in both sources; and every taxon name in either source's
+  procedure paragraph — 39 of them — is carried by the specs. No name is in the papers and absent
+  from our rules; none is in our rules and absent from the papers. The stated counts, "19
+  families" and "12 orders", match the lists they introduce.
+  **The one lowercased word is checked against the database rather than the prose.** The rule reads
+  IMG/VR's `Confidence` column, and the staged release's own values are `High-confidence`,
+  capitalised and hyphenated, in all 9,720 rows of the sample read. So the specs match the
+  database token; the version of record's prose does not, and an implementation built from that
+  prose with a case-sensitive comparison would retain nothing. Recorded because it is exactly the
+  kind of difference that looks like nothing and is not.
+  **Scope is confirmed as the literal reading has it.** The three pretraining sources are GTDB
+  v214.1, IMG/VR v4 and IMG/PR; the exclusion steps are described for IMG/VR alone, GTDB gets
+  species-representative dereplication and IMG/PR one representative per plasmid taxonomic unit,
+  and **no viral screening step is described for either**. A4.3's scope finding stands on the
+  version of record now, not on the preprint.
+  **The data availability statement names the release this audit staged** —
+  `huggingface.co/datasets/LongSafari/open-genome`, "including training, validation, and test
+  splits" — which is what A1.2 staged and A1.4 and A2.1 read. The A1.1 gate's premise is confirmed
+  by the version of record.
+  **Table S2 independently confirms A7.1's census.** The supplement publishes the IMG/VR subset as
+  2,653,046 genomes, 36,236 M bases, average length 13,658; A7.1 counted 2,653,047 records,
+  36,236,025,613 bases, mean 13,658.4. One record apart, and agreeing at published precision
+  otherwise. Note the table is **S2 in the version of record and S3 in the preprint**, so D-055's
+  citation of "Table S3" resolves only against the preprint.
+- **Rejected:** Repointing the specs' rule citations from the preprint to the version of record.
+  The preprint is CC-BY and committed, every quotation in the specs is machine-verified against it
+  (60 quotations, 0 problems), and the version of record is a subscription article whose
+  redistribution here is already flagged for review before publication. Citing the paywalled
+  version for text that is identical would buy nothing and cost reproducibility for any reader
+  without access. The specs keep the preprint; this entry is what records that the version of
+  record agrees.
+  Also rejected: treating the two copy-edits as immaterial and not writing them down. One of them
+  is a database token.
+- **Consequence:** **A2.1's findings stand on the published procedure.** The phage result — that
+  what survives in Evo 1's released viral component is overwhelmingly prokaryote-infecting, which
+  the policy keeps deliberately — is now anchored in the version of record's own words: the
+  component is introduced as "curated prokaryotic viruses", and the host rule's stated purpose is
+  "to remove potential eukaryotic viruses". The eukaryotic-family detections in Evo 2 are
+  untouched by this check, because that component ships no taxonomy for any rule to act on.
+  The write-up may now say "the procedure as published in the version of record" rather than "as
+  published in the preprint", which matters for a paper that names laboratories.
+  What is still open: Fig. S1B (supplement p4) is the developers' own pie chart of host kingdoms in
+  the *filtered* IMG/VR subset. If it shows eukaryotic-host viruses surviving, that is their own
+  published figure of leakage, and A2.5 should read it against this project's result rather than
+  rediscovering it. The figure is an image, so reading it needs a person or a different tool.
