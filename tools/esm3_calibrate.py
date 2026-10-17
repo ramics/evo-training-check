@@ -805,7 +805,18 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
         if not args.skip_search:
             if args.measure == "caps":
-                _measure_caps(args, work, seed_fasta, shard_paths, shard_residues, payload, publish)
+                _measure_caps(
+                    args,
+                    work,
+                    seed_fasta,
+                    shard_paths,
+                    shard_residues,
+                    payload,
+                    publish,
+                    client,
+                    bucket,
+                    prefix,
+                )
             else:
                 _time_searches(
                     args,
@@ -1096,6 +1107,9 @@ def _measure_caps(
     shard_residues: list[int],
     payload: dict[str, Any],
     publish: Any,
+    client: Any = None,
+    bucket: str = "",
+    prefix: str = "",
 ) -> None:
     """Measure the two things D-105 and D-109 left open, in the one run where they interact.
 
@@ -1139,8 +1153,17 @@ def _measure_caps(
         "residues": qres,
         "sensitivity": CAP_SENSITIVITY,
     }
+    # Published now rather than with the first cell. Everything between here and that cell —
+    # subsampling the seed set, the query database, concatenating shards, two target databases
+    # — is tens of minutes of real work, and leaving it unpublished made a working run
+    # indistinguishable from a stuck one for the third time in a day (D-117).
+    publish()
 
+    _progress(
+        client, bucket, prefix, args, stage="cap-build-targets", points=str(args.cap_shard_points)
+    )
     targets = _build_targets(args, work, db, shard_paths, shard_residues, args.cap_shard_points)
+    _progress(client, bucket, prefix, args, stage="cap-targets-ready", targets=len(targets))
 
     # Reading 1 is the only one both coverage settings can produce, which makes it the one
     # place the post-filter can be checked against the aligner doing the filtering itself.
@@ -1171,6 +1194,15 @@ def _measure_caps(
                 publish()
                 return
 
+            _progress(
+                client,
+                bucket,
+                prefix,
+                args,
+                stage="cap-search",
+                cell=f"{name}-shards{k}-slack",
+                residues=residues,
+            )
             try:
                 elapsed, rows, ledger, guard = _cap_cell(
                     args,
