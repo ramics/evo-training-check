@@ -4643,3 +4643,99 @@ decision has a threshold or parameter in it, the number goes in the entry.
   owner buys the staging.** That is a coverage gap in a headline route and it belongs in the write-up
   as one, not in a footnote. A3.2 reads the `not_searched` tables and must not pool them with the
   searched ones.
+
+### D-117 — A first calibration puts a full GTDB census in the same range as A1.6's pass, and the rate still waits on a better one
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-115 fixed A2.4's sampling *design* and deliberately left the *rate* open, to be
+  set by a measured cost rather than guessed. This is the first measurement. It is also the point
+  at which A2.1's history is worth remembering: D-078 assumed a census was arithmetically out of
+  reach and sampled accordingly, and D-098 then found the figure wrong by a factor of thirty and
+  a census affordable after all. A cost assumed is a design decision taken by accident.
+- **Decision:** Record the measurement, and **do not fix the rate on it**.
+  **Measured.** geNomad 1.12.0 against marker database v1.9, on *E. coli* K-12 MG1655
+  (`NC_000913.3`, 4,641,652 bp), 4 vCPU, `--splits 8`: `annotate` 12 min 17 s CPU in 3 min 42 s
+  wall, `find-proviruses` 22 s CPU in 20 s wall. **12.65 core-minutes for the genome, 2.73
+  core-minutes per Mb.** Annotation is 97% of it; the provirus step itself is close to free, so
+  the cost of this task is the cost of calling and marker-searching genes.
+  **Extrapolated.** OpenGenome2's staged GTDB v220 component is 109 GB across four tar archives,
+  so of order 107,000 Mbp, giving **about 4,900 core-hours for a full census**. That is the same
+  order as A1.6's authoritative charitable pass (D-104), which the owner priced at $240-450 on
+  spot. A census is therefore a real option and not an arithmetic impossibility, and D-115's
+  sampled design is a choice about spend rather than a constraint.
+  **Why the rate is still open.** This is *one* genome, and not a typical one. `annotate`'s cost
+  tracks gene count rather than bases, and *E. coli* K-12 is a gene-dense, well-behaved, complete
+  genome — GTDB v220 is mostly draft assemblies in many contigs, with a size distribution running
+  from ~0.6 Mb symbionts to ~15 Mb myxobacteria. Per-Mb cost on fragmented assemblies is not
+  assumed to match. The run also happened in the session container rather than in region.
+  So the rate is fixed by a **size-stratified in-region calibration**, in its own entry, and this
+  entry exists to stop the single-genome figure being quoted as if it were that.
+- **Rejected:** Fixing a rate on this number because it is the number in hand. It is a
+  one-genome extrapolation across two orders of magnitude of assembly quality.
+  Declaring the census affordable and planning it. The figure supports "same order as a pass the
+  owner has already priced", which is a reason to ask, not a reason to launch — and `AGENTS.md`
+  is explicit that an instance costs money and that the question goes to the owner first.
+  Discarding the measurement as too weak to record. It is the difference between a census being
+  conceivable and not, and leaving it unrecorded is how D-078's assumption survived for weeks.
+- **Consequence:** The spend question goes to the project owner with a range attached rather than
+  as an open-ended ask. Whichever way it is answered, `estimate_kind` carries it: `population` for
+  a census, `lower_bound` for a sample, and `metrics/detections.md` already forbids A3.2 pooling
+  the two.
+
+### D-118 — The sampled pass runs in nested bands inside a $20 ceiling, and its first band is the calibration
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-117 put a full GTDB census at about 4,900 core-hours and left the rate open,
+  pending a size-stratified in-region calibration. Put to the project owner with that range, the
+  answer was a **sampled pass only, about $10-20**, and no separately funded calibration. So the
+  rate has to be fixed without the measurement D-117 asked for, and the one figure in hand comes
+  from a single complete, gene-dense genome that GTDB's draft assemblies are not like.
+- **Decision:** Do not fix one rate. Run the sample in **nested bands**, and let the first band be
+  the calibration the budget did not buy.
+  Membership is already nested by construction — D-078's hash sampler makes a deeper rate a strict
+  superset of a shallower one, so a deepening re-reads nothing — and A2.1 has run exactly this
+  shape before (D-099). The pass therefore starts at **2.5%**, matching A1.6's broad arm (D-109),
+  measures realized per-genome cost on that band against the 2.73 core-minutes per Mb D-117
+  extrapolated from, and deepens in further nested bands while the $20 ceiling allows.
+  `estimate_kind` is `lower_bound` throughout and never `population`, whatever depth is reached.
+  The **realized** rate is recorded per source, not the intended one, so a run stopped by the
+  ceiling reports the sample it actually read — `metrics/detections.md` already requires this.
+- **Rejected:** Fixing a single rate from D-117's figure and running it once. It is a one-genome
+  extrapolation across two orders of magnitude of assembly quality; a rate set from it is either
+  over the ceiling or needlessly shallow, and banding costs nothing to avoid both.
+  Spending part of the $20 on a standalone calibration. The first band is a calibration that also
+  produces results, and a separate one would buy the same number for a share of the budget.
+  Reporting the deepest band alone. Every band's realized cost is kept, because the per-Mb figure
+  on real draft assemblies is the number the next task needs and this is the only pass that will
+  measure it.
+- **Consequence:** A2.4's prophage figures are a lower bound and are reported as one. If the pass
+  finds viral families surviving in bacterial genomes the filter never examined, the true figure
+  is at least that; if it finds none, that is weak evidence of absence and must be written as
+  weak. The nested design leaves the census of D-117 available later at no wasted work, should
+  the result make it worth buying.
+
+### D-119 — Evo 1's prokaryotic component is staged, so the prophage route covers both corpora
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-116 recorded that Evo 1's prokaryotic component, `stage1_gtdb`, is not staged —
+  130 GB, marked at staging time as superseded by OpenGenome2's GTDB — and refused to substitute
+  Evo 2's bacterial genomes for it, because Phase A exists to measure the difference between
+  releases rather than to average it away. That left Phase A's prophage route measured on one of
+  the two corpora under audit, which D-116 flagged as a coverage gap in a headline route and put
+  to the project owner as a spend decision.
+- **Decision:** The owner approved staging it. `stage1_gtdb` moves into the staging tier —
+  `Component.tier1` becomes true, which is the flag that records what the owner has approved
+  (D-031) — and A2.4 runs over both releases' bacterial components.
+  D-116's `not_searched` outcome for the `opengenome` manifests **stands until the staging
+  completes and verifies**, and is withdrawn only then. A table claiming coverage of a component
+  that is still uploading would be the same error in a new place.
+- **Rejected:** Leaving it unstaged and reporting the gap. It is the defensible cheap option and
+  the owner declined it; a headline route measured on half the audit's subjects is a weak result
+  to publish when the remedy is storage.
+  Deciding after seeing Evo 2's result. It makes the scope of one release's pass contingent on
+  another's outcome, which is the shape of thing the pre-registration discipline exists to prevent.
+- **Consequence:** The two releases pin **different GTDB releases** — Evo 2's is v220, Evo 1's is
+  not yet identified from its own metadata — so the comparison is between two filters applied to
+  two different snapshots of the same database, and that difference travels with the result rather
+  than being normalised away. Identifying Evo 1's GTDB release from the staged tree is part of this
+  staging and belongs in its own entry if it turns out to be unrecoverable, as §A0 requires.
