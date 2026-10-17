@@ -5902,3 +5902,43 @@ decision has a threshold or parameter in it, the number goes in the entry.
   which is easier to break: a null must not be *easier* to produce than it is to earn.
   The general lesson is the cheap one: a clean exit code and a plausible-looking table are not a
   verified run. This was found by reading the artefact, not by reading the log.
+
+### D-144 — The corpus is 484 Gbp, not 107 Gbp: D-117's census figure was out by four and a half times
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-117 extrapolated a full GTDB census at about 4,900 core-hours from one genome's
+  measured rate of 2.73 core-minutes per Mb. The base count in that arithmetic was the *staged
+  byte* count, read as roughly one byte per base. That assumption was never checked, and it is
+  wrong for one of the two components.
+- **What was measured.** Reading the staged objects directly:
+  **Evo 1's Parquet stores its sequence essentially uncompressed** — one row group of
+  `gtdb_train_shard_0` holds 24,379,463 bases in 24,409,247 compressed bytes, **1.00 bases per
+  byte**. So 127,261,074,759 staged bytes is about **127,000 Mb**, and the original reading
+  happened to be right here.
+  **Evo 2's tar members are gzipped FASTA**, and are not. Twenty-five genomes off `batch1.tar`
+  carry 86,855,551 bases at a mean of 3.47 Mb per genome, against member sizes around 1 MB —
+  about **3.27 bases per byte**. So 109,142,824,960 staged bytes is about **357,000 Mb**, not
+  109,000.
+  **Total: 484,000 Mb across both releases**, against the ~107,000 D-117 worked from. A full
+  census is therefore about **22,000 core-hours**, not 4,900.
+- **Decision:** Correct the figure and re-price every band from it. At 8 vCPU — the policy's
+  2xlarge ceiling — and m6i.2xlarge spot at $0.12-0.21/hour as quoted today:
+  **2.5% of both releases: ~550 core-hours, ~69 wall hours, $13-18.**
+  **0.25%: ~55 core-hours, ~7 wall hours, about $1.50.**
+  The spend was authorised against the old figure, so the new one goes back to the project owner
+  rather than being absorbed: $13-18 is inside the $20 ceiling but it is not the $5-7 they were
+  told, and 69 hours is a different operational proposition from an afternoon.
+- **Rejected:** Proceeding at 2.5% on the grounds that it still fits the ceiling. The
+  authorisation was "as long as the billing doesn't change", and a figure that moves by two and a
+  half times has changed even when it stays under the cap.
+  Treating the per-Mb rate as the remaining uncertainty. It is still a one-genome figure from a
+  complete, gene-dense assembly, so the real cost on GTDB's draft assemblies could move this
+  again in either direction. That is what the first band is for (D-118), and it is now a stronger
+  argument for a *small* first band than it was when the census looked affordable.
+- **Consequence:** D-117's "same order as A1.6's authoritative pass" no longer holds — a census
+  here is several times that, and out of reach at this ceiling. The sampled design of D-115 and
+  D-118 is now forced by cost rather than chosen, which is the opposite of what D-117 concluded
+  and is worth saying plainly in any write-up that cites either.
+  The general lesson is the one D-098 already taught this project once, in the other direction: a
+  cost derived from a number nobody measured is a design decision taken by accident. Here it was
+  bytes read as bases.
