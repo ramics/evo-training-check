@@ -127,7 +127,13 @@ GENOMAD = ToolPin(
     version="1.12.0",
     database_version="1.9",
     database_url="https://portal.nersc.gov/genomad/__data__/genomad_db_v1.9.tar.gz",
-    database_sha256=None,
+    # Of the published tarball as retrieved 2026-10-17, 842,023,773 bytes. The publisher ships
+    # no checksum of its own, so this attests that the bytes have not changed since
+    # acquisition, not that they are the bytes released — the same convention
+    # `amazebio.genomad.PIN` uses. It is load-bearing rather than decorative: the in-region
+    # launcher refuses to detect against a database whose digest does not match, and it caught
+    # this field being left as `None` on A2.4's third proving launch.
+    database_sha256="47a54faa9584422d6ea1328550d0c78d5fc9ac82ddd1ca9532c1ed365c8e572c",
     note=(
         "The audit's instrument, pinned apart from `amazebio.genomad.PIN`, which is the 1.1.0 "
         "build A4.2 benchmarks as the object of study (D-112). Unlike 1.1.0, this version's "

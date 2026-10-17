@@ -368,3 +368,11 @@ def test_the_table_serialises_with_the_criterion_and_the_reading_attached():
     assert d["min_reciprocal_overlap"] == MIN_RECIPROCAL_OVERLAP
     assert "never resolved by preferring a tool" in d["reading"]
     assert set(d) >= {"records", "both", "genomad_only", "vibrant_only", "neither", "kappa"}
+
+
+def test_the_genomad_database_pin_carries_a_digest():
+    """A `None` digest cannot match, and the in-region guard refuses the run rather than
+    detecting against an unverified database. That is the right failure, and it fired on a
+    real launch because this field had been left unset."""
+    assert GENOMAD.database_sha256 and len(GENOMAD.database_sha256) == 64
+    assert GENOMAD.database_url.endswith(f"genomad_db_v{GENOMAD.database_version}.tar.gz")
