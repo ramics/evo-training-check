@@ -72,6 +72,24 @@ SECTION_FILES = {
     "331.3": "cfr-title7-part331-2024-06-01.xml",
 }
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CAPTURES = REPO_ROOT / "policies" / "captures"
+DEFAULT_MAPPING = REPO_ROOT / "policies" / "specs" / "select-agents-2024-06-01.json"
+
+
+def required_data_files() -> tuple[str, ...]:
+    """Repo-relative data files this pass cannot run without.
+
+    The launcher ships these, and it asks here rather than keeping its own list. Nothing
+    imports them, so the first-party import closure that guards a launcher's module list is
+    structurally blind to them — and a missing data file kills the instance exactly like a
+    missing module, a minute in, with the hour of corpus reading wasted. One list, in the
+    place that reads them, so adding a CFR part cannot fail to ship it.
+    """
+    files = {f"policies/captures/{name}" for name in SECTION_FILES.values()}
+    files.add(str(DEFAULT_MAPPING.relative_to(REPO_ROOT)))
+    return tuple(sorted(files))
+
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -257,16 +275,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--captures",
         type=Path,
-        default=Path(__file__).resolve().parent.parent / "policies" / "captures",
+        default=DEFAULT_CAPTURES,
         help="directory holding the pinned CFR XML captures (default: %(default)s)",
     )
     ap.add_argument(
         "--mapping",
         type=Path,
-        default=Path(__file__).resolve().parent.parent
-        / "policies"
-        / "specs"
-        / "select-agents-2024-06-01.json",
+        default=DEFAULT_MAPPING,
         help="the curated reading table, D-137 (default: %(default)s)",
     )
     ap.add_argument(
