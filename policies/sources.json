@@ -451,7 +451,7 @@
     "Evo 2"
    ],
    "status": "unretrieved",
-   "blocker": "Absent from both the article HTML and the article PDF; 21 occurrences of 'Methods' in the PDF are all cross-references. Needed only to confirm the Evo 2 procedure adds nothing to Evo 1's; the preprint Methods already defers to Evo 1."
+   "blocker": "Absent from both the article HTML and the article PDF; 21 occurrences of 'Methods' in the PDF are all cross-references. Two things now rest on it, not one. (1) Confirming the Evo 2 procedure adds nothing to Evo 1's; the preprint Methods already defers to Evo 1. (2) A2.4/D-130 and A7.4: the GTDB release 220.0 selection rule ('all species reference genomes that had no previously published (release 214.1) genomes within their species cluster, resulting in 28,174 additional genomes') and the claim that OpenGenome v1 'was used in its entirety'. Both are currently preprint-sourced, and A7.4 cannot assert a conformance failure against a named laboratory on a preprint (DESIGN.md section 7; D-110 is the precedent for checking rather than assuming the two agree). Requested from the project owner 2026-10-17, Methods plus Supplementary Information, since a Nature paper whose PDF carries no Methods usually carries them in the SI."
   },
   {
    "id": "S-EVO2-PREPRINT",

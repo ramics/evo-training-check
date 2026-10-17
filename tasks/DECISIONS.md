@@ -5262,3 +5262,43 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** A2.4's realized depth is likely to be 2.5% rather than the "deepen while the
   ceiling allows" of D-118, and the lower bound is correspondingly shallower. Stated with the
   result, since a lower bound's depth is what a reader needs to weigh it.
+
+### D-132 — The spot role exists and is verified by a real launch, so D-131's on-demand ceiling is withdrawn
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-120 established that spot could not be launched from this account at all — a spot
+  request needs the `AWSServiceRoleForEC2Spot` service-linked role, `iam:CreateServiceLinkedRole`
+  is denied here, and the refusal arrives before any instance exists. D-121 recorded that the role
+  was to be created. D-131 then re-read A2.4's $20 ceiling as an on-demand ceiling, which made the
+  2.5% first band affordable and a 10% deepening not. The project owner has now created the role.
+- **What was measured, and why a measurement was necessary.** D-120 is explicit that **no dry run
+  finds this**: `DryRun` returns `DryRunOperation` without ever attempting the service-linked role,
+  so a dry run would have reported success both before and after the fix and distinguished
+  nothing. The only test is a real launch, so A2.4 made one — the smallest it could, a `c6i.large`
+  on the stock Amazon Linux 2023 AMI with an 8 GB volume, `UserData` consisting of
+  `shutdown -h now`, `InstanceInitiatedShutdownBehavior=terminate`, the one-time/terminate spot
+  options D-120's launcher already uses, and a `terminate_instances` in a `finally`.
+  **It was accepted.** `RunInstances` returned an instance with `InstanceLifecycle: spot`, and it
+  was terminated immediately; a subsequent `DescribeInstances` over the `Project=ClaudeSpike` tag
+  shows nothing running. Cost is of the order of a tenth of a cent.
+- **Decision:** **D-131 is withdrawn.** A2.4 sizes its bands against spot again, which is what
+  D-118's $20 ceiling was set by analogy to in the first place. The design does not otherwise
+  change: the 2.5% first band still runs first and is still the calibration, because the reason
+  for it was never the price — it is that D-117's 2.73 core-minutes per Mb comes from one
+  complete, gene-dense genome and GTDB is mostly draft assemblies. The deepening to roughly 10%
+  (about 490 core-hours) returns to being affordable inside the ceiling, and is taken **if and
+  only if the first band's measured per-genome cost says it fits**, not on this entry's
+  arithmetic.
+- **Rejected:** Treating the owner's "the role is made" as sufficient and skipping the launch.
+  It is a reasonable thing to believe and it was still worth one tenth of a cent to know, because
+  the alternative is discovering it at the head of a real pass — which is exactly how D-120 was
+  found, and it cost A1.6 a launch.
+  Going straight to the deeper band now that spot is back. The calibration reason stands
+  independently of the budget reason, and D-118 fixed the order before any result existed.
+  Re-asking the owner for a ceiling. They gave $20 and the constraint that made it awkward is
+  gone; nothing needs re-deciding.
+- **Consequence:** A2.4's realized depth is no longer expected to stop at 2.5%, so the lower bound
+  should be the stronger one D-118 planned for. Whatever depth is reached is reported with the
+  result, since a lower bound's depth is what a reader needs in order to weigh it. The verification
+  also stands for any other track: spot is live in this account as of 2026-10-17, confirmed by
+  launch rather than by dry run.
