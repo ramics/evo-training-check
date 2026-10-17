@@ -680,12 +680,29 @@ def main(argv: list[str] | None = None) -> int:
                 beat("reading", release=release, component=component)
                 started = time.time()
                 batch: list[tuple[str, list[tuple[str, str]]]] = []
-                for key in keys:
+                last_beat = time.time()
+                for index, key in enumerate(keys):
                     reader = (
                         sampled_genomes_og1 if component == "stage1_gtdb" else sampled_genomes_og2
                     )
                     for genome_id, contigs in reader(client, bucket, key, rate=args.rate):
                         batch.append((genome_id, contigs))
+                        # Beat *during* the read, not only at its start. The corpus pass is
+                        # the longest step — over an hour for Evo 1's 127 GB — and the first
+                        # version published nothing between "reading" and the search that
+                        # followed it. `AGENTS.md`: a step with no heartbeat is a step whose
+                        # silence means nothing, and that reading cost A1.6 four hours.
+                        if time.time() - last_beat >= args.heartbeat_seconds:
+                            last_beat = time.time()
+                            beat(
+                                "reading",
+                                release=release,
+                                component=component,
+                                objects_done=index,
+                                objects_total=len(keys),
+                                genomes_sampled=len(batch),
+                                elapsed_seconds=round(time.time() - started, 1),
+                            )
                         if args.limit and len(batch) >= args.limit:
                             break
                     if args.limit and len(batch) >= args.limit:

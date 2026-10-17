@@ -273,3 +273,17 @@ def test_both_tools_calls_are_rekeyed_the_same_way():
 
 def test_host_of_contig_survives_a_name_without_the_separator():
     assert dp.host_of_contig("plain") == "plain"
+
+
+def test_the_corpus_read_beats_while_it_reads_not_only_when_it_starts():
+    """The longest step published nothing between "reading" and the search after it.
+
+    Evo 1's component alone is 127 GB, so that is over an hour of silence on an instance whose
+    console cannot distinguish a dead process from a quiet one — the reading that cost A1.6
+    four hours.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    read_loop = source[source.index("for index, key in enumerate(keys):") :]
+    read_loop = read_loop[: read_loop.index("read_seconds =")]
+    assert "args.heartbeat_seconds" in read_loop
+    assert "objects_done" in read_loop and "genomes_sampled" in read_loop
