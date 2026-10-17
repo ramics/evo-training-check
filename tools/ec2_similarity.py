@@ -58,7 +58,11 @@ MMSEQS_SHA256 = "bd9b0234da5949ad528d5b5f9ea4cda9c1e23dce14b46c0791d4d919a76e61c
 #: as query and needs a small target for its grid points to complete at all; the cap
 #: measurement subsamples the query and needs a large target, since hits per seed is what the
 #: cap truncates and it scales with the target.
-SAMPLE_RATES = {"curve": 2000, "caps": 50}
+#: `band` is 40, which is the 2.5% sample D-122 already staged — the band searches one of its
+#: eight shards, so 0.3125% of the corpus (D-128). It is listed rather than inferred because a
+#: band run against a freshly sampled corpus at any other rate would not be the sample the
+#: checksums, the strata sidecars and every figure in D-128 refer to.
+SAMPLE_RATES = {"curve": 2000, "caps": 50, "band": 40}
 
 #: Used when --hard-stop-minutes is not given. Not an argparse default, because a watcher
 #: attaching to a running instance must be able to tell "I armed this" from "someone else
@@ -68,7 +72,11 @@ DEFAULT_HARD_STOP_MINUTES = 400
 
 #: Where each measurement's result lands, matching `esm3_calibrate.ARTEFACT_NAMES`. The
 #: watcher polls this key, so a mismatch reads as a run that produced nothing.
-RESULT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
+RESULT_NAMES = {
+    "curve": "calibration.json",
+    "caps": "cap-measurement.json",
+    "band": "band.json",
+}
 
 #: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
 #: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
@@ -174,6 +182,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --query-fractions {query_fractions} --shard-points {shard_points} \
     --cap-query-denominator {cap_query_denominator} \
     --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
+    --band-denominator {band_denominator} --band-shard {band_shard} \
     {sample_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
@@ -297,10 +306,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "--measure",
-        choices=("curve", "caps"),
+        choices=("curve", "caps", "band"),
         default="curve",
-        help="what the instance measures. `caps` prices the hit cap where it binds and "
-        "relaxed coverage against D-109's three-cell fallback (default: %(default)s)",
+        help="what the instance does. `caps` prices the hit cap where it binds and relaxed "
+        "coverage against D-109's three-cell fallback; `band` runs the pass itself — one "
+        "seed band's six cells over one shard (default: %(default)s)",
     )
     # The cap measurement wants the opposite trade from the cost curve: a *larger* target
     # against a small query, because hits per seed — the thing the cap truncates — scales
@@ -308,6 +318,10 @@ def main(argv: list[str] | None = None) -> int:
     # over UniRef100 is about 2 G residues against rate 2000's 67 M, which is the difference
     # between a cap that can be made to bind and one that cannot.
     ap.add_argument("--cap-query-denominator", type=int, default=100)
+    # D-134's band 1 and D-128's single shard. Both are defaults rather than constants because
+    # band 2 is the same code at `--band-denominator 10`.
+    ap.add_argument("--band-denominator", type=int, default=100)
+    ap.add_argument("--band-shard", type=int, default=0)
     ap.add_argument("--cap-shard-points", default="1,2")
     ap.add_argument("--cap-fractions", default="0.5,0.2")
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
@@ -378,6 +392,8 @@ def main(argv: list[str] | None = None) -> int:
         tier=args.tier,
         measure=args.measure,
         cap_query_denominator=args.cap_query_denominator,
+        band_denominator=args.band_denominator,
+        band_shard=args.band_shard,
         cap_shard_points=args.cap_shard_points,
         cap_fractions=args.cap_fractions,
         sample_flags=_sample_flags(args),

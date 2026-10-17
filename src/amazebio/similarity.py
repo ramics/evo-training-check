@@ -241,6 +241,22 @@ class Saturation:
             return None
         return self.max_hits / self.cap
 
+    def check(self) -> None:
+        """Raise if the cap bound, which D-105 requires rather than publishing the counts.
+
+        A saturated run's counts are a lower bound caused by our own truncation, which is a
+        different thing from the lower bound a sampled seed set produces and must not be
+        reported as if it were the same one. Failing is the only way the two cannot be
+        confused, and D-128 measured the cap at 5% of its value at this target size, so this
+        is a guard rather than an expected path.
+        """
+        if self.saturated:
+            raise ValueError(
+                f"{self.queries_at_cap} of {len(self.per_query)} seeds reached the hit cap of "
+                f"{self.cap}; their counts are truncated, so the cell is not a result. Raise "
+                "the cap and re-run rather than publishing it (D-105)."
+            )
+
     def to_dict(self) -> dict[str, object]:
         return {
             "cap": self.cap,
@@ -378,14 +394,23 @@ class TargetStream:
             self.stratum_hits.setdefault(mode, {})
 
     @classmethod
-    def for_search(cls, cov_mode: int, coverage: float = COVERAGE) -> TargetStream:
-        """The readings one coverage-filtered search may speak for (D-124)."""
+    def for_search(
+        cls,
+        cov_mode: int,
+        coverage: float = COVERAGE,
+        index: FamilyIndex | None = None,
+    ) -> TargetStream:
+        """The readings one coverage-filtered search may speak for (D-124).
+
+        With `index`, the stream also counts hit records per stratum, which is what the band
+        needs and the cap measurement does not.
+        """
         if cov_mode not in SEARCH_READINGS:
             raise ValueError(
                 f"--cov-mode {cov_mode!r} is not one of the searches the pass runs "
                 f"({sorted(SEARCH_READINGS)})"
             )
-        return cls(coverage=coverage, derive=SEARCH_READINGS[cov_mode])
+        return cls(coverage=coverage, derive=SEARCH_READINGS[cov_mode], index=index)
 
     def observe(self, row: HitRow) -> None:
         if self._target is not None and row.target != self._target:

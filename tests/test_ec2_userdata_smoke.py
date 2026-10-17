@@ -36,6 +36,8 @@ import zipfile
 
 import pytest
 
+from amazebio import similarity
+
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 _PATH = _ROOT / "tools" / "ec2_similarity.py"
 _spec = importlib.util.spec_from_file_location("ec2_similarity_smoke", _PATH)
@@ -63,6 +65,8 @@ def _render_user_data(**over: object) -> str:
         "cap_query_denominator": 100,
         "cap_shard_points": "1,2",
         "cap_fractions": "0.5,0.2",
+        "band_denominator": 100,
+        "band_shard": 0,
         "threads": 8,
         "workers": 7,
         "budget": 7200.0,
@@ -436,3 +440,81 @@ def test_the_shipped_payload_stages_and_reloads_a_sample(
     assert payload["corpus_pass_seconds"] is None
     assert payload["sample_source"].endswith("manifest.json")
     assert [c for c in payload["searches"] if "search_wall_seconds" in c], "no cell ran"
+
+
+def test_the_shipped_payload_runs_a_whole_band(
+    shipped: pathlib.Path, tmp_path: pathlib.Path
+) -> None:
+    """The pass itself, end to end from the tarball: corpus pass, strata sidecars, six cells,
+    rates with intervals. This is the one that would have caught the band being unreachable
+    from the launcher, which is what the instance actually invokes."""
+    if not _which("mmseqs"):
+        pytest.skip("mmseqs is not on PATH; the search half cannot run")
+    corpus = tmp_path / "fixture.xml.gz"
+    taxdump = tmp_path / "taxdmp.zip"
+    _fixture_corpus(corpus)
+    _fixture_taxdump(taxdump)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "tools/esm3_calibrate.py",
+            "--measure",
+            "band",
+            "--source",
+            str(corpus),
+            "--taxdump",
+            str(taxdump),
+            "--outdir",
+            str(tmp_path / "out"),
+            "--workdir",
+            str(tmp_path / "work"),
+            "--sample-rate",
+            "1",
+            "--buckets",
+            "2",
+            # 1/1 of the seeds, so the fixture's handful all take part. The band machinery
+            # is the same code at any denominator, and the sampled case is pinned without an
+            # aligner in tests/test_similarity.py — the slug, the bound and the refusal to
+            # pool two bands.
+            "--band-denominator",
+            "1",
+            "--band-shard",
+            "0",
+            "--threads",
+            "2",
+            "--workers",
+            "1",
+            "--allow-dirty",
+            "--code-commit",
+            "smoke",
+        ],
+        cwd=shipped,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, f"band run failed:\n{proc.stdout[-4000:]}\n{proc.stderr[-4000:]}"
+
+    import json
+
+    payload = json.loads((tmp_path / "out" / "band.json").read_text())
+    assert payload["measure"] == "band"
+    band = payload["band"]
+    assert band["seed_denominator"] == 1
+    assert band["lower_bound"] is False, "a full seed set is not a bound"
+    assert band["seeds_searched"] > 0, "no seeds were selected"
+    assert band["searched_records"] > 0, "the strata sidecar produced no denominator"
+    assert band["strata"] > 0
+
+    cells = band["cells"]
+    expected = len(similarity.SENSITIVITIES) * len(similarity.SEARCH_READINGS)
+    assert len(cells) == expected, f"{len(cells)} cells, expected {expected}"
+    assert len({c["slug"] for c in cells}) == expected, "two cells shared an artefact name"
+
+    groups = band["combined"]["groups"]
+    assert len(groups) == len(similarity.SENSITIVITIES) * len(similarity.COVERAGE_READINGS)
+    for group in groups:
+        assert group["searched_clusters"] == band["searched_records"]
+        assert group["rate"]["lower_bound"] is False
+        assert group["seed_families"] == band["seed_families"]

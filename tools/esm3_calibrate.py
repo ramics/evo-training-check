@@ -65,12 +65,20 @@ STRICT = ("-c", "0.8", "--cov-mode", "1", "-s", "7.5")
 
 #: One artefact name per mode, because the corpus bucket has no DeleteObject: a second mode
 #: writing to the first's key would overwrite a preserved grid permanently.
-ARTEFACT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
+ARTEFACT_NAMES = {
+    "curve": "calibration.json",
+    "caps": "cap-measurement.json",
+    "band": "band.json",
+}
 
 #: Progress keys, one per mode for the same reason the artefacts are. Separate from the
 #: artefact because a heartbeat is not a deliverable, and small because it is overwritten
 #: every few minutes in a bucket that cannot delete anything.
-HEARTBEAT_NAMES = {"curve": "progress-curve.json", "caps": "progress-caps.json"}
+HEARTBEAT_NAMES = {
+    "curve": "progress-curve.json",
+    "caps": "progress-caps.json",
+    "band": "progress-band.json",
+}
 
 
 def human(n: float) -> str:
@@ -190,13 +198,29 @@ def main(argv: list[str] | None = None) -> int:
         "(D-122, D-123)",
     )
     ap.add_argument(
+        "--band-denominator",
+        type=int,
+        default=100,
+        help="the seed band to run: 1/N of the seed set by hash. 100 is D-134's band 1, "
+        "which re-runs the cap measurement's own query set; 1 is the whole set (default: "
+        "%(default)s)",
+    )
+    ap.add_argument(
+        "--band-shard",
+        type=int,
+        default=0,
+        help="which staged shard the band searches. D-128 runs one shard, not eight "
+        "(default: %(default)s)",
+    )
+    ap.add_argument(
         "--measure",
-        choices=("curve", "caps"),
+        choices=("curve", "caps", "band"),
         default="curve",
         help="`curve` times the cost model's grid, which is what D-104 was fitted on. "
         "`caps` measures the two items D-105 and D-109 left open: what the hit cap costs "
         "where it binds, and what relaxing coverage costs to buy the three readings from "
-        "one search (default: %(default)s)",
+        "one search. `band` is the pass itself — one seed band's six cells over one shard, "
+        "reporting rates with intervals (default: %(default)s)",
     )
     ap.add_argument(
         "--artefact-name",
@@ -847,7 +871,18 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 publish()
 
         if not args.skip_search:
-            if args.measure == "caps":
+            if args.measure == "band":
+                _run_band(
+                    args,
+                    work,
+                    seed_fasta,
+                    shard_paths,
+                    shard_residues,
+                    taxonomy,
+                    payload,
+                    publish,
+                )
+            elif args.measure == "caps":
                 _measure_caps(
                     args,
                     work,
@@ -1444,6 +1479,200 @@ def _hit_count(query: Path, target: Path, result: Path, work: Path) -> int:
         return -1
     with tsv.open("rb") as handle:
         return sum(1 for _ in handle)
+
+
+def _filter_seed_fasta(src: Path, dest: Path, denominator: int) -> int:
+    """Write the band's seed sample, returning how many seeds it holds.
+
+    Streams rather than loading: the full seed set is 3.16M records. The ids come back from
+    `select_seeds` by the same hash rule the cap run used, so band 1 re-runs that query set.
+    """
+    kept = 0
+    with src.open("rb") as fh, dest.open("wb") as out:
+        keep = False
+        for raw in fh:
+            if raw.startswith(b">"):
+                ident = raw[1:].split()[0].decode("ascii", "replace")
+                keep = bool(next(similarity.select_seeds([ident], denominator), None))
+                kept += keep
+            if keep:
+                out.write(raw)
+    return kept
+
+
+def _seed_family_count(sidecar: Path, denominator: int, taxonomy: Any) -> int:
+    """The realised seed-family count D-134 ships with every rate.
+
+    Counts distinct families among the *sampled* seeds, not the whole seed set: it is the
+    sample's family coverage that limits what the band can say at family level, and quoting
+    the full set's would overstate it by the factor the sampling exists to buy.
+    """
+    families: set[str] = set()
+    with sidecar.open() as fh:
+        for cluster_id, taxid in similarity.parse_taxid_rows(fh):
+            if not next(similarity.select_seeds([cluster_id], denominator), None):
+                continue
+            family = None if taxid is None else taxonomy.ancestor_at_rank(taxid)
+            families.add(similarity.stratum_id(cluster_id, family))
+    return len(families)
+
+
+def _band_cell(
+    args: argparse.Namespace,
+    work: Path,
+    db: Path,
+    qdb: Path,
+    target: Path,
+    key: similarity.CellKey,
+    index: similarity.FamilyIndex,
+) -> similarity.TargetStream:
+    """One cell's search, read back through the stream the band reports from.
+
+    The search is the aligner's own coverage filter at the cell's `--cov-mode`, not a relaxed
+    search with a post-filter: D-124 established that two filtered searches recover all three
+    readings exactly, and that the post-filtered set was a strict superset rather than the
+    same set.
+    """
+    out_db = db / f"B-{key.slug()}"
+    tmp = work / "tmp"
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True, exist_ok=True)
+    params = similarity.search_argv(
+        sensitivity=key.sensitivity, cap=similarity.HIT_CAP, coverage_mode=key.cov_mode
+    )
+    elapsed = _mmseqs(
+        "search",
+        str(qdb),
+        str(target),
+        str(out_db),
+        str(tmp),
+        *params,
+        "--threads",
+        str(args.threads),
+    )
+    print(f"  search {key.slug()} {elapsed:.0f}s", flush=True)
+    tsv = work / f"band-hits-{key.slug()}.tsv"
+    _mmseqs(
+        "convertalis",
+        str(qdb),
+        str(target),
+        str(out_db),
+        str(tsv),
+        "--format-output",
+        similarity.CONVERTALIS_FORMAT,
+    )
+    sorted_tsv = _sort_by_target(tsv, work)
+    tsv.unlink(missing_ok=True)
+    stream = similarity.TargetStream.for_search(key.cov_mode, index=index)
+    guard = similarity.Saturation(cap=similarity.HIT_CAP)
+    with sorted_tsv.open() as handle:
+        for row in similarity.parse_hits(handle):
+            stream.observe(row)
+            guard.observe(row.query)
+    stream.close()
+    sorted_tsv.unlink(missing_ok=True)
+    guard.check()
+    return stream
+
+
+def _run_band(
+    args: argparse.Namespace,
+    work: Path,
+    seed_fasta: Path,
+    shard_paths: list[Path],
+    shard_residues: list[int],
+    taxonomy: Any,
+    payload: dict[str, Any],
+    publish: Any,
+) -> None:
+    """One seed band: six cells over the target shard, each published as it finishes.
+
+    The cell is the atom (D-134), so a reclaim or a timeout costs only the cell in flight and
+    a re-run skips what is already on disk. Cells are ordered cheapest sensitivity first, so
+    a run that is cut short has produced whole cells rather than two thirds of one.
+    """
+    denominator = args.band_denominator
+    shard = args.band_shard
+    if shard >= len(shard_paths):
+        raise SystemExit(f"--band-shard {shard} but only {len(shard_paths)} shards are present")
+
+    sidecar = shard_paths[shard].with_suffix(".taxids.tsv")
+    if not sidecar.exists():
+        raise SystemExit(
+            f"no strata sidecar at {sidecar.name}. The staged sample predates them, so this "
+            "band owes one corpus pass to build it — see D-142. Refusing rather than "
+            "reporting a rate with no interval."
+        )
+    print(f"building strata from {sidecar.name}", flush=True)
+    with sidecar.open() as fh:
+        index = similarity.FamilyIndex.build(similarity.parse_taxid_rows(fh), taxonomy)
+    unplaced_share = index.unplaced_records / max(index.searched_records, 1)
+    print(
+        f"  {index.searched_records:,} records, {len(index.totals):,} strata, "
+        f"{index.unplaced_records:,} unplaced ({unplaced_share:.1%})",
+        flush=True,
+    )
+
+    seed_sidecar = seed_fasta.with_suffix(".taxids.tsv")
+    if not seed_sidecar.exists():
+        raise SystemExit(f"no seed strata sidecar at {seed_sidecar.name}; see D-142")
+    seed_families = _seed_family_count(seed_sidecar, denominator, taxonomy)
+
+    band_seeds = work / f"band-seeds-q{denominator}.faa"
+    kept = _filter_seed_fasta(seed_fasta, band_seeds, denominator)
+    print(f"  band 1/{denominator}: {kept:,} seeds, {seed_families:,} seed families", flush=True)
+
+    db = work / "db"
+    db.mkdir(parents=True, exist_ok=True)
+    qdb = db / f"Q-q{denominator}"
+    _mmseqs("createdb", str(band_seeds), str(qdb))
+    target = db / f"T{shard}"
+    _mmseqs("createdb", str(shard_paths[shard]), str(target))
+
+    payload["band"] = {
+        "seed_denominator": denominator,
+        "lower_bound": denominator > 1,
+        "shard": shard,
+        "seeds_searched": kept,
+        "seed_families": seed_families,
+        "searched_records": index.searched_records,
+        "strata": len(index.totals),
+        "unplaced_records": index.unplaced_records,
+        "cells": [],
+    }
+    publish()
+
+    cells: list[similarity.CellResult] = []
+    for sensitivity in sorted(similarity.SENSITIVITIES):
+        for cov_mode in sorted(similarity.SEARCH_READINGS):
+            key = similarity.CellKey(shard, sensitivity, cov_mode, seed_denominator=denominator)
+            stream = _band_cell(args, work, db, qdb, target, key, index)
+            cell = similarity.cell_from_stream(
+                key,
+                stream,
+                index,
+                seeds_searched=kept,
+                seed_families=seed_families,
+                searched_residues=shard_residues[shard],
+            )
+            cells.append(cell)
+            payload["band"]["cells"].append(cell.to_dict())
+            # Published per cell, not at the end. A run that dies on cell five has still paid
+            # for four and must not lose them — the lesson AGENTS.md records from the runs
+            # that published nothing in four hours.
+            payload["band"]["combined"] = similarity.combine_cells(cells)
+            publish()
+            for group in payload["band"]["combined"]["groups"]:
+                r = group["rate"]
+                lead = "at least " if r["lower_bound"] else ""
+                shown = "n/a" if r["rate"] is None else f"{lead}{r['rate']:.4%}"
+                lo, hi = r["ci95"]
+                span = "" if lo is None else f" (95% CI {lo:.4%}-{hi:.4%})"
+                print(
+                    f"  s{group['sensitivity']:g} mode {group['reading']}: {shown}{span}, "
+                    f"{r['families']} strata, {group['seed_families']:,} seed families",
+                    flush=True,
+                )
 
 
 if __name__ == "__main__":
