@@ -11,6 +11,7 @@ version happens to emit today.
 from __future__ import annotations
 
 import math
+import pathlib
 
 import pytest
 
@@ -48,10 +49,11 @@ def test_the_instrument_pin_is_not_a4_2s_object_of_study():
     assert GENOMAD.database_version != OBJECT_OF_STUDY.database_version
 
 
-def test_vibrant_records_its_database_gap_rather_than_inventing_a_version():
-    """§A0: under-specification is data. VIBRANT versions code and not its HMM databases."""
-    assert VIBRANT.database_version is None
-    assert "no release string" in VIBRANT.note
+def test_vibrant_s_database_versions_are_read_off_the_package_not_guessed():
+    """VIBRANT_setup.py hard-codes all three releases by URL, so this is a pin and not a gap.
+    The first draft of this module claimed the opposite — that VIBRANT does not version its
+    databases — which would have reported a specification that exists as a missing one."""
+    assert VIBRANT.database_version == "KOfam 2019-08-10 + Pfam 32.0 + VOG 94"
 
 
 # --------------------------------------------------------------------------------------
@@ -200,17 +202,71 @@ def test_a_header_only_table_is_no_calls_rather_than_an_error(tmp_path):
 
 
 # --------------------------------------------------------------------------------------
+# Parsing — against the pinned version's real output
+# --------------------------------------------------------------------------------------
+
+REAL = pathlib.Path(__file__).parent / "data" / "genomad_1_12_0_ecoli_provirus.tsv"
+
+#: Where E. coli K-12 MG1655's cryptic prophages sit, to the nearest kilobase. The genome is a
+#: positive control with a published answer, which is why it is the fixture: a parser tested
+#: only against fixtures someone wrote by hand is tested against their assumptions.
+KNOWN_PROPHAGE_STARTS_KB = (563, 1196, 1412, 1627, 2463)
+
+
+def test_the_fixture_is_the_pinned_version_s_own_output():
+    """Not a hand-written table. The first draft of this parser guessed a column name that the
+    real output does not use, and only real output caught it."""
+    assert REAL.read_text().splitlines()[0].split("\t")[:6] == [
+        "seq_name",
+        "source_seq",
+        "start",
+        "end",
+        "length",
+        "n_genes",
+    ]
+
+
+def test_real_output_parses_to_the_known_prophages():
+    calls = read_genomad_proviruses(REAL)
+    assert [c.start // 1000 for c in calls] == list(KNOWN_PROPHAGE_STARTS_KB)
+    assert {c.source_record for c in calls} == {"NC_000913.3"}
+
+
+def test_real_output_carries_scores_rather_than_a_column_of_none():
+    """`v_vs_c_score` is the pinned version's name for it; guessing `virus_score` returned None
+    for every call, which a score-free table would have carried silently into A3.2."""
+    assert all(c.score is not None and c.score > 0 for c in read_genomad_proviruses(REAL))
+
+
+def test_real_calls_have_plausible_prophage_lengths():
+    assert all(10_000 <= c.length <= 60_000 for c in read_genomad_proviruses(REAL))
+
+
+def test_real_calls_do_not_overlap_each_other():
+    """Distinct elements in one genome; any pairing between them would be a parser artefact."""
+    calls = read_genomad_proviruses(REAL)
+    for i, a in enumerate(calls):
+        for b in calls[i + 1 :]:
+            assert reciprocal_overlap(a, b) == 0.0
+
+
+# --------------------------------------------------------------------------------------
 # Parsing — VIBRANT
 # --------------------------------------------------------------------------------------
 
+#: VIBRANT 1.2.1's exact header, copied from the line of `VIBRANT_run.py` that writes it
+#: rather than from its documentation. Note that the protein columns come *before* the
+#: nucleotide ones — the opposite of the order this test file first assumed. Parsing by name
+#: is what makes that difference harmless, which is the whole argument for doing so.
 VIBRANT_HEADER = (
-    "scaffold\tfragment\tnucleotide start\tnucleotide stop\tprotein start\tprotein stop"
+    "scaffold\tfragment\tprotein start\tprotein stop\tprotein length"
+    "\tnucleotide start\tnucleotide stop\tnucleotide length"
 )
 
 
 def test_vibrant_parser_reads_its_spaced_column_names(tmp_path):
     p = tmp_path / "VIBRANT_integrated_prophage_coordinates_x.tsv"
-    p.write_text(f"{VIBRANT_HEADER}\ngenome1\tgenome1_fragment_1\t1000\t2000\t5\t20\n")
+    p.write_text(f"{VIBRANT_HEADER}\ngenome1\tgenome1_fragment_1\t5\t20\t16\t1000\t2000\t1001\n")
     (one,) = read_vibrant_proviruses(p)
     assert one.source_record == "genome1"
     assert (one.start, one.end) == (1000, 2000)
@@ -220,7 +276,7 @@ def test_vibrant_parser_reads_its_spaced_column_names(tmp_path):
 def test_vibrant_calls_carry_no_score_rather_than_a_defaulted_zero(tmp_path):
     """A missing score and a score of zero are different claims."""
     p = tmp_path / "v.tsv"
-    p.write_text(f"{VIBRANT_HEADER}\ngenome1\tfrag\t1\t100\t1\t2\n")
+    p.write_text(f"{VIBRANT_HEADER}\ngenome1\tfrag\t1\t2\t2\t1\t100\t100\n")
     assert read_vibrant_proviruses(p)[0].score is None
 
 

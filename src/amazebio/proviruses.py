@@ -72,6 +72,19 @@ __all__ = [
 MIN_RECIPROCAL_OVERLAP = 0.5
 
 
+#: The score column geNomad 1.12.0 actually writes, with earlier and later names after it.
+#: `v_vs_c_score` — virus versus chromosome — is the pinned version's own name for it, read off
+#: a real run rather than from the documentation: the first draft of this parser guessed
+#: `virus_score` and silently returned `None` for every call, which is the quiet variety of
+#: wrong that a score-free table would have carried all the way into A3.2.
+_GENOMAD_SCORE_COLUMNS: tuple[str, ...] = (
+    "v_vs_c_score",
+    "topology_score",
+    "virus_score",
+    "score",
+)
+
+
 class ProvirusError(RuntimeError):
     """Raised when a provirus table cannot be read as what it claims to be."""
 
@@ -130,13 +143,14 @@ GENOMAD = ToolPin(
 VIBRANT = ToolPin(
     tool="vibrant",
     version="1.2.1",
-    database_version=None,
+    database_version="KOfam 2019-08-10 + Pfam 32.0 + VOG 94",
     note=(
-        "VIBRANT versions its code and not its HMM databases: the KEGG, Pfam and VOG profiles "
-        "`download-db.sh` installs carry no release string the tool exposes. The pin is "
-        "therefore the package plus a digest of the installed profile files, recorded at run "
-        "time. Under-specification is data (`DESIGN.md` §A0), so the gap is reported with the "
-        "concordance figure rather than resolved by guessing a release."
+        "The database versions are not a reading. VIBRANT 1.2.1's own `VIBRANT_setup.py` "
+        "hard-codes all three releases by URL — KOfam's 2019-08-10 archive, Pfam 32.0, VOG 94 "
+        "— so the pin is read off the package rather than inferred, and any installation the "
+        "script produced carries these and no others. The tool exposes no version string for "
+        "them at run time, which is why they are recorded here instead: a digest of the "
+        "installed profile files travels in the `run.json` beside this."
     ),
 )
 
@@ -251,7 +265,7 @@ def read_genomad_proviruses(path: str | Path) -> list[ProvirusCall]:
     calls: list[ProvirusCall] = []
     for row in _rows(path, required=required, what="geNomad provirus"):
         score: float | None = None
-        for column in ("topology_score", "virus_score", "score"):
+        for column in _GENOMAD_SCORE_COLUMNS:
             if column in row and row[column].strip():
                 try:
                     score = float(row[column])
