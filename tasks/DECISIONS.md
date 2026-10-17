@@ -5868,3 +5868,37 @@ decision has a threshold or parameter in it, the number goes in the entry.
   any other, and the write-up states that the interval's strata come from a sidecar built by a
   later pass than the sample it describes. A1.8 inherits the same gap and the same fix if it takes
   D-140's split; it is not assumed there.
+
+### D-143 — A run that read a limited sample publishes no survival figure at all
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** `tools/detect_proviruses.py` gained a `--limit` flag for exercising the path
+  cheaply. Its first end-to-end run, `--limit 1 --rate 1.0` over Evo 1's GTDB, finished cleanly
+  and wrote three tables reporting **`estimate_kind: population`, 0 of 1,719 Pfam viral families,
+  Wilson interval [0, 0.0022]**. Every number in that is arithmetically correct. It was computed
+  from **one genome and 25,792 bases**.
+  The mechanism is ordinary and worth naming: `estimate_kind` is derived from the sampling rate,
+  `--limit` does not change the rate, and the fact that the run stopped early lived in a
+  `limited: true` field on the source row where nothing computing the estimate could see it. The
+  exit code was 0 and the run looked successful; only reading the artefact showed it.
+- **Decision:** A run with `--limit` prints its counts and **writes no table**, only the
+  `run.json` that records what was done. The guard sits before the write, and a test pins that
+  ordering structurally rather than by behaviour, because the failure is one of sequence.
+  `--limit` is documented as exercising the path, not as a small pass.
+- **Rejected:** Deriving a realized rate from the limited run and reporting a `lower_bound`.
+  There is no honest realized rate: the population of the component is unknown — A1.4 does not
+  enumerate GTDB — so the denominator of "one genome out of how many" does not exist, and an
+  invented one would be a worse artefact than none.
+  Keeping the table and adding a caveat to `notes`. `AGENTS.md` is explicit that a caveat at the
+  end of a long run is not an ask and arrives after the damage; the same applies to a caveat
+  beside a number that should not exist. A figure that must not be quoted should not be written.
+  Removing `--limit`. Exercising the whole path against the real corpus for pennies is how this
+  fault was found in the first place, and the probe is worth keeping — it just must not
+  masquerade as a result.
+- **Consequence:** The null this task is most likely to report — no viral families surviving in
+  sampled bacterial genomes — can no longer be manufactured by a run that read almost nothing.
+  `DESIGN.md` §2 makes the null publishable and `AGENTS.md` forbids designing the pipeline so a
+  null is harder to see; this is the mirror of that rule, which the same sentence implies and
+  which is easier to break: a null must not be *easier* to produce than it is to earn.
+  The general lesson is the cheap one: a clean exit code and a plausible-looking table are not a
+  verified run. This was found by reading the artefact, not by reading the log.

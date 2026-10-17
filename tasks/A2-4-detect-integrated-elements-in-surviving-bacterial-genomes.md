@@ -100,33 +100,38 @@ not move and still pass, which is the test of the refactor. It gains `proteins_f
 A2.4's way in: the proteins geNomad already called inside a delineated provirus, attributed to
 the host genome rather than to the fragment name the finder invented.
 
-**Left, in order.** `tools/detect_proviruses.py`: sample, run the two
-tools, search the provirus proteins against A2.1's registries, emit the
-`metrics/detections.md` table with `element_kind: prophage` and the route from
-`amazebio.apply.resolve`.
+**The pipeline exists and runs end to end.** `tools/detect_proviruses.py` reads the staged
+corpus, samples by genome, calls geNomad `annotate` and `find-proviruses`, searches the provirus
+proteins against A2.1's registries at D-076's thresholds, and writes the
+`metrics/detections.md` table with `element_kind: prophage`. Verified against Evo 1's GTDB:
+14 min wall for one genome including the HMM load.
 
-**One prerequisite that is not obvious and will bite whoever picks this up.** A1.4's manifests
-are not in this container and are not in the audit store either — `artifacts/` is git-ignored
-and the S3 results prefixes hold a1-6, a7-1 and a7-2 but no a1-4. A2.4 consumes those manifests
-rather than re-deriving a surviving set (D-059), so they have to be regenerated with
-`tools/apply_policies.py` first, and that is itself a corpus-scale pass. Budget for it
-separately from the $20; it is A1.4's cost reappearing, not A2.4's.
+Scope is enforced rather than assumed — both releases' GTDB searched, every other component
+reported `searched: false` with a reason, and a manifest with no bacterial component getting
+`not_searched` instead of a column of zeros. The route comes from the manifest's
+`uniform_outcome` and differs by reading: `out_of_scope` under charitable and literal (D-007's
+headline), `retained_by_design` under strict's wildcard scope.
 
-**Spot is live, verified by launch (D-132).** The owner created the `AWSServiceRoleForEC2Spot`
-service-linked role. D-120 is explicit that no dry run can test this, so A2.4 made the smallest
-real launch it could — a `c6i.large`, `UserData` of `shutdown -h now`, terminate-on-shutdown, and
-a `terminate_instances` in a `finally` — and `RunInstances` returned `InstanceLifecycle: spot`.
-Terminated immediately; nothing is left running under the `Project=ClaudeSpike` tag. **D-131's
-on-demand ceiling is withdrawn**, so the ~10% deepening is affordable again — taken only if the
-first band's measured cost says it fits, since the calibration reason for going shallow first
-never depended on the price.
+**Running it caught a fault that reading the log would not have.** `--limit 1 --rate 1.0`
+produced `estimate_kind: population`, 0 of 1,719 families, Wilson [0, 0.0022] — a census over
+the whole component computed from one genome and 25,792 bases, with exit code 0. A limited run
+now writes no table (D-143).
 
-**Nothing is waiting on the project owner.** The Evo 2 Methods were escalated as blocked and
-then turned out to be open access: the paper is CC BY-NC-ND 4.0 and deposited as `PMC13128491`,
-and the obstruction was a route — `nature.com` 303-redirects to `idp.nature.com/authorize` — not a
-paywall. Retrieved via Europe PMC, md5 verified against the publisher's own, stored at
-`pdfs/s41586-026-10176-5_sm.pdf` on the owner's call. It states the GTDB releases word for word as
-the preprint did, so D-130's preprint caveat is discharged and A7.4 is unblocked (D-135).
+**Prerequisites, all now in place.** A1.4's manifests are regenerated (the inventory guard
+caught the undeclared GTDB objects first, and they are now declared). The profile registries are
+staged and verified: RVDB-prot at 13,679 profiles against 13,679 stated, Pfam's viral universe
+1,719 of 30,134. The geNomad marker database v1.9 is fetched and its md5 matches the publisher's.
+
+**Left, in order.**
+1. The VIBRANT arm. The concordance criterion is fixed (D-114) and its parser is written and
+   tested, but nothing runs VIBRANT yet, and until it does every table carries the note saying
+   the prophage count rests on one instrument.
+2. The in-region launcher. Reading 109 GiB of Evo 2 and 118.5 GiB of Evo 1 is the data-movement
+   case `AGENTS.md`'s EC2 test is written for, and spot is live and verified (D-132).
+3. The first band at 2.5%, which is also the calibration (D-118) — the per-genome cost on real
+   draft assemblies, which D-117's single-genome figure does not establish.
+
+**Not blocked on anyone.**
 
 ## Notes
 
