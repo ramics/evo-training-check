@@ -5302,3 +5302,74 @@ decision has a threshold or parameter in it, the number goes in the entry.
   result, since a lower bound's depth is what a reader needs in order to weigh it. The verification
   also stands for any other track: spot is live in this account as of 2026-10-17, confirmed by
   launch rather than by dry run.
+
+### D-133 — A1.8 becomes a sampled proof-of-concept; D-108's exhaustive narrow arm and the all-clear it was built for are withdrawn
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Context:** D-108 split the similarity pass by denylist precisely so that the arm needing an
+  all-clear would not be the expensive arm, and made this one exhaustive against every corpus
+  record on the strength of that. A1.8's own cost note repeated the conclusion — "cheap, and that
+  is why D-108 could afford to make it exhaustive" — and the staged-sample note in the task file
+  exists specifically to stop a worker scoring 2.5% and reporting it as exhaustive.
+
+  **The cost note was right about dollars and silent about wall clock, which is the binding
+  constraint.** Priced against the only measurement that exists for the parameters the pass
+  actually uses — 31,381 seeds against a 417 M residue target in 11,600 core-seconds, filtered
+  coverage, A1.6's cap run on 2026-10-17 (D-128) — the arm's 187K seeds over the whole staged
+  proxy corpus is about 13,600 core-hours. At the $0.16/hour 8-vCPU spot rate D-109 uses that is
+  **about $272, and about 1,700 instance-hours**. The account's policy ceiling is `2xlarge`, eight
+  vCPU, probed and recorded in `tools/ec2_similarity.py`: there is no larger machine to put it on.
+  So the exhaustive pass is roughly seventy days on one instance, or seventy to a hundred separate
+  launches, each of which is one-shot and unobservable — no shell, no SSM, console output
+  best-effort — against a record of six launches in which two died thirty-one seconds in and one
+  published nothing in four hours. D-108 weighed this arm's cost in dollars only, and a seventeenth
+  of an unaffordable wall clock is still unaffordable.
+
+  Two derived figures carry stated uncertainty rather than being presented as measurements. The
+  corpus is taken as about 295 G residues, from shard 0's measured 417 M scaled by the sample's
+  eight hash shards and 2.5% rate for UniRef100, then by the staged byte counts in A1.5 for the
+  remaining components. And D-128 measured the per-query coefficient as sub-linear in target size,
+  so a pass against larger shards costs somewhat less than this linear projection — the projection
+  is the conservative bound, in the manner D-104 established, not a prediction.
+- **Decision (project owner): the proof-of-concept is the deliverable, not a stage before the real
+  pass.** A1.8 scores the reconstructed narrow seed set against the already-staged 2.5% hash sample
+  of UniRef100 2023_02 (D-122), with one shard run first as a smoke test. About $3 and one launch of
+  roughly nineteen hours, against $272 and seventy to a hundred. No new corpus pass: the sample is
+  built, checksummed and staged, and `--sample-from` skips the fifty-two-minute pass.
+
+  **D-108's exhaustive scope is withdrawn, and so is the claim it existed to support.** This arm
+  reports a survival rate with an interval, in the same form as the broad arm, and **Phase A does
+  not state that nothing on the narrow denylist survived.** A sample cannot support that sentence
+  and this entry does not pretend otherwise.
+- **What this costs, stated plainly because it is the expensive half of the trade.** The error runs
+  in the direction that flatters the safeguard: a sample that happens to contain no surviving
+  narrow-denylist material is evidence of a low rate, not of absence, and a survivor outside the
+  sampled 2.5% is a survivor this audit does not see. §2 and D-128 both treat a missed survivor as
+  the same class of failure as an overstated one, so this is a real reduction in what the audit
+  detects and not a presentational matter. Every published form of this arm's result therefore
+  carries the rate, its interval, its realised family count, and an explicit statement that no
+  all-clear is made — enforced in the harness per the non-negotiables rather than left to the
+  write-up to remember.
+- **The corpus-scope gap this inherits, which the exhaustive design would have closed.** The staged
+  sample is UniRef100 only, so at 2.5% this arm covers one of ESM3's stated components and leaves
+  MGnify90 — 83.5 GB staged, and a component whose granularity is unstated (D-032) — scored not at
+  all. The broad arm at 0.3125% has the same gap, so it is not introduced here, but D-108's
+  "every corpus record" was the one place in the plan that would have closed it. It is named as an
+  open limitation of Phase A rather than resolved inside this task, which is not the task to widen.
+- **What does not change.** D-125's reporting rule in full: counts by survival route and homology
+  class, never by organism or taxon, per-record detail to the disclosure package only. D-126's
+  retention and its staged key, which a sampled pass satisfies unchanged — the manifest covers the
+  records scored, so A3.3's independent reimplementation and the manifest A2.* and B3.* consume
+  both still exist, now sampled and labelled as such. D-106's published 187K stays the validation
+  target for the seed-set reconstruction, which is reconciled against a full-tier pass and not
+  against the sample, because a seed set rebuilt from 2.5% of the corpus cannot be compared with a
+  published total. D-105's parameters, D-128's unbinding cap with the saturation guard checked at
+  this arm's own query scale, identity banding, D-109's design-effect intervals and denominator
+  separation, the prohibition on pooling the two arms (D-108), and the X3.1 circulation bar.
+- **Rejected:** The proof-of-concept as a first stage with the exhaustive pass to follow — keeps
+  the all-clear, and defers rather than answers the seventy-launch problem. The exhaustive pass as
+  D-108 fixed it — buys the strongest claim Phase A could make on this arm, at a wall clock and a
+  launch-failure exposure the measurement did not exist to price when D-108 was written. A deeper
+  sample than 2.5% — available, and it needs a fresh corpus pass and a new staging for a precision
+  gain on a claim that is now a rate either way; revisit it if the realised family count turns out
+  to be the binding constraint D-109 found it to be for the broad arm.
