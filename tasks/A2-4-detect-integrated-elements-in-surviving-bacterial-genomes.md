@@ -122,6 +122,19 @@ caught the undeclared GTDB objects first, and they are now declared). The profil
 staged and verified: RVDB-prot at 13,679 profiles against 13,679 stated, Pfam's viral universe
 1,719 of 30,134. The geNomad marker database v1.9 is fetched and its md5 matches the publisher's.
 
+**The first band is running on `i-016dbf04ae516b99a`** (m6i.2xlarge spot, 120 GB, rate 0.0025,
+both releases), launched 2026-10-17 with a 12-hour shutdown timer armed in `UserData`. Progress
+is at `s3://amazebio-corpora-897641797669/corpora/results/a2-4/heartbeat.json`; results land in
+the same prefix. Reattach with `python3 tools/ec2_proviruses.py --attach i-016dbf04ae516b99a`.
+
+Four proving launches preceded it and each failed usefully, for pennies: spot capacity on
+`r6i.2xlarge`, my own `| head -4` killing the watcher and with it a healthy instance, the piped
+pixi installer failing with its error swallowed by a redirect, and the geNomad database digest
+being left as `None` so the checksum guard refused the run. The fifth ran the whole path —
+three pixi environments, both registries staged against their publishers' digests, the marker
+database checksummed, VIBRANT's 11 GB of HMMs built, both registries searched, the probe guard
+holding, heartbeat and upload — and self-terminated with `run complete`.
+
 **Left, in order.**
 1. The VIBRANT arm. The concordance criterion is fixed (D-114) and its parser is written and
    tested, but nothing runs VIBRANT yet, and until it does every table carries the note saying
