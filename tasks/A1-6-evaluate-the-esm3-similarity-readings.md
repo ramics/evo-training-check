@@ -404,6 +404,43 @@ band 1 prices it.
 
 **Nothing waits on the project owner.**
 
+
+## The instrument carries the band and the strata — 2026-10-17
+
+Branch `ccr-81045ff3-7u9p0a`, 930 tests, full `check` green. Everything the band needs that
+can be tested without an aligner is in the library.
+
+**The seed axis** (D-134). `select_seeds` is the cap run's own hash rule, so band 1 re-runs that
+query set exactly. The bands are **nested** — 100 is a multiple of 10 — so band 1's seeds are a
+subset of band 2's and the difference between them is an accumulation rather than two unrelated
+samples; that is pinned by a test, because the whole nested design rests on it. The band is in
+the cell slug, since the corpus bucket has no `DeleteObject` and a shared name would make band 2
+read as band 1; a full-seed cell keeps D-128's slug. `lower_bound` sits on the `Rate` itself and
+`describe()` cannot format the number without "at least". `combine_cells` refuses to pool bands.
+
+**The interval's sampling unit** (D-140, corrected by D-141). `rate_with_interval` had wanted a
+family per corpus record since it was written and nothing produced one — the interval D-109
+promised had no unit at all. Taxonomic family does variance, A2.1's registries do every published
+family count. `FamilyIndex` builds the strata from the target shard, which is the only place the
+misses appear; `TargetStream` counts hit records per stratum in the same pass as the bands; and
+`cell_from_stream` assembles the cell, taking the denominator from the index rather than from its
+caller.
+
+**One correction worth reading** (D-141). D-140 asserted that pooling the taxonomy-unplaced
+records would understate the interval. Measured, it does so by 0.2% when their rate matches the
+overall one and **overstates by 10.9x** when it does not — pooling has no direction, it just makes
+the interval a function of one stratum's own rate with a third of the data behind it. The
+singleton treatment stands and its justification is replaced. Both claims were a minute's work to
+check.
+
+**Left, in order.** A `band` mode in `tools/esm3_calibrate.py` that runs the six cells and
+publishes each one, which needs the hit table sorted by target for `TargetStream` and the seed
+set's own realised family count; launcher plumbing for the mode; then band 1 — one run, ~4.1 h,
+~$0.50 on spot — and band 2 only if band 1's measured per-seed cost and hit-table size say it
+fits.
+
+**Nothing waits on the project owner.**
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

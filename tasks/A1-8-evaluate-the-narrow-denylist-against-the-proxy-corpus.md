@@ -203,3 +203,48 @@ toxins, two constructs, one functional predicate, four absent from the pinned ta
 reconstruction is not expected to land on 187K exactly, and the direction of each discrepancy is
 recorded in D-137 rather than reverse-engineered later. Three entries are deliberately
 over-inclusive, which overstates the denylist; the 16 non-contributing entries understate it.
+
+## In flight — 2026-10-17, second
+
+Steps 1 to 4 are done and on the branch; the full-tier seed pass is running.
+
+**Built and green** (full `check`, 959 tests): the list reconstruction
+(`src/amazebio/selectagents.py`, `policies/specs/select-agents-2024-06-01.json`, three pinned
+CFR captures), the denylist-neutral rename of the shared seed machinery (D-139), the seed
+builder (`tools/select_agent_seeds.py`) and its launcher
+(`tools/ec2_select_agent_seeds.py`).
+
+**What the reading comes to, under the literal reading.** 70 list entries, one-to-one with the
+regulation; 53 name a taxon, expanding to 114,206; 17 contribute none — nine toxins, two
+constructs, one functional predicate, one heading, four absent from the pinned taxonomy — of
+which 16 are agents the seed set cannot speak for at all. The toxin-producer reading is a
+switch, not a rebuild, and takes it to 62 named and 125,008 expanded.
+
+**Two things the next worker should not rediscover.**
+
+*The staged sample's manifest is readable under the rename, and it had to be made so
+deliberately.* It carries `viral_seeded` in its `seed_counts`, it is the input the sampled pass
+reads, and the corpus bucket has no `DeleteObject`. `ShardManifest.from_json` refuses any
+manifest version it does not recognise — by design, so it never guesses which fields still mean
+what they did — so bumping the version would have refused exactly that object. Both spellings
+are accepted instead. Verified against the real staged manifest, not a fixture.
+
+*D-133's cost arithmetic is confirmed rather than merely scaled.* It projected 133.4 G residues
+for UniRef100 by scaling shard 0; the staged manifest's own measured figure is 133.49 G, so the
+seventy-days-on-one-instance figure that withdrew the exhaustive scope stands on a measurement.
+
+**Launch notes, which cost a round trip each.** `r6i.2xlarge` spot was refused for
+`InsufficientInstanceCapacity`, exactly as A1.6 saw; `m6i.2xlarge` is the fallback and this pass
+has no search, so the memory-heavy family A1.6 needed for in-memory target shards is not needed
+here. And the payload upload sat above the `--dry-run` branch, so a dry run wrote a permanent
+object before changing nothing — fixed, with a regression test.
+
+**The check that is worth keeping.** The payload carries four data files the first-party import
+closure is structurally blind to, so the launcher asks the tool which files it reads rather than
+keeping its own list, and `UserData` runs `--check-inputs` on the instance before the pass. Both
+were validated by extracting the tarball to a bare directory and resolving the taxa from the
+shipped files alone.
+
+**Left:** the pass to finish and reconcile against the published 187K; then one shard as a smoke
+test and the 2.5% sample (D-133); then the aggregate with its interval, realised family count
+and the statement that no all-clear is made.
