@@ -6083,3 +6083,48 @@ decision has a threshold or parameter in it, the number goes in the entry.
   figure here is measured from a pass or stated as an estimate with its derivation shown.
   Nothing about the band's depth changes: 0.25% was chosen because 2.5% was 69 hours, and at the
   corrected size 2.5% is 90 hours, so the decision is more right than it was, not less.
+
+### D-148 — Band 1 lost its sixth cell to a spot reclaim; the five that survived are reusable and the skip is now implemented
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** Band 1 launched on `i-0d81555e994423a79`, `m6i.2xlarge` spot, at 18:32 UTC. The
+  corpus pass rebuilt the sample, `verify_rebuilt` confirmed it byte-identical to the staged
+  manifest, and five of the six cells completed and published. At 23:15:04 the instance was
+  terminated with `StateTransitionReason: Service initiated` — AWS-initiated, which is how a
+  reclaim reads as against the `User initiated` that `AGENTS.md` records for a shutdown or a
+  manual termination. About 4h45m at spot, roughly $0.55.
+- **What was lost and what was not.** Only the `s7.5 cov2` cell, the most expensive in the grid.
+  The other five are in the result object because the band publishes per cell rather than at the
+  end, which is the design `AGENTS.md` demanded after the runs that published nothing in four
+  hours. That part worked.
+- **The defect the reclaim exposed, which is worse than the lost cell.** `CellKey`'s docstring has
+  promised since it was written that a cell "is skipped if its artefact already exists", and
+  **nothing implemented it**. The band rewrites one result object on every publish, so a re-run
+  would have rebought all five surviving cells over about four hours *and then overwritten them
+  with the single new cell* — losing paid work irreversibly, in a bucket where an overwrite
+  destroys the earlier object. The reclaim is what surfaced it; the defect was there from the
+  first commit of the band mode and would have fired on any interruption.
+- **Decision:** the skip is implemented rather than the docstring softened. `cell_from_dict`
+  rehydrates a published cell and refuses one whose slug contradicts its own fields, since a cell
+  is reused on the strength of its slug and a disagreement would skip the wrong one.
+  `--resume-band-from` reads an earlier `band.json` and reuses its cells for the same band and
+  shard, after checking they searched the same record count — a different target is not a
+  resumable run. The property that makes it safe is asserted directly: five published cells plus
+  one new one give the same combined result as six computed in one run.
+- **What this says about spot for this arm, and what it does not.** One reclaim in one run is not
+  a rate, and the cost of this one was about $0.55 and one cell rather than the whole band, so
+  nothing here argues for on demand. What it does argue is that **per-cell publishing without a
+  resume is only half a design** — the publishing bought the five cells and the missing resume
+  would have thrown them away. D-134's band 2 is six launches of about 15.8 hours each, where an
+  interruption is likelier and a rebought cell costs far more, so the resume matters more there
+  than here.
+- **Rejected:** Re-running the whole band — four hours and about $0.55 to recover one cell, when
+  five are already published and verified against the same target. Reporting band 1 from five
+  cells and dropping `s7.5 cov2` — the sensitivity sweep is the only check on whether the rate is
+  a property of the filter or of our aligner settings (D-109), and five cells leave `s7.5` with
+  one reading of three. Switching band 2 to on demand on the strength of one reclaim — one
+  observation, and the resume is the cheaper answer.
+- **Consequence:** the missing cell is a resumed launch of about 50 minutes and roughly $0.10,
+  and band 1 is not a result until it lands. `AGENTS.md` gains the general form of this: a
+  per-cell publish is only half a design, and the half that reads it back is the half that gets
+  forgotten, because nothing exercises it until something fails.
