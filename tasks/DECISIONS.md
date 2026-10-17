@@ -4712,3 +4712,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
   a dead man's switch that cannot be superseded turns every fast failure into a full-window
   failure. **Both are now recorded in `AGENTS.md`** — that an immediate shutdown must cancel the
   pending one first, and that the payload is derived and tested rather than listed by hand.
+
+### D-118 — The broad arm runs on one staged shard at 0.3125% with the cap unbound; D-109's 2.5% is superseded
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-109 sized the broad arm at 2.5% for $26, from D-104's cost model. The cap
+  measurement priced the real thing and the model under-predicts by about 6x, because it was fitted
+  with the charitable parameter set's `--min-seq-id 0.70` and the pass cannot use an identity floor
+  — banded reporting needs the rows below the cut (D-105 parameter 6, D-114). Measured on a 417 M
+  residue target with 31,381 seeds: 11,600 core-seconds filtered, 17,095 relaxed. Extrapolated to
+  the full 3,159,223 seeds over 2.5% of the corpus with the sensitivity sweep, D-109's design is
+  **$300-430, not $26**.
+- **Decision (project owner): 0.25% of the corpus at the correct, unbinding hit cap.** Implemented
+  as **one shard of the already-staged 2.5% sample**, which is 0.3125% — slightly more than asked,
+  and free, because it is a hash partition of a sample already built, checksummed and staged
+  (D-112). No new corpus pass. About **$50** with the full three-sensitivity sweep and all three
+  coverage readings retained.
+- **The cap stays at 100,000 and does not bind.** Measured: 5,078 hits for the worst seed against a
+  417 M residue target, 5% of the cap, nothing truncated. At this target size the worst case is
+  about 4,000, so the pass takes no recall loss from truncation. The alternative — capping at half
+  the observed maximum for 2.8x — was available and is **declined**: it loses 0.9% of records, and
+  a lost record is a missed survivor, which §2 treats as the same failure as overstating leakage.
+  D-105 refused `-s 2.0`'s 2x saving on identical reasoning and this entry does not reopen it.
+- **One shard, not eight.** The per-query coefficient is sub-linear in target size, so the sum over
+  many small shards exceeds one search against their union. Sharding exists because no permitted
+  instance can hold the whole corpus (D-094); at 0.3125% the target is about 334 MB and the reason
+  does not apply.
+- **What this costs in precision, stated rather than buried.** Eight times fewer records and
+  correspondingly fewer families than D-109 planned. D-109 established that the binding constraint
+  is the realised **family** count, not the record count, so the interval widens by roughly the
+  square root of that factor and every rate must ship with its realised family count as that entry
+  requires. UniRef and MGnify stay separate and unpooled.
+- **Rejected:** The 2.5% design at its true price — defensible, and fifteen times the ceiling the
+  owner set. One sensitivity at 2.5% — keeps precision, gives up the only check on whether the rate
+  is a property of the filter or of our aligner settings, which D-109 already refused. A lower hit
+  cap — priced at 2.8x for 0.9% of records and declined above.
+- **Consequence:** D-109's sample size is superseded; its hash-sampling rule, identity banding,
+  sensitivity sweep, design-effect intervals and denominator separation all stand. D-104's model is
+  not to be used for any further estimate in this task without stating that it carries an identity
+  floor the pass does not.
