@@ -58,7 +58,14 @@ from amazebio.detect import (
 )
 from amazebio.policyspec import Outcome
 from amazebio.profiles import registry as load_registry
-from amazebio.proviruses import GENOMAD, SCOPE_NOTE, VIBRANT, read_genomad_proviruses
+from amazebio.proviruses import (
+    GENOMAD,
+    SCOPE_NOTE,
+    VIBRANT,
+    concordance,
+    read_genomad_proviruses,
+    read_vibrant_proviruses,
+)
 from amazebio.survival import Detection, ElementKind, Route
 
 REPO = Path(__file__).resolve().parent.parent
@@ -74,6 +81,11 @@ SEED = 20261015
 #: The first band. D-118 fixed the shape — nested bands, the first one its own calibration —
 #: and D-132 restored spot, so the deepening to ~10% is affordable if the measured cost allows.
 FIRST_BAND_RATE = 0.025
+
+#: The concordance subsample is the *same* hash under the *same* seed at a tenth the main rate,
+#: so it is nested inside the main sample, declarable in advance, and checkable per record
+#: afterwards (D-114). A separate draw would have none of those properties.
+CONCORDANCE_FRACTION = 0.1
 
 OUTDIR = REPO / "artifacts" / "a2-4"
 
@@ -314,6 +326,55 @@ def genomad(
     return table
 
 
+def vibrant(fasta: Path, outdir: Path, *, threads: int = 4) -> Path | None:
+    """Run VIBRANT over the same FASTA and return its integrated-prophage table.
+
+    The second instrument of the concordance criterion (D-114). It returns `None` rather than
+    raising when VIBRANT cannot run, and that asymmetry with :func:`genomad` is deliberate: the
+    expensive half of this pass is geNomad over sampled genomes, and losing it to a failure in
+    the cheap secondary half would be the wrong trade. A missing concordance figure is recorded
+    as missing — the table says the count rests on one instrument — while a missing prophage
+    table would be the run.
+
+    VIBRANT writes nothing when it finds no prophage in the input, so an absent table is read as
+    "no calls" rather than as a failure, the same convention geNomad's own output follows.
+    """
+    result = subprocess.run(
+        [
+            "pixi",
+            "run",
+            "-e",
+            "vibrant",
+            "VIBRANT_run.py",
+            "-i",
+            str(fasta),
+            "-folder",
+            str(outdir),
+            "-t",
+            str(threads),
+        ],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    stem = fasta.name.rsplit(".", 1)[0]
+    table = (
+        outdir
+        / f"VIBRANT_{stem}"
+        / f"VIBRANT_results_{stem}"
+        / (f"VIBRANT_integrated_prophage_coordinates_{stem}.tsv")
+    )
+    if table.exists():
+        return table
+    print(
+        f"  vibrant produced no coordinate table ({result.returncode}): "
+        f"{result.stderr[-400:] or result.stdout[-400:]}",
+        flush=True,
+    )
+    return None
+
+
 def provirus_proteins(table: Path) -> Path:
     """The proteins geNomad called inside the delineated proviruses, beside its table."""
     faa = table.with_name(table.name.replace("_provirus.tsv", "_provirus_proteins.faa"))
@@ -426,6 +487,24 @@ def detections_from_hits(
     return out
 
 
+def host_of_contig(source_seq: str) -> str:
+    """The genome a provirus call sits in, from the contig name this pass gave geNomad."""
+    genome, sep, _ = source_seq.rpartition(CONTIG_SEP)
+    return genome if sep else source_seq
+
+
+def _rehome(call):
+    """A provirus call re-keyed from its contig to its genome, for record-level agreement.
+
+    The 2x2 in D-114 is per *record*, and this pass's record is the genome (D-136). Both tools
+    report against the contig names they were given, so both are re-keyed the same way — doing
+    it to one and not the other would make every multi-contig genome a disagreement.
+    """
+    import dataclasses
+
+    return dataclasses.replace(call, source_record=host_of_contig(call.source_record))
+
+
 def table_notes(*, genomes: int, proviruses: int, concordance: dict[str, Any] | None) -> list[str]:
     """Caveats that travel with the numbers, not a changelog."""
     notes = [
@@ -466,7 +545,25 @@ def main(argv: list[str] | None = None) -> int:
         "it would be a null over data nobody read",
     )
     parser.add_argument("--plan", action="store_true", help="print the scope and stop")
+    parser.add_argument(
+        "--no-concordance",
+        action="store_true",
+        help="skip the VIBRANT arm. The tables then say the count rests on one instrument.",
+    )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
+    parser.add_argument(
+        "--upload-results",
+        action="store_true",
+        help="copy the artefacts to the results prefix. For the in-region run, whose only "
+        "channel back is object storage.",
+    )
+    parser.add_argument(
+        "--code-commit",
+        default=None,
+        help="the commit this code came from. The instance has no checkout, so repro cannot "
+        "discover it and an untraceable manifest is not citable.",
+    )
+    parser.add_argument("--heartbeat-seconds", type=float, default=300.0)
     args = parser.parse_args(argv)
 
     manifests = load_manifests(args.manifests)
@@ -504,9 +601,47 @@ def main(argv: list[str] | None = None) -> int:
     views = {reg.id: profilesearch.family_universe(reg, PROFILE_DATA) for reg in registries}
     args.out.mkdir(parents=True, exist_ok=True)
 
+    results_prefix = "corpora/results/a2-4"
+
+    def beat(stage: str, **fields: Any) -> None:
+        """Say where the pass has got to, in the only channel an instance has.
+
+        `AGENTS.md`: the console is best-effort and cannot tell a dead process from a quiet
+        one — four hours went on that reading once. A step with no heartbeat is a step whose
+        silence means nothing, so every stage publishes as it starts rather than when it ends.
+        A failed heartbeat never fails the run it reports on.
+        """
+        if not args.upload_results:
+            return
+        body = {
+            "stage": stage,
+            "code_commit": args.code_commit,
+            "rate": args.rate,
+            "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            **fields,
+        }
+        try:
+            client.put_object(
+                Bucket=bucket,
+                Key=f"{results_prefix}/heartbeat.json",
+                Body=json.dumps(body, sort_keys=True, default=str).encode(),
+            )
+        except Exception as exc:
+            print(f"    heartbeat failed: {type(exc).__name__}", flush=True)
+
+    beat("starting", manifests=len(manifests))
+
     with run(
-        "A2.4", seed=SEED, outdir=args.out, allow_dirty=args.allow_dirty, repo=REPO
+        "A2.4",
+        seed=SEED,
+        outdir=args.out,
+        allow_dirty=args.allow_dirty or bool(args.code_commit),
+        repo=REPO,
     ) as manifest_run:
+        # The instance has no git checkout, so `repro` cannot discover the commit and a
+        # manifest produced there would be untraceable. The launcher refuses a dirty tree and
+        # passes it in; recording it as a parameter is how it reaches the artefact.
+        manifest_run.parameter("code_commit", args.code_commit)
         manifest_run.parameter("sample_seed", SEED)
         manifest_run.parameter("sample_rate", args.rate)
         manifest_run.parameter("genomad", GENOMAD.to_dict())
@@ -520,12 +655,14 @@ def main(argv: list[str] | None = None) -> int:
             searched, skipped = source_rows(manifest)
             rows: list[dict[str, Any]] = list(skipped)
             detections_by_registry: dict[str, list[Detection]] = {r.id: [] for r in registries}
+            concordance_tables: list[dict[str, Any]] = []
             genomes_total = proviruses_total = 0
 
             for source in searched:
                 component = source.get("corpus_component")
                 prefix = source.get("key") or ""
                 keys = objects_under(client, bucket, prefix) if prefix else []
+                beat("reading", release=release, component=component)
                 started = time.time()
                 batch: list[tuple[str, list[tuple[str, str]]]] = []
                 for key in keys:
@@ -548,6 +685,13 @@ def main(argv: list[str] | None = None) -> int:
                     search_seconds: dict[str, float] = {}
                     calls = []
                     if counts["genomes"]:
+                        beat(
+                            "genomad",
+                            release=release,
+                            component=component,
+                            genomes=counts["genomes"],
+                            bases=counts["bases"],
+                        )
                         table_path = genomad(fasta, work, args.genomad_db)
                         calls = read_genomad_proviruses(table_path)
                         proviruses_total += len(calls)
@@ -575,6 +719,37 @@ def main(argv: list[str] | None = None) -> int:
                             )
                     else:
                         pstats = {"records": 0, "genes": 0, "residues": 0}
+
+                    if counts["genomes"] and not args.no_concordance:
+                        sub = [
+                            (g, c)
+                            for g, c in batch
+                            if in_sample(g, seed=SEED, rate=args.rate * CONCORDANCE_FRACTION)
+                        ]
+                        sub_fasta = work / f"{release}-{component}-concordance.fna"
+                        sub_counts = write_batch(sub, sub_fasta)
+                        if sub_counts["genomes"]:
+                            vib_table = vibrant(sub_fasta, work)
+                            vib_calls = read_vibrant_proviruses(vib_table) if vib_table else []
+                            searched_ids = [g for g, _ in sub]
+                            gen_on_sub = [
+                                c
+                                for c in calls
+                                if host_of_contig(c.source_record) in set(searched_ids)
+                            ]
+                            agreement = concordance(
+                                searched_ids,
+                                [_rehome(c) for c in gen_on_sub],
+                                [_rehome(c) for c in vib_calls],
+                            )
+                            concordance_tables.append(
+                                {
+                                    "release": release,
+                                    "component": component,
+                                    "subsample_rate": args.rate * CONCORDANCE_FRACTION,
+                                    **agreement.to_dict(),
+                                }
+                            )
 
                 rows.append(
                     {
@@ -634,7 +809,9 @@ def main(argv: list[str] | None = None) -> int:
                         "min_model_coverage": profilesearch.MIN_MODEL_COVERAGE,
                     },
                     notes=table_notes(
-                        genomes=genomes_total, proviruses=proviruses_total, concordance=None
+                        genomes=genomes_total,
+                        proviruses=proviruses_total,
+                        concordance=concordance_tables or None,
                     ),
                 )
                 survival = table.survival()
@@ -663,6 +840,36 @@ def main(argv: list[str] | None = None) -> int:
                     f"({survival['estimate_kind']})",
                     flush=True,
                 )
+
+            if concordance_tables and not args.limit:
+                # Its own artefact, not a field on the hit tables. The agreement is between
+                # instruments over records; it is not per registry, and copying it into each
+                # table would invite it being read as a per-registry figure.
+                path = args.out / f"concordance-{policy_id}-{release}.json"
+                path.write_text(
+                    json.dumps(
+                        {
+                            "task": "A2.4",
+                            "criterion": "D-114",
+                            "tools": [GENOMAD.to_dict(), VIBRANT.to_dict()],
+                            "subsamples": concordance_tables,
+                        },
+                        indent=1,
+                        sort_keys=True,
+                    )
+                    + "\n"
+                )
+                manifest_run.output_file(path, role="two-tool concordance")
+        if args.upload_results:
+            beat("uploading")
+            for path in sorted(args.out.glob("*.json")):
+                client.put_object(
+                    Bucket=bucket,
+                    Key=f"{results_prefix}/{path.name}",
+                    Body=path.read_bytes(),
+                )
+                print(f"  uploaded s3://{bucket}/{results_prefix}/{path.name}", flush=True)
+            beat("finished")
     return 0
 
 

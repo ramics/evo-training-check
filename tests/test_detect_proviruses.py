@@ -213,3 +213,52 @@ def test_the_probe_branch_precedes_any_write():
     guard = source.index("if args.limit:")
     write = source.index("table.write(")
     assert guard < write, "a probe must stop before anything is written"
+
+
+# --------------------------------------------------------------------------------------
+# The concordance arm
+# --------------------------------------------------------------------------------------
+
+
+def test_the_concordance_subsample_is_nested_inside_the_main_sample():
+    """D-114: same hash, same seed, a tenth the rate — so it is a subset, not a second draw.
+
+    A separate draw would not be nested, and the agreement would then be measured over records
+    the main table never searched.
+    """
+    from amazebio.detect import in_sample
+
+    rate = 0.025
+    sub_rate = rate * dp.CONCORDANCE_FRACTION
+    ids = [f"GCF_{n:09d}.1" for n in range(20000)]
+    main = {i for i in ids if in_sample(i, seed=dp.SEED, rate=rate)}
+    sub = {i for i in ids if in_sample(i, seed=dp.SEED, rate=sub_rate)}
+    assert sub, "the subsample must not be empty at this size"
+    assert sub <= main, "the concordance subsample must be a subset of the main sample"
+
+
+def test_the_concordance_fraction_is_a_tenth():
+    assert dp.CONCORDANCE_FRACTION == 0.1
+
+
+def test_a_provirus_call_is_rekeyed_from_its_contig_to_its_genome():
+    """The 2x2 is per record, and this pass's record is the genome (D-136)."""
+    from amazebio.proviruses import ProvirusCall
+
+    call = ProvirusCall(
+        source_record="GCF_000001.1~7", fragment="f", start=10, end=20, tool="genomad"
+    )
+    assert dp._rehome(call).source_record == "GCF_000001.1"
+
+
+def test_both_tools_calls_are_rekeyed_the_same_way():
+    """Re-keying one and not the other would make every multi-contig genome a disagreement."""
+    from amazebio.proviruses import ProvirusCall
+
+    g = ProvirusCall(source_record="G~0", fragment="a", start=1, end=9, tool="genomad")
+    v = ProvirusCall(source_record="G~4", fragment="b", start=1, end=9, tool="vibrant")
+    assert dp._rehome(g).source_record == dp._rehome(v).source_record == "G"
+
+
+def test_host_of_contig_survives_a_name_without_the_separator():
+    assert dp.host_of_contig("plain") == "plain"
