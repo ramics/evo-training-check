@@ -258,7 +258,14 @@ def main(argv: list[str] | None = None) -> int:
             "s3",
             region_name=S3_REGION,
             endpoint_url=S3_ENDPOINT,
-            config=Config(retries={"max_attempts": 10, "mode": "standard"}),
+            config=Config(
+                retries={"max_attempts": 10, "mode": "standard"},
+                # Without these a stalled call waits on botocore's defaults and a hung one
+                # never returns at all; 2026-10-17 lost a run to 25 minutes of silence in a
+                # step that should take under a minute.
+                connect_timeout=15,
+                read_timeout=120,
+            ),
         )
 
     if shutil.which("mmseqs") is None and not args.skip_search:
@@ -387,6 +394,51 @@ def _stream_hit_rows(path: Path) -> Any:
         yield from similarity.parse_hits(handle)
 
 
+def _put_large(client: Any, bucket: str, key: str, path: Path) -> None:
+    """Upload one file, by managed transfer where the client offers one.
+
+    `put_object(Body=path.read_bytes())` reads the whole file into memory and sends it as a
+    single request, which for a 450 MB shard means one long-running call that a read timeout
+    can strand and a retry must restart from zero. `upload_file` chunks it, retries parts and
+    streams from disk. The fallback keeps the local stand-ins and tests working, where the
+    files are bytes rather than gigabytes.
+    """
+    started = time.monotonic()
+    size = path.stat().st_size
+    if hasattr(client, "upload_file"):
+        client.upload_file(str(path), bucket, key)
+    else:
+        client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
+    elapsed = max(time.monotonic() - started, 1e-9)
+    print(
+        f"  staged {key}  ({size:,} bytes, {elapsed:.0f}s, {size / elapsed / 1e6:.0f} MB/s)",
+        flush=True,
+    )
+
+
+def _progress(
+    client: Any, bucket: str, prefix: str, args: argparse.Namespace, **fields: Any
+) -> None:
+    """Write a progress object for any stage, not just the corpus pass.
+
+    The corpus pass got a heartbeat this morning because an unobservable hour cost a day. The
+    staging step was written after that and got none, and then hung — so the same blindness
+    returned in the code added to cure it. Every step that can take minutes reports.
+    """
+    if client is None:
+        return
+    key = f"{prefix}/results/a1-6/{HEARTBEAT_NAMES[args.measure]}"
+    body = {
+        "code_commit": args.code_commit,
+        "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        **fields,
+    }
+    try:
+        client.put_object(Bucket=bucket, Key=key, Body=json.dumps(body, sort_keys=True).encode())
+    except Exception as exc:  # Never fail the run for the sake of reporting on it.
+        print(f"    progress write failed: {type(exc).__name__}", flush=True)
+
+
 def _parse_s3_uri(uri: str) -> tuple[str, str]:
     bucket, _, key = uri[5:].partition("/")
     return bucket, key
@@ -482,6 +534,7 @@ def _stage_sample(
     args: argparse.Namespace,
     client: Any,
     bucket: str,
+    prefix: str,
     seed_fasta: Path,
     shard_paths: list[Path],
     counts: seeds.SeedCounts,
@@ -497,11 +550,15 @@ def _stage_sample(
     if client is None:
         print("  --stage-sample needs S3; nothing staged", flush=True)
         return None
-    prefix = shardstore.sample_prefix(args.release, args.tier, args.sample_rate)
-    plan = shardstore.plan_uploads(prefix, shard_paths, seed_fasta)
-    manifest_key = f"{prefix}/{shardstore.MANIFEST_NAME}"
+    # Under the run's prefix, not at the bucket root. Measured the hard way on 2026-10-17:
+    # `sample_prefix` returns a path relative to the project prefix, and staging used it as an
+    # absolute key, which would have written several gigabytes outside `corpora/` — permanently,
+    # in a bucket with no DeleteObject.
+    sample_root = f"{prefix}/{shardstore.sample_prefix(args.release, args.tier, args.sample_rate)}"
+    plan = shardstore.plan_uploads(sample_root, shard_paths, seed_fasta)
+    manifest_key = f"{sample_root}/{shardstore.MANIFEST_NAME}"
 
-    present = shardstore.existing_keys(client, bucket, prefix + "/")
+    present = shardstore.existing_keys(client, bucket, sample_root + "/")
     clashes = sorted(({k for _, k in plan} | {manifest_key}) & present)
     if clashes:
         raise SystemExit(
@@ -509,18 +566,20 @@ def _stage_sample(
             f"an overwrite destroys the earlier object irreversibly: {clashes[:4]}"
         )
 
+    total = len(plan)
+    print(f"  staging {total} objects under s3://{bucket}/{sample_root}/", flush=True)
     staged_shards = []
     for (path, key), index in zip(plan[1:], range(len(shard_paths)), strict=True):
-        client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
+        _put_large(client, bucket, key, path)
         staged_shards.append(
             shardstore.describe_shard(
                 path, key, index=index, clusters=shard_counts[index], residues=shard_residues[index]
             )
         )
-        print(f"  staged {key}", flush=True)
+        _progress(client, bucket, prefix, args, stage="staging", done=index + 1, total=total)
     seed_path, seed_key = plan[0]
-    client.put_object(Bucket=bucket, Key=seed_key, Body=seed_path.read_bytes())
-    print(f"  staged {seed_key}", flush=True)
+    _put_large(client, bucket, seed_key, seed_path)
+    _progress(client, bucket, prefix, args, stage="staging", done=total, total=total)
 
     staged = shardstore.ShardManifest(
         release=args.release,
@@ -725,11 +784,23 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
         if args.stage_sample:
             staged_uri = _stage_sample(
-                args, client, bucket, seed_fasta, shard_paths, counts, shard_counts, shard_residues
+                args,
+                client,
+                bucket,
+                prefix,
+                seed_fasta,
+                shard_paths,
+                counts,
+                shard_counts,
+                shard_residues,
             )
             if staged_uri:
                 payload["staged_sample"] = staged_uri
-                manifest.parameter("staged_sample", staged_uri)
+                # An output, not a parameter. `repro` closes the parameter window as soon as
+                # an output is recorded — the rule that thresholds are fixed before results
+                # are inspected — and the seed set has already been uploaded by this point, so
+                # declaring this as a parameter is refused and takes the run down with it.
+                manifest.output_object(staged_uri, role="staged-sample")
                 publish()
 
         if not args.skip_search:

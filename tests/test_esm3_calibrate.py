@@ -240,6 +240,7 @@ def _stage_args(tmp_path, **over):
         buckets=2,
         code_commit="abc123",
         sample_from=None,
+        measure="caps",
     )
     base.update(over)
     return argparse.Namespace(**base)
@@ -263,12 +264,12 @@ def test_staging_refuses_to_overwrite_an_existing_object(tmp_path) -> None:
     from amazebio import shardstore as ss
 
     seed, shards = _staged_files(tmp_path)
-    prefix = ss.sample_prefix("2023_02", "uniref100", 40)
+    prefix = "corpora/" + ss.sample_prefix("2023_02", "uniref100", 40)
     client = _StageS3(existing=[f"{prefix}/shard-00.faa"])
     counts = sd.SeedCounts(clusters=10, viral_seeded=4)
     with pytest.raises(SystemExit, match="refusing to stage over existing objects"):
         tool._stage_sample(
-            _stage_args(tmp_path), client, "buk", seed, shards, counts, [1, 1], [8, 8]
+            _stage_args(tmp_path), client, "buk", "corpora", seed, shards, counts, [1, 1], [8, 8]
         )
     assert client.puts == [], "nothing may be written once a clash is known"
 
@@ -280,10 +281,17 @@ def test_staging_writes_every_object_and_a_manifest(tmp_path) -> None:
     client = _StageS3()
     counts = sd.SeedCounts(clusters=10, residues=80, viral_seeded=4, viral_residues=32)
     uri = tool._stage_sample(
-        _stage_args(tmp_path), client, "buk", seed, shards, counts, [1, 1], [8, 8]
+        _stage_args(tmp_path), client, "buk", "corpora", seed, shards, counts, [1, 1], [8, 8]
     )
     assert uri and uri.endswith("manifest.json")
-    assert len(client.puts) == 4, "two shards, the seed set, and the manifest"
+    staged = [k for k in client.puts if "/results/" not in k]
+    assert len(staged) == 4, f"two shards, the seed set, and the manifest: {staged}"
+    # Every key under the run's prefix. Staging used sample_prefix() as an absolute key once,
+    # which would have written gigabytes outside corpora/ in a bucket that cannot delete.
+    assert all(
+        k.startswith("corpora/samples/a1-6/uniref100/2023_02/rate40/") for k in staged
+    ), f"keys escaped the run prefix: {staged}"
+    assert uri.startswith("s3://buk/corpora/samples/")
 
 
 def test_loading_refuses_a_sample_from_another_release_or_tier(tmp_path) -> None:
@@ -384,3 +392,52 @@ def test_streaming_a_hit_table_reproduces_the_in_memory_ledger(tmp_path) -> None
     )
     for mode in sim.COVERAGE_READINGS:
         assert stream.bands[mode] == ledger.counts_by_band(mode)
+
+
+def test_staging_reports_progress_as_it_goes(tmp_path) -> None:
+    """The corpus pass got a heartbeat this morning because an unobservable hour cost a day.
+    Staging was written after that, got none, and then hung for 25 minutes — so the blindness
+    came back inside the code added to cure it. Every step that can take minutes reports."""
+    from amazebio import seeds as sd
+
+    seed, shards = _staged_files(tmp_path)
+    client = _StageS3()
+    tool._stage_sample(
+        _stage_args(tmp_path),
+        client,
+        "buk",
+        "corpora",
+        seed,
+        shards,
+        sd.SeedCounts(clusters=10, viral_seeded=4),
+        [1, 1],
+        [8, 8],
+    )
+    progress = [k for k in client.puts if k.endswith("progress-caps.json")]
+    assert progress, "staging wrote no progress object"
+
+
+def test_large_uploads_prefer_a_managed_transfer(tmp_path) -> None:
+    """A 450 MB single PUT is one long call a read timeout can strand and a retry restarts
+    from zero. upload_file chunks, retries parts and streams from disk."""
+    calls: list[tuple[str, str]] = []
+
+    class _Managed:
+        def upload_file(self, filename: str, bucket: str, key: str) -> None:
+            calls.append(("upload_file", key))
+
+        def put_object(self, Bucket: str, Key: str, Body: bytes) -> None:
+            calls.append(("put_object", Key))
+
+    path = tmp_path / "shard.faa"
+    path.write_bytes(b">x\nMKVL\n")
+    tool._put_large(_Managed(), "buk", "corpora/k/shard.faa", path)
+    assert calls == [("upload_file", "corpora/k/shard.faa")]
+
+    # The fallback keeps local stand-ins and tests working, where files are bytes not gigabytes.
+    class _Plain:
+        def put_object(self, Bucket: str, Key: str, Body: bytes) -> None:
+            calls.append(("put_object", Key))
+
+    tool._put_large(_Plain(), "buk", "corpora/k/shard.faa", path)
+    assert calls[-1] == ("put_object", "corpora/k/shard.faa")

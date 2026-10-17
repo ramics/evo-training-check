@@ -265,3 +265,174 @@ def _which(name: str) -> str | None:
     import shutil
 
     return shutil.which(name)
+
+
+def _boto3_stub(root: pathlib.Path, bucket_dir: pathlib.Path) -> pathlib.Path:
+    """A file-backed `boto3` the shipped tool imports instead of the real one.
+
+    Shadowing the module rather than patching inside the process is what makes this a test of
+    the *shipped* code: the subprocess imports `boto3`, builds its own client with its own
+    config, and runs its own S3 paths. Patching from the test process would have exercised the
+    repository copy and proved nothing about the tarball.
+    """
+    stub = root / "stub"
+    pkg = stub / "boto3"
+    pkg.mkdir(parents=True)
+    (stub / "botocore").mkdir()
+    (stub / "botocore" / "__init__.py").write_text("")
+    (stub / "botocore" / "config.py").write_text(
+        "class Config:\n    def __init__(self, *a, **k):\n        pass\n"
+    )
+    (pkg / "__init__.py").write_text(
+        "import pathlib, json\n"
+        f"ROOT = pathlib.Path({str(bucket_dir)!r})\n"
+        "\n"
+        "class _Body:\n"
+        "    def __init__(self, data):\n"
+        "        self.data = data\n"
+        "    def read(self, size=-1):\n"
+        "        if size is None or size < 0:\n"
+        "            out, self.data = self.data, b''\n"
+        "            return out\n"
+        "        out, self.data = self.data[:size], self.data[size:]\n"
+        "        return out\n"
+        "\n"
+        "class _Client:\n"
+        "    def _p(self, key):\n"
+        "        p = ROOT / key\n"
+        "        p.parent.mkdir(parents=True, exist_ok=True)\n"
+        "        return p\n"
+        "    def put_object(self, Bucket, Key, Body):\n"
+        "        self._p(Key).write_bytes(Body if isinstance(Body, bytes) else Body.encode())\n"
+        "    def upload_file(self, filename, bucket, key):\n"
+        "        self._p(key).write_bytes(pathlib.Path(filename).read_bytes())\n"
+        "    def download_file(self, bucket, key, dest):\n"
+        "        pathlib.Path(dest).write_bytes(self._p(key).read_bytes())\n"
+        "    def get_object(self, Bucket, Key, Range=None):\n"
+        "        data = self._p(Key).read_bytes()\n"
+        "        if Range:\n"
+        "            start = int(Range.split('=')[1].split('-')[0])\n"
+        "            data = data[start:]\n"
+        "        return {'Body': _Body(data), 'ContentLength': len(data)}\n"
+        "    def head_object(self, Bucket, Key):\n"
+        "        return {'ContentLength': self._p(Key).stat().st_size}\n"
+        "    def list_objects_v2(self, Bucket, Prefix='', **kw):\n"
+        "        hits = [q for q in ROOT.rglob('*') if q.is_file()\n"
+        "                and str(q.relative_to(ROOT)).startswith(Prefix)]\n"
+        "        return {'Contents': [{'Key': str(q.relative_to(ROOT))} for q in hits],\n"
+        "                'IsTruncated': False}\n"
+        "\n"
+        "def client(*a, **k):\n"
+        "    return _Client()\n"
+    )
+    return stub
+
+
+def _run_shipped(
+    shipped: pathlib.Path, stub: pathlib.Path, *extra: str
+) -> subprocess.CompletedProcess:
+    import os
+
+    env = {**os.environ, "PYTHONPATH": str(stub), "PYTHONDONTWRITEBYTECODE": "1"}
+    return subprocess.run(
+        [sys.executable, "tools/esm3_calibrate.py", *extra],
+        cwd=shipped,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+
+def test_the_shipped_payload_stages_and_reloads_a_sample(
+    shipped: pathlib.Path, tmp_path: pathlib.Path
+) -> None:
+    """The S3 paths, from the tarball, including the keys they write.
+
+    This is the test that was missing: the other smoke test runs with `--source`, so no client
+    is built and the staging code never executes. On 2026-10-17 that let a run reach an
+    instance with staging keys that omitted the run's prefix — several gigabytes bound for the
+    bucket root, permanently, in a bucket with no DeleteObject.
+    """
+    bucket = tmp_path / "bucket"
+    stub = _boto3_stub(tmp_path, bucket)
+    corpus_key = bucket / "corpora" / "uniref" / "2023_02" / "uniref100.tar" / "uniref100.xml.gz"
+    corpus_key.parent.mkdir(parents=True)
+    _fixture_corpus(corpus_key)
+    taxdump = tmp_path / "taxdmp.zip"
+    _fixture_taxdump(taxdump)
+
+    common = [
+        "--measure",
+        "caps",
+        "--s3-uri",
+        "s3://buk/corpora",
+        "--taxdump",
+        str(taxdump),
+        "--sample-rate",
+        "1",
+        "--buckets",
+        "2",
+        "--threads",
+        "2",
+        "--workers",
+        "1",
+        "--allow-dirty",
+        "--code-commit",
+        "smoke",
+        "--upload-results",
+        "--cap-shard-points",
+        "1",
+    ]
+    staged = _run_shipped(
+        shipped,
+        stub,
+        *common,
+        "--outdir",
+        str(tmp_path / "o1"),
+        "--workdir",
+        str(tmp_path / "w1"),
+        "--stage-sample",
+        "--skip-search",
+    )
+    assert (
+        staged.returncode == 0
+    ), f"staging run failed:\n{staged.stdout[-2500:]}{staged.stderr[-2500:]}"
+
+    keys = sorted(str(p.relative_to(bucket)) for p in bucket.rglob("*") if p.is_file())
+    sample_keys = [k for k in keys if "/samples/" in k or k.startswith("samples/")]
+    assert sample_keys, f"nothing staged: {keys}"
+    assert all(
+        k.startswith("corpora/samples/a1-6/") for k in sample_keys
+    ), f"staged keys escaped the run prefix: {sample_keys}"
+    manifest = next(k for k in sample_keys if k.endswith("manifest.json"))
+
+    # And the sample loads back, skipping the pass, with every digest verified.
+    loaded = _run_shipped(
+        shipped,
+        stub,
+        *common,
+        "--outdir",
+        str(tmp_path / "o2"),
+        "--workdir",
+        str(tmp_path / "w2"),
+        "--sample-from",
+        f"s3://buk/{manifest}",
+        "--cap-shard-points",
+        "1",
+        "--cap-query-denominator",
+        "2",
+        "--cap-fractions",
+        "0.5",
+    )
+    assert (
+        loaded.returncode == 0
+    ), f"load run failed:\n{loaded.stdout[-2500:]}{loaded.stderr[-2500:]}"
+    assert "verified" in loaded.stdout
+    assert "no corpus pass run" in loaded.stdout
+
+    import json
+
+    payload = json.loads((tmp_path / "o2" / "cap-measurement.json").read_text())
+    assert payload["corpus_pass_seconds"] is None
+    assert payload["sample_source"].endswith("manifest.json")
+    assert [c for c in payload["searches"] if "search_wall_seconds" in c], "no cell ran"
