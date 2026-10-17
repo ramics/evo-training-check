@@ -5302,3 +5302,204 @@ decision has a threshold or parameter in it, the number goes in the entry.
   result, since a lower bound's depth is what a reader needs in order to weigh it. The verification
   also stands for any other track: spot is live in this account as of 2026-10-17, confirmed by
   launch rather than by dry run.
+
+### D-133 — A1.8 becomes a sampled proof-of-concept; D-108's exhaustive narrow arm and the all-clear it was built for are withdrawn
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Context:** D-108 split the similarity pass by denylist precisely so that the arm needing an
+  all-clear would not be the expensive arm, and made this one exhaustive against every corpus
+  record on the strength of that. A1.8's own cost note repeated the conclusion — "cheap, and that
+  is why D-108 could afford to make it exhaustive" — and the staged-sample note in the task file
+  exists specifically to stop a worker scoring 2.5% and reporting it as exhaustive.
+
+  **The cost note was right about dollars and silent about wall clock, which is the binding
+  constraint.** Priced against the only measurement that exists for the parameters the pass
+  actually uses — 31,381 seeds against a 417 M residue target in 11,600 core-seconds, filtered
+  coverage, A1.6's cap run on 2026-10-17 (D-128) — the arm's 187K seeds over the whole staged
+  proxy corpus is about 13,600 core-hours. At the $0.16/hour 8-vCPU spot rate D-109 uses that is
+  **about $272, and about 1,700 instance-hours**. The account's policy ceiling is `2xlarge`, eight
+  vCPU, probed and recorded in `tools/ec2_similarity.py`: there is no larger machine to put it on.
+  So the exhaustive pass is roughly seventy days on one instance, or seventy to a hundred separate
+  launches, each of which is one-shot and unobservable — no shell, no SSM, console output
+  best-effort — against a record of six launches in which two died thirty-one seconds in and one
+  published nothing in four hours. D-108 weighed this arm's cost in dollars only, and a seventeenth
+  of an unaffordable wall clock is still unaffordable.
+
+  Two derived figures carry stated uncertainty rather than being presented as measurements. The
+  corpus is taken as about 295 G residues, from shard 0's measured 417 M scaled by the sample's
+  eight hash shards and 2.5% rate for UniRef100, then by the staged byte counts in A1.5 for the
+  remaining components. And D-128 measured the per-query coefficient as sub-linear in target size,
+  so a pass against larger shards costs somewhat less than this linear projection — the projection
+  is the conservative bound, in the manner D-104 established, not a prediction.
+- **Decision (project owner): the proof-of-concept is the deliverable, not a stage before the real
+  pass.** A1.8 scores the reconstructed narrow seed set against the already-staged 2.5% hash sample
+  of UniRef100 2023_02 (D-122), with one shard run first as a smoke test. About $3 and one launch of
+  roughly nineteen hours, against $272 and seventy to a hundred. No new corpus pass: the sample is
+  built, checksummed and staged, and `--sample-from` skips the fifty-two-minute pass.
+
+  **D-108's exhaustive scope is withdrawn, and so is the claim it existed to support.** This arm
+  reports a survival rate with an interval, in the same form as the broad arm, and **Phase A does
+  not state that nothing on the narrow denylist survived.** A sample cannot support that sentence
+  and this entry does not pretend otherwise.
+- **What this costs, stated plainly because it is the expensive half of the trade.** The error runs
+  in the direction that flatters the safeguard: a sample that happens to contain no surviving
+  narrow-denylist material is evidence of a low rate, not of absence, and a survivor outside the
+  sampled 2.5% is a survivor this audit does not see. §2 and D-128 both treat a missed survivor as
+  the same class of failure as an overstated one, so this is a real reduction in what the audit
+  detects and not a presentational matter. Every published form of this arm's result therefore
+  carries the rate, its interval, its realised family count, and an explicit statement that no
+  all-clear is made — enforced in the harness per the non-negotiables rather than left to the
+  write-up to remember.
+- **The corpus-scope gap this inherits, which the exhaustive design would have closed.** The staged
+  sample is UniRef100 only, so at 2.5% this arm covers one of ESM3's stated components and leaves
+  MGnify90 — 83.5 GB staged, and a component whose granularity is unstated (D-032) — scored not at
+  all. The broad arm at 0.3125% has the same gap, so it is not introduced here, but D-108's
+  "every corpus record" was the one place in the plan that would have closed it. It is named as an
+  open limitation of Phase A rather than resolved inside this task, which is not the task to widen.
+- **What does not change.** D-125's reporting rule in full: counts by survival route and homology
+  class, never by organism or taxon, per-record detail to the disclosure package only. D-126's
+  retention and its staged key, which a sampled pass satisfies unchanged — the manifest covers the
+  records scored, so A3.3's independent reimplementation and the manifest A2.* and B3.* consume
+  both still exist, now sampled and labelled as such. D-106's published 187K stays the validation
+  target for the seed-set reconstruction, which is reconciled against a full-tier pass and not
+  against the sample, because a seed set rebuilt from 2.5% of the corpus cannot be compared with a
+  published total. D-105's parameters, D-128's unbinding cap with the saturation guard checked at
+  this arm's own query scale, identity banding, D-109's design-effect intervals and denominator
+  separation, the prohibition on pooling the two arms (D-108), and the X3.1 circulation bar.
+- **Rejected:** The proof-of-concept as a first stage with the exhaustive pass to follow — keeps
+  the all-clear, and defers rather than answers the seventy-launch problem. The exhaustive pass as
+  D-108 fixed it — buys the strongest claim Phase A could make on this arm, at a wall clock and a
+  launch-failure exposure the measurement did not exist to price when D-108 was written. A deeper
+  sample than 2.5% — available, and it needs a fresh corpus pass and a new staging for a precision
+  gain on a claim that is now a rate either way; revisit it if the realised family count turns out
+  to be the binding constraint D-109 found it to be for the broad arm.
+
+### D-134 — A1.6's broad arm runs as nested seed-sample bands reporting a lower bound; D-128's full-seed pass becomes its third band
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Numbering:** appended as D-133 and renumbered to D-134 on 2026-10-17. A1.8 took D-133 for
+  its own sampled-proof-of-concept entry and that one is already on `main`, so this is the
+  cheaper side to move. Nothing published cites this entry as D-133.
+- **Context:** D-128 fixed the broad arm as all 3,159,223 viral seeds against one staged shard —
+  0.3125% of the corpus, six cells, about 413 instance-hours. Two things make that the wrong *next*
+  step rather than the wrong destination. A full cell is about 40 hours, so it does not fit one
+  instance run and needs the query sliced. And **band counts are per corpus record, so they are
+  additive across shards but not across query slices**: the shards are a hash partition of the
+  sample, so no record appears in two and summing cannot double count (`combine_cells` rests on
+  exactly that), whereas a record matched by seeds in two different query slices would be counted
+  once per slice, and its band is a max over all seeds rather than a sum. Slicing the query is
+  therefore new machinery carrying a new correctness argument, built before any result exists, to
+  buy a rate where a bound would do.
+- **The measurement this design rests on.** The cap run (A1.6, 2026-10-17) already scored
+  **31,381 seeds — 1/100 of the seed set by hash — against shard 0**, 417 M residues, at the pass's
+  own parameters: 1,450 s wall for the `--cov-mode 1` search and 2,137 s for the relaxed one, on
+  8 vCPU. With D-105's measured sensitivity ratios (2.08x faster at `-s 2.0`, 2.66x slower at
+  `-s 7.5`) and the relaxed figure standing in for the `--cov-mode 2` search, six cells at 1/100
+  come to about 14,850 s — **4.1 hours, one instance run**. Extrapolation is linear in query count,
+  which is the conservative side: D-104 measured the marginal per-query exponent climbing from 0.5
+  to 0.84 over a 200-fold range, so linear over-predicts. D-104's fitted *cost model* is not used
+  here and must not be, because it carries a `--min-seq-id 0.70` floor the pass cannot use (D-128).
+- **Decision (project owner): nested bands on the seed axis.**
+  - **Band 1 — 1/100 of the seeds, 31,381.** Six cells, about 4.1 h, one instance run. Produces the
+    banded, three-sensitivity, three-reading result with D-109's design-effect intervals.
+  - **Band 2 — 1/10 of the seeds, about 315,922.** Six cells, about 41 h across six launches; the
+    largest single cell is about 15.8 h, so **each cell still fits one instance run and the query
+    is still not sliced**.
+  - **Band 2 is taken if and only if band 1's measured per-seed cost and hit-table size say it
+    fits** — not on this entry's arithmetic. D-132 set that discipline for A2.4's deepening and the
+    reason is the same: these figures come from one measured point.
+- **What sampling seeds does to the claim, and why this is the defensible direction.** A corpus
+  record is counted if **any** seed matches it, so dropping seeds can only drop records, and a
+  dropped seed can only lower a record's best identity. **Every band count at every band is a
+  strict lower bound**, and the understatement is monotone in the sample fraction. That is the same
+  direction D-105 took when it refused `-s 2.0`'s 2x saving and the same direction the coverage
+  post-filter erred in, and §2's symmetry between overstating and understating leakage is why the
+  bound has to be *reported* as one rather than quietly treated as a rate.
+- **The two sampling axes stay separate and are reported separately.** The corpus axis is a
+  0.3125% hash sample whose denominator is fully known, so D-109's design-effect interval applies to
+  it unchanged. The seed axis contributes a **bound, not an interval**. So every figure reads "at
+  least X%, interval from the corpus sample" and never as a point rate — collapsing the two into
+  one number would be false precision in the direction of understating leakage.
+- **Every rate ships its realised seed-family count**, alongside the realised corpus-family count
+  D-109 and D-128 already require. 1/100 of the seeds covers materially fewer viral families than
+  the full set, and the accumulation between band 1 and band 2 is the **only** evidence available
+  about how far below the full-seed rate the bound sits.
+- **Price, which is not what chose this design.** Spot is live and verified by a real launch
+  (D-132), so band 1 is about **$0.50** and band 2 about **$5** on `m6i.2xlarge` spot, against
+  $1.60 and $16 on demand. Either is inside any ceiling this task has had. The slicing correctness
+  argument is what chose the design; the cost is why the nesting is free to have.
+- **D-128 is not withdrawn — its pass becomes band 3**, about 413 instance-hours and about $50 on
+  spot, and it is what the accumulation curve exists to decide on. Its target, parameters, hit cap,
+  banding and interval treatment all stand for every band.
+- **One indication already on the record, and it is not a result.** The cap run found 32,374
+  records under `--cov-mode 1` at slack cap, against roughly 1.10M clusters in shard 0 — about 3%,
+  from 1% of the denylist. It was a `RecordLedger` measurement rather than a pass: unbanded, one
+  sensitivity, one reading, no interval, no family counts. It is the reason to expect band 1 to
+  carry signal, not a number to cite.
+- **Rejected:** Building query slicing and running D-128 now — a non-additive merge needs its own
+  correctness argument and its own tests before any result exists, and it buys a rate where a bound
+  is both cheaper and sufficient for the headline. Sampling the corpus deeper instead of the seeds —
+  D-128 set the corpus depth deliberately, and deepening the corpus at full seed count is the
+  expensive axis, not the cheap one. Band 1 alone — it leaves the gap to the full-seed rate
+  unquantified, and at $0.50 a band the second one is not a real saving. Reporting a point rate from
+  sampled seeds — rejected above.
+- **Consequence:** a seed-sampled band's counts **may not be pooled with any full-seed result**, so
+  D-108's no-pooling rule now has a third axis alongside the two arms and the two denominators. The
+  per-record manifest a seed-sampled band produces is **incomplete by construction**, so A2.* and
+  B3.* consuming it inherit a bound rather than a rate and must be told which band produced what
+  they read. And the write-up carries "at least" in the sentence holding the number, not in a
+  caveat further down.
+
+### D-135 — Evo 2's version of record states the GTDB releases word for word, and it was open access all along
+- **Date:** 2026-10-17
+- **Task:** A2.4 / A7.4
+- **Context:** D-130 established both releases' GTDB versions but flagged that the **Evo 2** side
+  came from the preprint. `S-EVO2-NATURE-METHODS` was registered `unretrieved`, with the blocker
+  that the Methods are absent from both the article HTML and the article PDF. `AGENTS.md` is
+  emphatic about this exact situation — A2.1 spent twenty hours of compute on figures resting on
+  a preprint — so it was escalated to the project owner rather than built on.
+- **What it actually was.** Not a paywall. **The paper is open access, CC BY-NC-ND 4.0**, stated
+  in the article's own XML, and deposited as `PMC13128491`. The obstruction was a *route*:
+  `nature.com/articles/s41586-026-10176-5` returns `303` to `idp.nature.com/authorize`, a
+  federated-login redirect, which from this environment is indistinguishable from a paywall if
+  the only thing tried is the article URL. Europe PMC's REST API serves both the full text and
+  the supplementary files without authentication.
+  And the Methods were not missing from the article — they were never *in* it. They are in the
+  Supplementary Information (`MOESM1`, captioned by the publisher "This file contains Methods,
+  supplementary text and appendix", 45 pages), which is where `AGENTS.md` already says a methods
+  appendix usually settles things, on the strength of ESM3's.
+- **Decision:** Retrieve it, verify it, store it, and discharge D-130's caveat.
+  Retrieved via `https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13128491/supplementaryFiles`.
+  **Verified against the publisher's own digest**: the article XML states
+  `md5 94fdc619ad34335e7051031447ec7100` and `1030230` bytes for `MOESM1`, and the retrieved file
+  matches both exactly. Stored at `pdfs/s41586-026-10176-5_sm.pdf` on the owner's call, with the
+  licence and attribution in the register, so the id is quotable.
+- **What it says, which is what the preprint says.** §A.2.1 "Data curation": "Our previously
+  published OpenGenome dataset was used in its entirety as part of the training data for this
+  study. This included representative prokaryotic genomes available through GTDB release v214.1,
+  and curated phage and plasmid sequences retrieved through IMG/VR and IMG/PR. As previously
+  described, the OpenGenome dataset was curated to exclude genomic sequences of viruses which
+  infect eukaryotic hosts." And: "New prokaryotic reference genomes made available through the
+  GTDB release 220.0 update were added to the training data for this study. New genomes were
+  identified by selecting all species' reference genomes that had no previously published
+  (release 214.1) genomes within their species cluster, resulting in 28,174 additional
+  prokaryotic genomes."
+  The only difference from the preprint is the word "prokaryotic" in the final figure; the
+  number, the releases and the selection rule are identical. **D-110 found the same for Evo 1,
+  so both labs' versions of record now agree with their preprints on the corpus statements this
+  audit rests on** — which is a result worth having rather than an absence of one, because it is
+  what licenses using either.
+- **Rejected:** Waiting for the owner once the ask had been made. The ask was right at the moment
+  the blocker was believed, and withdrawing it the moment the blocker turned out to be a route
+  problem is the same discipline, not a reversal of it. One check of an open-access mirror cost a
+  minute and saved them the errand.
+  Treating "the Methods are absent from the HTML and the PDF" as settled because it was already in
+  the register. It was accurate and it was not the whole picture; a registered blocker is a record
+  of what was tried, not a proof that nothing else works.
+  Quoting from `S-EVO2-NATURE`, which stays `retrieved_not_stored` and therefore unquotable. The
+  Methods are a separate deposit with its own licence note, and that is the id this entry cites.
+- **Consequence:** **A7.4 is unblocked** and may assert against the version of record, which §7
+  requires of any claim naming a laboratory. D-130's "currently preprint-sourced" caveat is
+  discharged for the GTDB statements. The general lesson is cheap and worth recording: before
+  escalating a publisher URL, check whether the paper is in PMC or Europe PMC — a `303` to an
+  identity provider says nothing about the licence, and this one was openly licensed the whole time.

@@ -2,13 +2,13 @@
 id: A1.8
 title: Evaluate the narrow denylist against the ESM3-open proxy corpus
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
 design_ref: "§A0, §A1"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A1.8 — Evaluate the narrow denylist against the ESM3-open proxy corpus
@@ -70,13 +70,26 @@ what may be published, so they are two task files rather than one widened one.
 ## Done when
 
 - The seed-set reconstruction is pinned, checksummed, and reconciled against the published
-  187K, with both decisions above recorded.
-- Every corpus record is scored, with the saturation guard checked and reported.
-- The per-record manifest exists at the key D-126 fixes, and the published output is the
-  aggregate only.
+  187K, with both decisions above recorded. The reconciliation runs against a full-tier pass,
+  not against the sample — a seed set rebuilt from 2.5% of the corpus cannot be compared with a
+  published total.
+- The staged 2.5% sample is scored in full, with the saturation guard checked at this arm's own
+  query scale and reported (**D-133**: the exhaustive scope D-108 fixed is withdrawn, and with it
+  the all-clear this arm was built to support).
+- The result ships as a rate with its interval and its realised family count, carrying an
+  explicit statement that no all-clear is made, enforced in the harness.
+- The per-record manifest exists at the key D-126 fixes, covering the records scored, and the
+  published output is the aggregate only.
 - A `run.json` manifest pins inputs, outputs, parameters, aligner version and seed.
 
 ## Cost
+
+**Superseded by D-133 — this section priced dollars and not wall clock, and wall clock was the
+binding constraint.** The exhaustive pass is about $272 and about 1,700 instance-hours, and the
+account's policy ceiling is eight vCPU, so it is seventy days on one instance or seventy to a
+hundred one-shot unobservable launches. The arm is now a sampled pass against the staged 2.5%
+sample: about $3 and one launch. The reasoning below stands as the cost model; its conclusion
+does not.
 
 Cheap, and that is why D-108 could afford to make it exhaustive. Cost is linear in query count,
 so at 187K seeds against the broad arm's 3,159,223 this arm is roughly **a seventeenth** of the
@@ -92,7 +105,10 @@ pass cannot use (D-128).
 - **Commit the per-record manifest.** The public repo is deliverable 7.
 - **Circulate anything before X3.1**, the aggregate included (§4).
 - **Pool its output with A1.6's rate** (D-108). Downstream consumers need telling which they
-  are reading.
+  are reading — and now that both arms report rates, telling them apart matters more, not less.
+- **State or imply that nothing on the narrow denylist survived** (D-133). The pass is sampled;
+  a sample with no surviving material is evidence of a low rate and not of absence, and the error
+  runs in the direction that flatters the safeguard.
 
 ## State — 2026-10-17
 
@@ -123,3 +139,51 @@ relaxed.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Claimed — 2026-10-17
+
+`in-progress`, owner `claude`. **Branch `ccr-51fc983f-tyojje`** carries the work; `main` has
+this file, the board and the decisions.
+
+**The depth question is open and is the project owner's.** D-108 fixed this arm as exhaustive
+against every corpus record, and the owner has asked for a proof-of-concept returning
+preliminary results instead. That reverses a settled commitment, so it is a decision entry and
+not a judgement call made mid-task — the question is being put with its priced options, and
+whichever way it goes is recorded before the pass runs. Nothing below Stage 2 depends on the
+answer.
+
+**Three things are needed either way, and are being built now:**
+
+1. The two readings this task owns, each its own decision entry — how the published organism
+   list's names map to NCBI taxonomy ids, and which version of that list was in force when the
+   filter ran.
+2. The narrow seed-set builder, reusing `src/amazebio/seeds.py` rather than a second copy. The
+   narrow list is 147K non-viral plus 40K viral (D-106), so the existing viral seed FASTA covers
+   at most a fifth of it and a fresh taxid-set pass is unavoidable.
+3. One in-region full-tier pass to build that seed set and reconcile it against the published
+   187K. About 52 minutes and well under a dollar; the depth decision does not change it,
+   because a seed set reconstructed from a corpus sample cannot be reconciled against a
+   published total.
+
+**The depth is answered: D-133.** The proof-of-concept *is* the deliverable, not a stage before
+an exhaustive pass. The arm scores the staged 2.5% sample of UniRef100, one shard first as a
+smoke test — about $3 and one launch of roughly nineteen hours, against $272 and seventy to a
+hundred launches at the account's eight-vCPU ceiling. D-108's exhaustive scope is withdrawn and
+so is the all-clear: this arm reports a rate with an interval and Phase A does not say that
+nothing on the narrow denylist survived.
+
+**Waiting on the project owner:** nothing. Two things for the owner to know rather than decide,
+both in D-133. The error now runs in the direction that flatters the safeguard — a survivor
+outside the sampled 2.5% is one this audit does not see, which §2 treats as the same class of
+failure as overstating leakage. And the sample is UniRef100 only, so MGnify90 is scored by
+neither arm; that gap is older than this decision but D-108's "every corpus record" was the one
+place in the plan that would have closed it.
+
+**Plan, in order.**
+
+1. The two readings, each its own decision entry: the organism-name to taxonomy-id mapping, and
+   which version of the published list was in force.
+2. The narrow seed-set builder on `src/amazebio/seeds.py`, with tests and `check` green.
+3. One in-region full-tier pass to build the seed set and reconcile against 187K. ~1 h, ~$0.20.
+4. One shard as a smoke test, then the 2.5% sample. ~$3.
+5. The aggregate, with its interval, its realised family count and the no-all-clear statement.

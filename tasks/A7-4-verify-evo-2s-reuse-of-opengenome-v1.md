@@ -66,12 +66,13 @@ representations of a sequence set, and the two share no machinery beyond the obj
 Read with D-130, which establishes both releases' GTDB versions and warns that OpenGenome2's
 `gtdb_v220/` directory name is **not** the version of everything beneath it.
 
-The Evo 2 statements this task tests come from the **preprint**. `S-EVO2-NATURE` is
-`retrieved_not_stored` so nothing may be quoted from it, and `S-EVO2-NATURE-METHODS` is
-`unretrieved` — the Methods are absent from both the article HTML and the PDF. Before this task
-reports a conformance *failure* against a named laboratory, the version of record's wording has
-to be in hand: §7 requires that claim to be airtight, and D-110 is the precedent for checking
-rather than assuming the preprint and the published version agree. Settle that with the project
-owner first; it is a retrieval a person can do and this environment cannot.
+The Evo 2 statements this task tests are in the **version of record** and are quotable (D-135).
+The Methods are not in the article HTML or main PDF — they are the Supplementary Information,
+stored at `pdfs/s41586-026-10176-5_sm.pdf` and registered under `S-EVO2-NATURE-METHODS` with its
+CC BY-NC-ND 4.0 licence note. §A.2.1 "Data curation" carries the "used in its entirety" claim, the
+GTDB v214.1 reuse and the 220.0 selection rule with its 28,174 figure, word for word as the
+preprint had them. So this task may assert against the version of record, which §7 requires of a
+claim naming a laboratory. `S-EVO2-NATURE` itself stays `retrieved_not_stored` and unquotable —
+cite the Methods id, not the article id.
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

@@ -121,12 +121,12 @@ on-demand ceiling is withdrawn**, so the ~10% deepening is affordable again — 
 first band's measured cost says it fits, since the calibration reason for going shallow first
 never depended on the price.
 
-**Waiting on the project owner — one item, and it does not block this task's own pass.** The Evo 2
-**version of record's Methods and Supplementary Information** (Brixi et al. 2026, Nature,
-s41586-026-10176-5), which the owner is retrieving. Registered against `S-EVO2-NATURE-METHODS`,
-whose blocker text now names both things resting on it. A2.4 detects prophage and does not depend
-on Evo 2's wording; what it blocks is **A7.4**, which cannot assert a conformance failure against
-a named laboratory from a preprint, and it is the source of D-130's GTDB-220.0 figures.
+**Nothing is waiting on the project owner.** The Evo 2 Methods were escalated as blocked and
+then turned out to be open access: the paper is CC BY-NC-ND 4.0 and deposited as `PMC13128491`,
+and the obstruction was a route — `nature.com` 303-redirects to `idp.nature.com/authorize` — not a
+paywall. Retrieved via Europe PMC, md5 verified against the publisher's own, stored at
+`pdfs/s41586-026-10176-5_sm.pdf` on the owner's call. It states the GTDB releases word for word as
+the preprint did, so D-130's preprint caveat is discharged and A7.4 is unblocked (D-135).
 
 ## Notes
 
