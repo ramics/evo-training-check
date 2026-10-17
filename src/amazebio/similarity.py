@@ -358,6 +358,13 @@ class TargetStream:
     bands: dict[int, list[int]] = field(default_factory=dict)
     records: dict[int, int] = field(default_factory=dict)
     rows: int = 0
+    #: The strata of the shard being searched. Given one, the stream also counts hit records
+    #: per stratum, which is the numerator side of D-140's interval. This does **not**
+    #: reintroduce the unbounded structure the class exists to avoid: `stratum_hits` is
+    #: bounded by the number of strata in the target shard, which is known before the run
+    #: from the shard itself, rather than by the hit rate, which is the unknown result.
+    index: FamilyIndex | None = None
+    stratum_hits: dict[int, dict[str, int]] = field(default_factory=dict)
     _target: str | None = None
     _best: list[float] = field(default_factory=list)
 
@@ -368,6 +375,7 @@ class TargetStream:
                 raise ValueError(f"unknown coverage reading {mode!r}")
             self.bands.setdefault(mode, [0] * (len(IDENTITY_BAND_EDGES) - 1))
             self.records.setdefault(mode, 0)
+            self.stratum_hits.setdefault(mode, {})
 
     @classmethod
     def for_search(cls, cov_mode: int, coverage: float = COVERAGE) -> TargetStream:
@@ -405,11 +413,21 @@ class TargetStream:
         return self
 
     def _flush(self) -> None:
+        target = self._target
         for i, mode in enumerate(self.derive):
             best = self._best[i]
             if best >= 0:
                 self.bands[mode][band_of(best)] += 1
                 self.records[mode] += 1
+                if self.index is not None and target is not None:
+                    key = self.index.of.get(target)
+                    if key is None:
+                        raise ValueError(
+                            f"hit target {target!r} is not in the shard's strata; the hit "
+                            "table and the target shard describe different records"
+                        )
+                    counts = self.stratum_hits[mode]
+                    counts[key] = counts.get(key, 0) + 1
         self._target = None
         self._best = []
 

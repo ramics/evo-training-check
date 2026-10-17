@@ -688,3 +688,46 @@ def test_more_hits_than_records_in_a_stratum_is_refused() -> None:
     idx = sim.FamilyIndex.build([("A", 10)], _Tax({10: 11157}))
     with pytest.raises(ValueError, match="inflates the rate"):
         idx.pairs({"f:11157": 2})
+
+
+def test_the_stream_counts_hit_records_per_stratum() -> None:
+    """The numerator side of the interval, taken in the same pass as the bands so the hit
+    table is read once."""
+    # recA and recD share a family; recB has its own and is never hit; recC is unplaced.
+    tax = _Tax({10: 11157, 11: 11158, 12: None, 13: 11157})
+    idx = sim.FamilyIndex.build([("recA", 10), ("recB", 11), ("recC", 12), ("recD", 13)], tax)
+    stream = sim.TargetStream(derive=(1,), index=idx)
+    # Sorted by target, as the class requires. recA is hit twice by different seeds and must
+    # count once; recC is unplaced and is its own stratum.
+    stream.extend(
+        [
+            sim.HitRow("s1", "recA", 0.95, 0.9, 0.9),
+            sim.HitRow("s2", "recA", 0.80, 0.9, 0.9),
+            sim.HitRow("s1", "recC", 0.76, 0.9, 0.9),
+        ]
+    ).close()
+    assert stream.stratum_hits[1] == {"f:11157": 1, "u:recC": 1}
+    assert stream.records[1] == 2, "recA hit twice counts once"
+    pairs = idx.pairs(stream.stratum_hits[1])
+    assert sorted(pairs) == [(0, 1), (1, 1), (1, 2)], (
+        "recB's family is searched and unhit, and recA's family holds two searched records "
+        "of which one was hit"
+    )
+
+
+def test_a_hit_target_outside_the_shards_strata_is_refused() -> None:
+    """It means the hit table and the target shard are from different runs, which would put
+    the numerator and denominator on different record sets."""
+    idx = sim.FamilyIndex.build([("recA", 10)], _Tax({10: 11157}))
+    stream = sim.TargetStream(derive=(1,), index=idx)
+    with pytest.raises(ValueError, match="not in the shard's strata"):
+        stream.extend([sim.HitRow("s1", "recZ", 0.95, 0.9, 0.9)]).close()
+
+
+def test_the_stream_still_works_without_strata() -> None:
+    """The cap measurement and the cost curve do not need them, and the bands must not depend
+    on an index being supplied."""
+    stream = sim.TargetStream(derive=(1,))
+    stream.extend([sim.HitRow("s1", "recA", 0.95, 0.9, 0.9)]).close()
+    assert stream.records[1] == 1
+    assert stream.stratum_hits[1] == {}
