@@ -5684,3 +5684,57 @@ decision has a threshold or parameter in it, the number goes in the entry.
   retrievable. Asking the project owner to retrieve the snapshot — the escalation AGENTS.md
   requires when a source is blocked for an agent, and not needed here: the blocked source was the
   inferior one, and the better source was never blocked.
+
+### D-139 — The seed machinery's counters are renamed denylist-neutral, and the serialised keys accept both spellings because the staged manifest is permanent
+- **Date:** 2026-10-17
+- **Task:** A1.8 (changes code A1.6 owns)
+- **Context:** `src/amazebio/seeds.py` was written for A1.6's viral arm and its generality was
+  accidental: `ScanConfig.viral`, `SeedCounts.viral_seeded`, `viral_residues`,
+  `representative_not_viral`, and `UniRefEntry.is_viral_seeded` all take or count an arbitrary
+  taxid set, with nothing viral in the logic. A1.8 needs exactly that machinery for the
+  select-agent denylist (D-137), so the names would have described the wrong thing for the second
+  arm — and D-126 stages A1.8's per-record manifest permanently in a bucket with no
+  `DeleteObject`, so a mislabelled field is a mislabelled field for good.
+- **Decision (project owner): rename, rather than wrap the call or let it ride.**
+
+  | was | is |
+  |---|---|
+  | `ScanConfig.viral` | `denylist_taxids` |
+  | `SeedCounts.viral_seeded` | `seeded` |
+  | `SeedCounts.viral_residues` | `seeded_residues` |
+  | `SeedCounts.representative_not_viral` | `representative_not_seeded` |
+  | `UniRefEntry.is_viral_seeded` | `is_seeded` |
+  | `UniRefEntry.representative_is_viral` | `representative_is_seeded` |
+
+  `to_dict`'s keys follow, so `viral_share` becomes `seeded_share` and
+  `representative_not_viral_share` becomes `representative_not_seeded_share`.
+- **What is deliberately *not* renamed, because "viral" is sometimes the correct word.** The
+  rename covers the machinery that is generic over which denylist is in play, and nothing else.
+  `VIRAL_ROOT` stays — it is the Viruses superkingdom. Every `viral` in `misassignment.py`,
+  `ictv.py`, `genomad.py` and `survival.py` stays: those are about viruses, not about denylists,
+  and a blanket rename would have been 270 occurrences across 54 files instead of the 11
+  identifiers that were actually mislabelled. `ShardManifest.viral_seeded_clusters` also stays,
+  with a comment recording why: it is not a generic counter but a fact about *one* staged sample,
+  which the broad arm drew with viral seeds, and A1.8 reads that sample rather than drawing its
+  own.
+- **The serialisation boundary, which is the part with a permanence consequence.** The staged
+  2.5% sample manifest (D-122) carries `viral_seeded` inside its `seed_counts`, it is the input
+  A1.8's pass reads under D-133, and it cannot be rewritten. `ShardManifest.from_json` refuses
+  any manifest whose `version` it does not recognise — deliberately, so that it never guesses
+  which fields still mean what they did — so **bumping `MANIFEST_VERSION` would refuse exactly
+  the manifest this arm needs.** The version therefore stays at 1 and
+  `check_self_consistent` accepts either spelling, with tests for the legacy key, the new key,
+  and a self-contradicting manifest under both. Accepting two spellings is a cost; refusing a
+  permanent artefact the pass depends on is a larger one.
+- **Consequence:** A1.6's call sites in `tools/esm3_seeds.py` and `tools/esm3_calibrate.py` are
+  updated in the same commit, so nothing is left half-renamed for the other track to trip over.
+  A1.6 is still `in-progress`, so whoever resumes it should expect these names rather than the
+  ones its handoff notes quote; the counters mean exactly what they meant, and
+  `tools/esm3_seeds.py` still prints "viral-seeded" because for that arm it is viral. Any future
+  arm gets correctly-labelled provenance without a third naming decision.
+- **Rejected:** A narrow-arm wrapper relabelling on output — zero risk to the in-progress broad
+  arm, and it leaves a module whose internal names misdescribe both arms plus a relabelling step
+  a later arm can get wrong. Passing the set through unchanged and explaining it in the write-up
+  — smallest diff, and it writes a misleading field name into a staged object that cannot be
+  withdrawn. A manifest version bump alongside the rename — the tidy-looking option, and
+  `from_json`'s own refusal semantics turn it into a broken pipeline.

@@ -185,16 +185,17 @@ place in the plan that would have closed it.
 2. ~~The list reconstructed as taxa.~~ **Done** — `src/amazebio/selectagents.py`,
    `policies/specs/select-agents-2024-06-01.json`, the three pinned CFR captures and
    `tests/test_selectagents.py`, on the branch. Full `check` green, 926 passed.
-3. The narrow seed-set builder: scan the staged UniRef100 tier for clusters whose members carry
-   those taxa. `seeds.ScanConfig` already takes an arbitrary taxid set, so the machinery is
-   reusable — but its field and counter names say `viral`, which would mislabel this arm's
-   provenance output, and renaming them touches A1.6's merged code while A1.6 is still
-   in-progress. Decide which way before writing, and record it if it is a rename.
-4. One in-region full-tier pass to build the seed set and reconcile against the published 187K.
+3. ~~Settle the naming of the shared seed machinery.~~ **Done — D-139.** The counters are
+   renamed denylist-neutral (`viral` to `denylist_taxids`, `viral_seeded` to `seeded`, and so
+   on), A1.6's call sites updated in the same commit. The serialised keys accept both spellings,
+   because the staged sample manifest carries the old one and cannot be rewritten.
+4. The narrow seed-set builder itself: scan the staged UniRef100 tier for clusters whose members
+   carry the taxa D-137 names, reusing `seeds.ScanConfig` rather than a second copy.
+5. One in-region full-tier pass to build the seed set and reconcile against the published 187K.
    ~1 h, well under a dollar. Needed under any depth: a seed set rebuilt from a corpus sample
    cannot be reconciled against a published total.
-5. One shard as a smoke test, then the 2.5% sample. ~$3 (D-133).
-6. The aggregate, with its interval, its realised family count and the no-all-clear statement.
+6. One shard as a smoke test, then the 2.5% sample. ~$3 (D-133).
+7. The aggregate, with its interval, its realised family count and the no-all-clear statement.
 
 **What step 4 will have to reconcile against, and the gap to expect.** The literal reading names
 53 taxa expanding to 114,206, and 16 of the 70 list entries contribute no taxon at all — nine
