@@ -69,20 +69,38 @@ VIBRANT's header, read off the line of `VIBRANT_run.py` that writes it, puts its
 turn out to be versioned after all (KOfam 2019-08-10, Pfam 32.0, VOG 94, hard-coded in
 `VIBRANT_setup.py`), so the pin records them instead of reporting a gap that does not exist.
 
-**Left, in order.** The size-stratified in-region calibration that fixes the sampling rate
-(D-117). Then `tools/detect_proviruses.py`: read A1.4's manifests, sample, run the two tools,
-search the provirus proteins against A2.1's registries, emit the `metrics/detections.md` table.
-Two things it needs that do not exist yet — A1.4's manifests are not in this container and are
-not in the audit store either, so they have to be regenerated before A2.4 can consume them; and
-A2.1's search loop has to move out of `tools/detect_profiles.py` into the library for both tools
-to call it (D-113).
+**The owner's two answers are in, and both are recorded (D-118, D-119).** The pass is a
+**sampled** one inside a $20 ceiling, run in nested bands so that the first band is the
+calibration the budget did not separately buy — membership is already nested by construction,
+so a deepening re-reads nothing. `estimate_kind` is `lower_bound` at every depth. And **Evo 1's
+prokaryotic component is being staged**, so the prophage route covers both corpora rather than
+one of the audit's two subjects; `stage1_gtdb` moved into the staging tier accordingly.
 
-**Waiting on the project owner — two questions, both put to them on 2026-10-17.**
-The **spend** for the pass: a full census of GTDB is about 4,900 core-hours on the single-genome
-calibration, the same order as A1.6's authoritative pass, against a sampled pass for a fraction
-of it (D-117).
-And whether to **stage Evo 1's prokaryotic component**, 130 GB, without which Phase A's prophage
-route is measured on one of the two corpora under audit and not the other (D-116).
+**In flight.** The Evo 1 staging is running: 118.5 GiB of Parquet, verified against the
+publisher's own per-file SHA-256 before each upload completes, which matters because the corpus
+bucket withholds `s3:DeleteObject`. The release pin verifies exactly — 22 files,
+146,886,935,899 bytes. D-116's `not_searched` outcome for the `opengenome` manifests stands
+until this finishes and verifies.
+
+**Also done.** A2.1's search loop is now `src/amazebio/profilesearch.py`, called by both
+detectors (D-113), with thresholds, cutoffs and record naming unchanged — A2.1's own tests did
+not move and still pass, which is the test of the refactor. It gains `proteins_from_fasta`,
+A2.4's way in: the proteins geNomad already called inside a delineated provirus, attributed to
+the host genome rather than to the fragment name the finder invented.
+
+**Left, in order.** Finish and verify the Evo 1 staging, and identify which GTDB release it
+pins — Evo 2's is v220 and Evo 1's is not yet established from its own metadata, which is the
+comparison D-119 exists to protect. Then `tools/detect_proviruses.py`: sample, run the two
+tools, search the provirus proteins against A2.1's registries, emit the
+`metrics/detections.md` table with `element_kind: prophage` and the route from
+`amazebio.apply.resolve`.
+
+**One prerequisite that is not obvious and will bite whoever picks this up.** A1.4's manifests
+are not in this container and are not in the audit store either — `artifacts/` is git-ignored
+and the S3 results prefixes hold a1-6, a7-1 and a7-2 but no a1-4. A2.4 consumes those manifests
+rather than re-deriving a surviving set (D-059), so they have to be regenerated with
+`tools/apply_policies.py` first, and that is itself a corpus-scale pass. Budget for it
+separately from the $20; it is A1.4's cost reappearing, not A2.4's.
 
 ## Notes
 
