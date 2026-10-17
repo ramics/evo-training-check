@@ -4424,3 +4424,43 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the *filtered* IMG/VR subset. If it shows eukaryotic-host viruses surviving, that is their own
   published figure of leakage, and A2.5 should read it against this project's result rather than
   rediscovering it. The figure is an image, so reading it needs a person or a different tool.
+
+### D-111 — The developers' own figure says the host kingdom is unknown for 89.5% of what their filter kept
+- **Date:** 2026-10-17
+- **Task:** A2.1 (the finding belongs to A4.1 and A2.5)
+- **Context:** `S-EVO1-SCIENCE-SM` p4, Fig. S1, captioned "We excluded viruses that are likely to
+  infect eukaryotic hosts (Materials and Methods)", is the developers' own breakdown of the
+  corpus their filter produced. D-110 flagged it as needing a person because it is an image. It
+  does not: the figure is one 3422x1841 RGB raster, and **the legends print each category's N**,
+  so the numbers are read rather than estimated and no wedge was measured.
+- **Decision:** The figure's numbers are recorded here as published values, reconciled against
+  Table S2 before being believed.
+  **Panel A, realm:** Duplodnaviria 2,628,512 (99.075%), Monodnaviria 17,781 (0.670%),
+  **Riboviria 6,105** (0.230%), Other 648 (0.024%).
+  **Panel B, host kingdom:** **Unknown 2,374,733 (89.510%)**, Bacteria 276,569 (10.425%),
+  Archaea 1,744 (0.066%).
+  **Both panels sum to exactly 2,653,046**, which is Table S2's IMG/VR count and one record below
+  A7.1's census of the staged release. So these describe the whole filtered corpus, not a sample,
+  and they are consistent with what this project staged.
+  **The Archaea legend is a typo in the paper and the intended value is recoverable.** It prints
+  `N = 17,44`. 17,440 would overshoot the corpus by 15,696; 1,744 closes the three categories to
+  2,653,046 exactly. Recorded as the publisher's error with the arithmetic that settles it, rather
+  than quoted as printed or silently corrected.
+- **Rejected:** Measuring the pie wedges by counting pixels per colour, which was the plan before
+  the legends turned out to carry N. It would have been a worse number for no reason — a wedge
+  angle recovers a share to about a tenth of a degree, while the legend gives the count exactly.
+  Also rejected: leaving this for A4.1 to rediscover. It sits on page 4 of a 60 MB subscription
+  PDF that the audit could not retrieve at all until today.
+- **Consequence:** **A4.1's question is partly answered by the developers themselves.** The rule
+  that was supposed to remove eukaryotic viruses keeps "only sequences whose assigned taxonomic
+  classification was found within a prokaryotic host at least twice" — and their own figure says
+  the host kingdom is **unknown for 89.5% of the records that survived it**. Whatever that rule
+  did, it did not establish a prokaryotic host for nine records in ten. A4.1 should treat this as
+  the published figure to reconcile against, and say so.
+  **A2.5 gets a target with a count.** 6,105 Riboviria survived, and `r:Riboviria` is one of the
+  eight stop taxa the unspecificity rule names. Some are genuinely phage — A2.1 detected
+  Leviviricetes in its own sample — so this is a population to audit record by record, not a
+  leakage claim, and now it has a size.
+  **A2.1 is unaffected.** Its figures stand as reported; this entry adds context from the primary
+  source rather than changing a number. The 24,534 non-Duplodnaviria survivors (0.92%) are the
+  obvious place for the structural and problem-taxa detectors to look first.
