@@ -363,6 +363,47 @@ overstating leakage. The local rehearsal saw 1 record in 138; this is the number
 **Left.** Slice the query so a cell fits one instance run (a full cell is ~40 h), then run the
 first cell of the broad arm against the staged shard.
 
+## Preliminary results instead of an exhaustive pass — 2026-10-17
+
+D-134. **Branch `ccr-81045ff3-7u9p0a`** carries the work.
+
+The broad arm now runs as **nested bands on the seed axis**, reporting a lower bound. D-128's
+full-seed pass is not withdrawn — it becomes band 3 and is what the accumulation curve decides on.
+
+Why the seed axis rather than more corpus: a full cell is ~40 h, so D-128's pass needs the query
+sliced, and **band counts are per corpus record — additive across shards but not across query
+slices**, since a record matched by seeds in two slices would be counted twice and its band is a
+max over all seeds rather than a sum. That is a new correctness argument and new machinery, built
+before any result exists, to buy a rate where a bound suffices for the headline.
+
+Sampling seeds understates leakage **monotonically** — a record is counted if any seed matches it,
+so dropping seeds can only drop records and lower their best identity. Every band count is a strict
+lower bound, which is the direction §2 and D-105 both point.
+
+| Band | Seeds | Cells | Wall | Largest cell | Spot |
+|---|---|---|---|---|---|
+| 1 | 31,381 (1/100) | 6 | ~4.1 h, one run | ~1.6 h | ~$0.50 |
+| 2 | ~315,922 (1/10) | 6 | ~41 h, six launches | ~15.8 h | ~$5 |
+| 3 = D-128 | 3,159,223 (all) | 6 | ~413 h | ~40 h, needs slicing | ~$50 |
+
+Band 2 is taken **only if** band 1's measured per-seed cost and hit-table size say it fits, per
+D-132's discipline. Neither band 1 nor band 2 slices the query.
+
+**The one external blocker is gone.** D-132 verified spot by a real launch, so D-120 and D-121 are
+settled and every spot-priced figure in this task is payable.
+
+**Reporting.** The corpus axis keeps D-109's design-effect interval; the seed axis contributes a
+bound, not an interval. Figures read "at least X%, interval from the corpus sample" and never as a
+point rate. Every rate ships its realised **seed**-family count as well as its corpus-family count,
+because the accumulation between bands 1 and 2 is the only evidence about the gap to the full-seed
+rate.
+
+**Left, in order.** Seed-fraction support in the instrument and the launcher, with the lower-bound
+qualifier carried in the artefact rather than added in prose; band 1's six cells; then band 2 if
+band 1 prices it.
+
+**Nothing waits on the project owner.**
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

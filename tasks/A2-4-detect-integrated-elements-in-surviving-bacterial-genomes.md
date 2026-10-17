@@ -70,9 +70,8 @@ turn out to be versioned after all (KOfam 2019-08-10, Pfam 32.0, VOG 94, hard-co
 `VIBRANT_setup.py`), so the pin records them instead of reporting a gap that does not exist.
 
 **The owner's two answers are in, and both are recorded (D-118, D-119).** The pass is a
-**sampled** one inside a $20 ceiling — an *on-demand* ceiling, per D-131: spot cannot be launched
-from this account at all (D-120), so the 2.5% first band fits at about 122 core-hours and a 10%
-deepening does not, making the deepening contingent rather than planned — run in nested bands so that the first band is the
+**sampled** one inside a $20 ceiling — read against spot, since the spot role now exists and is
+verified by launch (D-132, withdrawing D-131) — run in nested bands so that the first band is the
 calibration the budget did not separately buy — membership is already nested by construction,
 so a deepening re-reads nothing. `estimate_kind` is `lower_bound` at every depth. And **Evo 1's
 prokaryotic component is being staged**, so the prophage route covers both corpora rather than
@@ -112,6 +111,22 @@ and the S3 results prefixes hold a1-6, a7-1 and a7-2 but no a1-4. A2.4 consumes 
 rather than re-deriving a surviving set (D-059), so they have to be regenerated with
 `tools/apply_policies.py` first, and that is itself a corpus-scale pass. Budget for it
 separately from the $20; it is A1.4's cost reappearing, not A2.4's.
+
+**Spot is live, verified by launch (D-132).** The owner created the `AWSServiceRoleForEC2Spot`
+service-linked role. D-120 is explicit that no dry run can test this, so A2.4 made the smallest
+real launch it could — a `c6i.large`, `UserData` of `shutdown -h now`, terminate-on-shutdown, and
+a `terminate_instances` in a `finally` — and `RunInstances` returned `InstanceLifecycle: spot`.
+Terminated immediately; nothing is left running under the `Project=ClaudeSpike` tag. **D-131's
+on-demand ceiling is withdrawn**, so the ~10% deepening is affordable again — taken only if the
+first band's measured cost says it fits, since the calibration reason for going shallow first
+never depended on the price.
+
+**Nothing is waiting on the project owner.** The Evo 2 Methods were escalated as blocked and
+then turned out to be open access: the paper is CC BY-NC-ND 4.0 and deposited as `PMC13128491`,
+and the obstruction was a route — `nature.com` 303-redirects to `idp.nature.com/authorize` — not a
+paywall. Retrieved via Europe PMC, md5 verified against the publisher's own, stored at
+`pdfs/s41586-026-10176-5_sm.pdf` on the owner's call. It states the GTDB releases word for word as
+the preprint did, so D-130's preprint caveat is discharged and A7.4 is unblocked (D-135).
 
 ## Notes
 

@@ -5262,3 +5262,479 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** A2.4's realized depth is likely to be 2.5% rather than the "deepen while the
   ceiling allows" of D-118, and the lower bound is correspondingly shallower. Stated with the
   result, since a lower bound's depth is what a reader needs to weigh it.
+
+### D-132 — The spot role exists and is verified by a real launch, so D-131's on-demand ceiling is withdrawn
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-120 established that spot could not be launched from this account at all — a spot
+  request needs the `AWSServiceRoleForEC2Spot` service-linked role, `iam:CreateServiceLinkedRole`
+  is denied here, and the refusal arrives before any instance exists. D-121 recorded that the role
+  was to be created. D-131 then re-read A2.4's $20 ceiling as an on-demand ceiling, which made the
+  2.5% first band affordable and a 10% deepening not. The project owner has now created the role.
+- **What was measured, and why a measurement was necessary.** D-120 is explicit that **no dry run
+  finds this**: `DryRun` returns `DryRunOperation` without ever attempting the service-linked role,
+  so a dry run would have reported success both before and after the fix and distinguished
+  nothing. The only test is a real launch, so A2.4 made one — the smallest it could, a `c6i.large`
+  on the stock Amazon Linux 2023 AMI with an 8 GB volume, `UserData` consisting of
+  `shutdown -h now`, `InstanceInitiatedShutdownBehavior=terminate`, the one-time/terminate spot
+  options D-120's launcher already uses, and a `terminate_instances` in a `finally`.
+  **It was accepted.** `RunInstances` returned an instance with `InstanceLifecycle: spot`, and it
+  was terminated immediately; a subsequent `DescribeInstances` over the `Project=ClaudeSpike` tag
+  shows nothing running. Cost is of the order of a tenth of a cent.
+- **Decision:** **D-131 is withdrawn.** A2.4 sizes its bands against spot again, which is what
+  D-118's $20 ceiling was set by analogy to in the first place. The design does not otherwise
+  change: the 2.5% first band still runs first and is still the calibration, because the reason
+  for it was never the price — it is that D-117's 2.73 core-minutes per Mb comes from one
+  complete, gene-dense genome and GTDB is mostly draft assemblies. The deepening to roughly 10%
+  (about 490 core-hours) returns to being affordable inside the ceiling, and is taken **if and
+  only if the first band's measured per-genome cost says it fits**, not on this entry's
+  arithmetic.
+- **Rejected:** Treating the owner's "the role is made" as sufficient and skipping the launch.
+  It is a reasonable thing to believe and it was still worth one tenth of a cent to know, because
+  the alternative is discovering it at the head of a real pass — which is exactly how D-120 was
+  found, and it cost A1.6 a launch.
+  Going straight to the deeper band now that spot is back. The calibration reason stands
+  independently of the budget reason, and D-118 fixed the order before any result existed.
+  Re-asking the owner for a ceiling. They gave $20 and the constraint that made it awkward is
+  gone; nothing needs re-deciding.
+- **Consequence:** A2.4's realized depth is no longer expected to stop at 2.5%, so the lower bound
+  should be the stronger one D-118 planned for. Whatever depth is reached is reported with the
+  result, since a lower bound's depth is what a reader needs in order to weigh it. The verification
+  also stands for any other track: spot is live in this account as of 2026-10-17, confirmed by
+  launch rather than by dry run.
+
+### D-133 — A1.8 becomes a sampled proof-of-concept; D-108's exhaustive narrow arm and the all-clear it was built for are withdrawn
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Context:** D-108 split the similarity pass by denylist precisely so that the arm needing an
+  all-clear would not be the expensive arm, and made this one exhaustive against every corpus
+  record on the strength of that. A1.8's own cost note repeated the conclusion — "cheap, and that
+  is why D-108 could afford to make it exhaustive" — and the staged-sample note in the task file
+  exists specifically to stop a worker scoring 2.5% and reporting it as exhaustive.
+
+  **The cost note was right about dollars and silent about wall clock, which is the binding
+  constraint.** Priced against the only measurement that exists for the parameters the pass
+  actually uses — 31,381 seeds against a 417 M residue target in 11,600 core-seconds, filtered
+  coverage, A1.6's cap run on 2026-10-17 (D-128) — the arm's 187K seeds over the whole staged
+  proxy corpus is about 13,600 core-hours. At the $0.16/hour 8-vCPU spot rate D-109 uses that is
+  **about $272, and about 1,700 instance-hours**. The account's policy ceiling is `2xlarge`, eight
+  vCPU, probed and recorded in `tools/ec2_similarity.py`: there is no larger machine to put it on.
+  So the exhaustive pass is roughly seventy days on one instance, or seventy to a hundred separate
+  launches, each of which is one-shot and unobservable — no shell, no SSM, console output
+  best-effort — against a record of six launches in which two died thirty-one seconds in and one
+  published nothing in four hours. D-108 weighed this arm's cost in dollars only, and a seventeenth
+  of an unaffordable wall clock is still unaffordable.
+
+  Two derived figures carry stated uncertainty rather than being presented as measurements. The
+  corpus is taken as about 295 G residues, from shard 0's measured 417 M scaled by the sample's
+  eight hash shards and 2.5% rate for UniRef100, then by the staged byte counts in A1.5 for the
+  remaining components. And D-128 measured the per-query coefficient as sub-linear in target size,
+  so a pass against larger shards costs somewhat less than this linear projection — the projection
+  is the conservative bound, in the manner D-104 established, not a prediction.
+- **Decision (project owner): the proof-of-concept is the deliverable, not a stage before the real
+  pass.** A1.8 scores the reconstructed narrow seed set against the already-staged 2.5% hash sample
+  of UniRef100 2023_02 (D-122), with one shard run first as a smoke test. About $3 and one launch of
+  roughly nineteen hours, against $272 and seventy to a hundred. No new corpus pass: the sample is
+  built, checksummed and staged, and `--sample-from` skips the fifty-two-minute pass.
+
+  **D-108's exhaustive scope is withdrawn, and so is the claim it existed to support.** This arm
+  reports a survival rate with an interval, in the same form as the broad arm, and **Phase A does
+  not state that nothing on the narrow denylist survived.** A sample cannot support that sentence
+  and this entry does not pretend otherwise.
+- **What this costs, stated plainly because it is the expensive half of the trade.** The error runs
+  in the direction that flatters the safeguard: a sample that happens to contain no surviving
+  narrow-denylist material is evidence of a low rate, not of absence, and a survivor outside the
+  sampled 2.5% is a survivor this audit does not see. §2 and D-128 both treat a missed survivor as
+  the same class of failure as an overstated one, so this is a real reduction in what the audit
+  detects and not a presentational matter. Every published form of this arm's result therefore
+  carries the rate, its interval, its realised family count, and an explicit statement that no
+  all-clear is made — enforced in the harness per the non-negotiables rather than left to the
+  write-up to remember.
+- **The corpus-scope gap this inherits, which the exhaustive design would have closed.** The staged
+  sample is UniRef100 only, so at 2.5% this arm covers one of ESM3's stated components and leaves
+  MGnify90 — 83.5 GB staged, and a component whose granularity is unstated (D-032) — scored not at
+  all. The broad arm at 0.3125% has the same gap, so it is not introduced here, but D-108's
+  "every corpus record" was the one place in the plan that would have closed it. It is named as an
+  open limitation of Phase A rather than resolved inside this task, which is not the task to widen.
+- **What does not change.** D-125's reporting rule in full: counts by survival route and homology
+  class, never by organism or taxon, per-record detail to the disclosure package only. D-126's
+  retention and its staged key, which a sampled pass satisfies unchanged — the manifest covers the
+  records scored, so A3.3's independent reimplementation and the manifest A2.* and B3.* consume
+  both still exist, now sampled and labelled as such. D-106's published 187K stays the validation
+  target for the seed-set reconstruction, which is reconciled against a full-tier pass and not
+  against the sample, because a seed set rebuilt from 2.5% of the corpus cannot be compared with a
+  published total. D-105's parameters, D-128's unbinding cap with the saturation guard checked at
+  this arm's own query scale, identity banding, D-109's design-effect intervals and denominator
+  separation, the prohibition on pooling the two arms (D-108), and the X3.1 circulation bar.
+- **Rejected:** The proof-of-concept as a first stage with the exhaustive pass to follow — keeps
+  the all-clear, and defers rather than answers the seventy-launch problem. The exhaustive pass as
+  D-108 fixed it — buys the strongest claim Phase A could make on this arm, at a wall clock and a
+  launch-failure exposure the measurement did not exist to price when D-108 was written. A deeper
+  sample than 2.5% — available, and it needs a fresh corpus pass and a new staging for a precision
+  gain on a claim that is now a rate either way; revisit it if the realised family count turns out
+  to be the binding constraint D-109 found it to be for the broad arm.
+
+### D-134 — A1.6's broad arm runs as nested seed-sample bands reporting a lower bound; D-128's full-seed pass becomes its third band
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Numbering:** appended as D-133 and renumbered to D-134 on 2026-10-17. A1.8 took D-133 for
+  its own sampled-proof-of-concept entry and that one is already on `main`, so this is the
+  cheaper side to move. Nothing published cites this entry as D-133.
+- **Context:** D-128 fixed the broad arm as all 3,159,223 viral seeds against one staged shard —
+  0.3125% of the corpus, six cells, about 413 instance-hours. Two things make that the wrong *next*
+  step rather than the wrong destination. A full cell is about 40 hours, so it does not fit one
+  instance run and needs the query sliced. And **band counts are per corpus record, so they are
+  additive across shards but not across query slices**: the shards are a hash partition of the
+  sample, so no record appears in two and summing cannot double count (`combine_cells` rests on
+  exactly that), whereas a record matched by seeds in two different query slices would be counted
+  once per slice, and its band is a max over all seeds rather than a sum. Slicing the query is
+  therefore new machinery carrying a new correctness argument, built before any result exists, to
+  buy a rate where a bound would do.
+- **The measurement this design rests on.** The cap run (A1.6, 2026-10-17) already scored
+  **31,381 seeds — 1/100 of the seed set by hash — against shard 0**, 417 M residues, at the pass's
+  own parameters: 1,450 s wall for the `--cov-mode 1` search and 2,137 s for the relaxed one, on
+  8 vCPU. With D-105's measured sensitivity ratios (2.08x faster at `-s 2.0`, 2.66x slower at
+  `-s 7.5`) and the relaxed figure standing in for the `--cov-mode 2` search, six cells at 1/100
+  come to about 14,850 s — **4.1 hours, one instance run**. Extrapolation is linear in query count,
+  which is the conservative side: D-104 measured the marginal per-query exponent climbing from 0.5
+  to 0.84 over a 200-fold range, so linear over-predicts. D-104's fitted *cost model* is not used
+  here and must not be, because it carries a `--min-seq-id 0.70` floor the pass cannot use (D-128).
+- **Decision (project owner): nested bands on the seed axis.**
+  - **Band 1 — 1/100 of the seeds, 31,381.** Six cells, about 4.1 h, one instance run. Produces the
+    banded, three-sensitivity, three-reading result with D-109's design-effect intervals.
+  - **Band 2 — 1/10 of the seeds, about 315,922.** Six cells, about 41 h across six launches; the
+    largest single cell is about 15.8 h, so **each cell still fits one instance run and the query
+    is still not sliced**.
+  - **Band 2 is taken if and only if band 1's measured per-seed cost and hit-table size say it
+    fits** — not on this entry's arithmetic. D-132 set that discipline for A2.4's deepening and the
+    reason is the same: these figures come from one measured point.
+- **What sampling seeds does to the claim, and why this is the defensible direction.** A corpus
+  record is counted if **any** seed matches it, so dropping seeds can only drop records, and a
+  dropped seed can only lower a record's best identity. **Every band count at every band is a
+  strict lower bound**, and the understatement is monotone in the sample fraction. That is the same
+  direction D-105 took when it refused `-s 2.0`'s 2x saving and the same direction the coverage
+  post-filter erred in, and §2's symmetry between overstating and understating leakage is why the
+  bound has to be *reported* as one rather than quietly treated as a rate.
+- **The two sampling axes stay separate and are reported separately.** The corpus axis is a
+  0.3125% hash sample whose denominator is fully known, so D-109's design-effect interval applies to
+  it unchanged. The seed axis contributes a **bound, not an interval**. So every figure reads "at
+  least X%, interval from the corpus sample" and never as a point rate — collapsing the two into
+  one number would be false precision in the direction of understating leakage.
+- **Every rate ships its realised seed-family count**, alongside the realised corpus-family count
+  D-109 and D-128 already require. 1/100 of the seeds covers materially fewer viral families than
+  the full set, and the accumulation between band 1 and band 2 is the **only** evidence available
+  about how far below the full-seed rate the bound sits.
+- **Price, which is not what chose this design.** Spot is live and verified by a real launch
+  (D-132), so band 1 is about **$0.50** and band 2 about **$5** on `m6i.2xlarge` spot, against
+  $1.60 and $16 on demand. Either is inside any ceiling this task has had. The slicing correctness
+  argument is what chose the design; the cost is why the nesting is free to have.
+- **D-128 is not withdrawn — its pass becomes band 3**, about 413 instance-hours and about $50 on
+  spot, and it is what the accumulation curve exists to decide on. Its target, parameters, hit cap,
+  banding and interval treatment all stand for every band.
+- **One indication already on the record, and it is not a result.** The cap run found 32,374
+  records under `--cov-mode 1` at slack cap, against roughly 1.10M clusters in shard 0 — about 3%,
+  from 1% of the denylist. It was a `RecordLedger` measurement rather than a pass: unbanded, one
+  sensitivity, one reading, no interval, no family counts. It is the reason to expect band 1 to
+  carry signal, not a number to cite.
+- **Rejected:** Building query slicing and running D-128 now — a non-additive merge needs its own
+  correctness argument and its own tests before any result exists, and it buys a rate where a bound
+  is both cheaper and sufficient for the headline. Sampling the corpus deeper instead of the seeds —
+  D-128 set the corpus depth deliberately, and deepening the corpus at full seed count is the
+  expensive axis, not the cheap one. Band 1 alone — it leaves the gap to the full-seed rate
+  unquantified, and at $0.50 a band the second one is not a real saving. Reporting a point rate from
+  sampled seeds — rejected above.
+- **Consequence:** a seed-sampled band's counts **may not be pooled with any full-seed result**, so
+  D-108's no-pooling rule now has a third axis alongside the two arms and the two denominators. The
+  per-record manifest a seed-sampled band produces is **incomplete by construction**, so A2.* and
+  B3.* consuming it inherit a bound rather than a rate and must be told which band produced what
+  they read. And the write-up carries "at least" in the sentence holding the number, not in a
+  caveat further down.
+
+### D-135 — Evo 2's version of record states the GTDB releases word for word, and it was open access all along
+- **Date:** 2026-10-17
+- **Task:** A2.4 / A7.4
+- **Context:** D-130 established both releases' GTDB versions but flagged that the **Evo 2** side
+  came from the preprint. `S-EVO2-NATURE-METHODS` was registered `unretrieved`, with the blocker
+  that the Methods are absent from both the article HTML and the article PDF. `AGENTS.md` is
+  emphatic about this exact situation — A2.1 spent twenty hours of compute on figures resting on
+  a preprint — so it was escalated to the project owner rather than built on.
+- **What it actually was.** Not a paywall. **The paper is open access, CC BY-NC-ND 4.0**, stated
+  in the article's own XML, and deposited as `PMC13128491`. The obstruction was a *route*:
+  `nature.com/articles/s41586-026-10176-5` returns `303` to `idp.nature.com/authorize`, a
+  federated-login redirect, which from this environment is indistinguishable from a paywall if
+  the only thing tried is the article URL. Europe PMC's REST API serves both the full text and
+  the supplementary files without authentication.
+  And the Methods were not missing from the article — they were never *in* it. They are in the
+  Supplementary Information (`MOESM1`, captioned by the publisher "This file contains Methods,
+  supplementary text and appendix", 45 pages), which is where `AGENTS.md` already says a methods
+  appendix usually settles things, on the strength of ESM3's.
+- **Decision:** Retrieve it, verify it, store it, and discharge D-130's caveat.
+  Retrieved via `https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13128491/supplementaryFiles`.
+  **Verified against the publisher's own digest**: the article XML states
+  `md5 94fdc619ad34335e7051031447ec7100` and `1030230` bytes for `MOESM1`, and the retrieved file
+  matches both exactly. Stored at `pdfs/s41586-026-10176-5_sm.pdf` on the owner's call, with the
+  licence and attribution in the register, so the id is quotable.
+- **What it says, which is what the preprint says.** §A.2.1 "Data curation": "Our previously
+  published OpenGenome dataset was used in its entirety as part of the training data for this
+  study. This included representative prokaryotic genomes available through GTDB release v214.1,
+  and curated phage and plasmid sequences retrieved through IMG/VR and IMG/PR. As previously
+  described, the OpenGenome dataset was curated to exclude genomic sequences of viruses which
+  infect eukaryotic hosts." And: "New prokaryotic reference genomes made available through the
+  GTDB release 220.0 update were added to the training data for this study. New genomes were
+  identified by selecting all species' reference genomes that had no previously published
+  (release 214.1) genomes within their species cluster, resulting in 28,174 additional
+  prokaryotic genomes."
+  The only difference from the preprint is the word "prokaryotic" in the final figure; the
+  number, the releases and the selection rule are identical. **D-110 found the same for Evo 1,
+  so both labs' versions of record now agree with their preprints on the corpus statements this
+  audit rests on** — which is a result worth having rather than an absence of one, because it is
+  what licenses using either.
+- **Rejected:** Waiting for the owner once the ask had been made. The ask was right at the moment
+  the blocker was believed, and withdrawing it the moment the blocker turned out to be a route
+  problem is the same discipline, not a reversal of it. One check of an open-access mirror cost a
+  minute and saved them the errand.
+  Treating "the Methods are absent from the HTML and the PDF" as settled because it was already in
+  the register. It was accurate and it was not the whole picture; a registered blocker is a record
+  of what was tried, not a proof that nothing else works.
+  Quoting from `S-EVO2-NATURE`, which stays `retrieved_not_stored` and therefore unquotable. The
+  Methods are a separate deposit with its own licence note, and that is the id this entry cites.
+- **Consequence:** **A7.4 is unblocked** and may assert against the version of record, which §7
+  requires of any claim naming a laboratory. D-130's "currently preprint-sourced" caveat is
+  discharged for the GTDB statements. The general lesson is cheap and worth recording: before
+  escalating a publisher URL, check whether the paper is in PMC or Europe PMC — a `303` to an
+  identity provider says nothing about the licence, and this one was openly licensed the whole time.
+
+### D-136 — A2.4's record is the genome; Evo 2 publishes it and Evo 1's is derived, at a measured cost
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-115 fixed A2.4's sampling unit as "the genome record" before either component had
+  been read. Reading them shows the two releases do not agree on what a record is, and fail to in
+  opposite directions.
+  **Evo 2's is already genome-shaped.** `fasta/gtdb_v220/...` is a tar whose every member is one
+  gzipped FASTA named for its assembly — `batch1/GCF_017922435.1.fasta.gz` — so one member is one
+  genome and the publisher supplies the identifier. Nothing is derived.
+  **Evo 1's is contigs with no genome column.** `stage1/gtdb/*.parquet` carries `record` and
+  `text`: an INSDC nucleotide accession and a sequence, and nothing else — no assembly accession,
+  no organism, no grouping key of any kind. Taken literally the record unit would be the contig,
+  which is wrong for this task twice: a provirus is a feature of a genome, and a per-contig
+  denominator would let one 400-contig draft assembly count four hundred times a complete one.
+- **Decision:** The record is the genome in both releases. Evo 2's comes from the member name.
+  **Evo 1's is derived from the accessions, and `amazebio.gtdb.genome_key` reports that it is
+  derived rather than returning a bare string.** An INSDC WGS accession encodes its project —
+  `JAHFAU010000149.1` is contig `0000149` of project `JAHFAU01`, and a project is an assembly —
+  so contigs are grouped on the project accession, with the optional RefSeq `NZ_` prefix ignored
+  because it splits no assembly.
+  **Measured, not assumed.** Over 40,000 contigs of `gtdb_train_shard_0`: **99.72% carry a WGS
+  project accession** and group into genomes at a median of 43 contigs each. The remaining
+  **0.28%** are complete replicons and scaffolds — `NZ_CP038213.1`, `NZ_GL890993.1`,
+  `NZ_CM001022.1` — which carry no project and cannot be grouped. Each becomes a genome of one.
+  **That under-groups**: a chromosome and its plasmids are counted as separate genomes. The error
+  is bounded, measured, and enlarges the denominator, so the survival fraction it feeds is
+  conservative — the direction to err in for a task whose null must stay visible.
+  The pattern requires four to six letters before the two project digits, which is what separates
+  a WGS contig from a complete replicon. A looser rule would read `CP038213` as project `CP03` and
+  **merge unrelated genomes**, inflating per-genome content with nothing downstream to show it.
+  That failure is tested for directly.
+- **Rejected:** Using the contig as the record unit and reporting per-contig survival. Defensible
+  only if the question were about contigs, and it is not; it would also make the two releases'
+  figures incomparable, which is the one thing A3.2 has to be able to do.
+  **Joining Evo 1's contigs to Evo 2's assemblies to recover the grouping exactly.** This would
+  work and would be better: Evo 2's FASTA headers carry the same INSDC contig accessions Evo 1
+  uses as its `record` column (`NZ_VDEZ01000001.1`, `JAHAXB010000057.1`), and Evo 2 reused Evo 1's
+  genomes, so the assembly for most of Evo 1's contigs is recoverable from Evo 2's member names.
+  It is not taken here for two reasons: it would make one release's record unit depend on the
+  other's data, which is the cross-release coupling D-116 refused in a different guise; and it is
+  **A7.4's join**, which has not run. If A7.4 establishes the mapping, A2.4 can adopt it and the
+  0.28% shrinks — that is a strict improvement available later at no wasted work, and it is
+  recorded here so the next worker does not have to rediscover that the headers carry it.
+  Dropping accessions the rule cannot parse. It would shrink the corpus with nothing to show for
+  it; they become genomes of one instead.
+- **Consequence:** A2.4's denominator is genomes, comparable across releases, with Evo 1's
+  carrying a declared 0.28% under-grouping and Evo 2's carrying none. The kind of key travels with
+  the record (`wgs_project` against `accession`), so a reader can separate the derived grouping
+  from the published one without re-deriving either. **And A7.4 gains a finding before it starts:
+  its comparison key is a plain accession join, not the sequence-digest exercise its Steps allow
+  for, because both releases carry the same INSDC contig accessions.**
+
+### D-137 — The select-agent list's names map to taxonomy ids by curation, validated against the pinned taxonomy, never by name matching
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Numbering:** appended as D-134 and renumbered to D-137 on 2026-10-17. A1.6's broad-arm banding entry took D-134 first and is already merged on `main`, while this entry's citations sit in `src/amazebio/selectagents.py`, `policies/specs/` and this task's files, which the same commit can remap — so this side is the cheaper one to move. The commit "A1.8: reconstruct the select-agent list as taxa" on `ccr-51fc983f-tyojje` cites the old number; this line is how it resolves.
+- **Context:** ESM3-open's narrow denylist is "all sequences in UniProt belonging to organisms on
+  the Select Agents and Toxins List" (D-106, version of record). The list does not carry taxonomy
+  ids, so the mapping is A1.8's to decide and record — the first of the task's two open readings.
+  The obvious implementation is to match each entry against `names.dmp` in the pinned 2023-04-01
+  dump and descend what matches. Executed against the real list, that implementation is wrong in
+  five independent ways, and the measurements below are why this entry exists rather than a line
+  of code.
+- **Decision: a committed, hand-curated table decides every entry; the pinned taxonomy only
+  checks it.** `policies/specs/select-agents-2024-06-01.json` carries one record per list entry
+  with its kind, its chosen taxa, whether descent is in scope, and the reasoning. 70 entries,
+  one-to-one with the pinned regulation, enforced by a test. 53 entries name a taxon; under the
+  literal reading those expand to 114,206 taxa.
+
+  **What name matching does, measured on the real list.** Taken in the order they would bite:
+
+  1. **It resolves into the wrong kingdom.** The five sub-entries under "South American
+     hemorrhagic fever viruses" are bare words. In the pinned dump `Sabia` is the scientific name
+     of taxid 13663, a genus of *flowering plants*; `Chapare` matches an orchid and four other
+     plants; `Junin` matches a grass mouse and an Andes frog and no virus at all. Matching and
+     descending would seed a plant genus into a select-agent denylist, and nothing downstream
+     would notice.
+  2. **It misses taxa that have been renamed, which is most of the viral entries.** Junín is
+     "Argentinian mammarenavirus" in the pinned dump, with "Junin mammarenavirus" only an
+     equivalent name and the older form carrying an accent an ASCII match drops. Lassa, Marburg,
+     Newcastle disease and peste des petits ruminants all need a synonym or a reclassification.
+     "Goat pox virus" fails on a space, the taxonomy spelling being one word.
+  3. **It descends into material the regulation pointedly does not list.** There is no "SARS
+     coronavirus" species: the containing node is 694009, "Severe acute respiratory
+     syndrome-related coronavirus", whose 222 children include SARS-CoV-2. The regulation lists
+     SARS-CoV and regulates SARS-CoV/SARS-CoV-2 chimeras *separately*, which only makes sense if
+     SARS-CoV-2 is not itself listed. So descent here is refused — the one entry in the table
+     where it is — because descending would import the largest viral sequence space in UniProt on
+     the strength of a node name.
+  4. **It silently invents taxa for entries that have none.** Nine entries name a toxin, which is
+     a molecule; two name laboratory constructs (a reconstructed 1918 influenza virus, a defined
+     chimera); one is a function over a genus rather than a taxon. Sixteen of the 70 entries
+     contribute no taxon under the literal reading, and that is a number the write-up reports
+     rather than a silent zero — `unresolved()` exists to produce it.
+  5. **It cannot see where the taxonomy simply has no node.** `Sclerophthora rayssiae` is absent
+     from the pinned dump under any name, including its genus's other species. `Coniothyrium
+     glycines` exists only under the former name the regulation itself supplies parenthetically,
+     which makes that parenthetical load-bearing. The Pasteur strain of *B. anthracis* has no node
+     among 47 strain children, though that one costs nothing because the same section lists the
+     species separately.
+- **The readings that remain open are switches, not choices, following D-107's precedent.** Three
+  were available and none is settled by the source, so each is a flag on `seed_taxa` and the
+  sensitivity is run rather than argued: `include_toxin_producers` moves the nine toxins from the
+  literal reading to their producing organisms (and for saxitoxin and tetrodotoxin even the
+  producing set is undefined, recorded rather than guessed); `use_alternatives` takes the broader
+  or narrower reading recorded against an entry. Measured: literal 53 named taxa expanding to
+  114,206; toxin-producers 62 expanding to 125,008.
+- **Three over-inclusions are taken deliberately and recorded, because the direction matters.**
+  "Avian influenza virus" is not a taxon as worded — the regulation's scope is a virulence
+  criterion on the isolate, a sequence-level property with no taxonomic expression at all, which
+  is a §A0 under-specification in the *list* rather than in ESM3. It is taken as Influenza A virus
+  with descent, which pulls in human seasonal influenza. Newcastle disease virus carries the same
+  shape of criterion and is taken as the species. The two *Mycoplasma* entries are restricted by
+  the regulation to one subspecies each and are taken as the species. In each case the taxonomy
+  cannot express the restriction, and for an audit of a safeguard an over-inclusive denylist
+  overstates what should have been removed rather than understating it — which is the side §2
+  requires when the error cannot be eliminated. Tick-borne encephalitis virus is the one entry
+  that cannot be made exact in either direction: the pinned dump has no node for either listed
+  subtype, so the species is taken and it includes the unlisted Western subtype.
+- **Consequence:** the reconstruction's provenance is a committed file a reviewer can read entry by
+  entry, which §7's adversarial reader needs, and the error class in point 1 is a test
+  (`test_no_viral_entry_is_mapped_outside_the_viruses`) rather than a near miss. The count of
+  entries contributing no taxon travels with the result: an audit that says the filter should have
+  removed these agents has to say which listed agents its own seed set could not represent.
+- **Rejected:** Name matching with a hand-maintained exception list — the same table with the
+  dangerous default left in place, so a re-pin that renames an agent fails open into the wrong
+  kingdom instead of failing closed. Mapping only entries that resolve unambiguously — drops
+  roughly half the viral entries and every plant pathogen, understating the denylist, which is the
+  direction that flatters the filter. Per-strain enumeration for SARS-CoV instead of the named node
+  without descent — considered and declined, because it would miss SARS-CoV isolates absent from
+  the 2023-04 dump while buying nothing the refusal of descent does not already buy.
+
+### D-138 — The list in force is the regulation at the access date, not the live page; and the gap costs nothing while the live page would have cost five agents
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Numbering:** appended as D-135 and renumbered to D-138 on 2026-10-17. A2.4's Evo 2 version-of-record entry took D-135 first and is already merged on `main`; same reasoning as D-137 above, and the same commit cites the old number.
+- **Context:** A1.8's second open reading: which version of the Select Agents and Toxins List was
+  in force when ESM3's filter ran. The task file recorded the problem as "the source cites a 2024
+  access date; the retrievable page is live and undated", and the model card links
+  `selectagents.gov/sat/list.htm`. Both halves of that premise turn out to be wrong, in opposite
+  directions.
+- **Decision: pin the regulation, not the page.** The list is codified — 42 CFR 73.3 and 73.4, 9
+  CFR 121.3 and 121.4, 7 CFR 331.3 — and the webpage is a summary of it. The regulation is the
+  authority and it has dated versions; eCFR's full-text API serves any date. A1.8 pins all three
+  parts at 2024-06-01, stores the XML with digests (`policies/captures/cfr-*.xml`,
+  `amazebio.selectagents.PINS_2024`), and takes 9 CFR 121.4 as a duplicate of 42 CFR 73.4 rather
+  than counting the overlap agents twice.
+- **The under-specification is real and its consequence is nil, which is the useful finding.** No
+  amendment touched any of the three parts between **2022-05-27 and 2024-12-17**. Every date in
+  2023 and in 2024 up to that December amendment therefore resolves to identical text, so the
+  source's unstated version cannot change the reconstruction. §A0 asks for the consequence of
+  under-specification to be measured rather than assumed, and here it measures as zero — recorded
+  because a nil result is a result, and because it is the cheapest of A1.8's findings to lose.
+- **The live page is a different version, and using it would have understated the denylist.** The
+  page is not undated — it carries `cdc:last_reviewed` 2025-01-14 — and it reflects the amendments
+  of 2024-12-17 and 2025-01-16, both of which postdate the filter. Against the 2024 text those
+  amendments **delist five organism entries** that were in force when the filter ran: three
+  *Brucella* species from the overlap list, African horse sickness virus from the veterinary list,
+  and *Peronosclerospora philippinensis* from the plant list. They also widen one entry from a
+  species to its genus, *Ebolavirus* — so the broader reading of that entry is the later
+  regulation's own rather than ours (D-137).
+
+  A seed set built from today's page would therefore be missing five agents the filter was supposed
+  to have removed. For an audit of that filter the bias runs one way: a smaller denylist means less
+  material we expect to have been removed, so leakage is understated and the safeguard looks more
+  complete than it was. That is the same direction D-133 flagged for the sampled pass, and it is
+  the direction §2 treats as the failure to avoid.
+- **Consequence:** every A1.8 result cites the regulation at 2024-06-01, with the amendment
+  actually in force recorded alongside (`CfrPin.effective`), so a reader can tell a re-pin from a
+  re-run. Any later re-pin must re-check the mapping table, which a test enforces by failing on an
+  entry with no recorded reading rather than skipping it. The five delistings are also a live
+  example for A9.1, which measures denylist decay against taxonomy updates: the list itself decays,
+  not only the taxonomy under it.
+- **Rejected:** The live page, as the model card links it — wrong version, as measured above.
+  A web-archive snapshot of the page at the access date — the archive is unreachable from this
+  container (`web.archive.org` closes the tunnel mid-exchange, and the fetch tool refuses the host),
+  and it would in any case be a dated copy of a summary when the dated authority is directly
+  retrievable. Asking the project owner to retrieve the snapshot — the escalation AGENTS.md
+  requires when a source is blocked for an agent, and not needed here: the blocked source was the
+  inferior one, and the better source was never blocked.
+
+### D-139 — The seed machinery's counters are renamed denylist-neutral, and the serialised keys accept both spellings because the staged manifest is permanent
+- **Date:** 2026-10-17
+- **Task:** A1.8 (changes code A1.6 owns)
+- **Context:** `src/amazebio/seeds.py` was written for A1.6's viral arm and its generality was
+  accidental: `ScanConfig.viral`, `SeedCounts.viral_seeded`, `viral_residues`,
+  `representative_not_viral`, and `UniRefEntry.is_viral_seeded` all take or count an arbitrary
+  taxid set, with nothing viral in the logic. A1.8 needs exactly that machinery for the
+  select-agent denylist (D-137), so the names would have described the wrong thing for the second
+  arm — and D-126 stages A1.8's per-record manifest permanently in a bucket with no
+  `DeleteObject`, so a mislabelled field is a mislabelled field for good.
+- **Decision (project owner): rename, rather than wrap the call or let it ride.**
+
+  | was | is |
+  |---|---|
+  | `ScanConfig.viral` | `denylist_taxids` |
+  | `SeedCounts.viral_seeded` | `seeded` |
+  | `SeedCounts.viral_residues` | `seeded_residues` |
+  | `SeedCounts.representative_not_viral` | `representative_not_seeded` |
+  | `UniRefEntry.is_viral_seeded` | `is_seeded` |
+  | `UniRefEntry.representative_is_viral` | `representative_is_seeded` |
+
+  `to_dict`'s keys follow, so `viral_share` becomes `seeded_share` and
+  `representative_not_viral_share` becomes `representative_not_seeded_share`.
+- **What is deliberately *not* renamed, because "viral" is sometimes the correct word.** The
+  rename covers the machinery that is generic over which denylist is in play, and nothing else.
+  `VIRAL_ROOT` stays — it is the Viruses superkingdom. Every `viral` in `misassignment.py`,
+  `ictv.py`, `genomad.py` and `survival.py` stays: those are about viruses, not about denylists,
+  and a blanket rename would have been 270 occurrences across 54 files instead of the 11
+  identifiers that were actually mislabelled. `ShardManifest.viral_seeded_clusters` also stays,
+  with a comment recording why: it is not a generic counter but a fact about *one* staged sample,
+  which the broad arm drew with viral seeds, and A1.8 reads that sample rather than drawing its
+  own.
+- **The serialisation boundary, which is the part with a permanence consequence.** The staged
+  2.5% sample manifest (D-122) carries `viral_seeded` inside its `seed_counts`, it is the input
+  A1.8's pass reads under D-133, and it cannot be rewritten. `ShardManifest.from_json` refuses
+  any manifest whose `version` it does not recognise — deliberately, so that it never guesses
+  which fields still mean what they did — so **bumping `MANIFEST_VERSION` would refuse exactly
+  the manifest this arm needs.** The version therefore stays at 1 and
+  `check_self_consistent` accepts either spelling, with tests for the legacy key, the new key,
+  and a self-contradicting manifest under both. Accepting two spellings is a cost; refusing a
+  permanent artefact the pass depends on is a larger one.
+- **Consequence:** A1.6's call sites in `tools/esm3_seeds.py` and `tools/esm3_calibrate.py` are
+  updated in the same commit, so nothing is left half-renamed for the other track to trip over.
+  A1.6 is still `in-progress`, so whoever resumes it should expect these names rather than the
+  ones its handoff notes quote; the counters mean exactly what they meant, and
+  `tools/esm3_seeds.py` still prints "viral-seeded" because for that arm it is viral. Any future
+  arm gets correctly-labelled provenance without a third naming decision.
+- **Rejected:** A narrow-arm wrapper relabelling on output — zero risk to the in-progress broad
+  arm, and it leaves a module whose internal names misdescribe both arms plus a relabelling step
+  a later arm can get wrong. Passing the set through unchanged and explaining it in the write-up
+  — smallest diff, and it writes a misleading field name into a staged object that cannot be
+  withdrawn. A manifest version bump alongside the rename — the tidy-looking option, and
+  `from_json`'s own refusal semantics turn it into a broken pipeline.

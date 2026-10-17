@@ -445,16 +445,26 @@
   {
    "id": "S-EVO2-NATURE-METHODS",
    "kind": "paper_section",
-   "title": "Evo 2 (Nature) Methods section",
-   "url": "https://www.nature.com/articles/s41586-026-10176-5",
+   "title": "Evo 2 (Nature) Methods, supplementary text and appendix (Supplementary Information, MOESM1)",
+   "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13128491/supplementaryFiles",
+   "also_at": "https://www.nature.com/articles/s41586-026-10176-5#Sec36",
+   "doi": "10.1038/s41586-026-10176-5",
+   "pmcid": "PMC13128491",
+   "file": "41586_2026_10176_MOESM1_ESM.pdf",
+   "bytes": 1030230,
+   "md5": "94fdc619ad34335e7051031447ec7100",
+   "sha256": "fe2a99108a4ce5c0f4ef1595605eaec709fa86204410d5b66c1384327eb7b925",
+   "licence": "CC BY-NC-ND 4.0 (https://creativecommons.org/licenses/by-nc-nd/4.0/), stated in the article XML",
    "models": [
     "Evo 2"
    ],
-   "status": "unretrieved",
-   "blocker": "Absent from both the article HTML and the article PDF; 21 occurrences of 'Methods' in the PDF are all cross-references. Needed only to confirm the Evo 2 procedure adds nothing to Evo 1's; the preprint Methods already defers to Evo 1."
+   "status": "retrieved",
+   "capture": "pdfs/s41586-026-10176-5_sm.pdf",
+   "attribution": "Brixi, G. et al. Genome modelling and design across all domains of life with Evo 2. Nature (2026). doi:10.1038/s41586-026-10176-5. Supplementary Information (Methods, supplementary text and appendix). \u00a9 The Authors, licensed CC BY-NC-ND 4.0.",
+   "note": "The Methods are not in the article HTML or the main PDF \u2014 they are in the Supplementary Information, which is where a methods appendix usually settles things (AGENTS.md says as much about ESM3's). Retrieved 2026-10-17 via the Europe PMC REST supplementaryFiles endpoint, which is open access and returns a zip; nature.com itself 303-redirects to idp.nature.com/authorize and is unusable from this environment, so the blocker registered against this id was a route problem rather than a paywall. The md5 was verified against the one the publisher states in the article XML and matches. Stored on the project owner's call (2026-10-17): the article is CC BY-NC-ND 4.0, which permits redistributing verbatim copies with attribution, and no derivative is made of it. This id is therefore quotable."
   },
   {
-   "id": "S-EVO2-PREPRINT",
+  "id": "S-EVO2-PREPRINT",
    "kind": "paper",
    "title": "Brixi et al. 2025 — Genome modeling and design across all domains of life with Evo 2 (preprint)",
    "url": "https://www.biorxiv.org/content/10.1101/2025.02.18.638918v1.full.pdf",
