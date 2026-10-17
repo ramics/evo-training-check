@@ -239,7 +239,7 @@ defensible side. The run now measures that agreement at corpus scale instead of 
 D-109's "three readings for the price of one" is therefore approximate, and the write-up has
 to say by how much.
 
-**Spot does not work in this account (D-110).** `RunInstances` with spot options is refused
+**Spot does not work in this account (D-120).** `RunInstances` with spot options is refused
 with `AuthFailure.ServiceLinkedRoleCreationNotPermitted`: the request needs the
 `AWSServiceRoleForEC2Spot` service-linked role, which EC2 creates via
 `iam:CreateServiceLinkedRole`, and `iam:*` is denied here. A dry run authorizes the same
@@ -250,7 +250,7 @@ launcher — the code is right and one IAM action makes it work.
 project owner's go-ahead, since the session is not permitted to spend. Then the broad arm's
 sampled pass, whose budget is now an open question rather than a settled $26.
 
-**The budget question is answered (D-111): the spot role gets created**, so D-109's design
+**The budget question is answered (D-121): the spot role gets created**, so D-109's design
 runs unchanged at the price it was designed against. Nothing in the repo is waiting on code.
 
 **Blocked on one external action.** Someone with IAM permissions creating
@@ -259,7 +259,7 @@ it exists except by attempting a launch — which is also the launch it wants, s
 the check. On confirmation, in order: the cap and coverage measurement on spot (well under a
 dollar), then the broad arm's sampled pass (about $26).
 
-**The narrow arm has moved to A1.8** (D-119). A1.6 is the broad viral denylist only, from
+**The narrow arm has moved to A1.8** (D-129). A1.6 is the broad viral denylist only, from
 here on: sampled, reporting a rate with an interval. The two arms must not be pooled (D-108).
 
 ## The cap run was lost, and what came out of losing it — 2026-10-16, fifth
@@ -287,26 +287,26 @@ corpus-pass heartbeat to object storage makes the next occurrence diagnosable in
 `AGENTS.md` carries both findings: that a running instance cannot be observed here, and that
 the boot-armed shutdown timer does fire, reported as `User initiated` rather than as a reclaim.
 
-**The re-run is much smaller than this one was.** D-114 removed the relaxed-coverage half of
+**The re-run is much smaller than this one was.** D-124 removed the relaxed-coverage half of
 the measurement entirely, so only the hit cap remains, and it runs against a staged sample
 rather than a fresh corpus pass.
 
 ## The narrow arm is unblocked — 2026-10-16, sixth
 
-D-115. The project owner's rule, fixed before any result exists because §2 requires analysis
+D-125. The project owner's rule, fixed before any result exists because §2 requires analysis
 specs settled before results are inspected, and because an empty result and a non-empty one
 would invite different rules once either was visible: **counts by survival route and homology
 class, never by organism or taxon**, with per-record detail in the disclosure package only and
 the preprint carrying the aggregate. Both branches are covered in advance.
 
-Four things follow rather than being separate calls, and they are in D-115 as amended by
-D-116: the exact per-record manifest is computed, kept and **staged** — aggregation happens at
+Four things follow rather than being separate calls, and they are in D-125 as amended by
+D-126: the exact per-record manifest is computed, kept and **staged** — aggregation happens at
 the publication boundary, not the computation boundary — never committed, since the public repo
 is a deliverable; A2.* and B3.* inherit the rule for their published outputs; the limit is
 enforced in the harness per the non-negotiables, not left to be remembered; and nothing
 circulates before X3.1.
 
-**D-116 reverses D-115's storage sentence.** D-115 said the manifest must never be staged,
+**D-126 reverses D-125's storage sentence.** D-125 said the manifest must never be staged,
 reasoning that an unwithdrawable object is a liability. That went further than the reporting
 rule required and would have left a pipeline that holds nothing — breaking A3.3's independent
 reimplementation and the manifest A2.* and B3.* consume. The owner's call is to stage it and

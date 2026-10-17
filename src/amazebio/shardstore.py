@@ -1,6 +1,6 @@
 """A staged, checksummed sample of a corpus tier, so the corpus pass is paid once.
 
-D-112 and D-113: the corpus pass over UniRef100 costs about 52 minutes whatever the sample
+D-122 and D-123: the corpus pass over UniRef100 costs about 52 minutes whatever the sample
 rate, and it is currently paid on every launch because the tool can only rebuild its target
 shards from the full tier. The broad arm's sweep is about 1,296 search core-hours, which is
 162 instance-hours against a 260-minute shutdown timer that cannot be extended after launch

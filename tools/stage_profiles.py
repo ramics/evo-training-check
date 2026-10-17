@@ -51,6 +51,7 @@ from amazebio.profiles import (
     md5_of,
     open_profiles,
     registry,
+    rvdb_labels,
     select_viral_families,
 )
 from amazebio.repro import run
@@ -297,6 +298,38 @@ def main() -> int:
         }
         (out / "registries.json").write_text(json.dumps(payload, indent=2) + "\n")
         m.output_file(out / "registries.json", role="registry pins")
+
+        rvdb = next((r for r in chosen if r.id == "rvdb-prot"), None)
+        annotations = rvdb.staged_dir(DATA) / "U-RVDBv32.0-prot-hmm.sqlite.xz" if rvdb else None
+        if annotations is not None and annotations.exists():
+            labels = rvdb_labels(annotations)
+            payload_labels = {
+                "registry": rvdb.key,
+                "families": len(labels),
+                "label_is_derived": (
+                    "RVDB assigns its families no descriptive name: the annotation database "
+                    "holds keyword frequencies and taxon ids, not titles. `label` is this "
+                    "project's summary of the publisher's own keyword frequencies and is for "
+                    "readers only — `family_id` is the identity every count is keyed on, and "
+                    "the only thing a figure may cite as the family. See DECISIONS.md D-097."
+                ),
+                "label_rule": "the four most frequent sequence-name keywords, in frequency order",
+                "entries": [
+                    {
+                        "family_id": label.family_id,
+                        "label": label.label,
+                        "keywords": list(label.keywords),
+                        "reference_keywords": list(label.reference_keywords),
+                        "lca_taxid": label.lca_taxid,
+                        "sequences": label.sequences,
+                        "model_length": label.model_length,
+                    }
+                    for label in sorted(labels.values(), key=lambda entry: entry.family_id)
+                ],
+            }
+            (out / "rvdb-families.json").write_text(json.dumps(payload_labels, indent=2) + "\n")
+            m.output_file(out / "rvdb-families.json", role="RVDB family labels")
+            print(f"\nRVDB family labels: {len(labels):,} families")
 
         pfam = next((r for r in chosen if r.id == "pfam"), None)
         if pfam is not None and (pfam.staged_dir(DATA) / "Pfam-A.hmm.dat.gz").exists():

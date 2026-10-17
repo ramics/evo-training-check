@@ -14,11 +14,11 @@ header before any sequence is touched, and an unsampled record costs a hash. The
 still read end to end — object storage has no index into a gzip stream — but a 0.1% sample
 costs 0.1% of the memory and the search, which is the part that is out of reach (D-078).
 
-**No sequence is written anywhere.** D-020 is explicit that this project stores no genomic
-sequence, and A7.1's splitter measures the sequence and drops it for exactly that reason. The
-residues here live in memory for as long as it takes to call genes and search them, and the
-artefacts carry accessions, scores and coordinates only. A caller that wants to persist what
-this yields is doing something the project does not do.
+**No sequence reaches an artefact.** D-103 draws the line: residues may live in memory, and
+in ephemeral scratch outside the working tree when a later pass has to search them again, but
+never in the repository, in `artifacts/`, in the audit store, or in anything a reviewer reads
+as a result — which is why A7.1's splitter measures the sequence and drops it. What this module
+yields is for computing on, not for keeping.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from typing import Any
 
 from amazebio.conformance import parse_lineage_tag
 from amazebio.corpora import LINEAGE_WINDOW, LineageError, tag_of
-from amazebio.detect import in_sample
+from amazebio.detect import in_band
 from amazebio.policyspec import Record
 
 __all__ = ["SampledRecord", "iter_fasta_sampled", "iter_stage2_sampled"]
@@ -60,7 +60,8 @@ def iter_stage2_sampled(
     component: str,
     record_prefix: str,
     seed: int,
-    rate: float,
+    hi: float,
+    lo: float = 0.0,
     on_parse_error: Callable[[str, LineageError], None] | None = None,
 ) -> Iterator[SampledRecord]:
     """Yield the sampled rows of an Evo 1 stage-2 object, with sequence.
@@ -71,8 +72,9 @@ def iter_stage2_sampled(
     same reading `amazebio.corpora.iter_stage2_records` applies, so a record's route here is
     resolved from the same evidence A1.4's manifest resolved its outcome from.
 
-    Rows are selected by hash before being materialised: the row index gives the identifier, the
-    identifier gives the sample, and only the sampled rows are decoded out of Arrow.
+    Rows are selected by hash band (`amazebio.detect.in_band`) before being materialised: the
+    row index gives the identifier, the identifier gives band membership, and only the selected
+    rows are decoded out of Arrow.
     """
     import pyarrow.parquet as pq
 
@@ -91,7 +93,7 @@ def iter_stage2_sampled(
         wanted = [
             i
             for i in range(table.num_rows)
-            if in_sample(f"{record_prefix}#{first + i}", seed=seed, rate=rate)
+            if in_band(f"{record_prefix}#{first + i}", seed=seed, lo=lo, hi=hi)
         ]
         if not wanted:
             continue
@@ -131,7 +133,8 @@ def iter_fasta_sampled(
     *,
     component: str,
     seed: int,
-    rate: float,
+    hi: float,
+    lo: float = 0.0,
     chunk: int = 8 << 20,
 ) -> Iterator[SampledRecord]:
     """Yield the sampled entries of a FASTA stream, with sequence.
@@ -169,7 +172,7 @@ def iter_fasta_sampled(
                 yield from emit()
                 header = raw[1:].decode("utf-8", "replace").strip()
                 record_id = header.split()[0] if header.split() else ""
-                keep = bool(record_id) and in_sample(record_id, seed=seed, rate=rate)
+                keep = bool(record_id) and in_band(record_id, seed=seed, lo=lo, hi=hi)
                 parts = []
             elif keep:
                 parts.append(raw.decode("ascii", "replace").strip())
@@ -178,7 +181,7 @@ def iter_fasta_sampled(
             yield from emit()
             header = tail[1:].decode("utf-8", "replace").strip()
             record_id = header.split()[0] if header.split() else ""
-            keep = bool(record_id) and in_sample(record_id, seed=seed, rate=rate)
+            keep = bool(record_id) and in_band(record_id, seed=seed, lo=lo, hi=hi)
             parts = []
         elif keep:
             parts.append(tail.decode("ascii", "replace").strip())

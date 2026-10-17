@@ -19,9 +19,9 @@ owner: unassigned
 
 Score ESM3-open's narrow (select-agent) denylist exhaustively against every record of the
 staged proxy corpus, and report the result under the handling rules the project owner fixed
-in **D-115** and **D-116**.
+in **D-125** and **D-126**.
 
-Split out of A1.6 (D-119). A1.6 keeps the broad viral denylist, which is sampled and buys an
+Split out of A1.6 (D-129). A1.6 keeps the broad viral denylist, which is sampled and buys an
 aggregate rate; this task carries the arm that buys the all-clear statement the audit rests
 on. The two arms report in different forms and **must not be pooled** (D-108).
 
@@ -34,19 +34,19 @@ what may be published, so they are two task files rather than one widened one.
 
 ## Read these first
 
-- **D-115** — the handling and reporting rules: counts by survival route and homology class,
+- **D-125** — the handling and reporting rules: counts by survival route and homology class,
   **never by organism or taxon**. Per-record detail to the disclosure package only; the
   preprint carries the aggregate.
-- **D-116** — the exact per-record result **is** retained and staged. Aggregation happens at
+- **D-126** — the exact per-record result **is** retained and staged. Aggregation happens at
   the publication boundary, not the computation boundary. The staged key is fixed in advance:
   `corpora/results/a1-6/narrow-arm/<release>/<tier>/manifest-<commit>.jsonl`, with the commit
   in the key because an overwrite in that bucket destroys the earlier object irreversibly.
 - **D-106** — the denylist's size is published: 147K non-viral plus 40K additional viral
   sequences, **187K** in total. That is the validation target for the reconstruction, in the
   way ~4M is for the broad arm's (D-100).
-- **D-105, D-107, D-114** — the fixed search parameters, the three coverage readings, and why
+- **D-105, D-107, D-124** — the fixed search parameters, the three coverage readings, and why
   the three readings come from two coverage-filtered searches rather than one relaxed one.
-- **D-118** — what the cap measurement found. The hit cap of 100,000 does not bind at sample
+- **D-128** — what the cap measurement found. The hit cap of 100,000 does not bind at sample
   scale but would at exhaustive scale, so this arm must check its own saturation guard rather
   than assume the broad arm's finding carries over.
 
@@ -64,7 +64,7 @@ what may be published, so they are two task files rather than one widened one.
 - Score it against every record of the staged proxy corpus, using the staged sample
   machinery where it helps (`src/amazebio/shardstore.py`) and the instrument in
   `src/amazebio/similarity.py`.
-- Report per D-115: counts by survival route and homology class, with the proxy qualifier A1.1
+- Report per D-125: counts by survival route and homology class, with the proxy qualifier A1.1
   requires on every ESM3 result, and nothing finer.
 
 ## Done when
@@ -72,7 +72,7 @@ what may be published, so they are two task files rather than one widened one.
 - The seed-set reconstruction is pinned, checksummed, and reconciled against the published
   187K, with both decisions above recorded.
 - Every corpus record is scored, with the saturation guard checked and reported.
-- The per-record manifest exists at the key D-116 fixes, and the published output is the
+- The per-record manifest exists at the key D-126 fixes, and the published output is the
   aggregate only.
 - A `run.json` manifest pins inputs, outputs, parameters, aligner version and seed.
 
@@ -83,11 +83,11 @@ so at 187K seeds against the broad arm's 3,159,223 this arm is roughly **a seven
 broad arm's compute for the same corpus. The measured per-query cost to plan against is
 **0.37 core-seconds per seed per 417 M residues of target** (A1.6, 2026-10-17) — and note that
 D-104's cost model under-predicts by about 6x because it was fitted with an identity floor the
-pass cannot use (D-118).
+pass cannot use (D-128).
 
 ## What this task must not do
 
-- **Publish anything by organism or taxon** (D-115). The restriction travels to every
+- **Publish anything by organism or taxon** (D-125). The restriction travels to every
   downstream consumer: A2.* and B3.* inherit it for their published outputs.
 - **Commit the per-record manifest.** The public repo is deliverable 7.
 - **Circulate anything before X3.1**, the aggregate included (§4).
@@ -97,7 +97,7 @@ pass cannot use (D-118).
 ## State — 2026-10-17
 
 `ready`, unassigned, nothing started. Nothing on this task waits on the project owner: the
-handling rules exist (D-115, D-116) and its two open questions are the worker's to decide and
+handling rules exist (D-125, D-126) and its two open questions are the worker's to decide and
 record.
 
 **One coordination note.** The instrument this task builds on — `src/amazebio/similarity.py`,

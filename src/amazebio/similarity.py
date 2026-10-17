@@ -342,7 +342,7 @@ class TargetStream:
 
     @classmethod
     def for_search(cls, cov_mode: int, coverage: float = COVERAGE) -> TargetStream:
-        """The readings one coverage-filtered search may speak for (D-114)."""
+        """The readings one coverage-filtered search may speak for (D-124)."""
         if cov_mode not in SEARCH_READINGS:
             raise ValueError(
                 f"--cov-mode {cov_mode!r} is not one of the searches the pass runs "

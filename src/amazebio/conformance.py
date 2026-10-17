@@ -228,7 +228,8 @@ def split_row(row: str) -> RowShape:
     """Split one released row into its `|tag|block` pairs, keeping no sequence.
 
     The sequence is measured and dropped. That is deliberate and not merely tidy: this project
-    stores no genomic sequence (D-020), and a scan that never holds any cannot leak any, so the
+    keeps no genomic sequence in an artefact (D-103), and a scan that never holds any cannot leak
+    any, so the
     in-region pass can emit its result straight to the audit store.
     """
     if not row.startswith("|"):

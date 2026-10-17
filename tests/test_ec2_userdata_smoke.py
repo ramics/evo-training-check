@@ -1,6 +1,6 @@
 """A local smoke test of the instance path: the shipped tarball and the shell script.
 
-Two launches were lost on 2026-10-16 and 2026-10-17 (D-117) and both failures lived in the
+Two launches were lost on 2026-10-16 and 2026-10-17 (D-127) and both failures lived in the
 gap these tests close. The unit tests exercise functions, and the local rehearsals ran
 `tools/esm3_calibrate.py` **from the repository**, where `src/amazebio` is present whether or
 not the launcher ships it. Neither touched the two things that actually broke:
@@ -103,7 +103,7 @@ def test_user_data_has_no_unexpanded_placeholders() -> None:
 def test_the_die_helper_is_a_function_and_cancels_before_shutting_down(
     tmp_path: pathlib.Path,
 ) -> None:
-    """D-117's second fault. Exercised as shell rather than asserted as text: a stubbed
+    """D-127's second fault. Exercised as shell rather than asserted as text: a stubbed
     `shutdown` records its arguments, so the order is observed, not hoped for."""
     rendered = _render_user_data()
     # Line-based extraction: the function opens with `die() {` and closes with a `}` in column

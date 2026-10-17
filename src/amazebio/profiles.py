@@ -35,6 +35,7 @@ which. :class:`Registry` carries its version into every detection for that reaso
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import gzip
 import hashlib
@@ -52,6 +53,7 @@ __all__ = [
     "REGISTRIES",
     "RVDB_PROT_32_0",
     "VIRAL_KEYWORDS",
+    "FamilyLabel",
     "FamilyMeta",
     "ProfileError",
     "ProfileHeader",
@@ -64,6 +66,7 @@ __all__ = [
     "md5_of",
     "open_profiles",
     "registry",
+    "rvdb_labels",
     "select_viral_families",
 ]
 
@@ -234,6 +237,18 @@ RVDB_PROT_32_0 = Registry(
             md5_source="U-RVDBv32.0-prot-metadata.yaml: files.hmm_profiles.md5_checksum_compressed",
             uncompressed_size=2715363745,
             uncompressed_md5="7e6d213a9a55739af1cf1d498e58647c",
+        ),
+        RegistryFile(
+            name="U-RVDBv32.0-prot-hmm.sqlite.xz",
+            url="https://rvdb-prot.pasteur.fr/files/U-RVDBv32.0-prot-hmm.sqlite.xz",
+            size=6283684,
+            md5="4179c579c38fb2d2c5c0af967bcface7",
+            md5_source=(
+                "U-RVDBv32.0-prot-metadata.yaml: "
+                "files.annotations_sqlite.md5_checksum_compressed"
+            ),
+            uncompressed_size=24489984,
+            uncompressed_md5="a95a0d3ab084f7a49e15170d777ed262",
         ),
         RegistryFile(
             name="U-RVDBv32.0-prot-metadata.yaml",
@@ -542,6 +557,89 @@ def iter_profile_headers(path: str | Path) -> Iterator[ProfileHeader]:
                 name, accession, length, forward, gathering = None, None, None, None, None
     if name:
         yield ProfileHeader(name, accession, length, forward, gathering)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class FamilyLabel:
+    """A readable label for one RVDB family, derived from the release's own annotations.
+
+    RVDB names its families `FAM004230` and assigns no descriptive name: the annotation database
+    holds keyword frequencies and taxon ids, not titles. So a label is *derived*, and the
+    distinction matters enough to keep in the type — `family_id` is the identity the counts are
+    keyed on and the only thing a figure may cite as the family; `label` is for a reader, and it
+    is this project's summary of the publisher's keyword frequencies (D-097).
+    """
+
+    family_id: str
+    label: str
+    keywords: tuple[str, ...]
+    reference_keywords: tuple[str, ...]
+    lca_taxid: int | None
+    sequences: int | None
+    model_length: int | None
+
+
+def rvdb_labels(sqlite_path: str | Path, *, top: int = 4) -> dict[str, FamilyLabel]:
+    """Derive a readable label per RVDB family from the pinned annotation database.
+
+    The label is the family's `top` most frequent sequence-name keywords, in frequency order,
+    which reads as a rough function: `FAM004230` becomes "virus protease hypothetical protein".
+    Reference-derived keywords travel beside it rather than inside it — they describe the domain
+    literature rather than the sequences, and mixing the two would make the label look like a
+    curated title, which it is not.
+
+    `sqlite_path` may be the `.xz` as staged; it is decompressed to a temporary file because
+    SQLite needs a seekable file rather than a stream.
+    """
+    import sqlite3
+    import tempfile
+
+    path = Path(sqlite_path)
+    with contextlib.ExitStack() as stack:
+        if path.suffix == ".xz":
+            tmp = stack.enter_context(tempfile.NamedTemporaryFile(suffix=".sqlite"))
+            with lzma.open(path, "rb") as compressed:
+                while block := compressed.read(8 << 20):
+                    tmp.write(block)
+            tmp.flush()
+            db_path = tmp.name
+        else:
+            db_path = str(path)
+        connection = stack.enter_context(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True))
+
+        def keywords_of(table: str) -> dict[int, list[str]]:
+            out: dict[int, list[str]] = {}
+            rows = connection.execute(
+                f"SELECT f.famId, k.str FROM {table} f "
+                "JOIN keyword k ON k.id = f.kwId ORDER BY f.famId, f.freq DESC"
+            )
+            for fam_id, word in rows:
+                out.setdefault(fam_id, []).append(word)
+            return out
+
+        by_sequence = keywords_of("fam_kw_seqnames")
+        by_reference = keywords_of("fam_kw_ref")
+        labels: dict[str, FamilyLabel] = {}
+        for fam_id, size, nbseq, taxid in connection.execute(
+            "SELECT id, size, nbseq, LCAtaxid FROM family"
+        ):
+            words = tuple(by_sequence.get(fam_id, ()))
+            family_id = f"FAM{fam_id:06d}"
+            labels[family_id] = FamilyLabel(
+                family_id=family_id,
+                label=" ".join(words[:top]) or "(no keywords in the release's annotations)",
+                keywords=words[:12],
+                reference_keywords=tuple(by_reference.get(fam_id, ()))[:8],
+                lca_taxid=taxid,
+                sequences=nbseq,
+                model_length=size,
+            )
+    if not labels:
+        raise ProfileError(
+            f"no family annotations read from {sqlite_path}: an empty label set means the "
+            "annotation database was not staged correctly"
+        )
+    return labels
 
 
 def md5_of(path: str | Path, *, chunk: int = 8 << 20) -> str:

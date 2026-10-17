@@ -187,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         metavar="S3_URI",
         help="s3:// uri of a staged sample's manifest. Loads and verifies it instead of "
         "running the corpus pass, which costs about 52 minutes whatever the sample rate "
-        "(D-112, D-113)",
+        "(D-122, D-123)",
     )
     ap.add_argument(
         "--measure",
@@ -453,8 +453,8 @@ def _load_staged_sample(
 ) -> tuple[seeds.SeedCounts, list[int], list[int], shardstore.ShardManifest]:
     """Fetch a staged sample, verify every object, and skip the corpus pass.
 
-    The pass costs about 52 minutes whatever the sample rate (D-113) and is currently paid on
-    every launch, while the broad arm's sweep is dozens of launches (D-112). This is the other
+    The pass costs about 52 minutes whatever the sample rate (D-123) and is currently paid on
+    every launch, while the broad arm's sweep is dozens of launches (D-122). This is the other
     half of that fix: the sample is built once and verified on every load.
 
     Verification is not optional and not sampled. The corpus bucket has no `DeleteObject`, so
@@ -1156,7 +1156,7 @@ def _measure_caps(
     # Published now rather than with the first cell. Everything between here and that cell —
     # subsampling the seed set, the query database, concatenating shards, two target databases
     # — is tens of minutes of real work, and leaving it unpublished made a working run
-    # indistinguishable from a stuck one for the third time in a day (D-117).
+    # indistinguishable from a stuck one for the third time in a day (D-127).
     publish()
 
     _progress(

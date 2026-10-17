@@ -4358,9 +4358,392 @@ decision has a threshold or parameter in it, the number goes in the entry.
   setting on measured recall loss that biases toward understating leakage, and the budget is not a
   reason to reopen it.
 
-### D-110 — Spot is unavailable in this account, so every spot-priced figure in A1.6 is a price we cannot pay
+### D-110 — Evo 1's version of record is retrieved, and the procedure A2.1 re-executed is word-for-word the published one
+- **Date:** 2026-10-17
+- **Task:** A2.1 (bearing on A0.1, A0.3, A1.1, A7.1)
+- **Context:** Every Phase A result against Evo rests on `policies/specs/evo1-*.yaml`, which are this
+  project's machine-readable reading of **the preprint**. The version of record was registered as
+  blocked since A1.1 (`S-EVO1-SCIENCE`: science.org 403; Europe PMC holds PMC12057570 but serves
+  a reCAPTCHA behind an HTTP 200). A2.1 had re-executed all six rules over both releases and spent
+  about twenty hours of compute on a ten-fold deepening on that footing. The project owner asked
+  the obvious question — are the rules identical to the ones the developers used — and then
+  supplied the four files.
+- **Decision:** The version of record is retrieved, registered and checked, and the specs are
+  **left unchanged**, because the check found nothing to change. What was verified, by machine
+  rather than by eye:
+  **The procedure is in the main text, not the supplement** — p12, "OpenGenome datasets". This is
+  the opposite of ESM3 (D-106), where the main text deferred everywhere to an appendix, and it is
+  why the supplement was not the file that settled this.
+  **The procedure paragraph is character-for-character identical to the preprint's Appendix B.2**,
+  after normalising whitespace and the hyphenation the PDF extractor inserts, **except for two
+  copy-edits**: `High-confidence` is lowercased to `high-confidence`, and an `and` is inserted
+  before the last of the twelve orders. Nothing else differs across 1,169 characters.
+  **All three enumerations match in both directions.** Every one of the 19 families, 12 orders and
+  8 stop taxa in the specs appears in both sources; and every taxon name in either source's
+  procedure paragraph — 39 of them — is carried by the specs. No name is in the papers and absent
+  from our rules; none is in our rules and absent from the papers. The stated counts, "19
+  families" and "12 orders", match the lists they introduce.
+  **The one lowercased word is checked against the database rather than the prose.** The rule reads
+  IMG/VR's `Confidence` column, and the staged release's own values are `High-confidence`,
+  capitalised and hyphenated, in all 9,720 rows of the sample read. So the specs match the
+  database token; the version of record's prose does not, and an implementation built from that
+  prose with a case-sensitive comparison would retain nothing. Recorded because it is exactly the
+  kind of difference that looks like nothing and is not.
+  **Scope is confirmed as the literal reading has it.** The three pretraining sources are GTDB
+  v214.1, IMG/VR v4 and IMG/PR; the exclusion steps are described for IMG/VR alone, GTDB gets
+  species-representative dereplication and IMG/PR one representative per plasmid taxonomic unit,
+  and **no viral screening step is described for either**. A4.3's scope finding stands on the
+  version of record now, not on the preprint.
+  **The data availability statement names the release this audit staged** —
+  `huggingface.co/datasets/LongSafari/open-genome`, "including training, validation, and test
+  splits" — which is what A1.2 staged and A1.4 and A2.1 read. The A1.1 gate's premise is confirmed
+  by the version of record.
+  **Table S2 independently confirms A7.1's census.** The supplement publishes the IMG/VR subset as
+  2,653,046 genomes, 36,236 M bases, average length 13,658; A7.1 counted 2,653,047 records,
+  36,236,025,613 bases, mean 13,658.4. One record apart, and agreeing at published precision
+  otherwise. Note the table is **S2 in the version of record and S3 in the preprint**, so D-055's
+  citation of "Table S3" resolves only against the preprint.
+- **Rejected:** Repointing the specs' rule citations from the preprint to the version of record.
+  The preprint is CC-BY and committed, every quotation in the specs is machine-verified against it
+  (60 quotations, 0 problems), and the version of record is a subscription article whose
+  redistribution here is already flagged for review before publication. Citing the paywalled
+  version for text that is identical would buy nothing and cost reproducibility for any reader
+  without access. The specs keep the preprint; this entry is what records that the version of
+  record agrees.
+  Also rejected: treating the two copy-edits as immaterial and not writing them down. One of them
+  is a database token.
+- **Consequence:** **A2.1's findings stand on the published procedure.** The phage result — that
+  what survives in Evo 1's released viral component is overwhelmingly prokaryote-infecting, which
+  the policy keeps deliberately — is now anchored in the version of record's own words: the
+  component is introduced as "curated prokaryotic viruses", and the host rule's stated purpose is
+  "to remove potential eukaryotic viruses". The eukaryotic-family detections in Evo 2 are
+  untouched by this check, because that component ships no taxonomy for any rule to act on.
+  The write-up may now say "the procedure as published in the version of record" rather than "as
+  published in the preprint", which matters for a paper that names laboratories.
+  What is still open: Fig. S1B (supplement p4) is the developers' own pie chart of host kingdoms in
+  the *filtered* IMG/VR subset. If it shows eukaryotic-host viruses surviving, that is their own
+  published figure of leakage, and A2.5 should read it against this project's result rather than
+  rediscovering it. The figure is an image, so reading it needs a person or a different tool.
+
+### D-111 — The developers' own figure says the host kingdom is unknown for 89.5% of what their filter kept
+- **Date:** 2026-10-17
+- **Task:** A2.1 (the finding belongs to A4.1 and A2.5)
+- **Context:** `S-EVO1-SCIENCE-SM` p4, Fig. S1, captioned "We excluded viruses that are likely to
+  infect eukaryotic hosts (Materials and Methods)", is the developers' own breakdown of the
+  corpus their filter produced. D-110 flagged it as needing a person because it is an image. It
+  does not: the figure is one 3422x1841 RGB raster, and **the legends print each category's N**,
+  so the numbers are read rather than estimated and no wedge was measured.
+- **Decision:** The figure's numbers are recorded here as published values, reconciled against
+  Table S2 before being believed.
+  **Panel A, realm:** Duplodnaviria 2,628,512 (99.075%), Monodnaviria 17,781 (0.670%),
+  **Riboviria 6,105** (0.230%), Other 648 (0.024%).
+  **Panel B, host kingdom:** **Unknown 2,374,733 (89.510%)**, Bacteria 276,569 (10.425%),
+  Archaea 1,744 (0.066%).
+  **Both panels sum to exactly 2,653,046**, which is Table S2's IMG/VR count and one record below
+  A7.1's census of the staged release. So these describe the whole filtered corpus, not a sample,
+  and they are consistent with what this project staged.
+  **The Archaea legend is a typo in the paper and the intended value is recoverable.** It prints
+  `N = 17,44`. 17,440 would overshoot the corpus by 15,696; 1,744 closes the three categories to
+  2,653,046 exactly. Recorded as the publisher's error with the arithmetic that settles it, rather
+  than quoted as printed or silently corrected.
+- **Rejected:** Measuring the pie wedges by counting pixels per colour, which was the plan before
+  the legends turned out to carry N. It would have been a worse number for no reason — a wedge
+  angle recovers a share to about a tenth of a degree, while the legend gives the count exactly.
+  Also rejected: leaving this for A4.1 to rediscover. It sits on page 4 of a 60 MB subscription
+  PDF that the audit could not retrieve at all until today.
+- **Consequence:** **A4.1's question is partly answered by the developers themselves.** The rule
+  that was supposed to remove eukaryotic viruses keeps "only sequences whose assigned taxonomic
+  classification was found within a prokaryotic host at least twice" — and their own figure says
+  the host kingdom is **unknown for 89.5% of the records that survived it**. Whatever that rule
+  did, it did not establish a prokaryotic host for nine records in ten. A4.1 should treat this as
+  the published figure to reconcile against, and say so.
+  **A2.5 gets a target with a count.** 6,105 Riboviria survived, and `r:Riboviria` is one of the
+  eight stop taxa the unspecificity rule names. Some are genuinely phage — A2.1 detected
+  Leviviricetes in its own sample — so this is a population to audit record by record, not a
+  leakage claim, and now it has a size.
+  **A2.1 is unaffected.** Its figures stand as reported; this entry adds context from the primary
+  source rather than changing a number. The 24,534 non-Duplodnaviria survivors (0.92%) are the
+  obvious place for the structural and problem-taxa detectors to look first.
+
+### D-112 — A2.4's geNomad is the audit's instrument, and it is pinned apart from A4.2's object of study
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** `feature.genomad` already exists and already works: geNomad 1.1.0 against marker
+  database v1.1, with mmseqs2 13.45111, numpy 1.23 and Python 3.10 pinned around it to make a
+  2022 tool runnable in 2026. A2.4 needs geNomad too, and reusing that environment is the obvious
+  move — it is installed, it is pinned, and A4.2 has already measured how it errs. But the two
+  tasks are using the tool for opposite purposes. A4.2 pins 1.1.0 because it is *benchmarking the
+  version IMG/VR's own labels came out of*: there, geNomad is the object of study, and any other
+  version would be benchmarking a tool the filter cannot have used (D-085, D-096). A2.4 is using
+  geNomad as the audit's *instrument*, and `DESIGN.md` §A2 opens by ruling exactly this out: "The
+  filter uses taxonomy; the audit must not, or it will reproduce the filter's own blind spots."
+  Detecting proviruses with the same 2022 build against the same 2022 markers is that failure in
+  its sharpest available form. An integrated element whose markers were absent from the v1.1
+  database is invisible to the filter's labelling *and* to the audit's detection, and A2.4 would
+  report its own blind spot as an absence of prophage — a false null, in the one direction
+  `AGENTS.md` says the pipeline may never be designed to favour.
+- **Decision:** Two pins, for two roles, in two solve groups that are not to be unified.
+  `feature.genomad` keeps geNomad 1.1.0 and remains A4.2's alone. A2.4 runs `feature.proviruses`:
+  **geNomad 1.12.0 against marker database v1.9**.
+  1.12.0 rather than 1.13.0, which is the newest build on bioconda but was published three days
+  before this pin and which the publisher's own `releases.txt` does not yet pair with any marker
+  database. Database v1.9 with package 1.12 is the newest pairing the publisher attests, and the
+  package/database pairing is part of the pin rather than a detail around it — the residual gap
+  D-085 recorded for A4.2 is precisely a pairing that had to be inferred, and there is no reason
+  to manufacture a second one when an attested pairing is available.
+- **Rejected:** Running A2.4 on 1.1.0 for consistency with A4.2. Consistency between a benchmark's
+  subject and an audit's instrument is not a virtue; it is the confound, and §A2 names it.
+  Pinning 1.13.0 as simply the newest. `AGENTS.md` requires results to regenerate from pinned
+  inputs, and an unattested package/database pairing is a guess wearing a version number.
+  Carrying A4.2's measured misassignment rate across as A2.4's error term. It was measured on
+  `genomad annotate`'s taxonomy step at 1.1.0; A2.4 runs `find-proviruses` at 1.12.0. Different
+  module, different version, different failure mode — A2.4 characterises its own error through the
+  concordance criterion (D-114) instead of inheriting a number that does not apply.
+- **Consequence:** geNomad appears in this repository twice, at two versions, and that looks like
+  an oversight unless the reason is written down — which is what this entry is for. Nothing in
+  A4.2 changes. A2.4's figures and A4.2's figures are **not comparable as statements about
+  geNomad**: one is a 2022 tool under test, the other a 2026 tool doing the testing. Any write-up
+  touching both says so.
+
+### D-113 — A2.4 establishes where the element is; the family identity comes from A2.1's registries
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** The frozen detection schema is family-keyed — `amazebio.survival.Detection`
+  requires `family_id`, `registry` and `registry_version`, and refuses an id outside the pinned
+  universe — because family-level survival is `DESIGN.md` §A3's headline and D-022 froze it. A
+  provirus call carries no family. `genomad find-proviruses` returns an interval inside a host
+  contig with a score; the only family-like label it offers is the marker-consensus taxonomy, and
+  that is taxonomy — the one input §A2 says the audit must not rest on, and the one A4.2 measured
+  failing to place 36% of the genomes the denylist targets. So A2.4 has an instrument that answers
+  a different question from the one the schema asks.
+- **Decision:** Split localisation from identity, and take each from the method that can support
+  it.
+  **Where** comes from the provirus finders. geNomad (and VIBRANT, D-114) say which surviving
+  bacterial records carry an integrated element and over what coordinates. This, and only this, is
+  what licenses `element_kind = PROPHAGE` — the kind D-079 explicitly reserved for A2.4 to
+  establish rather than for A2.1 to guess.
+  **Which family** comes from the registries A2.1 already pinned: Pfam 38.2's viral selection and
+  RVDB-prot 32.0 (D-075), searched over the proteins falling inside the delineated interval, at
+  **D-076's thresholds unchanged**.
+  Detections are emitted with `detector: provirus-genomad`, distinct from A2.1's `profile-hmmer`,
+  so `metrics/detections.md`'s no-pooling rule keeps the two separable in A3.2.
+- **Rejected:** Keying on geNomad's own taxonomic assignment, with the pinned ICTV VMR as the
+  registry. It is the path of least resistance — `amazebio.ictv` is already there and already
+  pinned — and it would make the audit's family axis a function of the same marker-consensus
+  taxonomy whose error rate A4.2 exists to measure. §A2 forbids it in its first sentence.
+  Emitting provirus calls with no family and leaving A3.2 to cope. `metrics/survival.md` is frozen
+  and the schema does not permit it; a detector that cannot meet the contract is a reason to
+  change the contract deliberately, not to route around it.
+  Loosening D-076's thresholds on the grounds that prophage proteins are diverged and will score
+  lower. A threshold that differs between two detectors makes their survival figures
+  incomparable, and comparing them is the whole of A3.2.
+- **Consequence:** Thresholds and registries are identical to A2.1's, so an A2.4 table and an A2.1
+  table differ only in route, element kind and the records searched — A3.2's cross-tabulation is a
+  join rather than a reconciliation.
+  The search loop is A2.1's, so it moves out of `tools/detect_profiles.py` and into the library
+  for both tools to call. That is a refactor of a `done` task's code, recorded here as one; it
+  changes no threshold, no registry and no output.
+  **A2.4's survival figure is survival inside delineated proviruses, not inside GTDB genomes at
+  large.** A viral-family protein sitting in a bacterial genome outside any provirus call is not
+  counted. That is deliberate and it is a lower bound in the same direction as the sampling one:
+  the alternative is an unbounded claim about every viral-looking gene in a prokaryotic genome,
+  which is a different question and not this task's.
+
+### D-114 — The concordance criterion, fixed before any call is looked at
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** A2.4's Done-when requires two-tool concordance "measured on a documented sample",
+  and §A2 names geNomad, VIBRANT and CheckV. `AGENTS.md` requires the analysis spec fixed before
+  results are inspected, and an agreement threshold chosen after the overlap distribution is in
+  hand is not a criterion, it is a result selected to be reportable.
+- **Decision:** **VIBRANT 1.2.1** is the second tool, in `feature.vibrant`. Its mechanism is
+  independent of geNomad's in the way the criterion needs: HMM scoring against KEGG, Pfam and VOG
+  with a metabolic-signature rule, against geNomad's marker consensus plus neural classifier.
+  The criterion, fixed here:
+  **Record level.** Every record in the concordance subsample is geNomad-positive, VIBRANT-positive,
+  both or neither. Reported as a 2x2 with Cohen's kappa and its 95% interval, per the house rule
+  that no point estimate ships without one.
+  **Interval level.** Two calls on the same record agree when their **reciprocal overlap is at
+  least 0.5** — each interval covers at least half of the other. Fixed at 0.5 now, not tuned later.
+  **The sample.** The concordance subsample is the *same* hash under the *same* seed 20261015 at
+  one tenth the main rate, so it is nested inside the main sample, declarable in advance, and
+  checkable per record afterwards (D-078).
+  **Disagreement is reported by direction** — geNomad-only and VIBRANT-only counted separately,
+  never pooled into a single disagreement rate, and never resolved by preferring a tool.
+- **Rejected:** CheckV as the second tool. Its contamination module trims host flanks off sequences
+  that have *already* been called viral; it is not a prophage finder over host genomes, so it
+  cannot disagree with geNomad about whether a genome carries one. It would produce a concordance
+  number that measures nothing.
+  Taking concordance as a filter — keeping only the calls both tools make. It reads as rigour and
+  it is the opposite: it converts disagreement between instruments into a quiet reduction in the
+  headline, in the direction that makes the filter under audit look better. `AGENTS.md` forbids
+  designing any part of the pipeline so a null is harder to see.
+  Choosing the overlap threshold once the distribution is visible.
+- **Consequence:** The headline comes from geNomad alone and VIBRANT measures how far that headline
+  depends on the instrument. The kappa travels with the headline wherever it is reported; a
+  prophage survival figure quoted without it is quoting one tool's opinion as a measurement.
+
+### D-115 — A2.4 samples genomes by the same hash, and what that supports is a lower bound
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** The bacterial target is OpenGenome2's GTDB v220 component: 109 GB staged across
+  four tar archives. `genomad annotate` plus `find-proviruses` over all of it is not something the
+  session container does, and the cost is not yet measured. The sampling *design*, though, has to
+  be fixed before any output exists, and D-078 already settled the shape for A2.1.
+- **Decision:** A2.4 samples by the same deterministic hash of the record identifier, under the
+  **same seed 20261015**, with nested rates — so a deeper pass is a superset of a shallower one
+  and re-searches nothing. `estimate_kind` is `lower_bound` for every sampled table, with the same
+  reading A2.1's carries: a family detected is detected; a family absent may survive in the
+  records not read.
+  The **rate** is deliberately not fixed here. It is set by a calibration that measures the
+  per-genome cost in region, the way D-104 set A1.6's, and it is recorded in its own entry when it
+  has a number behind it rather than guessed now.
+  **The sampling unit is the genome record, and that is a declared limitation, not a neutral
+  choice.** GTDB is species-clustered and the sequenced genomes are heavily unequal across
+  species, so a uniform sample over records over-represents the organisms the world sequences
+  most. A2.4 reports the record-level rate as what it is and does not reweight to a species
+  denominator it cannot defend.
+- **Rejected:** A new seed. Sharing 20261015 with A2.1 is what makes "was this record in both
+  samples" answerable without storing either list.
+  Taking a prefix of each archive instead of a hash sample. A1.6 learned this one the expensive
+  way (D-101): the archives are ordered, so a prefix is not a sample.
+  Fixing a rate now so the design looks complete. A rate chosen before the cost is measured is
+  either unaffordable or needlessly shallow, and either way it would be revised after the fact,
+  which is what pre-registration exists to prevent.
+- **Consequence:** A2.4's family-level survival is a lower bound twice over — once from the record
+  sample, once from counting only inside delineated proviruses (D-113) — and both directions are
+  the same direction. If A2.4 reports that viral families survive in bacterial genomes the filter
+  never examined, the true figure is at least that. A null from A2.4 is correspondingly weak and
+  must be reported as weak.
+
+### D-116 — A2.4 answers for Evo 2's bacterial component only, and does not substitute it for Evo 1's
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** `amazebio.opengenome` lists Evo 1's prokaryotic component, `stage1_gtdb`, as not
+  staged, with the reason "130 GB, and OpenGenome2's GTDB component supersedes it for A2.4". Read
+  at staging time that was a storage decision. Read now, as A2.4's scope, it is something else: it
+  says A2.4's result will be a statement about one of the two corpora under audit, and the word
+  "supersedes" invites the substitution of Evo 2's bacterial genomes for Evo 1's.
+- **Decision:** A2.4 searches `gtdb` for the `opengenome2` release and **nothing for `opengenome`**.
+  Evo 2's GTDB component is not treated as a proxy for Evo 1's. Every `opengenome` manifest gets a
+  table with `estimate_kind: not_searched` and the reason on the source row — the convention
+  `metrics/detections.md` fixed for exactly this, so that a structural zero is never read as a
+  measured one. Whether to stage Evo 1's 130 GB prokaryotic component is a spend decision for the
+  project owner, and it is put to them rather than settled inside this task.
+- **Rejected:** Substituting Evo 2's GTDB for Evo 1's. The two releases pin different GTDB
+  versions and Phase A exists to measure the difference between releases, not to average it away.
+  `AGENTS.md` names the quiet proxy substitution as the failure mode A2.1 already committed once,
+  and `DESIGN.md` §B1 step 0 forbids it outright.
+  Reporting the `opengenome` tables as zero prophage detections. They would be arithmetically
+  correct and completely misleading: a zero by construction is not evidence of absence, and this
+  is the §A3 headline it would be feeding.
+  Quietly omitting the `opengenome` manifests from A2.4's output, which is what would make the gap
+  invisible — the same reasoning D-080 applied to A2.1's unsearched components.
+- **Consequence:** **Phase A's prophage route is measured on Evo 2 and not on Evo 1 unless the
+  owner buys the staging.** That is a coverage gap in a headline route and it belongs in the write-up
+  as one, not in a footnote. A3.2 reads the `not_searched` tables and must not pool them with the
+  searched ones.
+
+### D-117 — A first calibration puts a full GTDB census in the same range as A1.6's pass, and the rate still waits on a better one
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-115 fixed A2.4's sampling *design* and deliberately left the *rate* open, to be
+  set by a measured cost rather than guessed. This is the first measurement. It is also the point
+  at which A2.1's history is worth remembering: D-078 assumed a census was arithmetically out of
+  reach and sampled accordingly, and D-098 then found the figure wrong by a factor of thirty and
+  a census affordable after all. A cost assumed is a design decision taken by accident.
+- **Decision:** Record the measurement, and **do not fix the rate on it**.
+  **Measured.** geNomad 1.12.0 against marker database v1.9, on *E. coli* K-12 MG1655
+  (`NC_000913.3`, 4,641,652 bp), 4 vCPU, `--splits 8`: `annotate` 12 min 17 s CPU in 3 min 42 s
+  wall, `find-proviruses` 22 s CPU in 20 s wall. **12.65 core-minutes for the genome, 2.73
+  core-minutes per Mb.** Annotation is 97% of it; the provirus step itself is close to free, so
+  the cost of this task is the cost of calling and marker-searching genes.
+  **Extrapolated.** OpenGenome2's staged GTDB v220 component is 109 GB across four tar archives,
+  so of order 107,000 Mbp, giving **about 4,900 core-hours for a full census**. That is the same
+  order as A1.6's authoritative charitable pass (D-104), which the owner priced at $240-450 on
+  spot. A census is therefore a real option and not an arithmetic impossibility, and D-115's
+  sampled design is a choice about spend rather than a constraint.
+  **Why the rate is still open.** This is *one* genome, and not a typical one. `annotate`'s cost
+  tracks gene count rather than bases, and *E. coli* K-12 is a gene-dense, well-behaved, complete
+  genome — GTDB v220 is mostly draft assemblies in many contigs, with a size distribution running
+  from ~0.6 Mb symbionts to ~15 Mb myxobacteria. Per-Mb cost on fragmented assemblies is not
+  assumed to match. The run also happened in the session container rather than in region.
+  So the rate is fixed by a **size-stratified in-region calibration**, in its own entry, and this
+  entry exists to stop the single-genome figure being quoted as if it were that.
+- **Rejected:** Fixing a rate on this number because it is the number in hand. It is a
+  one-genome extrapolation across two orders of magnitude of assembly quality.
+  Declaring the census affordable and planning it. The figure supports "same order as a pass the
+  owner has already priced", which is a reason to ask, not a reason to launch — and `AGENTS.md`
+  is explicit that an instance costs money and that the question goes to the owner first.
+  Discarding the measurement as too weak to record. It is the difference between a census being
+  conceivable and not, and leaving it unrecorded is how D-078's assumption survived for weeks.
+- **Consequence:** The spend question goes to the project owner with a range attached rather than
+  as an open-ended ask. Whichever way it is answered, `estimate_kind` carries it: `population` for
+  a census, `lower_bound` for a sample, and `metrics/detections.md` already forbids A3.2 pooling
+  the two.
+
+### D-118 — The sampled pass runs in nested bands inside a $20 ceiling, and its first band is the calibration
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-117 put a full GTDB census at about 4,900 core-hours and left the rate open,
+  pending a size-stratified in-region calibration. Put to the project owner with that range, the
+  answer was a **sampled pass only, about $10-20**, and no separately funded calibration. So the
+  rate has to be fixed without the measurement D-117 asked for, and the one figure in hand comes
+  from a single complete, gene-dense genome that GTDB's draft assemblies are not like.
+- **Decision:** Do not fix one rate. Run the sample in **nested bands**, and let the first band be
+  the calibration the budget did not buy.
+  Membership is already nested by construction — D-078's hash sampler makes a deeper rate a strict
+  superset of a shallower one, so a deepening re-reads nothing — and A2.1 has run exactly this
+  shape before (D-099). The pass therefore starts at **2.5%**, matching A1.6's broad arm (D-109),
+  measures realized per-genome cost on that band against the 2.73 core-minutes per Mb D-117
+  extrapolated from, and deepens in further nested bands while the $20 ceiling allows.
+  `estimate_kind` is `lower_bound` throughout and never `population`, whatever depth is reached.
+  The **realized** rate is recorded per source, not the intended one, so a run stopped by the
+  ceiling reports the sample it actually read — `metrics/detections.md` already requires this.
+- **Rejected:** Fixing a single rate from D-117's figure and running it once. It is a one-genome
+  extrapolation across two orders of magnitude of assembly quality; a rate set from it is either
+  over the ceiling or needlessly shallow, and banding costs nothing to avoid both.
+  Spending part of the $20 on a standalone calibration. The first band is a calibration that also
+  produces results, and a separate one would buy the same number for a share of the budget.
+  Reporting the deepest band alone. Every band's realized cost is kept, because the per-Mb figure
+  on real draft assemblies is the number the next task needs and this is the only pass that will
+  measure it.
+- **Consequence:** A2.4's prophage figures are a lower bound and are reported as one. If the pass
+  finds viral families surviving in bacterial genomes the filter never examined, the true figure
+  is at least that; if it finds none, that is weak evidence of absence and must be written as
+  weak. The nested design leaves the census of D-117 available later at no wasted work, should
+  the result make it worth buying.
+
+### D-119 — Evo 1's prokaryotic component is staged, so the prophage route covers both corpora
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-116 recorded that Evo 1's prokaryotic component, `stage1_gtdb`, is not staged —
+  130 GB, marked at staging time as superseded by OpenGenome2's GTDB — and refused to substitute
+  Evo 2's bacterial genomes for it, because Phase A exists to measure the difference between
+  releases rather than to average it away. That left Phase A's prophage route measured on one of
+  the two corpora under audit, which D-116 flagged as a coverage gap in a headline route and put
+  to the project owner as a spend decision.
+- **Decision:** The owner approved staging it. `stage1_gtdb` moves into the staging tier —
+  `Component.tier1` becomes true, which is the flag that records what the owner has approved
+  (D-031) — and A2.4 runs over both releases' bacterial components.
+  D-116's `not_searched` outcome for the `opengenome` manifests **stands until the staging
+  completes and verifies**, and is withdrawn only then. A table claiming coverage of a component
+  that is still uploading would be the same error in a new place.
+- **Rejected:** Leaving it unstaged and reporting the gap. It is the defensible cheap option and
+  the owner declined it; a headline route measured on half the audit's subjects is a weak result
+  to publish when the remedy is storage.
+  Deciding after seeing Evo 2's result. It makes the scope of one release's pass contingent on
+  another's outcome, which is the shape of thing the pre-registration discipline exists to prevent.
+- **Consequence:** The two releases pin **different GTDB releases** — Evo 2's is v220, Evo 1's is
+  not yet identified from its own metadata — so the comparison is between two filters applied to
+  two different snapshots of the same database, and that difference travels with the result rather
+  than being normalised away. Identifying Evo 1's GTDB release from the staged tree is part of this
+  staging and belongs in its own entry if it turns out to be unrecoverable, as §A0 requires.
+
+### D-120 — Spot is unavailable in this account, so every spot-priced figure in A1.6 is a price we cannot pay
 - **Date:** 2026-10-16
 - **Task:** A1.6
+- **Numbering:** appended as D-110 and renumbered to D-120 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-104 priced the exhaustive charitable pass at $240-450 and D-109 priced the broad
   arm's three-sensitivity sweep at $26 against a $30 ceiling. Both are **spot** figures, and the
   launcher gained spot support on the strength of them. The first spot launch was refused.
@@ -4400,11 +4783,11 @@ decision has a threshold or parameter in it, the number goes in the entry.
   D-104 and D-109 keeps its number but gains the qualifier **"on spot, which this account cannot
   currently request"**, and any future entry pricing work in this repo states which market it
   assumes.
-
-### D-111 — The spot service-linked role is to be created, so A1.6's passes run at the prices they were designed against
+### D-121 — The spot service-linked role is to be created, so A1.6's passes run at the prices they were designed against
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Context:** D-110 established that spot is refused in this account and put three options to the
+- **Numbering:** appended as D-111 and renumbered to D-121 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-120 established that spot is refused in this account and put three options to the
   project owner: create the service-linked role, raise the ceiling to about $100 for the same
   design on demand, or shrink the sample to fit $30 on demand.
 - **Decision (project owner):** create `AWSServiceRoleForEC2Spot`. D-109's design runs unchanged
@@ -4424,15 +4807,15 @@ decision has a threshold or parameter in it, the number goes in the entry.
   under a configuration the rest of the arm does not share.
 - **Consequence:** A1.6's remaining work is **blocked on one external action** — someone with IAM
   permissions creating that role once. Nothing in the repo changes and no code is waiting: the
-  launcher's spot path is already written and tested, and D-110's refusal classifier is what will
+  launcher's spot path is already written and tested, and D-120's refusal classifier is what will
   report it if the role is still absent. On confirmation the order is: the cap and coverage
   measurement on spot, then the broad arm's sampled pass. `iam:*` is denied here, so this project
   cannot verify the role exists except by attempting a launch, which is also the launch it wants —
   so the attempt is the check.
-
-### D-112 — D-109's $26 is a search price, not a run price: the pass is dozens of launches and each one currently re-reads the corpus
+### D-122 — D-109's $26 is a search price, not a run price: the pass is dozens of launches and each one currently re-reads the corpus
 - **Date:** 2026-10-16
 - **Task:** A1.6
+- **Numbering:** appended as D-112 and renumbered to D-122 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 priced the broad arm's sweep at 1,296 core-hours, $26 of a $30 ceiling, from
   D-104's fitted model. That model prices **searches**. Neither entry converted the figure into
   launches, and the conversion is where the money is.
@@ -4476,11 +4859,11 @@ decision has a threshold or parameter in it, the number goes in the entry.
   or the cost of the runs that deliver them**, since this entry exists because those two were
   conflated. The cap measurement in flight is unaffected in substance: it is one run, its overhead
   is one corpus pass, and the ratios it measures do not depend on how the pass is scheduled.
-
-### D-113 — Correction to D-112: the corpus pass is not sample-write-bound, and the overrun is ~10% rather than 2.5x
+### D-123 — Correction to D-122: the corpus pass is not sample-write-bound, and the overrun is ~10% rather than 2.5x
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Context:** D-112 explained a corpus pass running long by claiming it was sample-write-bound —
+- **Numbering:** appended as D-113 and renumbered to D-123 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-122 explained a corpus pass running long by claiming it was sample-write-bound —
   that keeping 40x more records at rate 50 than at rate 2000 moved the cost, because every sampled
   record crosses from a worker to a single parent that writes it. That claim was reasoning from the
   code's shape rather than from a measurement, and the measurements were already in the repo's own
@@ -4494,12 +4877,12 @@ decision has a threshold or parameter in it, the number goes in the entry.
   is consistent with what was already recorded in `esm3_calibrate.py`'s own `--workers` note:
   decompression runs at 218 MB/s against 43.6 MB/s for the whole pass single-threaded, so parsing is
   the bottleneck and the workers are what spread it. Sample writing never entered it.
-- **Correction to D-112's figures.** With a 52-minute pass rather than 2.5-3 hours, a 4.33-hour run
+- **Correction to D-122's figures.** With a 52-minute pass rather than 2.5-3 hours, a 4.33-hour run
   spends 0.87 h on the pass and 3.46 h searching, which is 27.7 search core-hours per run. 1,296
   core-hours therefore needs about **47 launches and about $33** unstaged, against about **38
   launches and about $26.5** staged. So the overrun against the $30 ceiling is roughly **10%, not
-  2.5x**, and the $66 in D-112 is wrong.
-- **What survives in D-112, and why.** Its decision stands: stage the sampled shards once rather
+  2.5x**, and the $66 in D-122 is wrong.
+- **What survives in D-122, and why.** Its decision stands: stage the sampled shards once rather
   than rebuild them per launch. The reason is now mainly robustness rather than price — a spot
   reclaim destroys a 52-minute corpus pass along with the searches it was feeding, which is exactly
   what happened to the first in-region run — with the ~$6.50 as a secondary benefit. Its rule
@@ -4513,17 +4896,17 @@ decision has a threshold or parameter in it, the number goes in the entry.
   hypothesis and not a finding — with `cloudwatch:GetMetricStatistics`,
   `ec2:GetConsoleScreenshot`, SSH and SSM all denied there is no way to confirm it from here, which
   is itself the reason the heartbeat was added.
-- **Rejected:** Editing D-112 in place — the log is append-only and a wrong figure that was briefly
+- **Rejected:** Editing D-122 in place — the log is append-only and a wrong figure that was briefly
   load-bearing should stay visible with its correction next to it, not be quietly removed. Treating
   the slow run as evidence for the sample-write hypothesis — it is one run on an instance type that
   has never completed a pass here, against three completed passes that directly contradict it.
 - **Consequence:** **a timing claim in this task cites the artefact it came from.** Both numbers in
-  this entry were sitting in object storage while D-112 was being written, and the entry would not
+  this entry were sitting in object storage while D-122 was being written, and the entry would not
   have been wrong if they had been read first.
-
-### D-114 — The three coverage readings come from two aligner-filtered searches, exactly; D-109's relaxed search is withdrawn
+### D-124 — The three coverage readings come from two aligner-filtered searches, exactly; D-109's relaxed search is withdrawn
 - **Date:** 2026-10-16
 - **Task:** A1.6
+- **Numbering:** appended as D-114 and renumbered to D-124 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 bought the three `--cov-mode` readings of D-107 for the price of one search by
   relaxing coverage filtering and re-imposing it on the emitted `qcov`/`tcov` columns. It flagged
   one risk honestly — relaxing admits more rows, so it costs more and may make the hit cap bind —
@@ -4569,10 +4952,10 @@ decision has a threshold or parameter in it, the number goes in the entry.
   is the hit cap alone, against a staged sample rather than a fresh corpus pass. The project owner's
   standing direction is the cheap, provable efficiencies with sampling retained; this is the first
   of them.
-
-### D-115 — The narrow arm's handling and reporting rules, fixed before the result exists
+### D-125 — The narrow arm's handling and reporting rules, fixed before the result exists
 - **Date:** 2026-10-16
 - **Task:** A1.6
+- **Numbering:** appended as D-115 and renumbered to D-125 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-108 settled the narrow arm's scope — exhaustive against every corpus record — and
   explicitly left its handling open, because it is the output §4's reporting limits and the X3.1
   gate are written for. The arm was not to be built until this existed. The question had to be
@@ -4618,11 +5001,11 @@ decision has a threshold or parameter in it, the number goes in the entry.
   which version of that list was in force when the filter ran, since the source cites a 2024 access
   date and the retrievable page is live and undated. The reconstruction has a validation target:
   187K sequences, published in the source (D-106).
-
-### D-116 — The narrow arm's exact result is retained, staged and permanent; D-115's storage call is reversed
+### D-126 — The narrow arm's exact result is retained, staged and permanent; D-125's storage call is reversed
 - **Date:** 2026-10-17
 - **Task:** A1.6
-- **Context:** D-115 fixed the narrow arm's reporting rule — counts by survival route and homology
+- **Numbering:** appended as D-116 and renumbered to D-126 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-125 fixed the narrow arm's reporting rule — counts by survival route and homology
   class, never by organism or taxon — and then drew a storage conclusion from it that went further
   than the rule required: that the per-record manifest lives only under the git-ignored artefacts
   path and is never staged, because an object that cannot be withdrawn is a liability. The project
@@ -4634,7 +5017,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
   "artefacts before prose" means every published number traces to a machine-readable artefact;
   A3.3 must independently reimplement the headline counts, which cannot be done against a count;
   and D-108 has A2.* and B3.* consuming A1.4's manifest shape from this arm. A pipeline that only
-  ever emitted aggregates would fail all three, and D-115's storage sentence pointed at exactly
+  ever emitted aggregates would fail all three, and D-125's storage sentence pointed at exactly
   that pipeline.
 - **Decision (project owner): stage the manifest to object storage and accept that it is
   permanent.** The bucket is private, so access is not the issue; the cost is that the copy can
@@ -4647,14 +5030,14 @@ decision has a threshold or parameter in it, the number goes in the entry.
   A staged ciphertext with the key held outside the bucket — durable and retractable, and rejected
   as a key-management pattern this project has nowhere else and would have to maintain for one
   artefact.
-- **What changes in D-115, precisely.** Its consequence 1 is reversed: the manifest is staged.
+- **What changes in D-125, precisely.** Its consequence 1 is reversed: the manifest is staged.
   Its consequence 3 moves rather than disappearing — enforcement in code is no longer "the upload
   helper refuses a narrow-arm manifest key", which would now be wrong, but:
   1. the reporting and write-up path emits aggregates only, by survival route and homology class;
   2. the manifest is never committed, because the public repo is deliverable 7;
   3. the manifest's staged key is recorded in the run manifest, so the disclosure package is
      assembled by reference and a later reader knows the exact result exists and where.
-  Consequences 2 and 4 of D-115 stand unchanged: downstream published outputs inherit the
+  Consequences 2 and 4 of D-125 stand unchanged: downstream published outputs inherit the
   aggregation rule, and nothing circulates before X3.1.
 - **The key scheme, fixed before anything is written**, per `AGENTS.md`'s warning that a bucket
   with no `DeleteObject` makes a wrong key permanent and that A1.3 left four unremovable 0-byte
@@ -4665,11 +5048,11 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** the narrow arm retains its exact output and publishes only aggregates. The
   permanence of the staged copy is a known, accepted limitation and belongs in the disclosure
   conversation at X3.1 rather than being presented as a safeguard.
-
-### D-117 — The lost runs were a short payload and a shutdown that never fired, not the reader or the instance type; D-113's hypotheses are both refuted
+### D-127 — The lost runs were a short payload and a shutdown that never fired, not the reader or the instance type; D-123's hypotheses are both refuted
 - **Date:** 2026-10-17
 - **Task:** A1.6
-- **Context:** D-113 recorded two candidate causes for an instance that spent four hours on a
+- **Numbering:** appended as D-117 and renumbered to D-127 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Context:** D-123 recorded two candidate causes for an instance that spent four hours on a
   52-minute corpus pass and published nothing: a degrading S3 read retried without a global bound,
   or the instance type, since the three passes that completed all ran on `r6i.2xlarge` and that was
   the only `m6i.2xlarge` attempt. It named the second as weaker and the first as stronger. **Both
@@ -4696,13 +5079,13 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `shutdown -h now`, with `systemctl --no-block poweroff` and `halt -p` as fallbacks, and every
   exit path goes through it. And the script imports the shipped tool **before** the corpus pass, so
   a short payload costs two seconds rather than an hour and a launch.
-- **What this says about the two fixes D-113 motivated.** Neither is withdrawn. The reader's global
+- **What this says about the two fixes D-123 motivated.** Neither is withdrawn. The reader's global
   reconnect budget bounds a real unbounded retry loop that remains a bug whether or not it was this
   bug, and `S3RangeRead` had no tests at all before. The heartbeat is what made this diagnosis take
   thirty seconds instead of four hours: its absence from object storage after 30 minutes is what
   prompted looking at the console while the answer was still in it. Both were worth building; the
   entry that motivated them simply had the wrong cause.
-- **Rejected:** Leaving D-113 standing as the explanation — it is wrong, it is cited from a commit
+- **Rejected:** Leaving D-123 standing as the explanation — it is wrong, it is cited from a commit
   message and from `AGENTS.md`, and a later worker would otherwise plan around a reader fault and an
   instance-type superstition that cost two launches to invent. Blaming the instance type, which was
   tempting twice: both failing runs were `m6i.2xlarge` purely because `r6i.2xlarge` spot capacity was
@@ -4712,21 +5095,21 @@ decision has a threshold or parameter in it, the number goes in the entry.
   a dead man's switch that cannot be superseded turns every fast failure into a full-window
   failure. **Both are now recorded in `AGENTS.md`** — that an immediate shutdown must cancel the
   pending one first, and that the payload is derived and tested rather than listed by hand.
-
-### D-118 — The broad arm runs on one staged shard at 0.3125% with the cap unbound; D-109's 2.5% is superseded
+### D-128 — The broad arm runs on one staged shard at 0.3125% with the cap unbound; D-109's 2.5% is superseded
 - **Date:** 2026-10-17
 - **Task:** A1.6
+- **Numbering:** appended as D-118 and renumbered to D-128 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 sized the broad arm at 2.5% for $26, from D-104's cost model. The cap
   measurement priced the real thing and the model under-predicts by about 6x, because it was fitted
   with the charitable parameter set's `--min-seq-id 0.70` and the pass cannot use an identity floor
-  — banded reporting needs the rows below the cut (D-105 parameter 6, D-114). Measured on a 417 M
+  — banded reporting needs the rows below the cut (D-105 parameter 6, D-124). Measured on a 417 M
   residue target with 31,381 seeds: 11,600 core-seconds filtered, 17,095 relaxed. Extrapolated to
   the full 3,159,223 seeds over 2.5% of the corpus with the sensitivity sweep, D-109's design is
   **$300-430, not $26**.
 - **Decision (project owner): 0.25% of the corpus at the correct, unbinding hit cap.** Implemented
   as **one shard of the already-staged 2.5% sample**, which is 0.3125% — slightly more than asked,
   and free, because it is a hash partition of a sample already built, checksummed and staged
-  (D-112). No new corpus pass. About **$50** with the full three-sensitivity sweep and all three
+  (D-122). No new corpus pass. About **$50** with the full three-sensitivity sweep and all three
   coverage readings retained.
 - **The cap stays at 100,000 and does not bind.** Measured: 5,078 hits for the worst seed against a
   417 M residue target, 5% of the cap, nothing truncated. At this target size the worst case is
@@ -4751,13 +5134,13 @@ decision has a threshold or parameter in it, the number goes in the entry.
   sensitivity sweep, design-effect intervals and denominator separation all stand. D-104's model is
   not to be used for any further estimate in this task without stating that it carries an identity
   floor the pass does not.
-
-### D-119 — The narrow arm becomes A1.8; A1.6 keeps the broad arm only
+### D-129 — The narrow arm becomes A1.8; A1.6 keeps the broad arm only
 - **Date:** 2026-10-17
 - **Task:** A1.6 / A1.8
+- **Numbering:** appended as D-119 and renumbered to D-129 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-108 split the pass by denylist and both arms stayed inside A1.6. They have since
   diverged in every respect that matters: method (exhaustive against sampled), budget (roughly a
-  seventeenth of the compute), what may be published (D-115's aggregation rules apply to one arm
+  seventeenth of the compute), what may be published (D-125's aggregation rules apply to one arm
   and not the other), and who is waiting on what. A1.6's own handoff flagged the split as the
   tidier option under the one-task-per-file rule and as the project owner's call, since ids are
   permanent and cited. The owner has now asked for it, so that another worker can take the narrow
@@ -4767,15 +5150,15 @@ decision has a threshold or parameter in it, the number goes in the entry.
   deliberately **not** made to depend on A1.6, because its inputs are the staged proxy corpus and
   A1.4's manifest format rather than anything A1.6 still has to produce, and a dependency there
   would block the parallelism this split exists to allow.
-- **What travels with it, explicitly, because a split is where governance gets lost.** D-115 and
-  D-116 are A1.6 entries that now govern A1.8: counts by survival route and homology class and
-  never by organism or taxon; the exact per-record result retained and staged at the key D-116
+- **What travels with it, explicitly, because a split is where governance gets lost.** D-125 and
+  D-126 are A1.6 entries that now govern A1.8: counts by survival route and homology class and
+  never by organism or taxon; the exact per-record result retained and staged at the key D-126
   fixes; nothing committed, since the public repo is deliverable 7; nothing circulated before
   X3.1; and the restriction inherited by A2.* and B3.* for their published outputs. D-106's
   published 187K is its validation target, and D-108's prohibition on pooling the two arms' outputs
   now spans two task files rather than sitting inside one.
 - **What stays in A1.6:** the broad arm, now at 0.3125% of the corpus on one staged shard with the
-  cap unbound (D-118), and the instrument both arms use.
+  cap unbound (D-128), and the instrument both arms use.
 - **Rejected:** Keeping both arms in A1.6 — it is the status quo and it was already the wrong
   shape; the file had three "waiting on the owner" blocks for two different questions and a reader
   could not tell which arm a given line governed. Making A1.8 depend on A1.6 — tidier as a graph

@@ -20,6 +20,7 @@ from amazebio.profiles import (
     iter_profile_headers,
     md5_of,
     registry,
+    rvdb_labels,
     select_viral_families,
 )
 
@@ -215,3 +216,79 @@ def test_md5_of_streams(tmp_path):
     path = tmp_path / "x"
     path.write_bytes(b"amazebio")
     assert md5_of(path, chunk=3) == md5_of(path)
+
+
+def rvdb_db(tmp_path):
+    """A miniature of the release's annotation database: no names, only keyword frequencies."""
+    import sqlite3
+
+    path = tmp_path / "rvdb.sqlite"
+    c = sqlite3.connect(path)
+    c.executescript(
+        """
+        CREATE TABLE family(id INTEGER PRIMARY KEY, size INTEGER, nbseq INTEGER,
+                            LCAtaxid INTEGER);
+        CREATE TABLE keyword(id INTEGER PRIMARY KEY, str CHAR(30) UNIQUE);
+        CREATE TABLE fam_kw_seqnames(famId INTEGER, kwId INTEGER, freq INTEGER,
+                                     PRIMARY KEY(famId, kwId));
+        CREATE TABLE fam_kw_ref(famId INTEGER, kwId INTEGER, freq INTEGER,
+                                PRIMARY KEY(famId, kwId));
+        INSERT INTO family VALUES (69, 509, 81, 10239), (4230, 192, 40, 10239);
+        INSERT INTO keyword VALUES (1,'helicase'), (2,'virus'), (3,'rna'), (4,'dependent'),
+                                   (5,'protease'), (6,'clp');
+        INSERT INTO fam_kw_seqnames VALUES (69,1,48), (69,2,40), (69,3,32), (69,4,27),
+                                           (4230,2,24), (4230,5,23);
+        INSERT INTO fam_kw_ref VALUES (69,1,100), (4230,5,40), (4230,6,40);
+        """
+    )
+    c.commit()
+    c.close()
+    return path
+
+
+def test_labels_are_derived_from_the_releases_own_keyword_frequencies(tmp_path):
+    labels = rvdb_labels(rvdb_db(tmp_path))
+    assert labels["FAM000069"].label == "helicase virus rna dependent"
+    assert labels["FAM000069"].lca_taxid == 10239
+    assert labels["FAM000069"].sequences == 81
+
+
+def test_family_id_is_the_identity_and_the_label_is_not(tmp_path):
+    # D-097. RVDB assigns no descriptive name, so the label is this project's summary and only
+    # `family_id` may be cited as the family. Zero-padded to the release's own form.
+    labels = rvdb_labels(rvdb_db(tmp_path))
+    assert set(labels) == {"FAM000069", "FAM004230"}
+    assert all(label.family_id == key for key, label in labels.items())
+
+
+def test_reference_keywords_stay_out_of_the_label(tmp_path):
+    # They describe the domain literature rather than the sequences, and mixing the two would
+    # make a derived label look like a curated title.
+    labels = rvdb_labels(rvdb_db(tmp_path))
+    assert labels["FAM004230"].label == "virus protease"
+    assert labels["FAM004230"].reference_keywords == ("protease", "clp")
+
+
+def test_label_truncation_is_the_top_keywords_in_frequency_order(tmp_path):
+    labels = rvdb_labels(rvdb_db(tmp_path), top=2)
+    assert labels["FAM000069"].label == "helicase virus"
+
+
+def test_an_empty_annotation_database_is_refused(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "empty.sqlite"
+    c = sqlite3.connect(path)
+    c.executescript(
+        """
+        CREATE TABLE family(id INTEGER PRIMARY KEY, size INTEGER, nbseq INTEGER,
+                            LCAtaxid INTEGER);
+        CREATE TABLE keyword(id INTEGER PRIMARY KEY, str CHAR(30) UNIQUE);
+        CREATE TABLE fam_kw_seqnames(famId INTEGER, kwId INTEGER, freq INTEGER);
+        CREATE TABLE fam_kw_ref(famId INTEGER, kwId INTEGER, freq INTEGER);
+        """
+    )
+    c.commit()
+    c.close()
+    with pytest.raises(ProfileError, match="no family annotations"):
+        rvdb_labels(path)

@@ -287,13 +287,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--stage-sample",
         action="store_true",
-        help="stage the sample after the corpus pass so later runs skip it (D-112). The "
+        help="stage the sample after the corpus pass so later runs skip it (D-122). The "
         "staging happens before the searches, so a run cut short still leaves the sample",
     )
     ap.add_argument(
         "--sample-from",
         metavar="S3_URI",
-        help="load a staged sample instead of running the ~52-minute corpus pass (D-113)",
+        help="load a staged sample instead of running the ~52-minute corpus pass (D-123)",
     )
     ap.add_argument(
         "--measure",

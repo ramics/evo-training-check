@@ -330,7 +330,7 @@ def test_a_stream_for_one_search_derives_only_its_readings() -> None:
     rows = _rows_sorted([sim.HitRow("s1", "recA", 0.95, 0.9, 0.9)])
     stream = sim.TargetStream.for_search(1).extend(rows).close()
     assert set(stream.bands) == {0, 1}
-    assert 2 not in stream.records, "the mode-1 search cannot speak for reading 2 (D-114)"
+    assert 2 not in stream.records, "the mode-1 search cannot speak for reading 2 (D-124)"
 
 
 def test_threshold_counts_come_free_at_a_band_edge() -> None:

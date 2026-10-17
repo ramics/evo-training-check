@@ -237,7 +237,7 @@ minutes in — so it is a real channel, just a best-effort one with no guarantee
 it cannot do is distinguish a process that has died from one that is printing nothing: on
 2026-10-16 two runs died 31 seconds in, the console held only their boot output, and that looked
 exactly like a long pass with a quiet console. Four hours were spent on that reading, and the
-correction is in D-117.
+correction is in D-127.
 
 The other channels are genuinely closed here: `cloudwatch:GetMetricStatistics` and
 `ec2:GetConsoleScreenshot` are both denied, on top of the SSH and SSM denials above, and
@@ -262,7 +262,7 @@ systemd already has a shutdown scheduled and the immediate one does not replace 
 that fails in thirty seconds sits idle until the timer fires, burning the whole window, and from
 outside — no console after boot, no artefact, process alive, status checks `ok` — that is
 indistinguishable from a long pass still working. It cost two launches and most of a day to
-diagnose as exactly that (D-117). Run `shutdown -c` before `shutdown -h now`, keep
+diagnose as exactly that (D-127). Run `shutdown -c` before `shutdown -h now`, keep
 `systemctl --no-block poweroff` and `halt -p` as fallbacks, and route every exit path through one
 helper; `tools/ec2_similarity.py`'s `die` is the worked example.
 
@@ -318,6 +318,63 @@ Two rules, not preferences:
 
 Precision in the repo files is a separate matter: task files, decisions and write-ups still
 cite `DESIGN.md` sections, because traceability is the point there.
+
+## When a source is blocked for an agent, stop and say so loudly
+
+**A human can retrieve in thirty seconds what no agent in this container can retrieve at all.**
+The project owner has a browser, a subscription, an institutional login, an ORCID, a credit card
+and a face. This session has none of those. So a blocked acquisition is not a dead end and it is
+not a reason to proceed on a proxy — it is a *handover*, and the only thing that makes it happen
+is saying so, specifically, out loud, in the moment.
+
+What is permanently blocked here, and should be escalated rather than worked around:
+
+- a paywall, a 403 from a publisher, a subscription article's supplementary materials;
+- a captcha or a bot challenge — including a page that returns **HTTP 200** and serves a
+  challenge instead of content, which is the one that fools a status-code check;
+- an institutional or federated login, an SSO redirect, anything needing 2FA;
+- a licence click-through, a registration form, a data-use agreement;
+- a token or API key tied to a human identity, and an account only a person can create.
+
+**How to escalate.** Say it in the message you are already writing, not in a note somebody might
+read later. Name the artefact, the exact URLs tried, what each one returned, what the file would
+settle, and where to put it. Then ask with the choice mechanism, because what to fetch is often a
+real decision — the main article, the supplement, or both — and the answer changes what you do.
+Register the blocker in `policies/sources.json` with `status: unretrieved` and the blocker text
+in the same breath, so the gap is in the repository and not only in a conversation.
+
+**What not to do, in order of how badly it goes wrong:**
+
+- Do not quietly fall back to a secondary source. `DESIGN.md` §B1 step 0 and the last line of
+  this file both forbid it, and a blocked primary source is exactly the moment the temptation
+  arrives.
+- Do not keep working on the proxy and mention the gap in a caveat. A caveat at the end of a
+  long run is not an ask; by the time it is written, the work resting on the proxy is already
+  done.
+- Do not treat "I tried three times and it failed" as a finished investigation. It is a finished
+  *attempt*, and the next step is a person, not a fourth retry.
+
+**This is a live lesson, not a hypothetical.** A2.1 re-executed Evo's six published rules against
+both releases, ran a ten-fold deepening over about twenty hours of compute, and reported family
+survival figures — all of it resting on the **preprint**, because the version of record was
+registered as blocked (`S-EVO1-SCIENCE`: science.org 403, a PMC page serving a captcha behind an
+HTTP 200). The owner asked whether the rules were identical to the labs' own. They were not
+*known* to be. One sentence — "the Science version is blocked for me, can you grab it" — would
+have settled the foundation of the whole task before the compute was spent, and when it was
+finally asked the four files arrived within the hour. **Ask at the moment you discover the
+blocker, not when someone questions the result.**
+
+Two smaller cases are on the record for shape: A1.7 stopped with everything establishable
+without a JGI credential finished, said precisely what it needed, and kept `in-progress` with a
+waiting-on line rather than inventing a workaround — that is the behaviour to copy. And ESM3's
+version of record and its 101-page supplement were supplied by the owner the same way; the
+supplement, not the main text, was what settled the question, which is usually true of a methods
+appendix.
+
+**Licence, when a human supplies a subscription file.** Storage is the owner's call and the
+register records which way it went: committed with a licence note, or `retrieved_not_stored`
+with only a digest, which bars every quote from citing that id and `tools/policies.py` enforces.
+Ask; do not assume redistribution is permitted because the bytes are now on disk.
 
 ## Decisions
 
