@@ -5738,3 +5738,46 @@ decision has a threshold or parameter in it, the number goes in the entry.
   — smallest diff, and it writes a misleading field name into a staged object that cannot be
   withdrawn. A manifest version bump alongside the rename — the tidy-looking option, and
   `from_json`'s own refusal semantics turn it into a broken pipeline.
+
+### D-140 — The interval's sampling unit is taxonomic family; published family counts stay with A2.1's registries
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-109 committed the broad arm's rates to an interval estimated from
+  between-family variance rather than a binomial one, because viral material is clumped by
+  family and the binomial error at this sample size is under 0.01% — a confident-looking number
+  for the wrong quantity. `rate_with_interval` has wanted one `(hits, records)` pair per family
+  since it was written, and **nothing in the pass tooling produces a family for a UniRef
+  cluster**: `grep -n famil tools/esm3_calibrate.py` returns nothing. So the interval D-109
+  promised had no sampling unit, and band 1 could not have reported one.
+- **Decision (project owner): split the label by what it is used for**, in the manner D-113
+  split localisation from identity in A2.4.
+  - **The variance unit is the taxonomic family**, from the taxonomy already pinned for the
+    seed set — `taxdmp_2023-04-01`, contemporaneous with UniRef 2023_02 rather than current.
+    A cluster's family is its `TaxID` climbed to family rank. Zero extra compute: the shard
+    FASTA carries the taxid and the taxonomy is already a pinned input.
+  - **Published family counts stay with A2.1's pinned profile registries**, which is what
+    D-022's frozen detection schema requires and what D-125's reporting rule means by homology
+    class. A1.6 does not publish a family-level survival claim from a taxonomic label.
+- **Why this is not the thing §A2 forbids.** §A2 says the audit must not *rest* on taxonomy, and
+  A4.2 measured that tool failing to place 36% of the genomes the denylist targets. The use here
+  is strictly the sampling unit of a variance estimate: it affects how wide the interval is, not
+  which records were found, not the rate, and not any statement about which families survived.
+  Every detection and every published family count still comes from a curated registry. The
+  distinction is recorded because it is exactly the kind of use that looks like the forbidden one
+  from a distance.
+- **An unplaced cluster is its own stratum, not attributed.** `ancestor_at_rank` returns `None`
+  rather than substituting the nearest rank, because a lineage carrying no family node is not a
+  member of some other family. Given A4.2's 36%, the unplaced set is expected to be large, and
+  pooling it into one pseudo-family would understate between-family variance — the direction that
+  makes the interval look tighter than the evidence supports. Each realised stratum is reported
+  with the rate, as D-109 already requires of the family count.
+- **Rejected:** Registry families for the interval as well — schema-consistent end to end and
+  directly comparable with A2.1 and A2.4, but it adds a profile search over the hit set whose cost
+  is unmeasured, which would stop band 1 being the one-run job that makes it worth running first.
+  Revisit it if the realised stratum count turns out to be the binding constraint. Taxonomic
+  families for the published counts too — cheapest, and it would put the weakest label in Phase A
+  underneath a headline claim, which §A2 and A4.2 both refuse.
+- **Consequence:** the interval's unit is a *reading* of the corpus rather than a measurement of
+  it, so the write-up states which label produced the interval and which produced the family
+  counts. The same split is available to A1.8, whose arm has the same gap, and it is not assumed
+  there: that arm takes its own entry if it wants it.
