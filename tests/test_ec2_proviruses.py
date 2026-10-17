@@ -150,6 +150,8 @@ def test_user_data_fits_the_sixteen_kilobyte_limit():
         hard_stop_minutes=600,
         genomad_db_url="u",
         genomad_db_sha256="s" * 64,
+        pixi_url="u",
+        pixi_sha256="p" * 64,
     )
     assert len(rendered.encode()) < 16 * 1024
 
@@ -157,6 +159,26 @@ def test_user_data_fits_the_sixteen_kilobyte_limit():
 # --------------------------------------------------------------------------------------
 # Launch parameters
 # --------------------------------------------------------------------------------------
+
+
+def test_pixi_is_a_pinned_checksummed_binary_not_a_piped_installer():
+    """The installer script failed on the first launch and the redirect silencing it hid why.
+
+    It writes to shell profiles and depends on $HOME, which cloud-init does not reliably set.
+    A pinned tarball with a digest is one moving part instead of three.
+    """
+    code = [line for line in tool.USER_DATA.splitlines() if not line.strip().startswith("#")]
+    assert not [line for line in code if "install.sh | bash" in line]
+    assert "{pixi_sha256}  pixi.tar.gz" in tool.USER_DATA
+    assert len(tool.PIXI_SHA256) == 64
+
+
+def test_no_step_that_can_fail_is_silenced():
+    """`>/dev/null 2>&1` on a failing step is how the first launch lost its own error."""
+    for line in tool.USER_DATA.splitlines():
+        if "die " in line or line.strip().startswith("#"):
+            continue
+        assert ">/dev/null 2>&1" not in line or "|| true" in line, line
 
 
 def test_spot_is_one_time_and_terminates_on_interruption():

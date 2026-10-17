@@ -54,6 +54,17 @@ from amazebio.proviruses import GENOMAD
 
 REPO = Path(__file__).resolve().parent.parent
 
+#: The package manager the instance builds its environments with, pinned and checksummed like
+#: any other input. Not the `curl | bash` installer: it failed on A2.4's first launch, its error
+#: was swallowed by the redirect that silenced it, and it depends on `$HOME` and shell profiles
+#: that cloud-init does not reliably provide.
+PIXI_VERSION = "0.82.0"
+PIXI_URL = (
+    f"https://github.com/prefix-dev/pixi/releases/download/v{PIXI_VERSION}"
+    "/pixi-x86_64-unknown-linux-musl.tar.gz"
+)
+PIXI_SHA256 = "d305406a7630aab6484419833f9204b2fe9ea40632da8bb536496f123ca86e7f"
+
 #: Amazon Linux 2023, resolved from SSM at launch so the AMI is never stale in this file.
 AMI_PARAMETER = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 
@@ -133,14 +144,20 @@ mkdir -p /opt/amazebio && cd /opt/amazebio
 aws s3 cp "s3://{bucket}/{code_key}" code.tar.gz --region {region} || die "payload fetch failed"
 tar xzf code.tar.gz || die "payload is not readable"
 
-export PIXI_HOME=/opt/pixi
-curl -fsSL https://pixi.sh/install.sh | bash >/dev/null 2>&1 || die "pixi install failed"
+# The pinned binary directly, not `curl https://pixi.sh/install.sh | bash`. The installer
+# script failed on the first launch and `>/dev/null 2>&1` swallowed why; it writes to shell
+# profiles and depends on $HOME, which cloud-init does not reliably set. A pinned, checksummed
+# tarball is one moving part instead of three, and matches how this project installs mmseqs.
+export HOME=/root
+curl -sSL -o pixi.tar.gz "{pixi_url}" || die "pixi download failed"
+echo "{pixi_sha256}  pixi.tar.gz" | sha256sum -c - || die "pixi checksum mismatch"
+mkdir -p /opt/pixi/bin && tar xzf pixi.tar.gz -C /opt/pixi/bin || die "pixi tarball unreadable"
 export PATH="/opt/pixi/bin:$PATH"
 pixi --version || die "pixi not on PATH"
 
 # The lockfile is the pin. Installing from it is what makes geNomad 1.12.0, VIBRANT 1.2.1 and
 # their interpreters the same bytes the project records.
-pixi install -e dev -e proviruses -e vibrant || die "pixi install failed"
+pixi install -e dev -e proviruses -e vibrant || die "pixi env solve/install failed"
 
 export AMAZEBIO_S3_URI="s3://{bucket}/corpora"
 
@@ -307,6 +324,8 @@ def main(argv: list[str] | None = None) -> int:
         hard_stop_minutes=args.hard_stop_minutes or DEFAULT_HARD_STOP_MINUTES,
         genomad_db_url=GENOMAD.database_url,
         genomad_db_sha256=GENOMAD.database_sha256,
+        pixi_url=PIXI_URL,
+        pixi_sha256=PIXI_SHA256,
     )
     if len(user_data.encode()) > 16 * 1024:
         raise SystemExit("user data exceeds the 16 KiB limit")
