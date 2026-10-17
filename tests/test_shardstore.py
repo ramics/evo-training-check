@@ -198,3 +198,44 @@ def test_existing_keys_pages_through_everything() -> None:
     collision check that passes by not looking."""
     keys = [f"samples/a1-6/uniref100/2023_02/rate40/shard-{i:02d}.faa" for i in range(5)]
     assert ss.existing_keys(_S3(keys), "buk", "samples/") == set(keys)
+
+
+def test_a_manifest_staged_before_the_sidecars_existed_still_reads(tmp_path: Path) -> None:
+    """The one compatibility test that matters. The 2.5% sample is already staged in a bucket
+    with no DeleteObject, so it cannot be rewritten; if adding `sidecars` made its manifest
+    unreadable, the only sample this project owns would be lost. D-142 adds the field without
+    bumping MANIFEST_VERSION for exactly this reason."""
+    manifest, _ = _sample(tmp_path)
+    raw = json.loads(manifest.to_json())
+    del raw["sidecars"]
+    back = ss.ShardManifest.from_json(json.dumps(raw))
+    assert back.sidecars is None, "absent means a sample that still owes a corpus pass"
+    assert back.shard_count() == 2
+
+
+def test_sidecars_round_trip_as_objects_rather_than_dicts(tmp_path: Path) -> None:
+    manifest, local = _sample(tmp_path)
+    side = tmp_path / "shard-00.taxids.tsv"
+    side.write_bytes(b"UniRef100_C0\t11157\n")
+    key = f"{ss.sample_prefix('2023_02', 'uniref100', 40)}/{side.name}"
+    manifest.sidecars = [ss.describe(side, key)]
+    back = ss.ShardManifest.from_json(manifest.to_json())
+    assert back.sidecars is not None
+    assert back.sidecars[0].key == key
+    assert back.sidecars[0].sha256 == manifest.sidecars[0].sha256
+
+
+def test_verify_all_checks_the_sidecars_too(tmp_path: Path) -> None:
+    """They are the denominator of every rate the arm publishes, so they are verified on the
+    same footing as the records they describe — not trusted because they are small."""
+    manifest, local = _sample(tmp_path)
+    side = tmp_path / "shard-00.taxids.tsv"
+    side.write_bytes(b"UniRef100_C0\t11157\n")
+    key = f"{ss.sample_prefix('2023_02', 'uniref100', 40)}/{side.name}"
+    manifest.sidecars = [ss.describe(side, key)]
+    local[key] = side
+    ss.verify_all(manifest, local)
+
+    side.write_bytes(b"UniRef100_C0\t99999\n")
+    with pytest.raises(ss.ShardStoreError):
+        ss.verify_all(manifest, local)

@@ -101,6 +101,14 @@ class ShardManifest:
     #: cited directly; this carries everything else the pass measured — the
     #: representative-versus-member gap among them (D-092, D-100) — so a run that skips the
     #: pass reports what was measured rather than a default that reads like a zero.
+    #: The strata sidecars D-142 added — one per shard plus the seed set's, each a
+    #: `cluster_id\ttaxid` table. Optional, and **deliberately added without bumping
+    #: `MANIFEST_VERSION`**: the version check refuses a manifest it does not recognise, and
+    #: the already-staged 2.5% sample is permanent in a bucket with no `DeleteObject`, so a
+    #: bump would make the one sample this project owns unreadable. `None` means a sample
+    #: staged before the sidecars existed, which is a sample that still owes a corpus pass.
+    #: D-139 took the same position on the same reasoning.
+    sidecars: list[StagedObject] | None = None
     seed_counts: dict[str, Any] | None = None
     code_commit: str | None = None
     taxdump_pin: str | None = None
@@ -125,12 +133,19 @@ class ShardManifest:
         try:
             seed = StagedObject(**raw["seed_fasta"])
             shards = [StagedShard(**s) for s in raw["shards"]]
+            # Absent on every sample staged before D-142, which is the case the version note
+            # on the field is about; present ones have to come back as objects, not dicts.
+            raw_sidecars = raw.get("sidecars")
+            sidecars = None if raw_sidecars is None else [StagedObject(**o) for o in raw_sidecars]
         except (KeyError, TypeError) as exc:
             raise ShardStoreError(f"staged manifest is missing or malformed: {exc}") from exc
-        known = {f for f in cls.__dataclass_fields__ if f not in ("seed_fasta", "shards")}
+        known = {
+            f for f in cls.__dataclass_fields__ if f not in ("seed_fasta", "shards", "sidecars")
+        }
         return cls(
             seed_fasta=seed,
             shards=shards,
+            sidecars=sidecars,
             **{k: v for k, v in raw.items() if k in known},
         )
 
@@ -186,6 +201,7 @@ def plan_uploads(
     prefix: str,
     shard_paths: Iterable[Path],
     seed_fasta: Path,
+    sidecars: Iterable[Path] | None = None,
 ) -> list[tuple[Path, str]]:
     """Local file to key, for every object a staging run will write.
 
@@ -195,6 +211,7 @@ def plan_uploads(
     """
     plan = [(seed_fasta, f"{prefix}/{seed_fasta.name}")]
     plan += [(p, f"{prefix}/{p.name}") for p in shard_paths]
+    plan += [(p, f"{prefix}/{p.name}") for p in sidecars or ()]
     return plan
 
 
@@ -220,12 +237,12 @@ def verify_all(manifest: ShardManifest, local: dict[str, Path]) -> None:
     bytes it searched.
     """
     manifest.check_self_consistent()
-    missing = [o.key for o in [manifest.seed_fasta, *manifest.shards] if o.key not in local]
+    wanted = [manifest.seed_fasta, *manifest.shards, *(manifest.sidecars or ())]
+    missing = [o.key for o in wanted if o.key not in local]
     if missing:
         raise ShardStoreError(f"staged objects were not fetched: {missing}")
-    manifest.seed_fasta.verify(local[manifest.seed_fasta.key])
-    for shard in manifest.shards:
-        shard.verify(local[shard.key])
+    for obj in wanted:
+        obj.verify(local[obj.key])
 
 
 def existing_keys(client: Any, bucket: str, prefix: str) -> set[str]:

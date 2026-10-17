@@ -489,8 +489,27 @@ def _load_staged_sample(
         args.sample_rate = staged.sample_rate
 
     local: dict[str, Path] = {}
-    for obj, dest in [(staged.seed_fasta, seed_fasta)] + [
-        (sh, shard_paths[sh.index]) for sh in staged.shards
+    # The sidecars land beside the file they describe, keyed by name rather than by index:
+    # they are the strata for the shard FASTAs and the seed set, and `write_taxid_row` named
+    # them `<stem>.taxids.tsv` (D-142). A sample staged before they existed lists none, and
+    # that sample still owes a corpus pass to produce them.
+    sidecar_dests = {
+        f"{dest.stem}.taxids.tsv": dest.with_suffix(".taxids.tsv")
+        for dest in (seed_fasta, *shard_paths)
+    }
+    sidecar_pairs = []
+    for obj in staged.sidecars or ():
+        dest = sidecar_dests.get(obj.key.rsplit("/", 1)[-1])
+        if dest is None:
+            raise SystemExit(
+                f"staged sidecar {obj.key!r} does not match any shard or the seed set; the "
+                "strata and the records they describe have to be the same files"
+            )
+        sidecar_pairs.append((obj, dest))
+    for obj, dest in [
+        (staged.seed_fasta, seed_fasta),
+        *[(sh, shard_paths[sh.index]) for sh in staged.shards],
+        *sidecar_pairs,
     ]:
         client.download_file(bucket, obj.key, str(dest))
         local[obj.key] = dest
@@ -540,6 +559,7 @@ def _stage_sample(
     counts: seeds.SeedCounts,
     shard_counts: list[int],
     shard_residues: list[int],
+    sidecar_paths: list[Path] | None = None,
 ) -> str | None:
     """Stage the sample so no later run pays for the corpus pass again.
 
@@ -555,7 +575,7 @@ def _stage_sample(
     # absolute key, which would have written several gigabytes outside `corpora/` — permanently,
     # in a bucket with no DeleteObject.
     sample_root = f"{prefix}/{shardstore.sample_prefix(args.release, args.tier, args.sample_rate)}"
-    plan = shardstore.plan_uploads(sample_root, shard_paths, seed_fasta)
+    plan = shardstore.plan_uploads(sample_root, shard_paths, seed_fasta, sidecar_paths)
     manifest_key = f"{sample_root}/{shardstore.MANIFEST_NAME}"
 
     present = shardstore.existing_keys(client, bucket, sample_root + "/")
@@ -569,7 +589,9 @@ def _stage_sample(
     total = len(plan)
     print(f"  staging {total} objects under s3://{bucket}/{sample_root}/", flush=True)
     staged_shards = []
-    for (path, key), index in zip(plan[1:], range(len(shard_paths)), strict=True):
+    shard_plan = plan[1 : 1 + len(shard_paths)]
+    sidecar_plan = plan[1 + len(shard_paths) :]
+    for (path, key), index in zip(shard_plan, range(len(shard_paths)), strict=True):
         _put_large(client, bucket, key, path)
         staged_shards.append(
             shardstore.describe_shard(
@@ -579,6 +601,10 @@ def _stage_sample(
         _progress(client, bucket, prefix, args, stage="staging", done=index + 1, total=total)
     seed_path, seed_key = plan[0]
     _put_large(client, bucket, seed_key, seed_path)
+    staged_sidecars = []
+    for path, key in sidecar_plan:
+        _put_large(client, bucket, key, path)
+        staged_sidecars.append(shardstore.describe(path, key))
     _progress(client, bucket, prefix, args, stage="staging", done=total, total=total)
 
     staged = shardstore.ShardManifest(
@@ -590,6 +616,7 @@ def _stage_sample(
         viral_seeded_clusters=counts.viral_seeded,
         seed_fasta=shardstore.describe(seed_path, seed_key),
         shards=staged_shards,
+        sidecars=staged_sidecars or None,
         seed_counts={k: v for k, v in counts.to_dict().items() if isinstance(v, int)},
         code_commit=args.code_commit,
         taxdump_pin=seeds.TAXDUMP_2023_04.date,
@@ -649,6 +676,11 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         manifest.input_file(args.taxdump, role="taxonomy")
 
         staged: shardstore.ShardManifest | None = None
+        # Set by the corpus pass below and left empty by `--sample-from`, which runs no pass
+        # and therefore produces no sidecars. The two options are mutually exclusive, so a
+        # staging run always takes the corpus-pass branch; this is declared here so the
+        # staging call does not depend on which branch happened to assign it.
+        sidecar_paths: list[Path] = []
         if args.sample_from:
             # The corpus pass is skipped entirely. The shards, the seed set and the
             # denominators all come from the staged manifest, and every object is verified
@@ -689,7 +721,9 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
             )
             try:
-                with seed_fasta.open("wb") as seedfh:
+                seed_taxid_path = seed_fasta.with_suffix(".taxids.tsv")
+                sidecar_paths = [*taxid_paths, seed_taxid_path]
+                with seed_fasta.open("wb") as seedfh, seed_taxid_path.open("wb") as seed_taxidfh:
                     for batch in seeds.scan_parallel(
                         _chunks(
                             stream,
@@ -708,8 +742,9 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                         batch_bytes=args.batch_bytes,
                     ):
                         counts.merge(batch.counts)
-                        for cluster_id, sequence in batch.seeds:
+                        for cluster_id, sequence, taxid in batch.seeds:
                             seeds.write_fasta(seedfh, cluster_id, sequence)
+                            similarity.write_taxid_row(seed_taxidfh, cluster_id, taxid)
                         for shard, cluster_id, sequence, taxid in batch.samples:
                             seeds.write_fasta(handles[shard], cluster_id, sequence)
                             similarity.write_taxid_row(taxid_handles[shard], cluster_id, taxid)
@@ -800,6 +835,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 counts,
                 shard_counts,
                 shard_residues,
+                sidecar_paths,
             )
             if staged_uri:
                 payload["staged_sample"] = staged_uri

@@ -355,7 +355,7 @@ class ScanConfig:
             if entry is None:
                 continue
             if result.counts.observe(entry, self.viral):  # type: ignore[arg-type]
-                result.seeds.append((entry.cluster_id, entry.sequence))
+                result.seeds.append((entry.cluster_id, entry.sequence, entry.representative_taxid))
             if self.sample_rate and bucket_of(entry.cluster_id, self.sample_rate) == 0:
                 shard = bucket_of(entry.cluster_id + "#shard", self.buckets)
                 result.samples.append(
@@ -369,7 +369,10 @@ class BatchResult:
     """One batch's reduction: counts, the seeds it found, and the sample it drew."""
 
     counts: SeedCounts = field(default_factory=SeedCounts)
-    seeds: list[tuple[str, str]] = field(default_factory=list)
+    #: `(cluster_id, sequence, representative_taxid)`. The taxid rides along for the same
+    #: reason it does on `samples` (D-142): the seed FASTA is a bare cluster id too, and the
+    #: realised **seed**-family count D-134 ships with every rate cannot be recovered from it.
+    seeds: list[tuple[str, str, int | None]] = field(default_factory=list)
     #: `(shard, cluster_id, sequence, representative_taxid)`. The taxid is carried because the
     #: staged FASTA cannot hold it — MMseqs2 keys on the first whitespace-delimited token, so
     #: `write_fasta` writes a bare cluster id — and the interval's strata need a taxid for
