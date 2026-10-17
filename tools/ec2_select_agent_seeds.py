@@ -43,6 +43,7 @@ import json
 import sys
 import tarfile
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -331,13 +332,17 @@ def main(argv: list[str] | None = None) -> int:
             refusal = _sim.spot_refusal(str(exc))
             print(refusal or str(exc), file=sys.stderr)
             return 1
-        iid = response["Instances"][0]["InstanceId"]
+        instance = response["Instances"][0]
+        iid = instance["InstanceId"]
+        # The instance's own launch time, not this process's clock. Both are compared against
+        # S3's `LastModified`, and only this one is in the same clock domain as it.
+        launched_at = instance["LaunchTime"]
         market_label = "spot" if market else "on demand"
         print(f"launched {iid} ({args.instance_type}, {market_label}, {args.volume_size} GB gp3)")
         print(
             f"  hard stop in {args.hard_stop_minutes} min; results to s3://{bucket}/{prefix}/results/a1-8/"
         )
-        return _watch(ec2, s3, iid, bucket, prefix, args)
+        return _watch(ec2, s3, iid, bucket, prefix, args, launched_at)
     finally:
         # Both, not either: a UserData that fails before its own shutdown would otherwise
         # leave the instance running until the boot-armed timer fires.
@@ -363,11 +368,20 @@ def _al2023(ec2: Any) -> str:
     return max(images, key=lambda i: i["CreationDate"])["ImageId"]
 
 
-def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> int:
+def _watch(
+    ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any, launched_at: datetime
+) -> int:
     """Poll for the artefacts, reporting console output as it appears.
 
     Silence is the thing this cannot interpret, which is why the pass heartbeats and why the
     artefacts are what completion is judged by rather than the console.
+
+    **Only artefacts written after this instance launched count.** The results prefix is
+    stable across runs, so a re-run finds the previous run's objects already sitting in it and
+    a presence check is satisfied before the new instance has finished booting. That is not
+    hypothetical: it terminated the first attributed re-run ninety seconds in, reported the
+    *old* run's reconciliation as the new one's, and would have been read as a completed pass
+    by anyone who did not know the figures already. A2.4 hit the same shape with its heartbeat.
     """
     deadline = time.monotonic() + args.max_watch_minutes * 60
     results = f"{prefix}/results/a1-8/"
@@ -385,7 +399,11 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
                     print(f"  | {line}")
             seen_console = len(out)
 
-        listing = s3.list_objects_v2(Bucket=bucket, Prefix=results).get("Contents", [])
+        listing = [
+            o
+            for o in s3.list_objects_v2(Bucket=bucket, Prefix=results).get("Contents", [])
+            if o["LastModified"] >= launched_at
+        ]
         names = {Path(o["Key"]).name for o in listing}
         if any(n.startswith("seed-counts-") for n in names):
             print(f"artefacts present in s3://{bucket}/{results}:")

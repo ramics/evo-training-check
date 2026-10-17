@@ -8,8 +8,11 @@ payload, a shutdown that never fires, a missing tag that reads as a permissions 
 
 from __future__ import annotations
 
+import argparse
 import ast
 import importlib.util
+import io
+import json
 import pathlib
 
 import pytest
@@ -227,3 +230,66 @@ def test_a_dry_run_writes_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tool._sim, "_git_head", lambda root: ("abc123def456", False))
     assert tool.main(["--s3-uri", "s3://b/corpora", "--dry-run"]) == 0
     assert puts == [], f"a dry run wrote {puts}"
+
+
+def test_a_previous_runs_artefacts_do_not_end_this_one() -> None:
+    """The results prefix is stable across runs, so presence alone is not completion.
+
+    This killed the first attributed re-run ninety seconds in: the watcher listed the prefix,
+    found the earlier pass's `seed-counts-` object still sitting there, declared the run
+    finished and terminated the instance — then printed the *old* reconciliation as if it
+    were the new one. Nothing about that output says it is stale, which is what makes it
+    worth a test rather than a note. A2.4 hit the same shape with its heartbeat.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    launched = datetime(2026, 10, 17, 22, 0, tzinfo=UTC)
+    stale = {
+        "Key": "corpora/results/a1-8/seed-counts-2023_02-uniref100.json",
+        "Size": 2739,
+        "LastModified": launched - timedelta(hours=4),
+    }
+
+    class FakeS3:
+        def list_objects_v2(self, **kw: object) -> dict:
+            return {"Contents": [stale]}
+
+    class FakeEc2:
+        def get_console_output(self, **kw: object) -> dict:
+            return {"Output": ""}
+
+    # The watch window closes without the stale object ever counting, so this returns 1.
+    # The test below is the same object and the same fakes with a later `LastModified`, and
+    # returns 0 — so the pair isolates the timestamp as the thing that decides, which a
+    # single test asserting "not finished" could not.
+    args = argparse.Namespace(watch_seconds=0, max_watch_minutes=0.001)
+    assert tool._watch(FakeEc2(), FakeS3(), "i-1", "b", "corpora", args, launched) == 1
+
+
+def test_an_artefact_written_after_launch_is_this_runs() -> None:
+    """The other half: the filter must not reject the run's own output."""
+    from datetime import UTC, datetime, timedelta
+
+    launched = datetime(2026, 10, 17, 22, 0, tzinfo=UTC)
+    fresh = {
+        "Key": "corpora/results/a1-8/seed-counts-2023_02-uniref100.json",
+        "Size": 2739,
+        "LastModified": launched + timedelta(minutes=55),
+    }
+
+    class FakeS3:
+        def list_objects_v2(self, **kw: object) -> dict:
+            return {"Contents": [fresh]}
+
+        def get_object(self, **kw: object) -> dict:
+            body = json.dumps(
+                {"counts": {"clusters": 10, "seeded": 3}, "reconciliation": None}
+            ).encode()
+            return {"Body": io.BytesIO(body)}
+
+    class FakeEc2:
+        def get_console_output(self, **kw: object) -> dict:
+            return {"Output": ""}
+
+    args = argparse.Namespace(watch_seconds=0, max_watch_minutes=1)
+    assert tool._watch(FakeEc2(), FakeS3(), "i-1", "b", "corpora", args, launched) == 0
