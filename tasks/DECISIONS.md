@@ -5781,3 +5781,40 @@ decision has a threshold or parameter in it, the number goes in the entry.
   it, so the write-up states which label produced the interval and which produced the family
   counts. The same split is available to A1.8, whose arm has the same gap, and it is not assumed
   there: that arm takes its own entry if it wants it.
+
+### D-141 — Correction to D-140: pooling the unplaced clusters does not understate the interval, it destabilises it
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** D-140 kept each unplaced cluster as its own stratum and justified it by claiming
+  that pooling them into one pseudo-family "would understate between-family variance — the
+  direction that makes the interval look tighter than the evidence supports". That reasoning was
+  asserted, not measured. Measuring it refutes it as a general claim.
+- **What the estimator actually does.** Against 64,000 records in 640 clumped families plus
+  36,000 unplaced — A4.2's 36% unplaced fraction, which is why the magnitude matters:
+  - unplaced set's hit rate **equal** to the overall rate: pooled standard error is **0.998x**
+    the singleton one. D-140's direction, and negligible.
+  - unplaced set's hit rate **different** from the overall rate (0.5 against 0.1): pooled standard
+    error is **10.9x** the singleton one.
+
+  The mechanism is visible in the formula. A pooled stratum contributes `(A - r*B)^2` for its own
+  totals, which is **zero** when its rate happens to equal the overall rate and enormous when it
+  does not. So pooling does not bias the interval in a direction; it makes the interval a function
+  of one stratum's own rate, with a third of the data behind it.
+- **Decision:** the singleton treatment stands, and **its justification is replaced**. Each
+  unplaced cluster is its own stratum because that is the only treatment whose interval is stable
+  against a quantity the audit has not measured — the hit rate of the records the taxonomy cannot
+  place. Singletons contribute the binomial term for that portion, which is the honest statement
+  that those records carry no family information, rather than a variance estimate driven by
+  whether their rate coincides with the pooled one.
+- **What does not change.** The split in D-140: taxonomic family for the variance unit, A2.1's
+  registries for every published family count. `ancestor_at_rank` returning `None` rather than a
+  nearest-rank substitute. The realised stratum count shipping with every rate.
+- **Rejected:** Letting D-140's sentence stand because the implementation it justified is the one
+  we keep. A reader checking the reasoning would find it false and have no way to tell whether the
+  conclusion survived it, and §7's adversarial reader is the one who checks. Pooling after all —
+  refuted above.
+- **Consequence:** the write-up reports the realised stratum count **and the unplaced fraction**,
+  because with singletons the design effect is diluted by exactly that fraction and a reader needs
+  it to interpret the interval. One general lesson worth carrying past this entry: both of D-140's
+  variance claims were checkable in about a minute, and the one that was asserted was wrong by a
+  factor of eleven in the opposite direction.
