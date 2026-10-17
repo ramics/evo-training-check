@@ -4751,3 +4751,39 @@ decision has a threshold or parameter in it, the number goes in the entry.
   sensitivity sweep, design-effect intervals and denominator separation all stand. D-104's model is
   not to be used for any further estimate in this task without stating that it carries an identity
   floor the pass does not.
+
+### D-119 — The narrow arm becomes A1.8; A1.6 keeps the broad arm only
+- **Date:** 2026-10-17
+- **Task:** A1.6 / A1.8
+- **Context:** D-108 split the pass by denylist and both arms stayed inside A1.6. They have since
+  diverged in every respect that matters: method (exhaustive against sampled), budget (roughly a
+  seventeenth of the compute), what may be published (D-115's aggregation rules apply to one arm
+  and not the other), and who is waiting on what. A1.6's own handoff flagged the split as the
+  tidier option under the one-task-per-file rule and as the project owner's call, since ids are
+  permanent and cited. The owner has now asked for it, so that another worker can take the narrow
+  arm in parallel.
+- **Decision:** the narrow arm is **A1.8**, `ready` and unassigned. A1.6 is the broad viral
+  denylist only. `depends_on: [A1.4, A1.5]`, both `done`, so A1.8 is takeable immediately — it is
+  deliberately **not** made to depend on A1.6, because its inputs are the staged proxy corpus and
+  A1.4's manifest format rather than anything A1.6 still has to produce, and a dependency there
+  would block the parallelism this split exists to allow.
+- **What travels with it, explicitly, because a split is where governance gets lost.** D-115 and
+  D-116 are A1.6 entries that now govern A1.8: counts by survival route and homology class and
+  never by organism or taxon; the exact per-record result retained and staged at the key D-116
+  fixes; nothing committed, since the public repo is deliverable 7; nothing circulated before
+  X3.1; and the restriction inherited by A2.* and B3.* for their published outputs. D-106's
+  published 187K is its validation target, and D-108's prohibition on pooling the two arms' outputs
+  now spans two task files rather than sitting inside one.
+- **What stays in A1.6:** the broad arm, now at 0.3125% of the corpus on one staged shard with the
+  cap unbound (D-118), and the instrument both arms use.
+- **Rejected:** Keeping both arms in A1.6 — it is the status quo and it was already the wrong
+  shape; the file had three "waiting on the owner" blocks for two different questions and a reader
+  could not tell which arm a given line governed. Making A1.8 depend on A1.6 — tidier as a graph
+  and it would have left the new task `blocked`, which defeats the point. Renumbering anything —
+  ids are never reused or renumbered.
+- **Consequence:** one coordination point, recorded in A1.8's state block rather than left to be
+  discovered: the instrument A1.8 builds on (`similarity.py`, `shardstore.py`,
+  `tools/esm3_calibrate.py`, `tools/ec2_similarity.py`) is tested and green but sits on A1.6's
+  feature branch and not on `main`. Whoever takes A1.8 should wait for that branch to land or
+  branch from it rather than building a second copy. **That is an argument for landing A1.6's
+  instrument on `main` sooner than its results.**

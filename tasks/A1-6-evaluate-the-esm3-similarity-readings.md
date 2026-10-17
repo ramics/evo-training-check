@@ -259,9 +259,8 @@ it exists except by attempting a launch — which is also the launch it wants, s
 the check. On confirmation, in order: the cap and coverage measurement on spot (well under a
 dollar), then the broad arm's sampled pass (about $26).
 
-**Still waiting on the project owner: the narrow arm's handling and reporting rules**,
-unchanged from the previous block and still blocking that arm. Nothing in this round touched
-it.
+**The narrow arm has moved to A1.8** (D-119). A1.6 is the broad viral denylist only, from
+here on: sampled, reporting a rate with an interval. The two arms must not be pooled (D-108).
 
 ## The cap run was lost, and what came out of losing it — 2026-10-16, fifth
 
