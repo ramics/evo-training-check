@@ -5942,3 +5942,35 @@ decision has a threshold or parameter in it, the number goes in the entry.
   The general lesson is the one D-098 already taught this project once, in the other direction: a
   cost derived from a number nobody measured is a design decision taken by accident. Here it was
   bytes read as bases.
+
+### D-145 — The first band is 0.25%, and D-118's 2.5% waits on what it measures
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-118 fixed the first band at 2.5% when D-117 priced a full census at 4,900
+  core-hours. D-144 corrected the corpus to 484,000 Mb and the census to about 22,000 core-hours,
+  which puts 2.5% of both releases at roughly 550 core-hours — 69 wall hours at the policy's
+  8 vCPU ceiling, and $13-18 on spot. The owner authorised the pass "as long as the billing
+  doesn't change"; it changed, so the band went back to them.
+- **Decision:** The first band is **0.25%**: about 55 core-hours, 7 wall hours, $1.50. 2.5%
+  is not abandoned, it is sequenced behind the thing it depends on.
+  This is what D-118 designed rather than a retreat from it. The first band exists to *be* the
+  calibration, and the per-genome rate it calibrates is still a one-genome figure taken from a
+  complete, gene-dense *E. coli* assembly. GTDB is mostly draft assemblies in many contigs, where
+  gene density, contig count and the per-call overhead all differ, so the 69-hour figure rests on
+  a number this band is meant to replace. Committing three days of wall clock to it first would
+  invert the design.
+  Membership is nested (D-078), so the 0.25% band is a strict subset of the 2.5% one and
+  deepening re-reads nothing. `estimate_kind` stays `lower_bound`, and the realized rate is
+  recorded per source, so the shallower depth is visible in the artefact rather than inferred.
+- **Rejected:** 2.5% now because it still fits under $20. The authorisation was conditional on
+  the figure, and $13-18 is not $5-7 even inside the cap. Spot reclaim across 69 hours is also
+  likely, and per-object resumability does not exist yet — so the expensive option is the one
+  most likely to need re-running.
+  2.5% on Evo 1 alone, at a quarter the size. Cheaper and sooner, and it would leave the prophage
+  route measured at full depth on one of the two corpora, which is the asymmetry D-116 exists to
+  prevent. A shallower band on both is the better trade than a deeper band on half.
+- **Consequence:** A2.4's first result is a lower bound at 0.25% of both releases, and must be
+  reported as the shallow bound it is — at that depth a null is weak evidence and a detection is
+  still a detection. What the band buys beyond its own result is the measured per-genome cost on
+  real draft assemblies, which is the number every later decision about depth depends on, and
+  which no amount of further arithmetic from D-117's single genome can supply.
