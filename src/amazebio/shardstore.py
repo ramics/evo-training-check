@@ -245,6 +245,30 @@ def verify_all(manifest: ShardManifest, local: dict[str, Path]) -> None:
         obj.verify(local[obj.key])
 
 
+def verify_rebuilt(manifest: ShardManifest, seed_fasta: Path, shard_paths: list[Path]) -> None:
+    """Check that a freshly built sample is byte-identical to a staged one, or raise.
+
+    The reverse direction from `verify_all`, and it exists for one job. The staged sample
+    carries no strata sidecars (D-142), so building them means re-running the corpus pass —
+    and a band searching the *rebuilt* shards is only reporting on the staged sample if the
+    two are the same bytes. The sampling rule is deterministic, so they should be; "should
+    be" is not the standard a published denominator is held to, so it is checked.
+
+    Checked against the digests the staged manifest records, which is what makes this
+    independent of the run that produced them rather than a comparison of a thing with
+    itself.
+    """
+    manifest.check_self_consistent()
+    if len(shard_paths) != len(manifest.shards):
+        raise ShardStoreError(
+            f"rebuilt {len(shard_paths)} shards against the staged sample's "
+            f"{len(manifest.shards)}; a different partition is a different sample"
+        )
+    manifest.seed_fasta.verify(seed_fasta)
+    for shard in sorted(manifest.shards, key=lambda s: s.index):
+        shard.verify(shard_paths[shard.index])
+
+
 def existing_keys(client: Any, bucket: str, prefix: str) -> set[str]:
     """Keys already under a staging prefix, so a run can refuse to overwrite one."""
     keys: set[str] = set()

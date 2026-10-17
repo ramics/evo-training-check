@@ -198,6 +198,14 @@ def main(argv: list[str] | None = None) -> int:
         "(D-122, D-123)",
     )
     ap.add_argument(
+        "--verify-sample-against",
+        metavar="S3_URI",
+        help="after the corpus pass, check the rebuilt shards are byte-identical to this "
+        "staged manifest. The staged 2.5% sample carries no strata sidecars (D-142), so "
+        "building them needs the pass re-run; this is what makes a band over the rebuilt "
+        "shards a result about the staged sample rather than about a lookalike",
+    )
+    ap.add_argument(
         "--band-denominator",
         type=int,
         default=100,
@@ -699,6 +707,11 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 manifest.parameter(name, value)
         manifest.input_file(args.taxdump, role="taxonomy")
 
+        if args.verify_sample_against and args.sample_from:
+            raise SystemExit(
+                "--sample-from loads a staged sample and already verifies it; "
+                "--verify-sample-against checks one this run rebuilds. Pick one."
+            )
         staged: shardstore.ShardManifest | None = None
         # Set by the corpus pass below and left empty by `--sample-from`, which runs no pass
         # and therefore produces no sidecars. The two options are mutually exclusive, so a
@@ -778,6 +791,27 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 for handle in (*handles, *taxid_handles):
                     handle.close()
             corpus_seconds = time.monotonic() - started
+
+            if args.verify_sample_against:
+                # Before anything is searched, and before the strata are even read: if the
+                # rebuilt shards are not the staged ones, every number this run would publish
+                # is about a different sample and the run should cost nothing further.
+                if client is None:
+                    raise SystemExit("--verify-sample-against needs S3")
+                vbucket, vkey = _parse_s3_uri(args.verify_sample_against)
+                body = client.get_object(Bucket=vbucket, Key=vkey)["Body"].read()
+                against = shardstore.ShardManifest.from_json(body)
+                print(
+                    f"verifying the rebuilt sample against {args.verify_sample_against}",
+                    flush=True,
+                )
+                shardstore.verify_rebuilt(against, seed_fasta, shard_paths)
+                print(
+                    f"  identical to the staged sample: {len(shard_paths)} shards and the "
+                    "seed set match their recorded digests",
+                    flush=True,
+                )
+                manifest.parameter("verified_against", args.verify_sample_against)
 
         if staged is not None:
             print(

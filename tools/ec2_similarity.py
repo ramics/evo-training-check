@@ -183,6 +183,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --cap-query-denominator {cap_query_denominator} \
     --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
     --band-denominator {band_denominator} --band-shard {band_shard} \
+    {verify_flags} \
     {sample_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
@@ -322,6 +323,12 @@ def main(argv: list[str] | None = None) -> int:
     # band 2 is the same code at `--band-denominator 10`.
     ap.add_argument("--band-denominator", type=int, default=100)
     ap.add_argument("--band-shard", type=int, default=0)
+    ap.add_argument(
+        "--verify-sample-against",
+        metavar="S3_URI",
+        help="a staged manifest the rebuilt sample must match byte for byte. This is what "
+        "makes the corpus pass and the band one launch instead of two (D-142)",
+    )
     ap.add_argument("--cap-shard-points", default="1,2")
     ap.add_argument("--cap-fractions", default="0.5,0.2")
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
@@ -393,6 +400,11 @@ def main(argv: list[str] | None = None) -> int:
         measure=args.measure,
         cap_query_denominator=args.cap_query_denominator,
         band_denominator=args.band_denominator,
+        verify_flags=(
+            f"--verify-sample-against {args.verify_sample_against}"
+            if args.verify_sample_against
+            else ""
+        ),
         band_shard=args.band_shard,
         cap_shard_points=args.cap_shard_points,
         cap_fractions=args.cap_fractions,

@@ -239,3 +239,25 @@ def test_verify_all_checks_the_sidecars_too(tmp_path: Path) -> None:
     side.write_bytes(b"UniRef100_C0\t99999\n")
     with pytest.raises(ss.ShardStoreError):
         ss.verify_all(manifest, local)
+
+
+def test_a_rebuilt_sample_is_accepted_only_when_it_is_the_same_bytes(tmp_path: Path) -> None:
+    """D-142's single-launch path rests entirely on this. The staged sample has no strata
+    sidecars, so building them re-runs the corpus pass; a band over the rebuilt shards is a
+    result about the staged sample only if the two are identical, and the sampling rule being
+    deterministic is a reason to expect that rather than a reason to skip checking it."""
+    manifest, local = _sample(tmp_path)
+    seed = tmp_path / "viral-seeds.faa"
+    shards = [tmp_path / f"shard-{i:02d}.faa" for i in range(2)]
+    ss.verify_rebuilt(manifest, seed, shards)
+
+    shards[1].write_bytes(b">UniRef100_C1\nMKVLAAAB\n")
+    with pytest.raises(ss.ShardStoreError, match="sha256"):
+        ss.verify_rebuilt(manifest, seed, shards)
+
+
+def test_a_rebuild_with_a_different_partition_is_refused(tmp_path: Path) -> None:
+    """A different bucket count is a different sample, not a sample of the same thing."""
+    manifest, _ = _sample(tmp_path)
+    with pytest.raises(ss.ShardStoreError, match="different partition"):
+        ss.verify_rebuilt(manifest, tmp_path / "viral-seeds.faa", [tmp_path / "shard-00.faa"])
