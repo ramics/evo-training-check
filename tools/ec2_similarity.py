@@ -183,7 +183,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --cap-query-denominator {cap_query_denominator} \
     --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
     --band-denominator {band_denominator} --band-shard {band_shard} \
-    {verify_flags} \
+    {verify_flags} {resume_flags} \
     {sample_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
@@ -324,6 +324,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--band-denominator", type=int, default=100)
     ap.add_argument("--band-shard", type=int, default=0)
     ap.add_argument(
+        "--resume-band-from",
+        metavar="S3_URI",
+        help="a band.json an earlier run published; its completed cells are reused instead "
+        "of rebought. A spot reclaim on 2026-10-17 took the sixth cell of six, which is what "
+        "this exists for",
+    )
+    ap.add_argument(
         "--verify-sample-against",
         metavar="S3_URI",
         help="a staged manifest the rebuilt sample must match byte for byte. This is what "
@@ -400,6 +407,9 @@ def main(argv: list[str] | None = None) -> int:
         measure=args.measure,
         cap_query_denominator=args.cap_query_denominator,
         band_denominator=args.band_denominator,
+        resume_flags=(
+            f"--resume-band-from {args.resume_band_from}" if args.resume_band_from else ""
+        ),
         verify_flags=(
             f"--verify-sample-against {args.verify_sample_against}"
             if args.verify_sample_against

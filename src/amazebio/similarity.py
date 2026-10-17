@@ -578,6 +578,36 @@ class CellResult:
         }
 
 
+def cell_from_dict(raw: dict[str, Any]) -> CellResult:
+    """Rehydrate a cell published by an earlier run, so a resumed band keeps what it paid for.
+
+    The band publishes per cell and rewrites one result object, so a re-run that did not read
+    the previous one back would replace completed cells rather than add to them — losing work
+    that is already paid for, in a bucket where an overwrite is irreversible. This is the
+    read half of the skip `CellKey` documents.
+    """
+    key = CellKey(
+        shard=int(raw["shard"]),
+        sensitivity=float(raw["sensitivity"]),
+        cov_mode=int(raw["cov_mode"]),
+        seed_denominator=int(raw.get("seed_denominator", 1)),
+    )
+    if raw.get("slug") and raw["slug"] != key.slug():
+        raise ValueError(
+            f"published cell says it is {raw['slug']!r} but its own fields spell "
+            f"{key.slug()!r}; refusing to reuse a cell whose identity is ambiguous"
+        )
+    return CellResult(
+        key=key,
+        bands={int(m): list(v) for m, v in raw["bands"].items()},
+        families={int(m): [tuple(p) for p in v] for m, v in raw["families"].items()},
+        searched_clusters=int(raw.get("searched_clusters", 0)),
+        searched_residues=int(raw.get("searched_residues", 0)),
+        seeds_searched=int(raw.get("seeds_searched", 0)),
+        seed_families=int(raw.get("seed_families", 0)),
+    )
+
+
 def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
     """Aggregate completed cells into banded counts and rates, per sensitivity and reading.
 

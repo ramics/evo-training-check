@@ -68,6 +68,7 @@ def _render_user_data(**over: object) -> str:
         "band_denominator": 100,
         "band_shard": 0,
         "verify_flags": "",
+        "resume_flags": "",
         "threads": 8,
         "workers": 7,
         "budget": 7200.0,

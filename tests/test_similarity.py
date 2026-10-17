@@ -800,3 +800,51 @@ def test_the_sidecar_builds_the_index_it_exists_for() -> None:
     assert idx.totals == {"f:11157": 1, "u:UniRef100_B": 1}
     assert idx.searched_records == 2
     assert idx.unplaced_records == 1
+
+
+def test_a_published_cell_rehydrates_into_the_same_numbers() -> None:
+    """The read half of the skip. A resumed band carries completed cells forward, so it must
+    get back exactly what it published — a lossy round trip would silently change a rate."""
+    tax = _Tax({10: 11157, 11: 11158})
+    idx = sim.FamilyIndex.build([("recA", 10), ("recB", 11)], tax)
+    stream = sim.TargetStream(derive=sim.SEARCH_READINGS[2], index=idx)
+    stream.extend([sim.HitRow("s1", "recA", 0.95, 0.9, 0.9)]).close()
+    original = sim.cell_from_stream(
+        sim.CellKey(0, 7.5, 2, seed_denominator=100),
+        stream,
+        idx,
+        seeds_searched=31_381,
+        seed_families=7_366,
+        searched_residues=417_056_773,
+    )
+    back = sim.cell_from_dict(original.to_dict())
+    assert back.to_dict() == original.to_dict()
+    assert back.key == original.key
+    assert sim.combine_cells([back]) == sim.combine_cells([original])
+
+
+def test_a_published_cell_whose_slug_contradicts_its_fields_is_refused() -> None:
+    """A cell is reused on the strength of its slug, so the slug and the fields have to agree
+    or a resumed run could skip the wrong cell and report it as done."""
+    raw = sim.CellResult(
+        key=sim.CellKey(0, 5.7, 1, seed_denominator=100),
+        bands={m: [0, 0, 0, 0, 0] for m in sim.SEARCH_READINGS[1]},
+        families={m: [] for m in sim.SEARCH_READINGS[1]},
+    ).to_dict()
+    raw["slug"] = "shard00-s7.5-cov1-q100"
+    with pytest.raises(ValueError, match="identity is ambiguous"):
+        sim.cell_from_dict(raw)
+
+
+def test_resuming_does_not_change_the_combined_result() -> None:
+    """The property that makes the skip safe: five published cells plus one new one must give
+    the same answer as six computed in one run. Without it a reclaim would cost correctness as
+    well as time, since one result object is rewritten on every publish."""
+    cells = [
+        _cell(0, s, m, [10, 2, 1, 0, 0], [(1, 100), (2, 100)], denominator=100, seeds=31_381)
+        for s in sim.SENSITIVITIES
+        for m in sim.SEARCH_READINGS
+    ]
+    one_run = sim.combine_cells(cells)
+    resumed = sim.combine_cells([sim.cell_from_dict(c.to_dict()) for c in cells[:-1]] + [cells[-1]])
+    assert resumed == one_run

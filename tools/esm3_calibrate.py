@@ -198,6 +198,13 @@ def main(argv: list[str] | None = None) -> int:
         "(D-122, D-123)",
     )
     ap.add_argument(
+        "--resume-band-from",
+        metavar="S3_URI",
+        help="a band.json an earlier run published. Its cells for this same band and shard "
+        "are reused rather than recomputed, and carried into the combined result — without "
+        "it a re-run rebuys every completed cell and then overwrites them with the new one",
+    )
+    ap.add_argument(
         "--verify-sample-against",
         metavar="S3_URI",
         help="after the corpus pass, check the rebuilt shards are byte-identical to this "
@@ -906,6 +913,18 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
         if not args.skip_search:
             if args.measure == "band":
+                prior = None
+                if args.resume_band_from:
+                    if client is None:
+                        raise SystemExit("--resume-band-from needs S3")
+                    rbucket, rkey = _parse_s3_uri(args.resume_band_from)
+                    body = client.get_object(Bucket=rbucket, Key=rkey)["Body"].read()
+                    prior = json.loads(body).get("band", {}).get("cells") or []
+                    print(
+                        f"loaded {len(prior)} published cells from {args.resume_band_from}",
+                        flush=True,
+                    )
+                    manifest.parameter("resumed_from", args.resume_band_from)
                 _run_band(
                     args,
                     work,
@@ -915,6 +934,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                     taxonomy,
                     payload,
                     publish,
+                    prior,
                 )
             elif args.measure == "caps":
                 _measure_caps(
@@ -1618,6 +1638,7 @@ def _run_band(
     taxonomy: Any,
     payload: dict[str, Any],
     publish: Any,
+    prior: list[dict[str, Any]] | None = None,
 ) -> None:
     """One seed band: six cells over the target shard, each published as it finishes.
 
@@ -1676,10 +1697,36 @@ def _run_band(
     }
     publish()
 
+    # Cells an earlier run of this same band already paid for. `CellKey` documents the skip
+    # and nothing implemented it until a spot reclaim took the sixth cell of six and a re-run
+    # would have rebought the five that survived — and, because one result object is rewritten
+    # on every publish, would have replaced them with the one new cell.
     cells: list[similarity.CellResult] = []
+    done: dict[str, similarity.CellResult] = {}
+    for raw in prior or ():
+        cell = similarity.cell_from_dict(raw)
+        if cell.key.shard != shard or cell.key.seed_denominator != denominator:
+            continue
+        if cell.searched_clusters != index.searched_records:
+            raise SystemExit(
+                f"published cell {cell.key.slug()} searched {cell.searched_clusters:,} "
+                f"records against this run's {index.searched_records:,}; they are not the "
+                "same target and their counts must not be combined"
+            )
+        done[cell.key.slug()] = cell
+    if done:
+        print(f"  resuming: {len(done)} cells already published", flush=True)
+
     for sensitivity in sorted(similarity.SENSITIVITIES):
         for cov_mode in sorted(similarity.SEARCH_READINGS):
             key = similarity.CellKey(shard, sensitivity, cov_mode, seed_denominator=denominator)
+            if key.slug() in done:
+                cell = done[key.slug()]
+                cells.append(cell)
+                payload["band"]["cells"].append(cell.to_dict())
+                payload["band"]["combined"] = similarity.combine_cells(cells)
+                print(f"  skip {key.slug()} (already published)", flush=True)
+                continue
             stream = _band_cell(args, work, db, qdb, target, key, index)
             cell = similarity.cell_from_stream(
                 key,
