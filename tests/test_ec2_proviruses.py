@@ -189,3 +189,23 @@ def test_a_capacity_refusal_is_distinguished_from_a_permission_one():
 
 def test_an_unrecognised_refusal_is_not_explained_away():
     assert tool.spot_refusal("something else entirely") is None
+
+
+def test_a_watcher_that_dies_does_not_kill_a_healthy_instance():
+    """A `| head -4` on the launcher's output was enough to do exactly that.
+
+    head closed the pipe, the print raised BrokenPipeError, and the finally terminated an
+    instance thirty seconds after launch that had not yet booted far enough to emit a console
+    byte. The guard is now "did this process see the run end", not "did it time out", because
+    a dead watcher is not a finished run.
+    """
+    source = _PATH.read_text()
+    assert "observed_end" in source
+    assert 'if not observed_end and state in ("running", "pending"):' in source
+
+
+def test_the_terminate_guard_mentions_the_dead_man_timer():
+    """Leaving an instance alone is only safe because UserData armed a timer before anything."""
+    source = _PATH.read_text()
+    guard = source.index("if not observed_end")
+    assert "shutdown timer" in source[guard : guard + 800]

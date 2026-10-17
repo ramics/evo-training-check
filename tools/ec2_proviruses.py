@@ -375,7 +375,7 @@ def watch_and_collect(
     """
     deadline = time.monotonic() + args.timeout_minutes * 60
     seen = 0
-    timed_out = True
+    observed_end = False
     try:
         while time.monotonic() < deadline:
             time.sleep(args.poll_seconds)
@@ -393,7 +393,7 @@ def watch_and_collect(
                     seen = len(out)
                 if "a2-4 finished" in out:
                     print("\n=== instance reported finished ===")
-                    timed_out = False
+                    observed_end = True
                     break
             except Exception:
                 pass
@@ -402,20 +402,28 @@ def watch_and_collect(
             ]["Name"]
             if state in ("shutting-down", "terminated", "stopped"):
                 print(f"\n=== instance {state} ===")
-                timed_out = False
+                observed_end = True
                 break
     finally:
         state = ec2.describe_instances(InstanceIds=[iid])["Reservations"][0]["Instances"][0][
             "State"
         ]["Name"]
-        if timed_out and state == "running":
+        # Leave the instance alone whenever this process is giving up *without having seen
+        # the run end* — a timeout, yes, but also a watcher that died. The first version
+        # terminated on any exception, and a `| head -4` on the launcher's own output was
+        # enough: head closed the pipe, the print raised BrokenPipeError, and the finally
+        # killed a healthy instance thirty seconds after launch. The dead-man timer armed in
+        # UserData is what prevents an orphan, and it does that whether or not this process
+        # is alive.
+        if not observed_end and state in ("running", "pending"):
             bound = (
                 f"{args.hard_stop_minutes or DEFAULT_HARD_STOP_MINUTES} min from boot"
                 if launched_here
                 else "set by the launch that created it, which this process cannot read back"
             )
             print(
-                f"\nwatch window expired and {iid} is still running — leaving it alone.\n"
+                f"\nstopped watching {iid} without seeing it finish, and it is {state} — "
+                "leaving it alone.\n"
                 f"  its own shutdown timer ({bound}) bounds it.\n"
                 f"  reattach:  python3 tools/ec2_proviruses.py --attach {iid}"
             )
