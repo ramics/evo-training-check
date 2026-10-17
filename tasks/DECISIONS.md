@@ -6046,3 +6046,39 @@ decision has a threshold or parameter in it, the number goes in the entry.
   influenza and leaves the headline needing a paragraph of correction. Dropping the entry
   outright — it is on the list, and an audit that silently declines to look for a listed agent
   has chosen its own scope.
+
+### D-146 — Correction to D-144: Evo 1 is 275 Gbp, not 127, and the running band measured it
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-144 corrected D-117's corpus size and got one of its two halves wrong in the
+  same way. It reported Evo 1's Parquet at **1.00 bases per byte**, concluding that the staged
+  byte count was a fair proxy for its base count. That ratio came from comparing bases against
+  `RowGroupMetaData.total_byte_size`, which is the **uncompressed** size. Comparing sequence
+  bytes to the uncompressed size of the column holding them returns 1.00 by construction. It is
+  not a measurement, it is a tautology, and it looked like a confirmation.
+- **What the real figures are, from two independent directions.**
+  Summing the per-column `total_compressed_size` on the same row group gives 11,288,188
+  compressed bytes for 24,379,463 bases: **2.16 bases per compressed byte**. Evo 1's 127,261,074,759
+  staged bytes are therefore about **274,850 Mb**, not 127,261.
+  The first band measured it independently while this was being worked out: at rate 0.0025 it
+  sampled **375 genomes and 699,031,198 bases** of Evo 1, implying **279,612 Mb**. The two agree
+  to **1.7%**, which is the confirmation D-144 thought it had.
+  **Corrected total: Evo 1 ~277,000 Mb plus Evo 2 ~357,000 Mb, about 634,000 Mb.** A full census
+  is roughly **29,000 core-hours**; 0.25% is about 72 core-hours, and 2.5% about 720 — 90 wall
+  hours at the 8 vCPU ceiling.
+- **Decision:** Record the corrected figure and the method that produced it, and treat the
+  *measured* number as authoritative over either byte-count derivation. The band exists to
+  produce measurements; the first thing it measured was the size of the thing it is sampling.
+- **Rejected:** Quietly amending D-144. It is append-only and its arithmetic was cited in the
+  question that set this band's depth; a reader who finds 127,261 Mb there needs to find this
+  entry too.
+  Treating the 1.7% gap as disagreement. The sample is 375 genomes drawn by hash, so a couple of
+  percent either way is what it should do; the point is that two derivations that share no step
+  landed in the same place.
+- **Consequence:** **The same mistake has now been made three times in this task** — D-117 read
+  staged bytes as bases, D-144 half-corrected it and read an uncompressed size as a compressed
+  one, and both times the wrong number looked right enough to act on. The common factor is
+  deriving a quantity from a field whose meaning was assumed rather than checked. Any later
+  figure here is measured from a pass or stated as an estimate with its derivation shown.
+  Nothing about the band's depth changes: 0.25% was chosen because 2.5% was 69 hours, and at the
+  corrected size 2.5% is 90 hours, so the decision is more right than it was, not less.
