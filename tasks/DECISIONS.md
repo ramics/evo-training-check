@@ -4007,3 +4007,460 @@ decision has a threshold or parameter in it, the number goes in the entry.
   modules cite should be written where it can be read, not left as a parenthetical in an entry
   about something else.** This session escalated it once without noticing; the next task to
   inherit it would have had no way to tell the inherited reading from the decided one.
+
+### D-104 — The cost model decomposed: a linear per-search scan plus a marginal per-query term approaching linear
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-102 recorded search cost as affine in target size, with a per-query coefficient of
+  0.0001992 core-seconds per M residue, and refuted a sub-linear power law. That entry was fitted
+  on a grid spanning 8× in target size, and on the sparse-query row of the sweep that followed.
+  Both readings were wrong, in opposite directions, and the reason is worth recording because it
+  is a general trap in benchmarking: **a cost with two components cannot be characterised by
+  varying one input.**
+- **Decision:** Model cost as `core_s = F(T) + Q · g(T)`, fitting both components from two query
+  sizes at each target size. Measured on `r6i.2xlarge`, 8 threads, unsplit targets, at Q = 3,130
+  and Q = 31,381:
+
+  | target (M residues) | F (per-search, core-s) | g (per-query, core-s) | local exponent of g |
+  |---|---|---|---|
+  | 67 | 50 | 0.02156 | — |
+  | 134 | 84 | 0.03173 | 0.56 |
+  | 534 | 305 | 0.06232 | 0.49 |
+  | 2,137 | 1,240 | 0.13788 | 0.57 |
+  | 8,546 | 6,494 | 0.42834 | 0.82 |
+  | 13,351 | 9,848 | 0.62277 | 0.84 |
+
+  **`F` is linear in `T`** — 0.738 core-s per M residue at the top, which is the target scan, and it
+  is negligible at the query sizes this task will use.
+  **`g` is sub-linear but its exponent is climbing toward 1** — about 0.5 at small targets, 0.84 at
+  13,351 M residues and still rising. This is the expected physics: once the target dominates, cost
+  becomes proportional to it. **The chord exponent over the whole range, 0.635, therefore
+  understates the real pass and must not be used to extrapolate.** Plan against the linear bound.
+  **Where each earlier error came from.** The 0.36–0.48 exponent in D-101 was fitted where the
+  constant term dominated. D-102's "affine, linear" came from the sparse-query row, where `F` — which
+  is genuinely linear — dominates, so the per-search scan was mistaken for the per-query term. Each
+  fitted its own data well and generalised wrongly.
+  **Large query size needs no further measurement.** Per-query cost at T = 8.3 M residues is 0.01003
+  at Q = 315,266 and 0.00994 at Q = 3,159,223 — within 1%. Beyond roughly 300,000 queries the
+  marginal cost is flat, so the real query size is multiplication rather than a regime to explore.
+- **Consequence:** the exhaustive **charitable** pass over the whole corpus (Q = 3,159,223,
+  T ≈ 288,000 M residues after dropping the nested UniRef90 and UniRef50 tiers) is **11,800
+  core-hours at the linear bound, 7,200 at the observed 0.84** — about **$240 to $450** on
+  `c6i.2xlarge` spot at $0.16/hour, or $450 to $740 on `r6i.2xlarge` on demand. With the strict
+  reading's measured 3.2× multiplier, both readings come to roughly **$1,000 on spot** before the
+  hit-cap correction in D-105. **That makes the exhaustive pass affordable, so A1.6 scores every
+  record and reports no sampled rate.** D-101's sampled design is withdrawn, and with it the
+  clustering, design-effect and denominator problems a corpus sample would have carried.
+  Artefacts: `calibration-rate2000-grid.json` and `calibration-rate10-targetsweep.json` under
+  `s3://amazebio-corpora-897641797669/corpora/results/a1-6/`.
+- **Rejected:** Extrapolating the fitted 0.635 — it is a chord across a range whose slope is still
+  increasing, and using it would understate the pass by about three-fold in the project's favour.
+  Measuring the large-query, large-target corner directly — proposed, then found unnecessary, since
+  query linearity above 300,000 is already measured and the corner is the product of two measured
+  quantities. Sampling the corpus to save money — the money is no longer the constraint, and a
+  sample cannot support the per-family all-clear statement the exhaustive pass can.
+
+### D-105 — Search parameters for the authoritative pass, fixed before any result is produced
+- **Date:** 2026-10-16 14:51 UTC
+- **Task:** A1.6
+- **Context:** §2 and the working conventions require thresholds and parameters fixed before results
+  are inspected, recorded with their timestamp. A1.6 has now run enough calibration that the author
+  can see which settings produce which costs, which is precisely the condition under which a
+  parameter choice stops being neutral. Fixing them here, with the measurements that justify each.
+  The policy threshold itself is **not** in scope: D-015 fixed the three readings and nothing below
+  revisits them.
+- **Decision — six parameters, each with its measured justification.**
+
+  **1. Aligner: `mmseqs2 18.8cc5c`** (D-093). The source names no version, so there is nothing to
+  match; the pin is ours and is reported as such.
+
+  **2. Orientation: seed set as query, corpus as target, sharded.** Re-confirmed rather than
+  assumed. D-094 chose it on a measurement taken at default parameters; the obvious objection is
+  that the question is per corpus record, so the cap belongs on the corpus side and could be set to
+  1. Re-measured with `--max-seqs 1` in the reversed orientation: it ran **over 30 minutes without
+  completing** against the forward orientation's **503 seconds** on identical data. The forward
+  orientation stands.
+
+  **3. Sensitivity: `-s 5.7`** (the tool's default). Chosen not because it is complete but because
+  both alternatives are worse in measured, specific ways, over 15,845 seeds against 2,058,701
+  records:
+  - `-s 2.0` is 2.08× faster and **loses 5 records at identities 0.737, 0.771, 0.791, 0.836 and
+    0.863** — well above the 0.70 cut. That is real recall loss, and it biases toward *understating*
+    leakage, which §2 treats as the same failure as overstating it. The 2× saving is refused.
+  - `-s 7.5` is 2.66× slower and does **not** dominate: it finds 31 records `-s 5.7` misses and
+    loses 51 that `-s 5.7` finds.
+
+  **4. Coverage: `-c 0.8 --cov-mode 1`.** Not a free choice: these are the flags ESM3 states for its
+  own clustering, and they are the only parameter guidance anywhere in the source.
+
+  **5. Hit cap: `--max-seqs 100000`, with a saturation guard that fails the run.** The default of 300
+  caps hits per *seed*, and at full corpus scale each seed would match on the order of 10⁴–10⁵
+  records, so the cap would bind hard — and it truncates worst for the corpus records matching the
+  most seeds, which are the most viral-like ones. Measured: capping at 20, a ratio of about 12% of
+  true hits per seed, **lost 983 of 18,046 distinct records — 5.4%**. Raising 300 → 5,000 at a scale
+  where the cap does not bind cost 1.62× for 0.21% more records, so the correction is not free.
+  Because a number alone cannot be defended across shard sizes, the commitment is a **guard**: the
+  pass records the maximum hits per seed on every shard, and if any seed reaches the cap the run
+  reports its counts as a **lower bound** and refuses to publish them as a result until the cap is
+  raised. A silent truncation is the failure mode this guard exists to make impossible.
+
+  **6. Reporting: identity bands, not a single threshold.** 8.07% of hit rows — 14,050 of 174,180 —
+  lie between 0.70 and 0.75 identity, and the records on which two sensitivity settings disagree are
+  98% inside that band. So the removed set is not sharply defined even given a threshold, and the
+  threshold itself was inferred from one sentence about an evaluation set (D-015). Every figure
+  therefore ships banded, with the 0.70–0.75 band shown separately from ≥0.75, so a reader can see
+  how much of the result balances on the inferred cut.
+- **Rejected:** `-s 2.0` for its 2× saving, per the recall measurement above — recorded explicitly
+  because the saving was attractive and the author had already seen the price. `-s 7.5` as a gold
+  standard — it is not a superset of `-s 5.7`, so calling it one would be false. A bare
+  `--max-seqs` number with no guard — the cap's effect depends on the shard size it runs against,
+  and an unverified number would reintroduce exactly the silent truncation that this entry exists to
+  prevent. Reporting one number at 0.70 — it would hide that an eighth of the evidence sits within
+  five points of an inferred boundary.
+- **Consequence:** these are fixed. A later task changing any of them changes a published parameter
+  and needs its own entry saying so. **A finding falls out of parameter 6 that belongs in the
+  write-up rather than only here:** ESM3's filter is not reproducible even in principle from its
+  published description, because at the margin its output depends on search parameters the paper
+  does not state — and 8% of matches sit at that margin. The unpublished threshold is not a tidy
+  omission; it is most of the uncertainty.
+
+### D-106 — The unpublished threshold is verified across every reachable source, and the version of record is the one gap
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-015 reads ESM3-open's identity threshold as unpublished and infers 0.70 for the
+  charitable reading. Every ESM3 figure in this audit rests on that, and D-105 has just made the
+  claim load-bearing for a published parameter set. The claim had been carried forward since
+  2026-10-13 without being re-tested, which for the central under-specification finding of the ESM3
+  arm is not good enough — §7 assumes a reader who checks exactly this.
+- **Decision:** Re-verify by exhaustive machine search rather than recollection, and record the
+  result including what remains unchecked.
+  **The preprint is confirmed, by sweeping every page for identity, threshold, denylist and select
+  agent rather than re-reading the section we knew about.** The filter sentence carries no number:
+  "We then remove all sequences from the training set that are detected to align to those in the
+  denylists by MMseqs2 at or above a given sequence identity threshold" (p67). Every other 70% in
+  the paper belongs to a different procedure — validation purging via `mmseqs easy-search` (p38),
+  the worked deduplication example of clustering at 90% then 70% (p38), and the held-out evaluation
+  set, "the chains in PDB that were > 70% sequence identity hits to the Viral Denylist" (p69). That
+  last is the sentence D-015 infers from, and seeing all of them together strengthens rather than
+  weakens the reading: the figure exists in the paper three times and never as the filter's
+  parameter.
+  **Four sources never previously checked, all negative.** The `evolutionaryscale/esm` repository
+  cloned in full and searched — 283 files, no denylist implementation, no MMseqs invocation, no
+  identity threshold, the only numeric identity being an unrelated 58% in a GFP tutorial. The
+  ESM3 launch post on evolutionaryscale.ai. The Europe PMC record: PMID 39818825, `inPMC` N,
+  `isOpenAccess` N, `hasSuppl` N. The HuggingFace model card, re-confirmed.
+  **One gap, and it is the one a reviewer checks first.** `S-ESM3-SCIENCE`
+  (doi 10.1126/science.ads0018) is still `unretrieved`: both the article and its supplementary file
+  return 403. A1.5's earlier check established only that no *correction* is registered against it,
+  which is a different question from what it says. Europe PMC reporting no supplementary is that
+  publisher-independent index's metadata, not Science's own, so it does not settle the point.
+  **A fact recovered by the sweep that was previously recorded as unknown.** The Select Agent
+  Denylist's size *is* published: "This process gives us 147K non-viral sequences and 40K additional
+  viral sequences" (p67) — 187K in total. A1.6 had been treating that size as unknown and as the
+  thing deciding whether an exhaustive select-agent pass was affordable. It is small, so that pass
+  is cheap, and 187K is a validation target for the select-agent reconstruction in exactly the way
+  ~4M is for the viral one (D-100).
+- **Rejected:** Leaving the claim as carried forward from D-015 — it is the ESM3 arm's central
+  finding and had not been tested since the day it was written. Treating Europe PMC's `hasSuppl` N
+  as proof that no supplementary exists — it is an index's view of a closed-access record, and
+  Science hosts its own supplementary files. Inferring from the absence of a threshold in the
+  repository that none was ever used — the repository ships inference code, not the training
+  pipeline, so its silence is weak evidence and is recorded as such.
+- **Consequence:** the wording stands for now, with its scope stated: the threshold is unpublished
+  **in every source this project can reach**, which is not the same as unpublished. **This is an open
+  item against the Phase A write-up, not just against A1.6.** If the version of record states the
+  threshold, D-015 is superseded, the literal reading becomes decidable, the charitable reading's
+  0.70 may be wrong, and the ESM3 similarity pass has to be re-run at the stated value — so it must
+  be settled before the authoritative pass, not after. The project owner has access and is
+  retrieving it; a PDF capture with a sha256 in `sources.json` is what the convention requires,
+  since quotes are machine-verified against their source and a pasted excerpt cannot be cited.
+
+### D-107 — The threshold is confirmed unpublished in the version of record, and the omission is selective
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-106 left one gap: the Science version of record and its supplementary materials,
+  unreachable from this container. The project owner supplied all three files. `S-ESM3-SCIENCE-SM`
+  is 101 pages and is the version of record of the appendix the preprint calls A.6.
+- **Decision — D-015 stands, now against the version of record rather than a preprint.** The filter
+  sentence on p47 of the supplementary materials is **word for word identical to the preprint**:
+  "We then remove all sequences from the training set that are detected to align to those in the
+  denylists by MMseqs2 at or above a given sequence identity threshold." After peer review, in
+  Science, it is still "a given sequence identity threshold". The two occurrences of "identity
+  threshold" in 101 pages are this one and the validation purge on p23; the three occurrences of
+  70% are the purge, the deduplication worked example, and the held-out evaluation set on p48. The
+  charitable reading's 0.70 remains an inference, the literal reading remains `undetermined`, and
+  **no ESM3 result needs re-running.**
+- **The finding is stronger than "unpublished", and this is the form it should take in the
+  write-up.** The authors publish complete MMseqs parameter sets for **four** other procedures in
+  the same document:
+
+  | procedure | page | published flags |
+  |---|---|---|
+  | clustering the training data | 21 | `--kmer-per-seq 100 --cluster-mode 2 --cov-mode 1 -c 0.8 --min-seq-id <seqid>` |
+  | validation purge | 23 | `--alignment-mode 3 -c 0.8 --cov-mode 0 --max-seqs 300 --max-accept 3 --start-sens 2 -s 7 --sens-steps 3` |
+  | similarity of generations to training set | 29 | `--cov-mode 2 -c 0.8 -s 6.0` |
+  | GFP pretraining-exposure search | 45 | `-s 6 -a --max-seqs 10000` |
+
+  The safety filter is the **only** MMseqs procedure in the paper whose parameters are withheld, and
+  it is the one the open release's safety case rests on. That is not a stylistic omission: the same
+  authors, in the same appendix, state flags four times when they choose to. §A0 asks what
+  under-specification costs; here it can be stated precisely — the filter cannot be reproduced from
+  the paper while every other search in it can.
+- **Three secondary confirmations, all unchanged from the preprint.** The Select Agent Denylist is
+  "147K non-viral sequences and 40K additional viral sequences" (p47), confirming the 187K D-106
+  recovered. The total removed is 10.6M (p47). The scope list is still "including PDB, UniRef,
+  MGnify, and JGI" (p47), so whether OAS, AlphaFoldDB and ESMAtlas were filtered remains unstated.
+  "Almost exclusively" is still unquantified.
+- **D-032's two under-specification findings survive peer review.** The UniRef tier is still
+  unstated — p21 says only "UniRef release 2023 02 is downloaded and parsed from the official
+  UniRef website", and Table S3's 70%/90% columns are ESM3's own clustering, not UniRef's tiers.
+  **The JGI date still contradicts itself in the version of record**: p21 prose says "July 31st,
+  2023" and Table S3 on p76 says "July 30th, 2023". Both were reported to a journal, peer reviewed,
+  and published uncorrected.
+- **One correction to D-105, in our disfavour.** D-105 justified `-c 0.8 --cov-mode 1` as "the flags
+  ESM3 states for its own clustering, the only parameter guidance anywhere in the source". That was
+  true of the preprint reading and is now too strong: the paper uses **three different coverage
+  modes** for three procedures (1 for clustering, 0 for the purge, 2 for the similarity search), and
+  the filter's is unstated. So coverage mode is a three-way reading, not a single piece of guidance,
+  and the authoritative pass must report its sensitivity to that choice rather than presenting
+  `--cov-mode 1` as recovered.
+- **One upgrade to D-094 and D-105, in our favour.** The orientation was chosen on a timing
+  measurement; the source states it. "For each denylist, MMseqs was used to query against the full
+  set of training databases" (p47) — the denylist is the query and the training databases are the
+  target, which is exactly the forward orientation. It is no longer only the fast choice, it is the
+  stated one. It also makes D-105's hit-cap guard clearly necessary rather than precautionary: with
+  the denylist as query, one seed matches very many corpus records, which is the regime a per-query
+  cap truncates.
+- **Rejected:** Adopting the validation purge's flags for the filter because they are the closest
+  published analogue — tempting, and wrong: the purge runs the opposite way round, with the filtered
+  set as query, so its `--max-accept 3` and `--max-seqs 300` are sound for its per-query existence
+  test and would truncate badly in the filter's stated orientation. Treating the JGI contradiction
+  as a typographical slip now that it has appeared twice — it is a dated snapshot of a set whose
+  membership changes, so the day matters, and it has now survived review.
+- **Consequence:** D-106's open item is closed. Every ESM3 claim can now cite the version of record;
+  `S-ESM3-SCIENCE-SM` is registered as retrieved with its sha256, so quotes against it are
+  machine-verified. The Phase A write-up should lead this finding with the four-procedure table
+  rather than with the bare word "unpublished".
+
+### D-108 — The pass splits by denylist, not by corpus: the narrow arm exhaustive, the broad arm sampled
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-101 made the pass sampled on cost, D-104 made it exhaustive when the cost came
+  down, and the question was put to the project owner a third time as a choice between cutting the
+  corpus and sampling it. That framing was wrong and the owner rejected it. Cost is linear in the
+  size of the **query** set — the reconstructed denylist — as much as in the target, and the two
+  denylists differ in size by orders of magnitude. The expensive arm and the high-stakes arm are
+  not the same arm, which neither D-101 nor D-104 noticed.
+- **Decision — scope by which question each arm answers, and spend accordingly.** A1.6 splits into
+  three claims with three different methods:
+
+  | claim | method | why this method |
+  |---|---|---|
+  | could a filter of this design work at all | already answered, no alignment | A4.3's ceilings — filter scope against corpus composition, and label coverage — cap what any filter built this way achieves regardless of what leaked |
+  | did anything on the narrow denylist survive | **exhaustive, whole corpus** | the arm that needs an all-clear rather than a rate, and its query set is small enough that the whole corpus is affordable even pessimistically |
+  | how much ordinary viral material survived | **sampled, rate with interval** | an aggregate quantity, where a rate with an interval is the honest form and the project's house style everywhere else |
+
+  The reconstructed 3.16M-cluster viral denylist (D-100) is the expensive query set and buys an
+  aggregate number, so it is sampled. The narrow denylist is a small subset of it and buys the
+  statement the audit rests on, so it is scored against every record. **Neither the corpus cut nor
+  a uniform sample is taken.** D-101's sampled design returns for the broad arm only; D-104's
+  exhaustive design stands for the narrow arm only.
+- **Consequence:** the two arms report in different forms and must not be pooled. The broad arm's
+  output is a survival rate with an interval and no per-record manifest, so A2.* and B3.* consume
+  A1.4's manifest shape from the narrow arm and a rate from the broad one — every downstream
+  consumer needs telling which it is reading, as D-101 already required. The sampling design for
+  the broad arm is not fixed here and is its own entry: the clustering and denominator problems
+  D-104 named as reasons against a corpus sample are real and have to be answered before the broad
+  arm runs, not after.
+- **Still open, and not resolved by this entry:** the handling and reporting rules for the narrow
+  arm. Its scope is now settled — exhaustive — but it is the output the §4 reporting limits and the
+  X3.1 gate are written for, and what may be said about it, at what granularity, and what waits on
+  disclosure is a separate decision the project owner has not yet made. The arm is not built until
+  that exists.
+- **Rejected:** Cutting the corpus to one component — a proportional saving that gives up coverage
+  of a stated component of the training data, for a saving the query-side split makes unnecessary.
+  Sampling both arms — cheapest, and it forfeits the all-clear statement on exactly the arm that
+  needs it. Keeping both arms exhaustive — defensible, roughly four figures, and the broad arm's
+  extra precision buys an aggregate number no downstream task has asked to be per-record.
+
+### D-109 — The broad arm's sampling design: 2.5% by accession hash, three sensitivities, $26 of a $30 ceiling
+- **Date:** 2026-10-16
+- **Task:** A1.6
+- **Context:** D-108 made the broad arm sampled. Two constraints from the project owner: total spend
+  of about $30, and a sweep over parameters rather than a single setting, because the filter's own
+  parameters are unpublished (D-105, D-107) and a result at one setting would hide how much of it
+  rests on our inference. A sweep multiplies cost by the number of cells, so the first question is
+  which parameters genuinely need their own search.
+- **Decision — three parameters come free, one costs, and that sets the sample size.**
+
+  **Free: the identity threshold.** D-105 parameter 6 already commits to reporting in identity
+  bands. One search at the lowest threshold of interest emits every higher threshold by binning
+  `fident` from `convertalis`. The entire threshold range — including the literal reading's
+  undetermined cut and the charitable 0.70 — is one search, not one per value. This was already
+  implied by banded reporting and is stated here because it is the single largest saving available.
+
+  **Free: coverage mode.** D-107 made `--cov-mode` a three-way reading rather than recovered
+  guidance. It is recoverable by post-filter: search with coverage filtering relaxed, emit `qcov`
+  and `tcov` alongside `fident`, and each of the three modes is a predicate over those two columns
+  at `-c 0.8`. One search, three readings. **Not free of risk, and the one unmeasured item here:**
+  relaxing the filter admits more rows into alignment and into the output, so it raises both cost
+  and the chance the hit cap binds. That cost is folded into the hit-cap measurement already on
+  A1.6's list, and the design is provisional on it. If relaxing coverage turns out to cost more than
+  running three cov-modes separately, three cells is the fallback and this entry is superseded.
+
+  **Costs: sensitivity.** `-s` cannot be post-filtered — it changes what is found, and D-105 measured
+  that the settings are not nested: `-s 7.5` finds 31 records `-s 5.7` misses and loses 51 it finds.
+  So the sweep over sensitivity is the real multiplier, and it is the one worth paying for, because
+  `-s` is **our** parameter rather than the publisher's, and the sweep is what distinguishes a
+  property of the filter from a property of our instrument.
+
+  **The arithmetic, from D-104's fitted model and D-105's measured ratios.** At `c6i.2xlarge` spot,
+  $0.16/hour for 8 vCPU, a core-hour is $0.02, so $30 is 1,500 core-hours. D-105's relative costs
+  make the three-sensitivity sweep 4.14 cost units against 1.0 for `-s 5.7` alone — 0.48 at `-s 2.0`
+  (2.08× faster) and 2.66 at `-s 7.5`. That leaves 362 core-hours per unit. Interpolating `g` from
+  D-104's table at Q = 3,159,223 puts a 2.5% target sample at about 313 core-hours per unit, so the
+  sweep is **about 1,296 core-hours, $26**, inside the ceiling with headroom for the cap measurement.
+  The model is checked against its own endpoint: extrapolating `g` linearly from the 8,546 M-residue
+  row to the full 288,000 M-residue target reproduces D-104's 11,800-core-hour figure, so the
+  interpolation is being used inside the range it was fitted on.
+
+  **The sample: 2.5% of records, selected by a seeded hash of the accession.** A prefix is not a
+  sample, because UniRef is ordered by accession — already recorded in A1.6's state and restated
+  because it is the error this design exists to avoid. The hash is deterministic and seeded through
+  `amazebio.repro`, so the sample regenerates exactly.
+- **The clustering and denominator problems, which D-104 raised as reasons against sampling and
+  which D-108 declined to treat as solved.** Both are real and neither is answered by a larger
+  sample:
+  - **Design effect.** Binomial error at n ≈ 8.8M records is below 0.01% and is not the binding
+    constraint. Viral material is clumped by family, so the effective sample size for any
+    family-level statement is the number of distinct **families** drawn, not records. The pass
+    therefore reports the realised family count alongside every rate, and intervals are computed
+    with a design effect estimated from between-family variance rather than as binomial. **A rate
+    whose interval is quoted as binomial would be wrong by whatever that factor is**, and quoting it
+    is how this objection gets answered rather than dismissed.
+  - **Denominator.** UniRef's is exact — 350,950,053 clusters, reconciling with the publisher's own
+    count (D-100). MGnify's is not: its granularity is unstated (A1.5), so its denominator carries a
+    reading. The two components are therefore **reported separately and never pooled into one rate**,
+    which also keeps D-108's prohibition on pooling the two arms from being quietly broken one level
+    down.
+- **Consequence:** the broad arm ships a table of rates by identity band, by coverage reading and by
+  sensitivity, per corpus component, each with a design-effect interval and its realised family
+  count — not a single number. The parameter sweep is itself a finding in the shape D-105
+  described: if the rate moves materially across settings the paper does not state, then the
+  filter's effect is not determined by its published description, and the spread is the result.
+- **Rejected:** One cell at the fixed `-s 5.7` and a 10% sample — four times the precision on a
+  quantity whose error is already dominated by the design effect rather than by sample size, bought
+  by giving up the only check on whether the number is a property of the filter or of our aligner
+  settings. A threshold sweep as separate searches — unnecessary, and it would have consumed the
+  budget that bought the sensitivity sweep. Pooling UniRef and MGnify into one rate — tidier to
+  present and it would launder an unstated granularity into an exact-looking denominator.
+  A larger sample inside the same budget by dropping to `-s 2.0` only — D-105 already refused that
+  setting on measured recall loss that biases toward understating leakage, and the budget is not a
+  reason to reopen it.
+
+### D-110 — Evo 1's version of record is retrieved, and the procedure A2.1 re-executed is word-for-word the published one
+- **Date:** 2026-10-17
+- **Task:** A2.1 (bearing on A0.1, A0.3, A1.1, A7.1)
+- **Context:** Every Phase A result against Evo rests on `policies/specs/evo1-*.yaml`, which are this
+  project's machine-readable reading of **the preprint**. The version of record was registered as
+  blocked since A1.1 (`S-EVO1-SCIENCE`: science.org 403; Europe PMC holds PMC12057570 but serves
+  a reCAPTCHA behind an HTTP 200). A2.1 had re-executed all six rules over both releases and spent
+  about twenty hours of compute on a ten-fold deepening on that footing. The project owner asked
+  the obvious question — are the rules identical to the ones the developers used — and then
+  supplied the four files.
+- **Decision:** The version of record is retrieved, registered and checked, and the specs are
+  **left unchanged**, because the check found nothing to change. What was verified, by machine
+  rather than by eye:
+  **The procedure is in the main text, not the supplement** — p12, "OpenGenome datasets". This is
+  the opposite of ESM3 (D-106), where the main text deferred everywhere to an appendix, and it is
+  why the supplement was not the file that settled this.
+  **The procedure paragraph is character-for-character identical to the preprint's Appendix B.2**,
+  after normalising whitespace and the hyphenation the PDF extractor inserts, **except for two
+  copy-edits**: `High-confidence` is lowercased to `high-confidence`, and an `and` is inserted
+  before the last of the twelve orders. Nothing else differs across 1,169 characters.
+  **All three enumerations match in both directions.** Every one of the 19 families, 12 orders and
+  8 stop taxa in the specs appears in both sources; and every taxon name in either source's
+  procedure paragraph — 39 of them — is carried by the specs. No name is in the papers and absent
+  from our rules; none is in our rules and absent from the papers. The stated counts, "19
+  families" and "12 orders", match the lists they introduce.
+  **The one lowercased word is checked against the database rather than the prose.** The rule reads
+  IMG/VR's `Confidence` column, and the staged release's own values are `High-confidence`,
+  capitalised and hyphenated, in all 9,720 rows of the sample read. So the specs match the
+  database token; the version of record's prose does not, and an implementation built from that
+  prose with a case-sensitive comparison would retain nothing. Recorded because it is exactly the
+  kind of difference that looks like nothing and is not.
+  **Scope is confirmed as the literal reading has it.** The three pretraining sources are GTDB
+  v214.1, IMG/VR v4 and IMG/PR; the exclusion steps are described for IMG/VR alone, GTDB gets
+  species-representative dereplication and IMG/PR one representative per plasmid taxonomic unit,
+  and **no viral screening step is described for either**. A4.3's scope finding stands on the
+  version of record now, not on the preprint.
+  **The data availability statement names the release this audit staged** —
+  `huggingface.co/datasets/LongSafari/open-genome`, "including training, validation, and test
+  splits" — which is what A1.2 staged and A1.4 and A2.1 read. The A1.1 gate's premise is confirmed
+  by the version of record.
+  **Table S2 independently confirms A7.1's census.** The supplement publishes the IMG/VR subset as
+  2,653,046 genomes, 36,236 M bases, average length 13,658; A7.1 counted 2,653,047 records,
+  36,236,025,613 bases, mean 13,658.4. One record apart, and agreeing at published precision
+  otherwise. Note the table is **S2 in the version of record and S3 in the preprint**, so D-055's
+  citation of "Table S3" resolves only against the preprint.
+- **Rejected:** Repointing the specs' rule citations from the preprint to the version of record.
+  The preprint is CC-BY and committed, every quotation in the specs is machine-verified against it
+  (60 quotations, 0 problems), and the version of record is a subscription article whose
+  redistribution here is already flagged for review before publication. Citing the paywalled
+  version for text that is identical would buy nothing and cost reproducibility for any reader
+  without access. The specs keep the preprint; this entry is what records that the version of
+  record agrees.
+  Also rejected: treating the two copy-edits as immaterial and not writing them down. One of them
+  is a database token.
+- **Consequence:** **A2.1's findings stand on the published procedure.** The phage result — that
+  what survives in Evo 1's released viral component is overwhelmingly prokaryote-infecting, which
+  the policy keeps deliberately — is now anchored in the version of record's own words: the
+  component is introduced as "curated prokaryotic viruses", and the host rule's stated purpose is
+  "to remove potential eukaryotic viruses". The eukaryotic-family detections in Evo 2 are
+  untouched by this check, because that component ships no taxonomy for any rule to act on.
+  The write-up may now say "the procedure as published in the version of record" rather than "as
+  published in the preprint", which matters for a paper that names laboratories.
+  What is still open: Fig. S1B (supplement p4) is the developers' own pie chart of host kingdoms in
+  the *filtered* IMG/VR subset. If it shows eukaryotic-host viruses surviving, that is their own
+  published figure of leakage, and A2.5 should read it against this project's result rather than
+  rediscovering it. The figure is an image, so reading it needs a person or a different tool.
+
+### D-111 — The developers' own figure says the host kingdom is unknown for 89.5% of what their filter kept
+- **Date:** 2026-10-17
+- **Task:** A2.1 (the finding belongs to A4.1 and A2.5)
+- **Context:** `S-EVO1-SCIENCE-SM` p4, Fig. S1, captioned "We excluded viruses that are likely to
+  infect eukaryotic hosts (Materials and Methods)", is the developers' own breakdown of the
+  corpus their filter produced. D-110 flagged it as needing a person because it is an image. It
+  does not: the figure is one 3422x1841 RGB raster, and **the legends print each category's N**,
+  so the numbers are read rather than estimated and no wedge was measured.
+- **Decision:** The figure's numbers are recorded here as published values, reconciled against
+  Table S2 before being believed.
+  **Panel A, realm:** Duplodnaviria 2,628,512 (99.075%), Monodnaviria 17,781 (0.670%),
+  **Riboviria 6,105** (0.230%), Other 648 (0.024%).
+  **Panel B, host kingdom:** **Unknown 2,374,733 (89.510%)**, Bacteria 276,569 (10.425%),
+  Archaea 1,744 (0.066%).
+  **Both panels sum to exactly 2,653,046**, which is Table S2's IMG/VR count and one record below
+  A7.1's census of the staged release. So these describe the whole filtered corpus, not a sample,
+  and they are consistent with what this project staged.
+  **The Archaea legend is a typo in the paper and the intended value is recoverable.** It prints
+  `N = 17,44`. 17,440 would overshoot the corpus by 15,696; 1,744 closes the three categories to
+  2,653,046 exactly. Recorded as the publisher's error with the arithmetic that settles it, rather
+  than quoted as printed or silently corrected.
+- **Rejected:** Measuring the pie wedges by counting pixels per colour, which was the plan before
+  the legends turned out to carry N. It would have been a worse number for no reason — a wedge
+  angle recovers a share to about a tenth of a degree, while the legend gives the count exactly.
+  Also rejected: leaving this for A4.1 to rediscover. It sits on page 4 of a 60 MB subscription
+  PDF that the audit could not retrieve at all until today.
+- **Consequence:** **A4.1's question is partly answered by the developers themselves.** The rule
+  that was supposed to remove eukaryotic viruses keeps "only sequences whose assigned taxonomic
+  classification was found within a prokaryotic host at least twice" — and their own figure says
+  the host kingdom is **unknown for 89.5% of the records that survived it**. Whatever that rule
+  did, it did not establish a prokaryotic host for nine records in ten. A4.1 should treat this as
+  the published figure to reconcile against, and say so.
+  **A2.5 gets a target with a count.** 6,105 Riboviria survived, and `r:Riboviria` is one of the
+  eight stop taxa the unspecificity rule names. Some are genuinely phage — A2.1 detected
+  Leviviricetes in its own sample — so this is a population to audit record by record, not a
+  leakage claim, and now it has a size.
+  **A2.1 is unaffected.** Its figures stand as reported; this entry adds context from the primary
+  source rather than changing a number. The 24,534 non-Duplodnaviria survivors (0.92%) are the
+  obvious place for the structural and problem-taxa detectors to look first.

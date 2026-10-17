@@ -113,9 +113,111 @@ rules out the cheap end of the estimate, so **A1.6 now targets a sampled pass re
 rates with intervals rather than per-record manifests over the whole corpus**. Downstream consumers
 of these manifests need telling.
 
-**Waiting on the project owner:** nothing right now. The spend decision for the full pass comes
-after the redesigned calibration reports a figure.
+**Update 2026-10-16, second.** Calibration is finished and the search parameters are fixed
+(D-104, D-105). The cost model separates a per-search target scan, linear in target size, from a
+marginal per-query term whose exponent climbs from 0.5 to 0.84 over a 200-fold range and is still
+rising, so the pass is planned against the linear bound. **The exhaustive charitable pass over the
+whole corpus is about $240-450 on spot, both readings roughly $1,000 — so A1.6 scores every record
+and the sampled design of D-101 is withdrawn**, along with the clustering and denominator problems
+a corpus sample would have carried. Parameters are fixed with their measurements: `-s 5.7`,
+`-c 0.8 --cov-mode 1`, `--max-seqs 100000` behind a saturation guard that fails the run rather than
+truncating silently, seeds as query, and reporting in identity bands because 8% of matches sit
+between 0.70 and 0.75.
 
+**Left:** the select-agent seed set; the `--max-seqs` cost measured where the cap actually binds;
+spot support in the launcher; then the authoritative pass.
+
+**Waiting on the project owner:** the spend decision for the authoritative pass, now that it has a
+figure — about $240-450 for the charitable reading, roughly $1,000 for both.
+
+
+## Handoff — 2026-10-16
+
+`in-progress`. **The code is merged — PR #18 landed on `main`, nothing is left on a branch.**
+`src/amazebio/seeds.py`, `tools/esm3_seeds.py`, `tools/esm3_calibrate.py`,
+`tools/ec2_similarity.py` and their tests are all on `main`, along with decisions D-092 to
+D-107. Read those plus this block and you have the task; there is no branch to find.
+
+**Settled.** The viral seed set is measured and stored: 3,159,223 viral-seeded clusters of
+350,950,053, the latter matching the publisher's own count exactly (D-100). The FASTA is in
+the results prefix beside two preserved calibration grids. The cost model is characterised
+over a 200-fold range and plans against its conservative bound (D-104). Search parameters
+are fixed with their measurements (D-105), with one correction in D-107: coverage mode is a
+three-way reading, not recovered guidance, so the pass reports sensitivity to that choice.
+The unpublished threshold is confirmed against the version of record, and the omission is
+selective — four other procedures in the same appendix carry full parameter sets (D-107).
+Sampling is no longer forced by cost, so D-101's sampled design is withdrawn.
+
+**Left, in order.** The second seed set is not built, and two questions gate it, each needing
+its own decision entry: how organism names map to taxonomy ids, which the published list does
+not do for you; and which version of that list was in force when the filter ran, since the
+source cites a 2024 access date and the retrievable page is live and undated. Then the hit
+cap's cost measured where it binds, spot support in the launcher, and the pass.
+
+**Waiting on the project owner.** The scope and handling of the second arm. It is the part of
+this task whose output the §4 reporting limits and the X3.1 gate are written for, and it was
+being planned as simply the cheaper arm to run first, which is the wrong frame. That needs
+settling before the arm is built, not after. Splitting the remaining work into its own task id
+is the tidier option under the one-task-per-file rule and is the owner's call, since ids are
+permanent and cited.
+
+
+## Scope settled — 2026-10-16, third
+
+The pass **splits by denylist rather than by corpus** (D-108). The cost/stakes split runs along the
+query set, not the target, and the two denylists differ in size by orders of magnitude — so the arm
+that needs an exhaustive all-clear is not the expensive arm.
+
+- **Narrow denylist — exhaustive, whole corpus.** Small query set, affordable against every record
+  even pessimistically. This is the arm that has to support "nothing survived", which a sample
+  cannot.
+- **Broad viral denylist (3.16M clusters) — sampled, rate with an interval.** It buys an aggregate
+  number, and a rate with an interval is the honest form and the project's house style.
+- **The design question is already answered without any alignment.** A4.3's ceilings — filter scope
+  against corpus composition, and the label coverage its rules depend on — cap what a filter of this
+  design achieves whatever leaked. No pass is needed for that claim.
+
+Neither the corpus cut nor a uniform sample is taken. D-101 returns for the broad arm only; D-104
+stands for the narrow arm only. **The two arms report in different forms and must not be pooled** —
+downstream consumers need telling which they are reading.
+
+**Left, in order.** The broad arm's sampling design, which is its own decision entry and must answer
+the clustering and denominator problems D-104 raised *before* the arm runs. The hit cap's cost
+measured where it binds. Spot support in the launcher. Then the two passes.
+
+**Still waiting on the project owner — and this one blocks.** The handling and reporting rules for
+the narrow arm. Its scope is settled; what may be said about its output, at what granularity, and
+what waits on X3.1 is not. The arm is not built until that decision exists.
+
+## Sampling design fixed — 2026-10-16
+
+D-109. Owner constraints: about $30 total, and a sweep rather than one setting.
+
+**Three of the four parameters cost nothing extra.** The identity threshold comes free from banded
+reporting — one search at the lowest cut emits every higher one. Coverage mode comes free by
+emitting `qcov`/`tcov` and post-filtering, which turns D-107's three-way reading into three
+predicates over one search. Sensitivity is the one that cannot be post-filtered, because D-105
+measured that the settings are not nested, and it is the sweep worth paying for: `-s` is our
+parameter, so the sweep separates a property of the filter from a property of our instrument.
+
+**So the budget buys a 2.5% sample across three sensitivities — about 1,296 core-hours, $26** on
+`c6i.2xlarge` spot, from D-104's fitted cost model and D-105's measured ratios, checked against
+D-104's own full-pass endpoint.
+
+**The two objections D-104 raised are answered in the design, not waved through.** Intervals use a
+design effect from between-family variance, not binomial — at this n the binomial error is under
+0.01% and is not the real uncertainty — and every rate ships with its realised family count. UniRef
+and MGnify are reported separately because MGnify's granularity is unstated, so its denominator
+carries a reading that must not be pooled into an exact-looking number.
+
+**One item is unmeasured and the design is provisional on it:** relaxing coverage to allow the
+post-filter admits more rows, so it raises cost and may make the hit cap bind. That folds into the
+hit-cap measurement already on the list. If it costs more than three separate coverage cells, three
+cells is the fallback and D-109 is superseded.
+
+**Left, in order.** The hit-cap and relaxed-coverage cost measured together where they bind. Spot
+support in the launcher. Then the broad arm's sampled pass. The narrow arm stays blocked on the
+owner's handling decision.
 
 ## Notes
 
