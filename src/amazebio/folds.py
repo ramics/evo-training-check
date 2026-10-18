@@ -16,14 +16,14 @@ jelly-roll receptor-binding head and the HA2 fusion stalk — different folds do
 jobs. Searching the literal phrase "RNA-dependent RNA polymerase" in ECOD's names returns 81
 birnavirus subdomains and misses every canonical RdRp family, because those are named for Pfam.
 
-**Selection is at the family level and not one level up** (D-166, corrected by D-168). ECOD's
+**Selection is at the family level and not one level up** (D-166, corrected by D-169). ECOD's
 `jelly-roll` X-group holds 15,906 Concanavalin A-like lectins and 9,881 galactose-binding
 domains beside the viral capsids, and viral RdRp sits under topologies named for adenylyl
 cyclases and reverse transcriptases. D-166 established that and then, for the capsid fold only,
 selected one level up anyway — at the H-group `Nucleoplasmin-like/VP (viral coat and capsid
 proteins)`. That group is "nucleoplasmin-*like*": it carries 867 plainly cellular domains
 (nucleoplasmin itself, peptide-N-glycanase, Cu(2+) monooxygenase, TGF-beta propeptide) and 12 of
-its 119 curated representatives are cellular. D-168 applies the family-level rule consistently,
+its 119 curated representatives are cellular. D-169 applies the family-level rule consistently,
 so :data:`JELLY_ROLL_CAPSID` enumerates the 64 demonstrably viral families of that H-group and
 excludes both the cellular ones and ECOD's two unnamed families, one of which contains a
 cellular enzyme (`e1pgsA1`, peptide-N-glycanase).
@@ -186,7 +186,7 @@ JELLY_ROLL_CAPSID = (
     "10.2.1.103",  # Vp24_capsid
 )
 
-#: Families of the same H-group that are *not* viral capsids and are excluded (D-168). Recorded
+#: Families of the same H-group that are *not* viral capsids and are excluded (D-169). Recorded
 #: by identifier rather than merely omitted, because what a denominator leaves out is as much a
 #: part of the membership rule as what it admits — and because the exclusion is a correction to
 #: a recorded decision, so a reader must be able to check it. 867 domains, 12 representatives.
@@ -218,7 +218,7 @@ EXCLUDED_CELLULAR_CAPSID = (
     "10.2.1.104",  # Disaggr_repeat
 )
 
-#: ECOD's two unnamed families in that H-group, also excluded (D-168). An unnamed family is
+#: ECOD's two unnamed families in that H-group, also excluded (D-169). An unnamed family is
 #: domains ECOD placed in the group without assigning them a family, so its membership cannot be
 #: stated — and `10.2.1.0` demonstrably holds a cellular enzyme (`e1pgsA1`, peptide-N-glycanase,
 #: PDB 1pgs), which is what settles it. 665 domains, 10 representatives.
@@ -239,7 +239,7 @@ EXCLUDED_UNNAMED_CAPSID = ("10.2.1.0", "10.2.1.52")
 #:
 #: D-166's prose named six families by way of example (`RdRP_1`, `RdRP_3`, `RdRP`,
 #: `Birna_RdRp_palm`, `Birna_RdRp_C`, `CoV_RPol_N`) and its artefact was never shipped, so the
-#: list below is re-derived (D-168). Those six names alone select 1,441 domains and 18
+#: list below is re-derived (D-169). Those six names alone select 1,441 domains and 18
 #: representatives and miss influenza PB1, flavivirus NS5, the mononegavirus and bunyavirus L
 #: polymerases and the coronavirus thumb — all canonical viral RdRps. The re-derivation lands at
 #: 30 representatives against D-166's recorded 31.
@@ -297,7 +297,7 @@ EXCLUDED_HOST_RNAI = (
 #: fibritin trimerization domain, several hundred cellular families in all.
 #:
 #: D-166 recorded 9,606 domains and 16 representatives; its list was never shipped and this
-#: re-derivation lands at 7,361 and 14 (D-168). The gap is not padded: approaching D-166's figure
+#: re-derivation lands at 7,361 and 14 (D-169). The gap is not padded: approaching D-166's figure
 #: needs either the coronavirus S1 beta domain (receptor binding, not fusion) or ECOD's unnamed
 #: families in the `MPER trimer` topology, and neither is a class I fusion glycoprotein.
 CLASS_I_FUSION = (
@@ -353,7 +353,7 @@ FOLDS: tuple[Fold, ...] = (
         note=(
             "ECOD's Nucleoplasmin-like/VP H-group under X-group jelly-roll, restricted to its "
             "demonstrably viral families. 25 cellular families and 2 unnamed families are "
-            "excluded by identifier (D-168)."
+            "excluded by identifier (D-169)."
         ),
     ),
     Fold(

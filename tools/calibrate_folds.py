@@ -17,7 +17,7 @@ rather than promised.
 not a real test: three shuffled reference domains returned no hit at all at `-e 1000` during the
 probe, so a threshold calibrated on composition-matched noise would be calibrated on nothing.
 The decoys that matter are *real proteins that share the fold and are not viral*, and D-166 and
-D-168 enumerated exactly those while deciding what to exclude — the cellular families of the
+D-169 enumerated exactly those while deciding what to exclude — the cellular families of the
 capsid H-group (nucleoplasmin, peptide-N-glycanase, Cu(2+) monooxygenase, TGF-beta propeptide)
 and the host RNAi polymerase families that share the viral RdRp fold. Those are the false
 positives this detector can actually make, so they set the cut. Four classes are measured:
@@ -210,8 +210,15 @@ def entry_chains(pdb: str, cache: Path) -> dict[str, str]:
     """Every chain's SEQRES sequence for one PDB entry, from RCSB's FASTA.
 
     RCSB groups identical chains into one record — `>1HX6_1|Chains A, B, C|...` — so the header
-    is expanded to one key per chain id. Both `Chain X` and `Chains X, Y` appear, and author ids
-    can carry a bracketed label (`A[auth B]`), which is split to the author id ECOD names.
+    is expanded to one key per chain id. Both `Chain X` and `Chains X, Y` appear.
+
+    **Both the label id and the author id are registered**, because ECOD names the author id and
+    RCSB prints the label id first: poliovirus 1HXS reads `Chain D[auth 4]` where ECOD's domain
+    is `e1hxs11` on chain `4`. Keying on the label alone silently dropped 269 of 1,600 staged
+    queries, and the loss was not random — it fell on the multi-chain picornavirus and rhinovirus
+    capsid depositions, which is to say on the positive class for the largest of the three folds.
+    A sensitivity figure measured with those missing would have understated exactly the fold the
+    audit cares most about.
     """
     dest = cache / f"{pdb}.fasta"
     if not (dest.exists() and dest.stat().st_size > 0):
@@ -249,9 +256,13 @@ def entry_chains(pdb: str, cache: Path) -> dict[str, str]:
             return
         ids = label.split(None, 1)[1] if " " in label else ""
         for raw in ids.split(","):
-            cid = raw.strip().split("[")[0].strip()
-            if cid:
-                out[cid] = seq
+            token = raw.strip()
+            if not token:
+                continue
+            label, _, bracket = token.partition("[")
+            for cid in (label.strip(), bracket.replace("auth", "").strip(" ]")):
+                if cid:
+                    out.setdefault(cid, seq)
 
     with dest.open() as fh:
         for line in fh:
@@ -565,7 +576,7 @@ def main(argv: list[str] | None = None) -> int:
             "detector": "foldseek",
             "registry": "ECOD",
             "registry_version": folds.ECOD_V295_2.version,
-            "decision": "D-169",
+            "decision": "D-170",
             "geometry": {
                 "query": "corpus protein sequence, 3Di predicted by ProstT5",
                 "target": "the 141 pinned reference structures",

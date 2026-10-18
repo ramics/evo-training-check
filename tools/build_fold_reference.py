@@ -249,7 +249,7 @@ def build(
 def universe_manifest(domains: list[folds.ReferenceDomain]) -> dict[str, Any]:
     """The fold universe as an artefact: every fold's membership rule and what it selected.
 
-    This is the list D-166 required to ship with the table and D-168 re-derived. It carries the
+    This is the list D-166 required to ship with the table and D-169 re-derived. It carries the
     excluded identifier lists too, because a reader checking the membership rule needs to see
     what was deliberately left out, not infer it from absence.
     """
@@ -262,7 +262,7 @@ def universe_manifest(domains: list[folds.ReferenceDomain]) -> dict[str, Any]:
         "registry_sha256": folds.ECOD_V295_2.sha256,
         "classified_domains": folds.ECOD_V295_2.classified_domains,
         "selection_level": "ECOD F-group (family), by enumerated identifier",
-        "decisions": ["D-166", "D-168"],
+        "decisions": ["D-166", "D-169"],
         "folds": [
             {
                 "fold_id": f.fold_id,

@@ -6,7 +6,7 @@ The universe tests guard the membership rule. D-166 established that selecting t
 level up imports lectins, adenylyl cyclases and bZIP transcription factors, and that regex over
 family names matches a phage tail protein under HIV's envelope name. The rule that avoids all of
 that is an enumerated list of exact family identifiers, so what has to be tested is that the
-lists stay disjoint, stay exact, and stay separate from the identifiers D-168 deliberately
+lists stay disjoint, stay exact, and stay separate from the identifiers D-169 deliberately
 excluded — a family drifting from the excluded list into an included one is the regression that
 would put peptide-N-glycanase back in the capsid reference set without anything failing.
 
@@ -66,7 +66,7 @@ def test_no_family_belongs_to_two_folds():
 
 
 def test_excluded_families_are_not_also_included():
-    """The exclusions are the correction D-168 made; drifting back in is silent contamination."""
+    """The exclusions are the correction D-169 made; drifting back in is silent contamination."""
     included = {fam for fold in folds.FOLDS for fam in fold.families}
     for name, excluded in (
         ("cellular capsid", folds.EXCLUDED_CELLULAR_CAPSID),
@@ -78,7 +78,7 @@ def test_excluded_families_are_not_also_included():
 
 
 def test_the_cellular_capsid_families_name_the_measured_ones():
-    """Spot-check the exclusions that motivated D-168, by identifier rather than by count."""
+    """Spot-check the exclusions that motivated D-169, by identifier rather than by count."""
     excluded = set(folds.EXCLUDED_CELLULAR_CAPSID)
     # Nucleoplasmin itself — the cellular protein ECOD's H-group is named "like".
     assert "10.2.1.31" in excluded
@@ -372,12 +372,12 @@ def test_an_unparseable_range_is_refused(build_tool, entry, tmp_path):
 
 
 def test_universe_manifest_carries_the_rule_and_the_exclusions(build_tool):
-    """D-166 requires the list to ship with the table; D-168 requires the exclusions with it."""
+    """D-166 requires the list to ship with the table; D-169 requires the exclusions with it."""
     body = build_tool.universe_manifest([_domain()])
     assert body["registry_version"] == "v295.2"
     assert body["registry_sha256"] == folds.ECOD_V295_2.sha256
     assert "enumerated identifier" in body["selection_level"]
-    assert set(body["decisions"]) == {"D-166", "D-168"}
+    assert set(body["decisions"]) == {"D-166", "D-169"}
     assert [f["fold_id"] for f in body["folds"]] == [f.fold_id for f in folds.FOLDS]
     assert body["folds"][0]["families"] == list(folds.JELLY_ROLL_CAPSID)
     assert body["excluded"]["host_rnai_families"] == list(folds.EXCLUDED_HOST_RNAI)
