@@ -6237,3 +6237,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
   confirming a withdrawn guess is an hour not spent on the scoring pass. Leaving D-146 standing
   with a correction appended inline — it is append-only, and D-146's headline claim is wrong
   rather than incomplete.
+
+### D-151 — Detection is cached per release and component, because only the route varies by reading
+- **Date:** 2026-10-18
+- **Task:** A2.4
+- **Numbering:** appended as D-150 and renumbered to D-151 on 2026-10-18. A1.8's D-150 was already on `main`; this entry was cited from nothing, so it is the cheaper to move. This is the second time A2.4 has done this — the number was written into the heredoc before the headings were re-read, which is the one thing `AGENTS.md`'s rule exists to prevent.
+- **Context:** The first band at 0.25% ran overnight and produced, in eight hours, the charitable
+  reading for both releases and nothing else. Watching it showed why: `tools/detect_proviruses.py`
+  looped over A1.4's manifests and did the whole detection inside that loop — read the corpus,
+  sample, run geNomad, search the registries — once per manifest. Evo 1 appears in three readings
+  and Evo 2 in three, so that is **six detection passes where two would do**.
+  The duplication is pure. The sampled genomes, the provirus calls and the profile hits are
+  properties of the release and the component; **the only reading-specific part is the route** —
+  `out_of_scope` under charitable and literal, where no rule reaches GTDB, and
+  `retained_by_design` under strict's wildcard scope.
+- **Decision:** Cache the detection on `(release, component)` and apply the route per manifest.
+  The cache holds route-free hits, so a route can never be stamped onto a reading it did not come
+  from; a reused source row carries `reused: true`, so a reader can tell a measured row from a
+  carried-over one; and the concordance travels with the cache for the same reason the hits do.
+  The reuse branch was **exercised before launch** rather than trusted: a local probe over Evo 1's
+  three readings ran geNomad once and reused it twice, which is the behaviour and not just the
+  code path.
+- **Rejected:** Deriving the literal and strict tables from the charitable ones by hand. For GTDB
+  the charitable and literal routes are identical, so literal's tables would be a copy — but
+  `AGENTS.md` requires every number to trace to an artefact a pipeline produced, and a table
+  assembled by editing another table is exactly what that forbids.
+  Keeping the duplication and buying a bigger budget. The four remaining manifests of the first
+  band would have cost about eleven hours and produced no measurement that the first two had not
+  already made.
+  Letting the running band finish. It had roughly eleven hours of work left against eleven and a
+  half hours of its own shutdown timer, with the VIBRANT arm uncounted, so it would have been cut
+  mid-manifest having spent the night on relabelling.
+- **Consequence:** A 0.25% band over both releases is about seven hours including setup rather
+  than about nineteen, and a 2.5% band is about 33 wall hours rather than a hundred. The
+  arithmetic that made 2.5% look unaffordable in D-144 and D-145 was measuring a pipeline doing
+  three times the work it needed to; with D-149's measured rate and this fix, the depth question
+  is open again on much better terms.
+  The first band's charitable results are preserved at
+  `corpora/results/a2-4/band1-run1-20261018/` rather than being overwritten, because D-149 cites
+  their numbers and the corpus bucket has no delete.
