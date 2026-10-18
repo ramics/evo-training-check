@@ -1873,7 +1873,12 @@ def _run_band(
             publish()
             for group in payload["band"]["combined"]["groups"]:
                 r = group["rate"]
-                lead = "at least " if r["lower_bound"] else ""
+                # `net_direction`, not `lower_bound`. The flag marks one axis — the seed
+                # sample understates — while "at least" claims the whole figure is a floor,
+                # which D-154 says it is not and D-159 forbids for this arm. `Rate.describe`
+                # was fixed for that; this printer renders the same number by hand and kept
+                # the old rule, so the qualifier survived in the one place anyone reads.
+                lead = "at least " if r.get("net_direction") == "lower" else ""
                 shown = "n/a" if r["rate"] is None else f"{lead}{r['rate']:.4%}"
                 lo, hi = r["ci95"]
                 span = "" if lo is None else f" (95% CI {lo:.4%}-{hi:.4%})"

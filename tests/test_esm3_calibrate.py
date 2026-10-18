@@ -610,3 +610,18 @@ def test_the_launcher_watches_the_key_it_told_the_instance_to_write() -> None:
     assert (
         'f"amazebio-{args.results_task}-{args.measure}"' in launcher
     ), "the instance Name tag made the two arms indistinguishable in a console listing"
+
+
+def test_no_renderer_claims_a_bound_from_the_seed_axis_alone() -> None:
+    """Two code paths render this number and only one was fixed the first time.
+
+    `Rate.describe` stopped saying "at least" on `lower_bound` alone (D-154, D-159), but the
+    band printer in this tool formats the same figure by hand and kept the old rule, so the
+    qualifier D-154 bars went on being printed. Asserted over the source across both files,
+    because the next hand-rolled renderer will make the same mistake.
+    """
+    for path in (_PATH, _PATH.parent.parent / "src" / "amazebio" / "similarity.py"):
+        src = path.read_text()
+        for line in src.splitlines():
+            if '"at least "' in line:
+                assert "net_direction" in line, f"{path.name}: {line.strip()}"
