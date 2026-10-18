@@ -732,6 +732,17 @@ its own entry. An earlier version of this note told you to do it next; D-156 wit
   `corpora/uniprotkb/2023_02/knowledgebase2023_02.tar.gz`, 182.7 GB — **do not download it again**.
 - **Use the measured 11.8% unplaced share** (D-152), not A4.2's 36%, which measured something else.
 - **Design effects are 239-557.** A binomial interval understates by 15-24x.
+- **A band re-run overwrites band 1 unless you rename its artefact.** `--measure band` defaults
+  to `band.json`, which already holds a published result, and this bucket has no `DeleteObject`
+  — so the overwrite is irreversible. Pass `--artefact-name` something new. Found 2026-10-18
+  while setting up D-160's re-run, before launching rather than after.
+- **Do not `--resume-band-from` a re-run that exists to emit something new.** A resumed cell is
+  skipped, and a skipped cell emits nothing — so a resume would have produced six reused cells,
+  zero seed-hit sidecars, and an artefact that looked complete. The resume is right for
+  recovering a reclaim and wrong for changing what a cell records.
+- **The staged sample carries no strata sidecars**, so every band owes its own 52.5-minute
+  corpus pass (D-142, and `sample_source: corpus-pass` in band 1's own artefact). Budget it:
+  it is the difference between a 4-hour band and a 5-hour one.
 
 ### The process lesson, three times in one task
 
