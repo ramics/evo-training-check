@@ -7200,3 +7200,40 @@ decision has a threshold or parameter in it, the number goes in the entry.
   calibration — the reference set searched against shuffled or unrelated queries — to pick a
   bit score at a stated false-discovery rate, with its two bracketing values fixed in the same
   breath, as `metrics/survival.md` requires. Nothing in this entry has looked at a corpus hit.
+
+### D-168 — A deferred gate keeps `gate: true` with empty `blocks`, and the second lockfile goes
+- **Date:** 2026-10-18
+- **Task:** X1.1 (repo audit)
+- **Context:** A quality audit of the repo turned up two things needing a recorded call rather
+  than a silent fix. First, `AGENTS.md`'s gate table said "Five tasks carry `gate: true`" and
+  listed C2.2 as a live gate holding leakage-score results, while omitting C6.3 entirely. Six
+  tasks carry the flag. C2.2 was deferred in DESIGN v0.4 and superseded by C5.1–C7.1 (D-009),
+  and it carries `blocks: []` with nothing depending on it — so the gate the operating manual
+  described as structurally impossible to walk past held nothing, while C6.3, which actually
+  holds C7.1 and X4.1, was undocumented. Second, the repo root carries both `pixi.lock` and a
+  129-byte `uv.lock` containing one editable root entry and no dependencies, referenced by
+  nothing and git-ignored nowhere. It arrived on `main` in `2ffeab5`, whose message reads
+  "Project management only."
+- **Decision:** A gate that `DESIGN.md` has declined keeps `gate: true` and carries `blocks: []`
+  deliberately, and the gate table says so in its own row. The flag is what keeps a declined
+  commitment visible as deliberately not run — the same reason `deferred` exists — so removing
+  it would erase the commitment rather than record its supersession. The table now lists all
+  six, names C6.3 as the live gate on Phase C results, and states that `tasks/BOARD.md`'s
+  generated Gates section is authoritative where the two disagree. `uv.lock` is deleted and
+  `uv` artefacts are git-ignored.
+- **Rejected:** Dropping `gate: true` from C2.2 — it passes `board.py --check` either way, and
+  the flag is the only thing marking C2.2 as a commitment that was made and then declined
+  rather than a task that was never a gate; the paper names it as future work and needs that
+  distinction. Adding a `board.py --check` rule that a gate must carry non-empty `blocks` —
+  it would fail on exactly this legitimate case, and the owner declined it when offered.
+  Keeping `uv.lock` on the grounds that it is harmless — it pins nothing and cannot reproduce
+  the environment (the conda-side toolchain has no PyPI path this project pins), so a second
+  lockfile in the root invites a contributor to resolve from the one that pins nothing, against
+  the pin-everything non-negotiable.
+- **Consequence:** Neither is a finding; both are repo hygiene. The gate table change is
+  documentation catching up with D-009 and does not move any gate: A3.3, B5.1, C6.3 and X3.1
+  all stay `HOLDING`, A1.1 stays `PASSED`, and C2.2 stays `deferred`. One thing the audit
+  surfaced is *not* resolved here and is left to the owner: `AGENTS.md`'s gate table is
+  hand-maintained against generated frontmatter with nothing checking the two agree, so it can
+  drift again. The new line pointing at `BOARD.md` as authoritative is a mitigation, not a
+  mechanism.
