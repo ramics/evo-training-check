@@ -596,6 +596,22 @@ binomial than those entries implied.
 **Waiting on the project owner: the spend for steps 2 and 3.** Band 1 is authorised and paid for,
 and the cell in flight completes it. Everything after it is a fresh launch and none is authorised.
 
+**Coming from A1.8, unprompted and worth waiting for rather than duplicating.** Its UniProtKB
+pass is counting at release **2023_02** — the release ESM3 names, which matters because UniProt
+has since lost about 40% of its entries, so a current-release count would prove nothing. That
+pass counts the Viruses superkingdom in the same sweep, since it reads every OX line anyway and a
+separate run would mean a second 182.7 GB download. So **a viral entry count at the correct
+release is on its way**, to check this arm's reading against the stated ~4M.
+
+Two things to keep straight about what that buys. It validates the **reading** — whether "annotated
+as viral in UniProt" was interpreted as they interpreted it — and **not the seed set**, which
+nothing published can validate (D-150). And it does not reinstate the 4M as corroboration for the
+3,159,223 UniRef100 clusters; those remain different objects.
+
+The archive is also being staged permanently at `corpora/uniprotkb/2023_02/`, so a different viral
+reading is an in-region re-read rather than another download. **Do not start a UniProtKB pass for
+this arm** — it is already being paid for once.
+
 **The measured unplaced share is D-152, not the 36% D-140 and D-141 reason from.** That entry
 records why both conclusions stand anyway.
 
