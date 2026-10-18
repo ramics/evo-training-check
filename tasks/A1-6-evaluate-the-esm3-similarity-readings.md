@@ -671,6 +671,76 @@ that align almost exclusively to other viral sequences changes what the numbers 
 band 2 only makes them more precise. It is a seeds-against-UniProtKB pass, and A1.8 is staging
 that archive in-region, so it is affordable.
 
+
+## Note for the next session — 2026-10-18
+
+**Read in this order:** D-134, D-153, D-154, **D-156** (which corrects D-154), then this block.
+D-156 is the one that changes what you do.
+
+### Where the task is
+
+Branch `ccr-81045ff3-7u9p0a`, 946 tests, full `check` green, nothing left on a branch that
+matters — the instrument is all there. Band 1 is **complete and paid for**:
+`corpora/results/a1-6/band-complete.json`, nine groups over shard 0's 1,097,174 records from
+31,381 seeds (1/100). Two launches, one spot reclaim, one resume, about $0.75. No instance is
+running.
+
+### The one thing to get right before touching anything
+
+Band 1 ran the **strict** reading's seed set (annotated-viral only) against the **charitable**
+reading's 0.70 threshold, and D-153 labelled the 0.70 column "charitable". That combination is not
+one of the three readings D-015 fixed. **The fix is relabelling, not recomputation** (D-156):
+
+- the **any-identity** column is the strict reading proper, since strict removes on any detected
+  hit — ≥1.5473% to ≥4.0975% across our settings, and these **are** clean lower bounds, because
+  the only sampling error on that reading is the 1/100 seed sample;
+- the **0.70** column is the strict seed set at the charitable threshold, which is a hybrid and
+  should be named as one — 0.6537% to 0.6844%, remarkably flat across settings;
+- the **charitable reading's seed set is not executable** from the published text, because clause
+  (b) ("align almost exclusively to other viral sequences") carries no number and D-015 declined
+  to invent one. That is a §A0 finding to report, not a gap to close.
+
+**Do not implement clause (b)** unless the project owner asks for it as a *fourth* reading with
+its own entry. An earlier version of this note told you to do it next; D-156 withdraws that.
+
+### What is genuinely left
+
+1. **Relabel the write-up per D-156.** No compute. This is the whole of the correction.
+2. **Stage the strata sidecars** — `--stage-sidecars-only`, one launch, about $0.20. Saves every
+   later band and A1.8 a 52-minute corpus pass. Needs the owner's go-ahead.
+3. **A per-cell heartbeat before band 2.** The heartbeat covers the corpus pass only; a search
+   cell publishes nothing until it finishes. Band 1's longest cell was a 95-minute silence in
+   which a live run and a dead one are indistinguishable from outside — survivable because the
+   cell is the unit, and dangerous at band 2's ~15.8-hour cells. `AGENTS.md` has the general form.
+4. **Band 2** (`--band-denominator 10`) only if the owner authorises it. Its value is now the
+   *seed* axis alone: the 0.70 figure is already flat across sensitivities, so what band 2 buys is
+   how far the bound rises as the seed sample deepens — the only available evidence about the gap
+   to a full-seed rate. Not authorised.
+
+### Things that will bite you
+
+- **Resume from the band artefact with the most cells, never the newest.** `band-complete.json`
+  is published holding **no cells** hours before the last one lands, because `publish()` runs
+  before the band stage. Open each candidate and count `band.cells`. A resumed run also needs
+  `--artefact-name` pointing somewhere new, and the tool refuses the same-key case outright.
+- **The watcher dies at 2 hours** in this harness, three times over in this task. The run
+  survives; the launcher's `finally` termination does not. Poll object storage and terminate
+  explicitly, or the boot-armed timer bills the remainder.
+- **Nothing published can validate either seed set** (D-150). ESM3's stated sizes count UniProtKB
+  entries; we count UniRef100 clusters. A1.8 is producing a viral entry count at release 2023_02
+  which validates the *reading* only. UniProtKB 2023_02 is staged at
+  `corpora/uniprotkb/2023_02/knowledgebase2023_02.tar.gz`, 182.7 GB — **do not download it again**.
+- **Use the measured 11.8% unplaced share** (D-152), not A4.2's 36%, which measured something else.
+- **Design effects are 239-557.** A binomial interval understates by 15-24x.
+
+### The process lesson, three times in one task
+
+D-150 was a caveat sitting quietly in code. D-154 was a qualifier sitting quietly in a docstring.
+D-156 was a decision already recorded in `policies/specs/` that nobody re-read. Each time a number
+travelled without the thing that qualified it. **Before treating a gap as work, check whether a
+fixed reading already governs it** — and when you carry a seed set, artefact or figure forward,
+carry its qualifier into the result, not into a note beside it.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

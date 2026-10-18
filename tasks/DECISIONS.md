@@ -6457,3 +6457,56 @@ decision has a threshold or parameter in it, the number goes in the entry.
   detector and kind, so the merge is a join. The depth question goes to the project owner: at
   D-149's measured rate with D-151's de-duplication, 2.5% is about 33 wall hours and $7, which
   exceeds one instance's window and so needs a longer timer or per-object resumability.
+
+### D-156 — Correction to D-154: the annotation-only seed set is the strict reading's, by design; band 1 mixed two readings
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-154 treated the seed set's omission of clause (b) — "align almost exclusively to
+  other viral sequences in UniProt" — as a gap to be closed, and named closing it the next
+  priority. Reading `policies/specs/` before implementing it shows that is wrong, and that the
+  readings were fixed on this exact point by D-015.
+  - **`esm3-open-strict.yaml` deliberately drops the clause**, in its own words: "Drop the
+    'almost exclusively' narrowing: everything annotated as viral in UniProt seeds the denylist,
+    which is what 'data related to viruses' says." So the annotation-only seed set **is** the
+    strict reading's seed set. It is not a defective charitable seed set.
+  - **`esm3-open-charitable.yaml` keeps the clause and leaves it unquantified**, also explicitly:
+    "'Almost exclusively' stays unquantified and is not reinterpreted here — the charitable
+    reading supplies the one number it can argue for from the text, and leaves the other gap
+    visible."
+- **So the real defect in band 1 is a labelling error, not a missing computation.** It ran the
+  **strict reading's seed set** against the **charitable reading's 0.70 threshold**, and D-153
+  reported the 0.70 column as "the charitable reading". That combination is **not one of the three
+  readings D-015 fixed**. The arithmetic is sound and the artefact is fine; what was wrong is the
+  name attached to the column.
+- **Decision — three parts.**
+  1. **Band 1 is relabelled, not rerun.** Its nine groups are the strict seed set at three
+     identity cuts, three coverage readings and three sensitivities. The 0.70 column is "the
+     strict seed set at the charitable reading's threshold" and the any-identity column is the
+     **strict reading proper**, since strict removes on any detected hit. On that reading band 1
+     already reports a reading as fixed: ≥1.5473% to ≥4.0975% depending on our settings.
+  2. **"At least" is restored for the strict reading, and only there.** Against the strict seed
+     set the only sampling error is the 1/100 seed sample, which understates. D-154 was right that
+     the figures are not clean bounds *for the charitable reading* and wrong to generalise it:
+     for the strict reading they are clean lower bounds.
+  3. **Clause (b) is not implemented.** Quantifying "almost exclusively" would add a number D-015
+     deliberately declined to invent, and §A0 treats the unquantifiable gap as the finding. The
+     charitable reading's seed set is **not executable**, and that is a result to report rather
+     than a problem to solve. If the project owner later wants it quantified it is a **fourth**
+     reading with its own entry, not a correction to the charitable one.
+- **The owner's question is answered by the source, not by a pass.** Asked whether the matching
+  material is simply the undistinctive parts of viruses, the charitable spec already records the
+  authors' own consequence: because clause (b) requires near-exclusive viral alignment, "sequence
+  with cellular homologs never entered the seed set, so virus-associated protein families with
+  cellular relatives are outside this filter by construction, at any threshold." So under their
+  own rule the answer is the reverse of the worry — the shared-with-hosts material was never
+  targeted, which is why the strict reading exists and why §B is where that question is settled.
+- **Rejected:** Implementing clause (b) as D-154 proposed — it invents the number D-015 declined,
+  and it would have been spent before anyone noticed the readings already covered this. Rerunning
+  band 1 — the computation is right. Leaving D-154 standing with this appended inline — the log is
+  append-only and D-154's headline recommendation is wrong rather than incomplete.
+- **Consequence:** A1.6's deliverable is the strict reading's surviving-record figures plus the
+  finding that the charitable reading's seed set cannot be executed from the published text. One
+  process point, the third of its kind in this task: D-150 was a quiet caveat in code, D-154 was a
+  quiet qualifier in a docstring, and this was a decision already recorded in `policies/specs/`
+  that nobody re-read. **Before treating a gap as work, check whether a fixed reading already
+  governs it.**
