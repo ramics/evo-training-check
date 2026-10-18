@@ -147,3 +147,57 @@ def test_the_pinned_release_names_the_members_the_archive_actually_holds() -> No
     assert RELEASE_2023_02["members"] == ("uniprot_sprot.dat.gz", "uniprot_trembl.dat.gz")
     assert RELEASE_2023_02["bytes"] == 182_691_908_438
     assert RELEASE_2023_02["sprot_entries"] == 569_516
+
+
+def test_a_token_split_across_a_block_boundary_is_still_counted() -> None:
+    """The bug that cost a three-hour pass, reduced to its mechanism.
+
+    `\\nID   ` is six bytes. A block boundary landing inside it leaves neither block holding
+    the whole token, so the entry vanishes — unless the remainder is carried across, which is
+    what `scan_chunks` does and what calling it once per block throws away. Over 249,308,459
+    entries and 162,000 boundaries the real run lost 126, which no output revealed; only the
+    publisher's own total did.
+    """
+    for offset in range(1, 6):
+        cut = FLAT.index(b"\nID   ", 10) + offset
+        blocks = [FLAT[:cut], FLAT[cut:]]
+        assert scan_chunks(blocks, DENYLIST).entries == 4, offset
+
+
+def test_an_ox_line_split_across_a_block_boundary_is_still_counted() -> None:
+    for offset in range(1, 16):
+        cut = FLAT.index(b"OX   NCBI_TaxID=") + offset
+        blocks = [FLAT[:cut], FLAT[cut:]]
+        counts = scan_chunks(blocks, DENYLIST)
+        assert counts.with_taxon == 4, offset
+        assert counts.seeded == 3, offset
+
+
+def test_calling_once_per_block_is_what_loses_them() -> None:
+    """Pinned as a property of the API, so the misuse is documented rather than rediscovered.
+
+    This is not an endorsement of the pattern — it is the demonstration that it is wrong, and
+    the reason `on_chunk` exists so a caller never needs it.
+    """
+    cut = FLAT.index(b"\nID   ", 10) + 3
+    blocks = [FLAT[:cut], FLAT[cut:]]
+
+    whole = scan_chunks(blocks, DENYLIST)
+    per_block = TaxonCounts()
+    for block in blocks:
+        scan_chunks([block], DENYLIST, None, per_block)
+
+    assert whole.entries == 4
+    assert per_block.entries == 3, "the split token is lost when state is not carried"
+
+
+def test_on_chunk_reports_progress_without_breaking_the_stream() -> None:
+    seen: list[int] = []
+    counts = scan_chunks(
+        [FLAT[i : i + 40] for i in range(0, len(FLAT), 40)],
+        DENYLIST,
+        on_chunk=lambda running: seen.append(running.entries),
+    )
+    assert counts.entries == 4
+    assert seen and seen[-1] == 4
+    assert seen == sorted(seen), "the running count only goes up"

@@ -39,7 +39,7 @@ Three consequences worth stating before someone tries to improve on them:
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 
 from amazebio.seeds import Attribution, EntryCounts
@@ -125,6 +125,7 @@ def scan_chunks(
     attribution: Attribution | None = None,
     counts: TaxonCounts | None = None,
     viral: frozenset[int] | None = None,
+    on_chunk: Callable[[TaxonCounts], None] | None = None,
 ) -> TaxonCounts:
     """Count entries and denylisted taxa over a decompressed flat-file byte stream.
 
@@ -132,6 +133,15 @@ def scan_chunks(
     are not records and a record will straddle them, so the tail after the last newline is
     held back and prepended to the next block; that makes the result independent of the block
     size, which a test asserts across several.
+
+    **Pass the whole stream in one call.** The remainder lives in this frame, so calling it
+    once per block throws that state away between blocks and silently loses any token the
+    boundary splits. A1.8's first full run did exactly that and came up 126 entries short of
+    the release statistic across 249,308,459 — about what a six-byte token and 162,000 block
+    boundaries predicts. It was caught only because the publisher's own total is checked;
+    nothing in the output looked wrong. `on_chunk` exists so that a caller wanting progress
+    reports has no reason to break the stream up: it is called after each block with the
+    running counts.
     """
     out = counts if counts is not None else TaxonCounts()
     remainder = b""
@@ -145,6 +155,8 @@ def scan_chunks(
             continue
         body, remainder = buffer[: cut + 1], buffer[cut + 1 :]
         _absorb(out, body, denylist, attribution, viral)
+        if on_chunk is not None:
+            on_chunk(out)
     if remainder:
         _absorb(out, remainder + b"\n", denylist, attribution, viral)
     return out

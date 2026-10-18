@@ -357,28 +357,40 @@ def run(args: argparse.Namespace, client: Any, bucket: str, prefix: str) -> int:
                 counts = uniprotkb.TaxonCounts()
                 inner = gzip.GzipFile(fileobj=handle)
                 last = time.monotonic()
-                for chunk in uniprotkb.iter_member_chunks(inner, args.chunk_bytes):
-                    uniprotkb.scan_chunks([chunk], denylist, attribution, counts, viral)
+
+                def progress(running: uniprotkb.TaxonCounts, _member: Any = member) -> None:
+                    # Closure rather than a per-chunk call to `scan_chunks`: the remainder
+                    # that stitches records across block boundaries lives inside that
+                    # function, so calling it per block discards it (D-151).
+                    nonlocal last
                     now = time.monotonic()
                     if now - last >= args.heartbeat_seconds:
-                        elapsed = now - started
                         beat(
                             {
-                                "member": member.name,
-                                "elapsed_seconds": round(elapsed, 1),
+                                "member": _member.name,
+                                "elapsed_seconds": round(now - started, 1),
                                 "archive_bytes_read": counted.read_bytes,
                                 "archive_share": counted.read_bytes / int(release["bytes"]),
-                                "entries": counts.entries,
-                                "seeded": counts.seeded,
-                                "viral": counts.viral,
+                                "entries": running.entries,
+                                "seeded": running.seeded,
+                                "viral": running.viral,
                             }
                         )
                         print(
                             f"    {counted.read_bytes / 2**30:.1f} GiB of archive, "
-                            f"{counts.entries:,} entries, {counts.seeded:,} seeded",
+                            f"{running.entries:,} entries, {running.seeded:,} seeded",
                             flush=True,
                         )
                         last = now
+
+                uniprotkb.scan_chunks(
+                    uniprotkb.iter_member_chunks(inner, args.chunk_bytes),
+                    denylist,
+                    attribution,
+                    counts,
+                    viral,
+                    on_chunk=progress,
+                )
                 uniprotkb.verify_whole(counts, expected[member.name], member.name)
                 print(
                     f"  {member.name}: {counts.entries:,} entries (matches the release "

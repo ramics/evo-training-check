@@ -159,14 +159,22 @@ PRECHECK
   || die "inputs do not resolve; the payload's data files are short or a digest moved"
 
 export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
-( "$PYBIN" tools/select_agent_seeds.py \
-    --release {release} --tier {tier} \
-    --taxdump /opt/amazebio/taxdmp.zip \
-    --outdir /opt/amazebio/out \
-    {reading_flags} \
-    --workers {workers} \
-    --upload-results --allow-dirty --code-commit {commit} \
-    --progress-seconds 120 ; echo "=== seed pass exited $? ===" )
+# `set -e` plus a subshell swallows the failure path: the subshell aborts before its
+# trailing echo, the script ends, and `die` never runs, so the instance idles until the
+# boot timer instead of shutting down. Seen for real on the release count, 2026-10-18.
+set +e
+"$PYBIN" tools/select_agent_seeds.py \
+  --release {release} --tier {tier} \
+  --taxdump /opt/amazebio/taxdmp.zip \
+  --outdir /opt/amazebio/out \
+  {reading_flags} \
+  --workers {workers} \
+  --upload-results --allow-dirty --code-commit {commit} \
+  --progress-seconds 120
+rc=$?
+set -e
+echo "=== seed pass exited $rc ==="
+if [ "$rc" -ne 0 ]; then die "seed pass failed with $rc" "$rc"; fi
 
 echo "=== amazebio a1-8 select-agent seed pass finished $(date -Is) ==="
 die "run complete" 0

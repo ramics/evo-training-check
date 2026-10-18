@@ -140,12 +140,22 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
   --taxdump /opt/amazebio/taxdmp.zip --check-inputs \
   || die "inputs do not resolve; the payload's data files are short or a digest moved"
 
-( "$PYBIN" tools/uniprot_release_count.py \
-    --taxdump /opt/amazebio/taxdmp.zip \
-    --outdir /opt/amazebio/out \
-    {stage_flag} {reading_flags} \
-    --upload-results --allow-dirty --code-commit {commit} \
-    --heartbeat-seconds 120 ; echo "=== release count exited $? ===" )
+# `set -e` and a subshell do not mix here: a failing command aborts the subshell *before*
+# its trailing echo, so the subshell exits non-zero, `set -e` ends the script, and `die`
+# never runs — leaving the instance idling until the boot timer, which is exactly the
+# silence AGENTS.md says cannot be distinguished from work. Disarm `set -e` around the run
+# and route the exit code through `die` explicitly.
+set +e
+"$PYBIN" tools/uniprot_release_count.py \
+  --taxdump /opt/amazebio/taxdmp.zip \
+  --outdir /opt/amazebio/out \
+  {stage_flag} {reading_flags} \
+  --upload-results --allow-dirty --code-commit {commit} \
+  --heartbeat-seconds 120
+rc=$?
+set -e
+echo "=== release count exited $rc ==="
+if [ "$rc" -ne 0 ]; then die "release count failed with $rc" "$rc"; fi
 
 echo "=== amazebio a1-8 uniprotkb release count finished $(date -Is) ==="
 die "run complete" 0
