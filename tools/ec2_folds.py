@@ -65,8 +65,18 @@ AMI_PARAMETER = (
 #: the instance are directly comparable with D-163's container figures.
 ALLOWED_TYPES = ("g5.xlarge", "g6.xlarge")
 
+#: The same pinned pixi `tools/ec2_proviruses.py` uses, and deliberately the same three
+#: constants rather than a re-derivation: the first launch of this tool died on a checksum
+#: mismatch because they were copied by eye into one hardcoded URL, which lost both the
+#: version (0.82.0, read off an f-string as 0.42.1) and the `.tar.gz` suffix. The URL was
+#: still a real release asset, so it downloaded a valid binary and failed only at the
+#: checksum — which is the pin doing its job, and the cheapest possible version of that
+#: mistake. `tests/test_ec2_folds.py` now asserts these three agree with that tool's, so the
+#: next person to change one changes both.
+PIXI_VERSION = "0.82.0"
 PIXI_URL = (
-    "https://github.com/prefix-dev/pixi/releases/download/v0.42.1/pixi-x86_64-unknown-linux-musl"
+    f"https://github.com/prefix-dev/pixi/releases/download/v{PIXI_VERSION}"
+    "/pixi-x86_64-unknown-linux-musl.tar.gz"
 )
 PIXI_SHA256 = "d305406a7630aab6484419833f9204b2fe9ea40632da8bb536496f123ca86e7f"
 
@@ -129,10 +139,10 @@ mkdir -p /opt/amazebio && cd /opt/amazebio
 aws s3 cp "s3://{bucket}/{code_key}" code.tar.gz --region {region} || die "payload fetch failed"
 tar xzf code.tar.gz
 
-curl -sSL -o /usr/local/bin/pixi "{pixi_url}" || die "pixi download failed"
-echo "{pixi_sha256}  /usr/local/bin/pixi" | sha256sum -c - \
+curl -sSL -o pixi.tar.gz "{pixi_url}" || die "pixi download failed"
+echo "{pixi_sha256}  pixi.tar.gz" | sha256sum -c - \
   || die "pixi checksum mismatch; refusing to build the environment with an unpinned tool"
-chmod +x /usr/local/bin/pixi
+tar xzf pixi.tar.gz && install -m 0755 pixi /usr/local/bin/pixi || die "pixi install failed"
 
 export PIXI_HOME=/opt/pixi
 pixi install -e dev -e foldseek || die "pixi env solve/install failed"

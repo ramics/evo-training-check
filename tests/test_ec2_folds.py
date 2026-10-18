@@ -153,6 +153,43 @@ def test_user_data_refuses_to_render_when_too_large(folds):
         )
 
 
+def test_pixi_pin_agrees_with_the_other_launcher(folds):
+    """The pin is shared, so it must not be re-derived by eye.
+
+    This tool's first launch died on a checksum mismatch: the URL had been copied by hand and
+    lost both the version — 0.82.0, misread off an f-string as 0.42.1 — and the `.tar.gz`
+    suffix, so it fetched a real but different release asset. The pin caught it, which is the
+    point of a pin, but the test is what stops it recurring.
+    """
+    proviruses = _load("ec2_proviruses", "tools/ec2_proviruses.py")
+    assert folds.PIXI_VERSION == proviruses.PIXI_VERSION
+    assert folds.PIXI_URL == proviruses.PIXI_URL
+    assert folds.PIXI_SHA256 == proviruses.PIXI_SHA256
+    # The asset is an archive, so the script has to unpack it rather than chmod it.
+    assert folds.PIXI_URL.endswith(".tar.gz")
+
+
+def test_user_data_unpacks_pixi_rather_than_chmodding_the_download(folds):
+    text = folds.render_user_data(
+        bucket="b",
+        prefix="p",
+        code_key="p/code.tar.gz",
+        region="us-east-1",
+        commit="deadbeef",
+        devices="cpu,gpu",
+        ladder="100",
+        cpu_ladder="100",
+        threads=4,
+        hard_stop_minutes=10,
+        pixi_url=folds.PIXI_URL,
+        pixi_sha256=folds.PIXI_SHA256,
+    )
+    # Checksum before unpacking, and unpacking at all: the asset is a tarball containing a
+    # single `pixi` binary, so writing the download straight to /usr/local/bin cannot work.
+    assert text.index("sha256sum -c -") < text.index("tar xzf pixi.tar.gz")
+    assert "install -m 0755 pixi /usr/local/bin/pixi" in text
+
+
 def test_results_go_to_a_task_scoped_prefix(folds):
     # The corpus bucket has no DeleteObject, so anything written there is permanent.
     assert folds.RESULT_PREFIX == "corpora/results/a2-2"
