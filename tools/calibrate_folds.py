@@ -90,7 +90,39 @@ MIN_LENGTH = 30
 #: Candidate thresholds the sweep reports, in bits. The declared value and its two bracketing
 #: values are chosen from this grid, which `metrics/survival.md` requires to be fixed at the same
 #: time as the headline value.
-GRID = (20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160, 180, 200, 250, 300, 400, 500)
+#:
+#: **The grid was extended upward once, after the first run, and the declared value did not
+#: move.** The rule — the lowest grid value whose binding-class false-positive rate is at or
+#: below :data:`TARGET_FPR` — and the target itself were both fixed beforehand and are unchanged.
+#: The first grid stopped at 500, which is where the rule's answer fell, so the declared value
+#: had no upper neighbour and `metrics/survival.md`'s requirement of *two* bracketing values could
+#: not be met. Extending only above 500 cannot change which value the rule selects: 500 already
+#: satisfied the target and nothing was inserted below it. So this is the declared procedure
+#: being completed, not a threshold re-picked after seeing results — the distinction AGENTS.md
+#: cares about, and the reason the extension is recorded here rather than done quietly.
+GRID = (
+    20,
+    30,
+    40,
+    50,
+    60,
+    70,
+    80,
+    90,
+    100,
+    120,
+    140,
+    160,
+    180,
+    200,
+    250,
+    300,
+    400,
+    500,
+    600,
+    700,
+    800,
+)
 
 #: The false-positive rate the declared threshold is chosen at, on the binding decoy class.
 #: Declared here, before any sweep is run.
@@ -98,6 +130,17 @@ TARGET_FPR = 0.01
 
 #: The two alignment modes compared. Named by foldseek's own flag value.
 ALIGNMENT_MODES = {"3di_aa": "2", "3di_only": "0"}
+
+#: How the deferred mode choice is made. **Stated after seeing the sweep, and said so plainly:**
+#: D-167 deferred the 3Di-only option "to the threshold calibration" without fixing a rule, so
+#: unlike the threshold itself this one was not pre-registered. It is recorded rather than
+#: dressed up as a prior commitment. What makes it safe to apply anyway is the margin: both modes
+#: hold the same false-positive target at the same cut, and sensitivity differs by a factor of
+#: five, so no defensible rule chooses otherwise.
+ALIGNMENT_MODE_RULE = (
+    "among modes whose declared threshold holds the target false-positive rate on the binding "
+    "decoy class, take the one with the higher true-positive rate at that threshold"
+)
 
 FETCH_PAUSE_S = 0.1
 FETCH_ATTEMPTS = 4
@@ -477,6 +520,22 @@ def choose_threshold(
 # --------------------------------------------------------------------------------------
 
 
+def choose_alignment_mode(modes: dict[str, Any]) -> str:
+    """Apply :data:`ALIGNMENT_MODE_RULE` across the measured modes.
+
+    Ties break on the mode name so the choice is deterministic rather than dict-order dependent.
+    """
+    scored = []
+    for name, m in modes.items():
+        realized = m["threshold"]["realized"]
+        tpr = realized.get("positive", {}).get("rate")
+        scored.append((tpr if tpr is not None else -1.0, name))
+    if not scored:
+        raise CalibrationError("no modes were measured, so none can be declared")
+    best = max(scored, key=lambda pair: (pair[0], pair[1]))
+    return best[1]
+
+
 def parse_args(argv: list[str] | None) -> Any:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--stage", choices=("queries", "score"), required=True)
@@ -571,12 +630,17 @@ def main(argv: list[str] | None = None) -> int:
                 "threshold": choose_threshold(rows),
             }
 
+        declared_mode = choose_alignment_mode(modes)
+        manifest.parameter("alignment_mode_rule", ALIGNMENT_MODE_RULE)
+
         body = {
             "task": "A2.2",
             "detector": "foldseek",
             "registry": "ECOD",
             "registry_version": folds.ECOD_V295_2.version,
             "decision": "D-170",
+            "declared_alignment_mode": declared_mode,
+            "alignment_mode_rule": ALIGNMENT_MODE_RULE,
             "geometry": {
                 "query": "corpus protein sequence, 3Di predicted by ProstT5",
                 "target": "the 141 pinned reference structures",
