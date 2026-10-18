@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import collections
 import importlib.util
+import io
 import pathlib
 import sys
 
@@ -507,3 +508,70 @@ def test_staging_sidecars_only_does_not_need_stage_sample_and_refuses_both(tmp_p
     ]
     with pytest.raises(SystemExit, match="Pick one"):
         tool.main(argv)
+
+
+# --- Scoring a different denylist (D-159) -------------------------------------------------
+
+
+def test_external_seeds_are_fetched_with_their_sidecar(tmp_path: pathlib.Path) -> None:
+    """Both or neither: without a taxid per seed there is no seed-family count (D-142)."""
+
+    class FakeS3:
+        def __init__(self) -> None:
+            self.asked: list[str] = []
+
+        def get_object(self, **kw: object) -> dict:
+            key = str(kw["Key"])
+            self.asked.append(key)
+            body = b">UniRef100_A\nMKV\n" if key.endswith(".faa") else b"UniRef100_A\t632\n"
+            return {"Body": io.BytesIO(body)}
+
+    client = FakeS3()
+    dest = tool._load_external_seeds("s3://b/corpora/results/a1-8/sa-seeds.faa", client, tmp_path)
+    assert dest.exists() and dest.with_suffix(".taxids.tsv").exists()
+    assert client.asked == [
+        "corpora/results/a1-8/sa-seeds.faa",
+        "corpora/results/a1-8/sa-seeds.taxids.tsv",
+    ]
+
+
+def test_a_missing_sidecar_fails_loudly_rather_than_scoring_without_an_interval(
+    tmp_path: pathlib.Path,
+) -> None:
+    class FakeS3:
+        def get_object(self, **kw: object) -> dict:
+            if str(kw["Key"]).endswith(".taxids.tsv"):
+                raise KeyError("NoSuchKey")
+            return {"Body": io.BytesIO(b">UniRef100_A\nMKV\n")}
+
+    with pytest.raises(SystemExit, match="written as a pair"):
+        tool._load_external_seeds("s3://b/x/sa-seeds.faa", FakeS3(), tmp_path)
+
+
+def test_seeds_uri_must_name_a_fasta(tmp_path: pathlib.Path) -> None:
+    """The sidecar name is derived from it, so a wrong extension derives a wrong sidecar."""
+    with pytest.raises(SystemExit, match="should name a .faa"):
+        tool._load_external_seeds("s3://b/x/sa-seeds.tsv", object(), tmp_path)
+
+
+def test_the_swap_happens_after_the_checks_that_digest_the_viral_seed_set() -> None:
+    """Ordering is what makes this correct, and ordering is invisible to a unit test.
+
+    `--verify-sample-against` digests the viral seed FASTA against the staged manifest, and
+    `--stage-sample` writes the seed set under the sample's key. Replacing the query before
+    either would fail the first and corrupt the second, so the swap sits after both — pinned
+    here by source order because nothing else would catch a later edit moving it.
+    """
+    src = _PATH.read_text()
+    swap = src.index("if args.seeds_uri:\n            seed_fasta = _load_external_seeds")
+    assert src.index("shardstore.verify_rebuilt(against, seed_fasta, shard_paths)") < swap
+    assert src.index("if args.stage_sample or args.stage_sidecars_only:") < swap
+    assert swap < src.index('if args.measure == "band":')
+
+
+def test_the_viral_seed_set_is_not_published_when_another_denylist_is_scored() -> None:
+    """A1.8's run must not upload a seed set under A1.6's key, and the two may not be pooled
+    (D-108), so the artefact has to say which denylist produced it."""
+    src = _PATH.read_text()
+    assert 'if not args.seeds_uri:\n            upload(seed_fasta, "viral-seed-set")' in src
+    assert '"scored-seed-set" if args.seeds_uri else "viral-seed-set"' in src
