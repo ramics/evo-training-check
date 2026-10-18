@@ -198,6 +198,13 @@ def main(argv: list[str] | None = None) -> int:
         "(D-122, D-123)",
     )
     ap.add_argument(
+        "--stage-sidecars-only",
+        action="store_true",
+        help="upload just the strata sidecars into an existing sample's prefix, leaving its "
+        "shards, seed set and manifest untouched. For the sample staged before the sidecars "
+        "existed (D-142), so later bands do not each rebuild them",
+    )
+    ap.add_argument(
         "--resume-band-from",
         metavar="S3_URI",
         help="a band.json an earlier run published. Its cells for this same band and shard "
@@ -614,11 +621,22 @@ def _stage_sample(
     # absolute key, which would have written several gigabytes outside `corpora/` — permanently,
     # in a bucket with no DeleteObject.
     sample_root = f"{prefix}/{shardstore.sample_prefix(args.release, args.tier, args.sample_rate)}"
-    plan = shardstore.plan_uploads(sample_root, shard_paths, seed_fasta, sidecar_paths)
+    if args.stage_sidecars_only:
+        # The sample was staged before the sidecars existed (D-142). Its shards and seed set
+        # are already there and must not be rewritten, so only the sidecars go up — and the
+        # manifest is left alone, since this run cannot prove anything about objects it did
+        # not produce. Without this every later band pays the 52-minute pass again purely to
+        # rebuild them, and D-134's band 2 is six launches.
+        plan = shardstore.plan_uploads(sample_root, [], seed_fasta, sidecar_paths)[1:]
+    else:
+        plan = shardstore.plan_uploads(sample_root, shard_paths, seed_fasta, sidecar_paths)
     manifest_key = f"{sample_root}/{shardstore.MANIFEST_NAME}"
 
     present = shardstore.existing_keys(client, bucket, sample_root + "/")
-    clashes = sorted(({k for _, k in plan} | {manifest_key}) & present)
+    wanted = {k for _, k in plan}
+    if not args.stage_sidecars_only:
+        wanted |= {manifest_key}
+    clashes = sorted(wanted & present)
     if clashes:
         raise SystemExit(
             "refusing to stage over existing objects — this bucket has no DeleteObject, so "
@@ -627,6 +645,17 @@ def _stage_sample(
 
     total = len(plan)
     print(f"  staging {total} objects under s3://{bucket}/{sample_root}/", flush=True)
+
+    if args.stage_sidecars_only:
+        for path, key in plan:
+            _put_large(client, bucket, key, path)
+        _progress(client, bucket, prefix, args, stage="staging", done=total, total=total)
+        print(
+            f"  staged {total} sidecars; the sample's own objects were left untouched",
+            flush=True,
+        )
+        return f"s3://{bucket}/{manifest_key}"
+
     staged_shards = []
     shard_plan = plan[1 : 1 + len(shard_paths)]
     sidecar_plan = plan[1 + len(shard_paths) :]
