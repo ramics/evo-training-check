@@ -452,11 +452,17 @@ def cohens_kappa(both: int, genomad_only: int, vibrant_only: int, neither: int) 
         )
     kappa = (observed - expected) / (1 - expected)
     se = math.sqrt(observed * (1 - observed) / n) / (1 - expected)
+    # Bounded to kappa's own range. The large-sample interval is a normal approximation and
+    # does not know that: the first band's concordance came back 0.91 with an upper bound of
+    # 1.086, which is not a possible value of the statistic and invites a reader to think the
+    # tools might agree more than perfectly. Clamping is the honest presentation of an
+    # approximation that has run past the end of its scale, and `method` says it is one.
+    # Kappa below zero is real — agreement worse than chance — so the floor is -1, not 0.
     return Interval(
         estimate=kappa,
-        low=kappa - Z_95 * se,
-        high=kappa + Z_95 * se,
-        method=f"cohen_kappa_large_sample_z{Z_95:.6f}",
+        low=max(-1.0, kappa - Z_95 * se),
+        high=min(1.0, kappa + Z_95 * se),
+        method=f"cohen_kappa_large_sample_z{Z_95:.6f}_clamped",
     )
 
 

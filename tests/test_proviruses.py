@@ -301,6 +301,20 @@ def test_kappa_matches_a_hand_computed_table():
     assert "cohen_kappa" in k.method
 
 
+def test_the_interval_never_runs_past_kappas_own_range():
+    """The first band returned 0.91 with an upper bound of 1.086.
+
+    The large-sample interval is a normal approximation and does not know the statistic's
+    range; a bound above 1 invites a reader to think two tools might agree more than
+    perfectly. Agreement worse than chance is real, so the floor is -1 rather than 0.
+    """
+    k = cohens_kappa(both=6, genomad_only=0, vibrant_only=1, neither=33)
+    assert k.estimate == pytest.approx(0.9082568807339448)
+    assert k.high <= 1.0
+    assert k.low >= -1.0
+    assert "clamped" in k.method
+
+
 def test_perfect_agreement_with_variation_gives_kappa_one():
     k = cohens_kappa(both=25, genomad_only=0, vibrant_only=0, neither=25)
     assert k.estimate == pytest.approx(1.0)

@@ -353,3 +353,41 @@ def test_the_throttle_fires_once_per_interval_not_per_line():
     for i in range(100):
         throttled(f"line {i}")
     assert len(calls) == 1, "geNomad emits thousands of lines; one beat per line is a flood"
+
+
+# --------------------------------------------------------------------------------------
+# Detection is cached per release+component, because only the route varies by reading
+# --------------------------------------------------------------------------------------
+
+
+def test_detection_is_cached_on_release_and_component_not_on_the_reading():
+    """The first band re-read the corpus and re-ran geNomad once per manifest.
+
+    Evo 1 appears in three readings and Evo 2 in three, so that was six detection passes
+    where two would do — 3x the compute, and most of why the band took all night. The sampled
+    genomes, provirus calls and profile hits are identical across a release's readings.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    assert "source_cache: dict[tuple[str, str], dict[str, Any]] = {}" in source
+    assert "cache_key = (release, str(component))" in source
+
+
+def test_the_route_is_applied_outside_the_cache():
+    """The route is the one reading-specific part, so it must not be cached with the hits.
+
+    `out_of_scope` under charitable and literal, `retained_by_design` under strict — caching a
+    route would stamp whichever reading ran first onto all three.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    cached_payload = source[source.index("source_cache[cache_key] = {") :][:300]
+    assert '"hits"' in cached_payload
+    assert "route" not in cached_payload, "the cache must hold route-free hits"
+    # And the reuse branch recomputes it.
+    reuse = source[source.index("if cache_key in source_cache:") :][:1400]
+    assert "route = route_of_source(source)" in reuse
+
+
+def test_a_reused_source_row_says_so():
+    """A reader must be able to tell a measured row from one carried over."""
+    source = pathlib.Path(dp.__file__).read_text()
+    assert '{**cached["row"], "reused": True}' in source

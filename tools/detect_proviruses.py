@@ -728,6 +728,15 @@ def main(argv: list[str] | None = None) -> int:
         manifest_run.parameter("vibrant", VIBRANT.to_dict())
         manifest_run.parameter("bacterial_components", sorted(BACTERIAL_COMPONENTS))
 
+        # Detection is a property of the release and the component, not of the reading.
+        # The sampled genomes, the provirus calls and the profile hits are identical across a
+        # release's three readings; only the *route* differs (`out_of_scope` under charitable
+        # and literal, `retained_by_design` under strict). The first band re-read the corpus
+        # and re-ran geNomad once per manifest — six detection passes where two would do, 3x
+        # the compute, which is most of why it took all night. Cached here and the route
+        # recomputed per manifest, which is the only part that is reading-specific.
+        source_cache: dict[tuple[str, str], dict[str, Any]] = {}
+
         for entry in manifests:
             manifest = entry["manifest"]
             policy_id = manifest["policy"]["id"]
@@ -740,6 +749,31 @@ def main(argv: list[str] | None = None) -> int:
 
             for source in searched:
                 component = source.get("corpus_component")
+                cache_key = (release, str(component))
+                if cache_key in source_cache:
+                    cached = source_cache[cache_key]
+                    print(
+                        f"  reusing the detection for {release}/{component}: "
+                        f"{cached['row']['records']:,} genomes, "
+                        f"{cached['row']['proviruses']:,} provirus call(s). Only the route "
+                        "differs between readings.",
+                        flush=True,
+                    )
+                    rows.append({**cached["row"], "reused": True})
+                    genomes_total += cached["row"]["records"]
+                    proviruses_total += cached["row"]["proviruses"]
+                    route = route_of_source(source)
+                    for reg in registries:
+                        detections_by_registry[reg.id] += detections_from_hits(
+                            cached["hits"][reg.id],
+                            registry_id=reg.id,
+                            registry_version=reg.version,
+                            thresholds=views[reg.id].thresholds_by_family(),
+                            route=route,
+                            profile_to_family=views[reg.id].family_of_profile,
+                        )
+                    concordance_tables += cached["concordance"]
+                    continue
                 prefix = source.get("key") or ""
                 keys = objects_under(client, bucket, prefix) if prefix else []
                 if args.max_objects:
@@ -791,8 +825,11 @@ def main(argv: list[str] | None = None) -> int:
                     work = Path(workdir)
                     fasta = work / f"{release}-{component}.fna"
                     counts = write_batch(batch, fasta)
-                    genomes_total += counts["genomes"]
                     search_seconds: dict[str, float] = {}
+                    source_concordance: list[dict[str, Any]] = []
+                    hits_by_registry: dict[str, list[dict[str, Any]]] = {
+                        reg.id: [] for reg in registries
+                    }
                     calls = []
                     if counts["genomes"]:
                         beat(
@@ -818,12 +855,10 @@ def main(argv: list[str] | None = None) -> int:
                         )
                         table_path = genomad(fasta, work, args.genomad_db, on_line=genomad_beat)
                         calls = read_genomad_proviruses(table_path)
-                        proviruses_total += len(calls)
                         proteins_faa = provirus_proteins(table_path)
                         proteins, pstats = profilesearch.proteins_from_fasta(
                             read_faa(proteins_faa), record_of=host_of_protein
                         )
-                        route = route_of_source(source)
                         for reg in registries:
                             began = time.time()
                             hits = profilesearch.search(
@@ -833,14 +868,7 @@ def main(argv: list[str] | None = None) -> int:
                                 hmm_file=profilesearch.hmm_path(reg, PROFILE_DATA),
                             )
                             search_seconds[reg.id] = round(time.time() - began, 1)
-                            detections_by_registry[reg.id] += detections_from_hits(
-                                hits,
-                                registry_id=reg.id,
-                                registry_version=reg.version,
-                                thresholds=views[reg.id].thresholds_by_family(),
-                                route=route,
-                                profile_to_family=views[reg.id].family_of_profile,
-                            )
+                            hits_by_registry[reg.id] = hits
                     else:
                         pstats = {"records": 0, "genes": 0, "residues": 0}
 
@@ -866,7 +894,7 @@ def main(argv: list[str] | None = None) -> int:
                                 [_rehome(c) for c in gen_on_sub],
                                 [_rehome(c) for c in vib_calls],
                             )
-                            concordance_tables.append(
+                            source_concordance.append(
                                 {
                                     "release": release,
                                     "component": component,
@@ -874,27 +902,47 @@ def main(argv: list[str] | None = None) -> int:
                                     **agreement.to_dict(),
                                 }
                             )
+                            concordance_tables += source_concordance
 
-                rows.append(
-                    {
-                        "component": source.get("component"),
-                        "corpus_component": component,
-                        "searched": True,
-                        "objects": len(keys),
-                        "sample_rate": args.rate,
-                        "records_in_source": source.get("records"),
-                        "records": counts["genomes"],
-                        "contigs": counts["contigs"],
-                        "bases": counts["bases"],
-                        "proviruses": len(calls),
-                        "genes": pstats.get("genes", 0),
-                        "residues": pstats.get("residues", 0),
-                        "proteins_unplaced": pstats.get("proteins_unplaced", 0),
-                        "read_seconds": read_seconds,
-                        "search_seconds": search_seconds,
-                        "limited": bool(args.probe),
-                    }
-                )
+                row = {
+                    "component": source.get("component"),
+                    "corpus_component": component,
+                    "searched": True,
+                    "objects": len(keys),
+                    "sample_rate": args.rate,
+                    "records_in_source": source.get("records"),
+                    "records": counts["genomes"],
+                    "contigs": counts["contigs"],
+                    "bases": counts["bases"],
+                    "proviruses": len(calls),
+                    "genes": pstats.get("genes", 0),
+                    "residues": pstats.get("residues", 0),
+                    "proteins_unplaced": pstats.get("proteins_unplaced", 0),
+                    "read_seconds": read_seconds,
+                    "search_seconds": search_seconds,
+                    "limited": bool(args.probe),
+                }
+                rows.append(row)
+                genomes_total += counts["genomes"]
+                proviruses_total += len(calls)
+
+                # The route is the only reading-specific part, so it is applied here rather
+                # than stored, and the hits go into the cache without one.
+                route = route_of_source(source)
+                for reg in registries:
+                    detections_by_registry[reg.id] += detections_from_hits(
+                        hits_by_registry[reg.id],
+                        registry_id=reg.id,
+                        registry_version=reg.version,
+                        thresholds=views[reg.id].thresholds_by_family(),
+                        route=route,
+                        profile_to_family=views[reg.id].family_of_profile,
+                    )
+                source_cache[cache_key] = {
+                    "row": row,
+                    "hits": hits_by_registry,
+                    "concordance": list(source_concordance),
+                }
 
             for reg in registries:
                 stem = f"detections-{reg.id}-{policy_id}-{release}"
