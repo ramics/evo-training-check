@@ -235,3 +235,53 @@ def test_precheck_imports_through_the_normal_machinery(folds):
 def test_results_go_to_a_task_scoped_prefix(folds):
     # The corpus bucket has no DeleteObject, so anything written there is permanent.
     assert folds.RESULT_PREFIX == "corpora/results/a2-2"
+
+
+def test_budget_window_is_what_the_ceiling_buys(folds):
+    # 30 USD at 0.50/h is 60 hours; at 1.50/h it is 20.
+    assert folds.budget_window_minutes(30.0, 0.50) == 3600
+    assert folds.budget_window_minutes(30.0, 1.50) == 1200
+    with pytest.raises(SystemExit):
+        folds.budget_window_minutes(30.0, 0.0)
+
+
+def test_the_ceiling_is_the_owners_figure(folds):
+    # Set by the project owner on 2026-10-18 after seeing D-164's cost figures. It lives in
+    # code because the shutdown timer baked in at launch is the only spend control that
+    # survives the launch: ec2:ModifyInstanceAttribute is denied.
+    assert folds.DEFAULT_MAX_SPEND_USD == 30.0
+    assert folds.MIN_USEFUL_WINDOW_MINUTES >= 20
+
+
+def test_spot_is_one_time_and_terminates_on_interruption(folds):
+    assert folds.market_options(False) is None
+    opts = folds.market_options(True)
+    # Persistent would relaunch a long pass unwatched; stop-on-interruption keeps billing
+    # the volume, which is exactly what terminate-on-shutdown exists to prevent.
+    assert opts["SpotOptions"]["SpotInstanceType"] == "one-time"
+    assert opts["SpotOptions"]["InstanceInterruptionBehavior"] == "terminate"
+
+
+def test_spot_price_takes_the_worst_recent_quote(folds):
+    class FakeEc2:
+        def describe_spot_price_history(self, **kw):
+            return {
+                "SpotPriceHistory": [
+                    {"SpotPrice": "0.5031", "AvailabilityZone": "us-east-1a"},
+                    {"SpotPrice": "0.7595", "AvailabilityZone": "us-east-1d"},
+                ]
+            }
+
+    price, source = folds.spot_price_now(FakeEc2(), "g6.xlarge")
+    # The launch does not pin an availability zone, so budgeting from the cheapest quote
+    # would under-reserve precisely when the expensive zone is the one it lands in.
+    assert price == 0.7595
+    assert "us-east-1d" in source
+
+
+def test_spot_price_failure_is_not_a_silent_zero(folds):
+    class Broken:
+        def describe_spot_price_history(self, **kw):
+            raise RuntimeError("no")
+
+    assert folds.spot_price_now(Broken(), "g6.xlarge") is None

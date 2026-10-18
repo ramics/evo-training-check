@@ -84,6 +84,20 @@ PIXI_SHA256 = "d305406a7630aab6484419833f9204b2fe9ea40632da8bb536496f123ca86e7f"
 #: permanent and are written once per run under a distinct prefix.
 RESULT_PREFIX = "corpora/results/a2-2"
 
+#: The project owner's spending ceiling for A2.2, set on 2026-10-18 after being shown D-164's
+#: figures: the detection pass may not exceed this. It is enforced here rather than remembered,
+#: because the one control this tool has over spend is the shutdown timer it bakes into UserData
+#: at launch — `ec2:ModifyInstanceAttribute` is denied, so nothing can shorten it afterwards, and
+#: an instance that outlives its budget cannot be reined in, only killed. So the timer is derived
+#: from the ceiling and the live price, and the launch is refused outright when the two cannot
+#: buy a useful window.
+DEFAULT_MAX_SPEND_USD = 30.0
+
+#: Below this, a window is not worth a launch: the fixed cost of booting, building the
+#: environment and fetching 2.3 GB of weights is about three minutes, and a run that then has
+#: minutes left produces nothing while still being billed.
+MIN_USEFUL_WINDOW_MINUTES = 20
+
 #: Used when --hard-stop-minutes is not given. Deliberately not an argparse default: the timer
 #: is baked into UserData at launch and `ec2:ModifyInstanceAttribute` is denied, so nothing
 #: later can read it back or change it, and a watcher attaching to a running instance must be
@@ -192,6 +206,53 @@ die "run complete" 0
 """
 
 
+def market_options(spot: bool) -> dict[str, Any] | None:
+    """One-time and terminate-on-interruption, matching the other launchers.
+
+    Persistent would relaunch after a reclaim and restart a long pass with nobody watching,
+    and stop-on-interruption keeps billing the volume — the trap
+    `InstanceInitiatedShutdownBehavior` exists to avoid.
+    """
+    if not spot:
+        return None
+    return {
+        "MarketType": "spot",
+        "SpotOptions": {
+            "SpotInstanceType": "one-time",
+            "InstanceInterruptionBehavior": "terminate",
+        },
+    }
+
+
+def spot_price_now(ec2: Any, instance_type: str) -> tuple[float, str] | None:
+    """The highest recent spot price for this type, and where it came from.
+
+    The *highest* across availability zones on purpose. The launch does not pin an AZ, so
+    which one it lands in is not ours to choose, and budgeting from the cheapest would
+    under-reserve exactly when it matters.
+    """
+    try:
+        history = ec2.describe_spot_price_history(
+            InstanceTypes=[instance_type],
+            ProductDescriptions=["Linux/UNIX"],
+            MaxResults=24,
+        )["SpotPriceHistory"]
+    except Exception:
+        return None
+    prices = [(float(h["SpotPrice"]), h["AvailabilityZone"]) for h in history]
+    if not prices:
+        return None
+    price, zone = max(prices)
+    return price, f"spot, highest of {len(prices)} recent quotes (worst: {zone})"
+
+
+def budget_window_minutes(max_spend_usd: float, price_per_hour: float) -> int:
+    """How many minutes of this instance the ceiling buys."""
+    if price_per_hour <= 0:
+        raise SystemExit("a price per hour of zero or less cannot be budgeted against")
+    return int(max_spend_usd / price_per_hour * 60)
+
+
 def git_head(root: Path) -> tuple[str, bool]:
     import subprocess
 
@@ -238,6 +299,29 @@ def parse_args(argv: list[str] | None) -> Any:
         "on identical input so the ratio is one machine's measurement.",
     )
     ap.add_argument("--hard-stop-minutes", type=int, default=DEFAULT_HARD_STOP_MINUTES)
+    ap.add_argument(
+        "--max-spend-usd",
+        type=float,
+        default=DEFAULT_MAX_SPEND_USD,
+        help="hard spending ceiling for this launch. The shutdown timer is capped at what this "
+        "buys at the live price, because the timer is the only spend control available once "
+        "the instance is running.",
+    )
+    ap.add_argument(
+        "--spot",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="spot by default: it is roughly a third off, and the run is resumable and "
+        "restartable, so a reclaim costs time rather than the result.",
+    )
+    ap.add_argument(
+        "--price-per-hour",
+        type=float,
+        default=None,
+        help="override the price used for budgeting. Required with --no-spot, because "
+        "pricing:GetProducts is denied in this account and this tool will not budget against "
+        "a price it cannot look up.",
+    )
     ap.add_argument("--bucket", default=None)
     ap.add_argument("--prefix", default=None, help="result prefix; defaults to a dated one")
     ap.add_argument("--dry-run", action="store_true", help="authorize only; runs no UserData")
@@ -281,6 +365,41 @@ def main(argv: list[str] | None = None) -> int:
         "ssm", region_name=REGION, endpoint_url=f"https://ssm.{REGION}.amazonaws.com"
     )
 
+    # The budget, resolved before anything is uploaded or launched. The timer baked into
+    # UserData is the only spend control that exists after launch, so the ceiling has to
+    # become that timer here or it is not a ceiling at all.
+    if args.price_per_hour is not None:
+        price, price_source = args.price_per_hour, "given on the command line"
+    elif args.spot:
+        quoted = spot_price_now(ec2, args.instance_type)
+        if quoted is None:
+            raise SystemExit(
+                "could not read a spot price for budgeting. Pass --price-per-hour to say what "
+                "to budget against, rather than launching with no ceiling."
+            )
+        price, price_source = quoted
+    else:
+        raise SystemExit(
+            "with --no-spot there is no price to read: pricing:GetProducts is denied in this "
+            "account, so pass --price-per-hour explicitly. Budgeting against a remembered "
+            "on-demand rate is how a ceiling silently becomes a guess."
+        )
+
+    affordable = budget_window_minutes(args.max_spend_usd, price)
+    hard_stop = min(args.hard_stop_minutes, affordable)
+    if hard_stop < MIN_USEFUL_WINDOW_MINUTES:
+        raise SystemExit(
+            f"${args.max_spend_usd:.2f} at ${price:.4f}/h buys {affordable} minutes, under the "
+            f"{MIN_USEFUL_WINDOW_MINUTES} this run needs to get past setup. Raise the ceiling "
+            "or pick a cheaper instance type; do not launch a window that cannot finish."
+        )
+    print(
+        f"=== budget: ${args.max_spend_usd:.2f} at ${price:.4f}/h ({price_source}) "
+        f"= {affordable} min; hard stop {hard_stop} min "
+        f"(~${hard_stop / 60 * price:.2f} worst case)",
+        flush=True,
+    )
+
     user_data = render_user_data(
         bucket=bucket,
         prefix=prefix,
@@ -291,7 +410,7 @@ def main(argv: list[str] | None = None) -> int:
         ladder=args.ladder,
         cpu_ladder=args.cpu_ladder,
         threads=args.threads,
-        hard_stop_minutes=args.hard_stop_minutes,
+        hard_stop_minutes=hard_stop,
         pixi_url=PIXI_URL,
         pixi_sha256=PIXI_SHA256,
     )
@@ -321,6 +440,9 @@ def main(argv: list[str] | None = None) -> int:
         ],
         InstanceInitiatedShutdownBehavior="terminate",
     )
+    market = market_options(args.spot)
+    if market is not None:
+        launch["InstanceMarketOptions"] = market
 
     if args.dry_run:
         # Authorizes; runs no UserData, so it cannot catch a missing dependency or a broken
@@ -344,14 +466,14 @@ def main(argv: list[str] | None = None) -> int:
     instance = ec2.run_instances(**launch)["Instances"][0]
     iid = instance["InstanceId"]
     print(
-        f"=== launched {iid} ({args.instance_type}, ami {ami}, "
-        f"hard stop +{args.hard_stop_minutes}m)\n"
+        f"=== launched {iid} ({args.instance_type}{' spot' if args.spot else ''}, "
+        f"ami {ami}, hard stop +{hard_stop}m)\n"
         f"=== results: s3://{bucket}/{prefix}",
         flush=True,
     )
 
     try:
-        return watch(ec2, s3, iid, bucket, prefix, args)
+        return watch(ec2, s3, iid, bucket, prefix, args, hard_stop)
     finally:
         # Also, not instead: a UserData that fails before its own `shutdown` would otherwise
         # leave this running indefinitely.
@@ -362,7 +484,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"=== TERMINATE FAILED for {iid}: {type(exc).__name__} — check the console")
 
 
-def watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> int:
+def watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any, hard_stop: int) -> int:
     """Poll the heartbeat and the console until the artefact lands or the instance goes.
 
     `GetConsoleOutput` is allowed and best-effort — empty for the first minute or so, and it
@@ -370,7 +492,7 @@ def watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> i
     cost four hours on 2026-10-16. The heartbeat is the channel that carries meaning; the
     console is for the boot failures that happen before the heartbeat exists.
     """
-    deadline = time.monotonic() + args.hard_stop_minutes * 60 + 300
+    deadline = time.monotonic() + hard_stop * 60 + 300
     result_key = f"{prefix}/throughput.json"
     seen_stage = None
     while time.monotonic() < deadline:
