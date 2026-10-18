@@ -6276,3 +6276,33 @@ decision has a threshold or parameter in it, the number goes in the entry.
   The first band's charitable results are preserved at
   `corpora/results/a2-4/band1-run1-20261018/` rather than being overwritten, because D-149 cites
   their numbers and the corpus bucket has no delete.
+
+### D-152 — The taxonomy-unplaced share is 11.8% measured, not A4.2's 36%; D-141's conclusion stands on the measured figure
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-140 and D-141 both reason about what to do with corpus records the pinned
+  taxonomy cannot place at family rank, and both took the magnitude of that set from A4.2 —
+  "given A4.2's 36%, the unplaced set is expected to be large". A4.2 measured a different thing:
+  the fraction of *genomes the denylist targets* that its taxonomy tool fails to place. Band 1
+  has now measured the quantity those entries actually depend on, over shard 0's 1,097,174
+  records: **129,113 unplaced, 11.8%**.
+- **Decision:** the figure is replaced wherever those entries reason from it, and **both
+  conclusions stand unchanged**. D-140's singleton treatment and D-141's refutation of the
+  pooling argument do not depend on the share being large — D-141's point is that a pooled
+  stratum contributes `(A - r*B)^2`, which is unstable in either direction whatever its size, and
+  that singletons contribute the binomial term, which is the honest statement that those records
+  carry no family information. A smaller unplaced set makes the choice matter less, not
+  differently.
+- **What it does change.** The design effect is diluted by exactly the unplaced fraction, so at
+  11.8% rather than 36% the realised design effect is *higher* than those entries implied and the
+  intervals correspondingly wider relative to binomial. Band 1's published cells report the
+  realised figures directly, so nothing is inferred from this entry; it exists so a reader
+  checking D-141's arithmetic is not working from a borrowed number.
+- **Rejected:** Leaving the 36% in place as "the order of magnitude" — it is not this
+  measurement, it is a different quantity from a different task, and §7's adversarial reader
+  checks the provenance of a number before its plausibility. Re-deriving D-141's comparison at
+  11.8% before band 1 completes — the entries' conclusions are insensitive to the share, and the
+  measured intervals ship with every cell.
+- **Consequence:** the write-up cites 11.8% from band 1 for this quantity and A4.2's 36% only for
+  A4.2's own. One general point: both figures are about "things the taxonomy cannot place", which
+  is what made the substitution feel safe, and they are not the same denominator.
