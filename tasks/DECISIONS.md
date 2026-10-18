@@ -6728,3 +6728,65 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Waiting for a clause-(b)-equivalent restriction before scoring — no such clause exists in the
   select-agent procedure to implement; the gap there is unexplained rather than unapplied
   (D-157), so there is nothing to wait for.
+
+### D-160 — Band 1's artefact keeps no identifier, so D-158's hit-producing denominator needs a re-run that emits one
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-158 fixed two denominators for the clause-(b) exposure share: over all realised
+  band-1 sample seeds, and over those sample seeds that actually produced a band-1 hit record. It
+  named the second as the one that bears on the headline, with the first as the context that says
+  whether the hit-producing seeds are unusual.
+
+  The second has no input. Both published band artefacts were probed directly:
+  `band-complete.json` carries six cells and `band.json` five — so the task file's rule of counting
+  `band.cells` rather than trusting the name picks the right one, and it does — and **neither
+  contains an identifier of any kind.** No `UniRef100_`, no `UniRef90_`, no `MGYP`, not even a
+  `query` key: 9.5 MB of per-cell, per-stratum and per-family counts. That is exactly what D-108
+  and D-134 designed the broad arm to publish, a rate rather than a manifest, so the hit table and
+  its `query` column never left the instance.
+- **The cause, named rather than absorbed.** D-158 asserted a denominator over an artefact whose
+  contents it had assumed instead of read. That is the fifth time in this task a quantity has
+  rested on a field taken on trust — D-117, D-144, D-150 and D-154 were the others — and the first
+  four were inherited, where this one was written here, two hours after the entry for it said to
+  check the staged bytes rather than assume them. The schema facts in D-158 were checked precisely
+  this way; the artefact its own denominators would read was not.
+- **Decision — the re-run, authorised by the project owner at about $0.50 and four hours on spot.**
+  Band 1 re-runs on the same shard with query-side emission added. To a new key: the corpus bucket
+  has no `DeleteObject`, so an overwrite destroys the earlier object irreversibly, and band 1's
+  existing counts stay citable as they are.
+- **The emission's design, fixed before the re-run rather than after it, per §2.**
+  1. **Per cell, not per band.** Coverage mode and sensitivity change which seeds produce a hit at
+     all, so one band-level set would silently adopt whichever reading happened to be read last.
+     Each of the six cells emits its own set.
+  2. **Membership only** — the set of seeds with at least one hit record under that cell's
+     reading. Not hit counts: a seed's hit count is a property of the corpus sample, and weighting
+     by it would fold two samples into one number (D-158 rejected that already).
+  3. **Memory stays bounded by the query set**, which is known before the run at 31,381 seeds —
+     the same argument `TargetStream` already makes for `stratum_hits`. This does not reintroduce
+     the unbounded per-target structure that class exists to avoid, because the bound is the band's
+     seed count rather than the corpus.
+  4. **The emitted ids are identifier-bearing**, so they are staged in the disclosure package
+     under D-125 as amended by D-126 and never committed or published. The published figure stays
+     a share by survival route and homology class.
+- **What this does not touch.** The exclusivity pass in flight is unaffected: its tier-level
+  non-exclusive share is over every viral-covering cluster in each tier and needs no join at all,
+  which also makes it the figure comparable to A1.8's residual. And D-158's first denominator was
+  never at risk, because band 1's sample is the hash rule `bucket_of(id, 100) == 0` over the staged
+  seed FASTA rather than a stored list — `band-complete.json` confirms 31,381 seeds realised at a
+  denominator of 100, so that set regenerates from pinned inputs without any artefact.
+- **Rejected:** Amending D-158 to require only the computable denominator. It would edit a fixed
+  analysis spec after seeing what the data can support, which is the thing §2 exists to forbid, and
+  the tidiness of the result is exactly what should make it suspect.
+  Reporting the second denominator as not executable and shipping the rest — defensible, cheap, and
+  with D-156's handling of the charitable seed set as precedent, but the precedent does not
+  transfer: the charitable seed set is inexecutable because quantifying "almost exclusively" would
+  invent a number, where this input is recoverable for four hours and $0.50. "Cannot" would have
+  been "would rather not", and §A0's standing is built on the difference.
+  Deriving the second denominator from the published per-family counts. `seed_families` is a count
+  and the family arrays are a corpus-side stratum; no mapping from either to a seed survives, so
+  any such derivation would be an inference dressed as a measurement.
+- **Consequence:** the exposure share ships with both denominators as D-158 specified, and band 1
+  gains a per-cell seed-hit set that A3.3's independent reimplementation and any later clause-(b)
+  work can both read. The process point is the one worth carrying: checking the inputs a spec names
+  belongs in writing the spec, not in executing it, and an entry that checks one of its inputs
+  carefully is not thereby an entry that checked them all.
