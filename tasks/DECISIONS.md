@@ -6891,3 +6891,75 @@ decision has a threshold or parameter in it, the number goes in the entry.
   note is corrected in place and points here. Treating the 13.61%-31.48% range as a
   measurement of clause (b) and quoting a midpoint — it is an upper bound by construction, and
   a midpoint of a bound is not an estimate of anything.
+
+### D-163 — A2.2's 3Di prediction is 173x the cost of a profile search, so it runs on a GPU instance
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** §A2 names Foldseek for three virus-characteristic folds, but neither side of that
+  search exists yet, and the query side is the problem: the surviving corpora are nucleotide
+  (Evo) and sequence-only (the ESM3 proxy), so there are no structures to search. Foldseek needs
+  3Di, which for sequence input means predicting it with ProstT5. D-098 warned this task by name
+  that "any later task costing a pass over the corpora — A2.2's structural search above all,
+  which has the same shape — should take its throughput from a run of realistic size or not quote
+  one", so the figure below was measured before anything was planned around it.
+  **Measured, on real corpus input.** 50 records of Evo 1's viral component
+  (`stage2/test_stage2.parquet`), genes called with the same `pyrodigal` metagenomic mode D-077
+  pins, giving 1,725 proteins of 375,687 residues, median length 141 aa. `foldseek createdb
+  --prostt5-model`, foldseek 10.941cd33 from bioconda, 4 threads, no GPU:
+
+  | proteins | residues | wall | s/residue |
+  |---|---|---|---|
+  | 100 | 26,430 | 7m 49.9s | 0.017779 |
+  | 500 | 113,549 | 31m 38.4s | 0.016719 |
+
+  The two agree within 6% across a 4.3x size step, so this is the linear regime and not D-098's
+  fixed-cost trap. Taking the larger run: **0.0669 core-s per residue = 18.58 core-hours per
+  million residues.** A2.1's RVDB-prot profile search cost 386 core-s/Maa (D-098), so **3Di
+  prediction is 173x more expensive per residue than the search it is meant to feed**.
+  What that buys at the depths this project already works at: a full census of both releases
+  (24,691 Maa across `stage2`, `imgvr` and `imgpr`) is **458,800 core-hours**; merely matching
+  A2.1's existing sample depth (363 Maa searched) is **6,745 core-hours**, which on this
+  container's 4 cores is 1,686 wall-hours, about 70 days, against a two-hour ceiling per run.
+  CPU is therefore not a slow route to this result, it is not a route to it.
+- **Decision:** A2.2's 3Di prediction runs on a **GPU instance**, which the project owner
+  authorized on 2026-10-18 after being shown the figures above. Four things were verified rather
+  than assumed, because each would have cost a launch:
+  **The instance types.** `RunInstances` with `DryRun=True` returns `DryRunOperation` for
+  **`g5.xlarge`** and **`g6.xlarge`** and `UnauthorizedOperation` for `g5.2xlarge` and
+  `g6.2xlarge`. So the GPU allowance landed on the 4-vCPU types only — the owner's "up to 8
+  cores" holds for CPU (`c6i.2xlarge` still authorizes) but not for GPU, and a tool that assumes
+  a GPU 2xlarge will be refused with the bare `UnauthorizedOperation` that AGENTS.md records as
+  reading like having no permission at all.
+  **The driver.** The base AL2023 AMI every existing `tools/ec2_*.py` uses carries no NVIDIA
+  driver, and `ssm:GetParameter` reaches the Deep Learning base AMI that does:
+  `/aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-amazon-linux-2023/latest/ami-id`.
+  That is the AMI A2.2 launches, not the one the other tools launch.
+  **The build.** bioconda ships one `linux-64` build of foldseek 10.941cd33 with no CUDA variant,
+  so whether the packaged binary can use a GPU at all was open. `--gpu 1` on a machine with no
+  GPU answers it: it reports **"No GPU devices found"**, not "compiled without CUDA", so the
+  packaged build is CUDA-capable and the pin stays a lockfile entry rather than a side-channel
+  binary — which is what AGENTS.md requires of a tool that produces a result.
+  **The weights.** `foldseek databases ProstT5` retrieves a 2.3 GB f16 GGUF from
+  `huggingface.co/Rostlab/ProstT5`, unauthenticated, so this is not one of the blocked
+  acquisitions that need a human.
+- **Rejected:** CPU at census depth (458,800 core-hours) and CPU at A2.1 parity (6,745
+  core-hours, ~70 days of this container) — both arithmetically out of reach, which is the
+  reason, not a preference. A deliberately tiny CPU band inside the two-hour limit — about 0.02%
+  of the census, roughly 100x shallower than A2.1's sample, and A2.1's own bounds were still
+  rising steeply at 10x more depth (+18% Pfam, +45% RVDB on Evo 2 at the last doubling), so a
+  null at that depth would carry no weight and a count would not be comparable with the other
+  A2 tables A3.2 has to merge. Deferring A2.2 and recording the infeasibility as the finding —
+  defensible before the GPU existed, and it was one of the four options put to the owner, but it
+  gives up a route §A2 calls part of the methodological core while the obstacle turned out to be
+  an instance type.
+- **Consequence:** A2.2's cost model is now 3Di prediction on one GPU, and the GPU speedup over
+  these 4 cores is the next thing to measure rather than to assume — it is the number that sets
+  what depth A2.2 can pre-register, and it must be measured on the instance, since nothing here
+  has a GPU to measure it on. The depth target is A2.1 parity, because A3.2 merges these tables
+  and a structural table far shallower than the profile table is not comparable with it.
+  Two constraints follow from the verification above and belong in whatever tool launches this:
+  the instance type is a GPU **xlarge** or the launch is refused, and the AMI is the Deep
+  Learning base one or the GPU is invisible to a binary that can otherwise use it.
+  This entry records a **probe, not a result**: the throughput above came from a scratch
+  measurement outside `amazebio.repro.run`, with no `run.json`, and no number from it may appear
+  in a write-up. What it is for is sizing, which is exactly what D-098 said to measure first.
