@@ -858,3 +858,66 @@ dearer, so this is in-region work by `AGENTS.md`'s test.
 
 **Nothing on this is waiting on the project owner.** The spend is authorised and the
 measurement's definition is fixed, so what remains is the launcher and the pass.
+
+## The exposure curve, measured — 2026-10-18
+
+D-158 and D-160. Branch `ccr-ff660039-p1xxuf`. The exposure pass is **complete**; the band 1
+re-run that supplies D-158's second denominator is still running.
+
+**The two-point curve, over band 1's realised 31,381-seed sample** — the denominator that bears
+on band 1's rate:
+
+| Identity | Seeds with a non-viral cluster-mate | Share |
+|---|---|---|
+| UniRef90 | 4,271 of 31,381 | **13.61%** |
+| UniRef50 | 9,878 of 31,381 | **31.48%** |
+
+Undetermined is 9 seeds, 0.03%, at both. Tier-level, over every viral-covering cluster, the same
+curve reads 7.42% and 17.98%. **The two tiers are not combined and the artefact contains no field
+that combines them** (D-158); a test asserts that.
+
+**31.48% is an upper bound on clause-(b) exposure, not an estimate, and this is the sentence that
+must travel with the number.** The criterion here is "the cluster holds at least one non-viral
+member". Clause (b) says "aligns almost exclusively to other viral sequences", so a seed with one
+cellular cluster-mate among hundreds would still plausibly satisfy it. This test therefore fails
+seeds clause (b) would keep, and the true clause-(b) share is at or below these figures.
+
+**Four checks the run passed without being designed to.**
+
+1. UniRef90 read 170,669,877 clusters and UniRef50 read 60,479,070 — both exactly the release
+   notes' counts, so neither pass read a prefix.
+2. The two tiers emitted **identically** 5,405,462 viral-member rows. They must, since every
+   viral member sits in exactly one cluster at each level, so this is two independent passes
+   agreeing to the row.
+3. That 5,405,462 against A1.8's independent 5,379,748 viral UniProtKB sequences (D-157) is 0.48%
+   apart, from a different file by a different method, neither calibrated against the other.
+4. The seed sample re-derived here from the hash rule is **31,381** seeds, exactly what band 1's
+   own artefact reports as `seeds_searched`. That is what makes D-158's first denominator sound
+   despite band 1 keeping no identifier, and it was not assumed — it was checked.
+
+**The tier-level share understates the seed-level one, by about 2x.** 7.42% against 13.61% at 90%.
+The mapping from seeds to clusters is many-to-one, and a cluster holding many UniRef100 seeds
+counts once at tier level while contributing many seeds — so seed-weighting upweights exactly the
+larger, more diverse clusters that are likelier to hold a non-viral member. **Reporting the cheap
+tier-level figure as "the" exposure would have understated it in the direction that flatters the
+audit**, which is why D-158 specified seed-level denominators before any number existed.
+
+**What it means for the readings.** At 50% identity roughly a third of the sampled seed set has
+cellular homologues — material the charitable reading never targeted and the strict reading
+deliberately does. The §A0 gap between those two readings is now quantitative rather than a
+footnote: about a third of the query set at the permissive end, an eighth at the strict end.
+A1.8's ~26% residual for clause (b) falls inside the curve, near the 50% end; two unrelated
+proxies landing in the same region is evidence the underlying quantity is of that order and makes
+neither a measurement of clause (b).
+
+**Artefacts.** Rows, counts and manifests per tier under
+`corpora/results/a1-6/exclusivity/2023_02/<tier>/`; the joined report and its manifest at
+`corpora/results/a1-6/exposure/2023_02/`, keyed by commit because this bucket has no
+`DeleteObject`.
+
+**Cost.** About $0.35 for the in-region pass — 28.5 minutes for the 90 tier at 192 MB/s and 19.1
+for the 50 at 217 MB/s, 576 GB decompressed in all — plus roughly $0.12 of egress for the seed
+set and rows the join reads locally.
+
+**Left.** The band 1 re-run, then the join again with its per-cell sidecars to add D-158's second
+denominator. Nothing else, and nothing waiting on the project owner.
