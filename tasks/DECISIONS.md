@@ -6083,3 +6083,84 @@ decision has a threshold or parameter in it, the number goes in the entry.
   figure here is measured from a pass or stated as an estimate with its derivation shown.
   Nothing about the band's depth changes: 0.25% was chosen because 2.5% was 69 hours, and at the
   corrected size 2.5% is 90 hours, so the decision is more right than it was, not less.
+
+### D-148 — Band 1 lost its sixth cell to a spot reclaim; the five that survived are reusable and the skip is now implemented
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** Band 1 launched on `i-0d81555e994423a79`, `m6i.2xlarge` spot, at 18:32 UTC. The
+  corpus pass rebuilt the sample, `verify_rebuilt` confirmed it byte-identical to the staged
+  manifest, and five of the six cells completed and published. At 23:15:04 the instance was
+  terminated with `StateTransitionReason: Service initiated` — AWS-initiated, which is how a
+  reclaim reads as against the `User initiated` that `AGENTS.md` records for a shutdown or a
+  manual termination. About 4h45m at spot, roughly $0.55.
+- **What was lost and what was not.** Only the `s7.5 cov2` cell, the most expensive in the grid.
+  The other five are in the result object because the band publishes per cell rather than at the
+  end, which is the design `AGENTS.md` demanded after the runs that published nothing in four
+  hours. That part worked.
+- **The defect the reclaim exposed, which is worse than the lost cell.** `CellKey`'s docstring has
+  promised since it was written that a cell "is skipped if its artefact already exists", and
+  **nothing implemented it**. The band rewrites one result object on every publish, so a re-run
+  would have rebought all five surviving cells over about four hours *and then overwritten them
+  with the single new cell* — losing paid work irreversibly, in a bucket where an overwrite
+  destroys the earlier object. The reclaim is what surfaced it; the defect was there from the
+  first commit of the band mode and would have fired on any interruption.
+- **Decision:** the skip is implemented rather than the docstring softened. `cell_from_dict`
+  rehydrates a published cell and refuses one whose slug contradicts its own fields, since a cell
+  is reused on the strength of its slug and a disagreement would skip the wrong one.
+  `--resume-band-from` reads an earlier `band.json` and reuses its cells for the same band and
+  shard, after checking they searched the same record count — a different target is not a
+  resumable run. The property that makes it safe is asserted directly: five published cells plus
+  one new one give the same combined result as six computed in one run.
+- **What this says about spot for this arm, and what it does not.** One reclaim in one run is not
+  a rate, and the cost of this one was about $0.55 and one cell rather than the whole band, so
+  nothing here argues for on demand. What it does argue is that **per-cell publishing without a
+  resume is only half a design** — the publishing bought the five cells and the missing resume
+  would have thrown them away. D-134's band 2 is six launches of about 15.8 hours each, where an
+  interruption is likelier and a rebought cell costs far more, so the resume matters more there
+  than here.
+- **Rejected:** Re-running the whole band — four hours and about $0.55 to recover one cell, when
+  five are already published and verified against the same target. Reporting band 1 from five
+  cells and dropping `s7.5 cov2` — the sensitivity sweep is the only check on whether the rate is
+  a property of the filter or of our aligner settings (D-109), and five cells leave `s7.5` with
+  one reading of three. Switching band 2 to on demand on the strength of one reclaim — one
+  observation, and the resume is the cheaper answer.
+- **Consequence:** the missing cell is a resumed launch of about 50 minutes and roughly $0.10,
+  and band 1 is not a result until it lands. `AGENTS.md` gains the general form of this: a
+  per-cell publish is only half a design, and the half that reads it back is the half that gets
+  forgotten, because nothing exercises it until something fails.
+
+### D-149 — The measured cost is 0.996 core-min/Mb, 2.74x cheaper than the single-genome figure
+- **Date:** 2026-10-18
+- **Task:** A2.4
+- **Context:** D-117 measured geNomad at 2.73 core-minutes per Mb on one complete, gene-dense
+  *E. coli* K-12 assembly, and every band price since has rested on it. D-145 made the first band
+  0.25% precisely because that figure was a one-genome extrapolation onto a corpus of draft
+  assemblies, where gene density, contig count and per-call overhead all differ. This is the
+  measurement it was run to get.
+- **What was measured.** Evo 1's `stage1_gtdb`, 0.25% by genome hash: **375 genomes, 32,669
+  contigs, 699,031,198 bases**. `genomad annotate` plus `find-proviruses` ran from 00:12:14Z to
+  01:39:07Z — **87 minutes wall on 8 vCPU, 11.6 core-hours — 0.996 core-minutes per Mb.**
+  **That is 2.74 times cheaper than D-117's figure**, and in the direction that makes the task
+  affordable rather than the one that kills it. Draft assemblies are less gene-dense than a
+  finished reference, which is the obvious explanation and is not established by this
+  measurement; what is established is the rate.
+  The sampling also reproduced exactly: an earlier instance, separately launched, sampled the
+  same 375 genomes and the same 699,031,198 bases. D-078's design asks for membership to be a
+  property of the record id and the seed alone, and that is now demonstrated across two machines
+  rather than argued.
+- **Decision:** 0.996 core-min/Mb is A2.4's working rate, measured, superseding D-117's 2.73 for
+  every price from here. Against D-147's corrected 634,000 Mb corpus:
+  **0.25% = 26 core-hours, ~3.3 wall hours. 2.5% = 263 core-hours, ~33 wall hours, about $7 on
+  spot.** Both are per detection pass, and D-150's de-duplication is what makes "per detection
+  pass" the same as "per band" rather than a third of it.
+  D-117's figure stays on the record rather than being amended: it was correctly measured on what
+  it was measured on, and the gap between it and this one is the whole argument for calibrating.
+- **Rejected:** Treating the 2.74x as a reason to go straight to a census. 29,000 core-hours
+  becomes 10,500 at the measured rate, which is still far beyond the ceiling and the budget.
+  Reporting the rate without the sample that produced it. A rate from 375 genomes of one release
+  is not yet known to hold for Evo 2, whose component is tar-packed and differently assembled;
+  the band measures that too and the figure is revised if it differs.
+- **Consequence:** The band did what D-118 designed it to do, and the answer changed the plan in
+  the cheap direction. 2.5% is now an afternoon and $7 rather than three days and $13-18, so the
+  depth question goes back to the project owner with a measured number behind it for the first
+  time.
