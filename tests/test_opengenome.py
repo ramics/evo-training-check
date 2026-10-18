@@ -318,12 +318,28 @@ def test_selection_is_ordered_so_a_repeated_pass_matches():
     ]
 
 
-def test_only_the_viral_stage_of_opengenome_v1_is_selected():
+def test_opengenome_v1s_viral_and_prokaryotic_stages_are_both_selected():
+    """The prokaryotic component joined the tier on the owner's approval (D-119).
+
+    It was out while the reading was that OpenGenome2's GTDB superseded it. A2.4 established
+    that this amounts to substituting one release's bacterial genomes for another's, and the two
+    releases pin different GTDB snapshots — so without it the prophage route is measured on one
+    of the two corpora under audit.
+    """
     blobs = [
         og.Blob("stage2/train_stage2.parquet", 1, "aa" * 32, None),
         og.Blob("stage1/gtdb/gtdb_train_shard_0.parquet", 1, "bb" * 32, None),
     ]
-    assert [b.path for b in og.selection(og.OG1, blobs)] == ["stage2/train_stage2.parquet"]
+    assert [b.path for b in og.selection(og.OG1, blobs)] == [
+        "stage1/gtdb/gtdb_train_shard_0.parquet",
+        "stage2/train_stage2.parquet",
+    ]
+
+
+def test_opengenome_v1s_plasmid_stage_stays_out_of_the_tier():
+    """D-119 widened the tier by one component, not into everything OG1 publishes."""
+    blobs = [og.Blob("stage1/imgpr/imgpr_train_shard_0.parquet", 1, "cc" * 32, None)]
+    assert og.selection(og.OG1, blobs) == []
 
 
 def test_the_plan_prices_storage_rather_than_transfer():

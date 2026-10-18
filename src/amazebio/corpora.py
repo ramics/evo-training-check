@@ -37,11 +37,12 @@ because every count published for this component is a count of records. The iden
 synthesised from the object key and the row index: the release carries no accession here, so it
 is stable and reproducible but cannot be joined to IMG/VR at all.
 
-**What is not read.** GTDB is 101 GiB across four tar objects and no rule in any reading reaches
-it, so A1.4 does not enumerate it: the strict reading's verdict on it follows from the policy
-without counting a single record. The component is listed with its record count absent and the
-reason recorded, rather than omitted or estimated. A2.4 reads it in full and can fill the count
-in passing.
+**What is not read.** Both releases' prokaryotic components, and for the same reason: no rule in
+any reading reaches GTDB, so the strict reading's verdict on it follows from the policy without
+counting a single record. Evo 2's is 101 GiB across four tar objects; Evo 1's is 118.5 GiB across
+fourteen Parquet objects, staged later than the rest under D-119 so that A2.4's prophage route
+covers both corpora rather than one. Each is listed with its record count absent and the reason
+recorded, rather than omitted or estimated. A2.4 reads them and can fill the counts in passing.
 """
 
 from __future__ import annotations
@@ -600,7 +601,7 @@ SOURCES: tuple[StagedSource, ...] = (
     # covers them. Omitting them would let that reading's manifest read as a verdict on the
     # whole of OpenGenome v1 when it has only seen the viral component.
     StagedSource(
-        key="",
+        key=f"{_OG1}/stage1/gtdb/",
         release="opengenome",
         component="GTDB",
         corpus_component="stage1_gtdb",
@@ -608,10 +609,15 @@ SOURCES: tuple[StagedSource, ...] = (
         readable=False,
         evidence=_SEQUENCE_ONLY,
         why=(
-            "In the release and in the strict reading's scope, not staged: 130 GB, superseded "
-            "for every Phase A purpose by OpenGenome2's GTDB component (D-031)."
+            "118.5 GiB across fourteen Parquet objects, and no rule in any reading reaches it: "
+            "the strict reading's verdict follows from the policy without counting a record. "
+            "Staged under D-119, reversing D-031's call that OpenGenome2's GTDB superseded it "
+            "— the two releases pin different GTDB snapshots (v214.1 against v214.1 plus a "
+            "220.0 increment, D-130), so substituting one for the other would have put a "
+            "superset in place of a subset. Enumerated by A2.4, which reads the component for "
+            "integrated elements."
         ),
-        extra={"staged": False, "bytes_stated": 130_000_000_000},
+        extra={"objects": 14, "bytes_stated": 127_261_074_759},
     ),
     StagedSource(
         key="",

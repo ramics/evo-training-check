@@ -97,6 +97,34 @@ numpy = ">=1.21,<1.24"
 # came out of, which is the point of benchmarking a 2022 version at all.
 mmseqs2 = "==13.45111"
 
+# A2.4's detection instruments, and deliberately *not* `feature.genomad` above. That
+# environment pins geNomad 1.1.0 because A4.2 benchmarks the version IMG/VR's own labels
+# came out of — geNomad there is the object of study. Here geNomad is the audit's
+# instrument, and DESIGN.md §A2 opens by requiring the audit's instruments to be
+# independent of the filter's, "or it will reproduce the filter's own blind spots".
+# Detecting with the same 2022 build against the same 2022 markers is the sharpest form of
+# exactly that. Two pins for two roles, and D-112 records why they must not be unified.
+[feature.proviruses]
+platforms = ["linux-64"]
+
+[feature.proviruses.dependencies]
+# 1.12.0 rather than 1.13.0, which is three days old at pinning and which the publisher's
+# own `releases.txt` does not yet pair with any marker database. 1.12 is the newest package
+# the publisher attests against database v1.9, and an attested pairing is what the pin
+# needs — see D-112.
+genomad = "==1.12.0"
+
+# The second tool the concordance criterion is measured against. §A2 names VIBRANT, and its
+# mechanism is independent of geNomad's in the way the criterion needs: HMM scoring against
+# KEGG/Pfam/VOG with a metabolic-signature rule, against geNomad's marker consensus plus
+# neural classifier. Its own solve group because 1.2.1 pins an older Python and an older
+# HMMER than the rest of the project runs.
+[feature.vibrant]
+platforms = ["linux-64"]
+
+[feature.vibrant.dependencies]
+vibrant = "==1.2.1"
+
 [feature.dev.dependencies]
 pytest = ">=8.3,<9"
 ruff = ">=0.8,<0.9"
@@ -111,6 +139,15 @@ dev = { features = ["dev"], solve-group = "main" }
 genomad = { features = [
   "genomad",
 ], solve-group = "genomad", no-default-feature = true }
+# A2.4's instruments. Both are `no-default-feature` and in their own solve groups for the
+# same reason `genomad` is: they hold a tool and its runtime, and the pipeline that reads
+# the corpus calls their CLIs from the dev environment.
+proviruses = { features = [
+  "proviruses",
+], solve-group = "proviruses", no-default-feature = true }
+vibrant = { features = [
+  "vibrant",
+], solve-group = "vibrant", no-default-feature = true }
 
 [tasks]
 # Regenerate the task board from task frontmatter.
