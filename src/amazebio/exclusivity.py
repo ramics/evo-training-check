@@ -17,7 +17,7 @@ those two identities, holds any non-viral member.
 alignment against the whole of UniProt; cluster co-membership is a proxy at two fixed
 identities. The output bounds how much of a survival figure is *exposed* to the dropped
 clause. It does not correct the figure and no corrected figure is to be derived from it
-(D-157).
+(D-158).
 
 **Why the workers only need the viral taxid set.** UniRef is strictly hierarchical — every
 member of a UniRef100 cluster sits in the same UniRef90 cluster, and likewise at 50% — so the
@@ -27,7 +27,7 @@ member whose own taxid is viral therefore reaches every seed without any worker 
 alternative — shipping the seed set to each of seven workers — costs a few hundred megabytes
 per worker to answer the same question.
 
-**Three facts about the staged XML, read from the bytes rather than assumed** (D-157; this
+**Three facts about the staged XML, read from the bytes rather than assumed** (D-158; this
 task has been bitten three times by a field whose meaning was taken on trust):
 
 * Every member and representative in **both** tiers carries a `UniRef100 ID` property and an
@@ -68,7 +68,7 @@ EXCLUSIVE = "exclusive"
 NON_EXCLUSIVE = "non_exclusive"
 #: A seed whose containing cluster yields no placed taxid at all, so the question cannot be
 #: answered for it. Counted and reported as its own share rather than folded into either
-#: other verdict (D-157, and D-152's lesson one level down).
+#: other verdict (D-158, and D-152's lesson one level down).
 UNDETERMINED = "undetermined"
 
 #: Reporting order. Fixed here so every artefact and table lists the three the same way.
@@ -111,7 +111,7 @@ class ClusterReduction:
     cannot have a *viral* member either, so it can never carry a verdict about a seed;
     `UNDETERMINED` is a seed-level outcome, reached in `Tally` when no row was ever emitted
     for that seed. `placed` is still recorded, because the share of wholly unplaced clusters
-    is worth reporting on its own (D-157).
+    is worth reporting on its own (D-158).
     """
 
     placed: int
@@ -162,7 +162,7 @@ class ExclusivityCounts:
 
     These are over *clusters of the tier being read*, not over seeds — the seed-side shares
     need the join and are computed by `Tally`. Both are reported: a tier-level share says
-    whether the hit-producing seeds are unusual among the rest (D-157).
+    whether the hit-producing seeds are unusual among the rest (D-158).
     """
 
     clusters: int = 0
@@ -239,7 +239,7 @@ class Tally:
 
     The denominator is the seed set handed in, not the rows observed, because a seed the pass
     never emitted a row for is still a seed — it is `UNDETERMINED`, and silently dropping it
-    would shrink the denominator and flatter the share. D-157 fixes that both denominators
+    would shrink the denominator and flatter the share. D-158 fixes that both denominators
     are reported, so the caller builds one `Tally` per seed set: all realised sample seeds,
     and the subset that produced a hit record.
     """

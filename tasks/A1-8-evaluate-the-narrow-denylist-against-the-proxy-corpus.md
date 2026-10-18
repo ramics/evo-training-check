@@ -329,3 +329,38 @@ statement that no all-clear is made.
 `ccr-81045ff3-7u9p0a`, unmerged, and hardwired to the viral seed set. Do not write a second copy.
 
 **Waiting on the project owner:** nothing.
+
+## State — 2026-10-18, second
+
+`in-progress`, owner `claude`. Branch `ccr-44355df9-hi20t9`.
+
+**The reading is now checked against the release ESM3 names, and it does not reproduce their
+total.** UniProtKB 2023_02 read end to end from the staged archive: 249,877,975 entries, both
+members matching the publisher's release statistics exactly. Select agents **1,277,073** against
+a published 187,000 — and the per-taxid detail brackets every reading we can construct:
+1,277,073 with strain descent, 321,669 named organisms only, 229,787 excluding avian influenza.
+All of them above 187,000. **D-157** has the reasoning and the contrast with the viral arm,
+which *does* reconcile because the paper describes a second filtering step for it and none for
+this one.
+
+**Also staged, permanently:** `corpora/uniprotkb/2023_02/knowledgebase2023_02.tar.gz`,
+182,691,908,438 bytes, checksummed in the stream. A different reading is now an in-region
+re-read rather than another 182.7 GB.
+
+**Three faults found and fixed, all of which produced plausible numbers rather than errors.**
+The `UserData` precheck loaded the shipped tool without registering it in `sys.modules`, so it
+died on the tool's first dataclass and reported it as a short payload; the fix is a test that
+runs the precheck verbatim against the extracted payload. The count read the staged archive
+through `S3RandomRead`, one ranged GET per block, 3.9 MB/s against 128 MB/s streaming — a
+2.6-hour pass on course for fifteen. And `scan_chunks` was called once per block, discarding
+the remainder that stitches records across boundaries, losing 126 entries of 249,308,459 —
+caught only by the integrity gate, which is the whole reason it exists.
+
+**Left.** The scoring pass: size it against the UniRef100 query set and the six-cell grid, not
+D-133's withdrawn arithmetic. Then the aggregate with its interval, realised family count and
+the statement that no all-clear is made.
+
+**Note for whoever sizes it.** A1.6's band mode is on branch `ccr-81045ff3-7u9p0a`, unmerged,
+and hardwired to the viral seed set. Do not write a second copy.
+
+**Waiting on the project owner:** nothing.

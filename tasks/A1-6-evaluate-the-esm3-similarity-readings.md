@@ -771,3 +771,79 @@ different object; what can be validated is the *reading*, by executing the state
 UniProtKB, which is what A1.8 did for its arm (140,591 against a published 187K).
 
 Left here for whoever resumes A1.6 rather than edited into its state block by another task.
+
+## The viral reading, measured at the right release — 2026-10-18 (D-157)
+
+A1.8 read all of UniProtKB 2023_02 and counted the Viruses superkingdom on the same pass, so
+this arm now has the comparison it wanted. Both members matched the publisher's own entry
+statistics exactly, so the read is whole.
+
+**5,379,748 taxonomically viral UniProtKB sequences at release 2023_02**, against ESM3's stated
+~4M. A 1.34x gap with a described cause: the paper's viral denylist is not "annotated as viral"
+alone but sequences that *also* "align almost exclusively to other viral sequences in UniProt",
+and a 26% reduction from a specificity filter is what that step is for. "Almost exclusively" is
+unquantified, which is already on the open-questions list.
+
+So this arm's **reading** checks out — the difference between our set and theirs is accounted
+for by a step they describe. That is worth having, and it is the strongest statement available.
+
+**It still does not validate the seed set,** and the correction from 2026-10-18 above stands:
+3,159,223 UniRef100 clusters cannot be compared with a UniProt sequence count, so the "roughly
+4M validates the reconstruction" sentence has to come out regardless. What replaces it is this:
+the reading is validated against the stated method at the correct release; the seed set is a
+query set and nothing published can size it.
+
+Worth knowing for contrast: the select-agent arm does **not** come out this way. Its stated
+procedure has no second step, and no reading of the regulation reproduces its published total —
+1.7x over at the most conservative, 6.8x on the literal reading (D-157).
+
+## The clause-(b) exposure, measured without implementing clause (b) — 2026-10-18
+
+D-158. **Branch `ccr-ff660039-p1xxuf`** carries the work. `main` has only D-158 and this block.
+D-158 was appended as D-157 and renumbered — A1.8 took that number and landed first; its
+`Numbering:` line has the reasoning and names the two commit messages that cite the old one.
+
+The project owner asked whether band 1's hits are unique to viruses. D-156 answers the half the
+source answers — clause (b) is deliberately dropped by the strict reading, so the annotation-only
+seed set is that reading's own and quantifying "almost exclusively" invents the number D-015
+declined. What it left open is **how much of band 1's figure rests on seeds clause (b) would have
+excluded**, and that is answerable from staged bytes without choosing a cut.
+
+**Built and green** (13 tests, full `check` at 959 passed): `src/amazebio/exclusivity.py` reduces a
+UniRef90 or UniRef50 cluster block to a verdict about the seeds it covers, and `Tally` turns rows
+into the two seed-side shares D-157 fixes. `seeds.scan_parallel` is now generic over a
+`BatchScanner` protocol so it drives this reduction unchanged rather than the project carrying two
+copies of its ordering and back-pressure guarantees.
+
+**Two things the next worker should not rediscover.**
+
+- **Workers need only the viral taxid set, not the seed set.** UniRef is strictly hierarchical, so
+  the cluster containing a seed also contains that seed's viral member. Emitting one row per viral
+  member reaches every seed and the join happens once, afterwards, against the staged seed FASTA.
+  Shipping 3.16M ids to each of seven workers would cost a few hundred megabytes per worker to
+  answer the same question.
+- **`UNDETERMINED` is a seed-level outcome and cannot be a cluster-level one.** A cluster with no
+  placed taxid has no viral member either, so it can carry no verdict about any seed. `Tally`
+  therefore counts a seed it never saw a row for, rather than dropping it — dropping it would
+  shrink the denominator and flatter the share, which is the error D-157's two-denominator rule
+  exists to prevent.
+
+**Three schema facts, read from the staged bytes rather than assumed.** Both tiers carry a
+`UniRef100 ID` and an `NCBI taxonomy` property on every member and representative, so each tier
+joins to the seed set directly and neither needs reconstructing from the other. `member count`
+**includes** the representative — a cluster reporting 3,252 has 3,251 `<member>` elements.
+`uniref.xsd` is staged but settles neither point: properties are generic `type`/`value` pairs
+there. This is the fourth time in this task a field would have been taken on trust.
+
+**Left, in order.** The on-instance pass script; the launcher and its first-party import-closure
+test, modelled on `tools/ec2_count.py`, which already launches this exact shape per `--tier` over
+these tiers; the join step from staged rows to the two shares. Then the launch.
+
+**Spend is authorised: about $0.10.** 62.73 GB plus 30.39 GB of compressed stream, roughly 45
+minutes sequentially on one spot instance, scaled from D-100's measured full-tier pass of 118.68 GB
+in 3,202.5 s on 8 vCPU with 7 parsing workers. Read from the session container instead it is 93 GB
+of metered egress at the 42.5 MB/s this project has measured — slower and two orders of magnitude
+dearer, so this is in-region work by `AGENTS.md`'s test.
+
+**Nothing on this is waiting on the project owner.** The spend is authorised and the
+measurement's definition is fixed, so what remains is the launcher and the pass.

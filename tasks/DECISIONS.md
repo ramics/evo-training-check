@@ -6511,9 +6511,87 @@ decision has a threshold or parameter in it, the number goes in the entry.
   that nobody re-read. **Before treating a gap as work, check whether a fixed reading already
   governs it.**
 
-### D-157 — The clause-(b) exposure is measured descriptively from the staged UniRef90 and UniRef50 tiers, with no threshold invented
+### D-157 — The select-agent denylist cannot be reproduced from the regulation at ESM3's own release; the viral one can
+- **Date:** 2026-10-18
+- **Task:** A1.8 (the viral half is A1.6's to use)
+- **Supersedes in part:** D-150, whose residual was called "unremarkable" and was not.
+- **What was measured.** UniProtKB at release **2023_02** — the release ESM3 names, since UniProt
+  numbers UniProtKB and UniRef together — read end to end from the staged archive, 249,877,975
+  entries, both members matching the publisher's own release statistics exactly
+  (569,516 and 249,308,459). 2.64 hours. The reading is D-137's, unchanged.
+
+  | reading, at 2023_02 | UniProtKB sequences | vs published 187,000 |
+  |---|---|---|
+  | named organisms **and their strains** | 1,277,073 | 6.8x |
+  | named organisms only | 321,669 | 1.7x |
+  | named only, excluding avian influenza | 229,787 | 1.2x |
+
+  **The published figure sits below every reading we can construct from the regulation.** The
+  most conservative — exact listed taxa, no descent — is still 1.7x it.
+- **Why the release mattered so much, and why the earlier check was misleading.** D-150 ran the
+  same procedure against the current release and got 140,591, which is 25% *under* 187,000.
+  UniProtKB has since lost 40% of its entries to redundant-proteome removal, and that loss falls
+  hardest on the over-sequenced bacteria this list is largely made of — so the current-release
+  count understates by far more than 40% for exactly these taxa. Measured at the release in
+  force, the same reading overshoots sixfold. **A current-release count cannot distinguish a
+  correct reading from a wrong one here, and D-150's "comfortably within release drift" was an
+  assertion where a measurement was available.**
+- **Strain descent is the largest single factor and still does not explain the gap.** Descending
+  named organisms to their strains multiplies the count 4.0x. D-150 withdrew that hypothesis on
+  the grounds that the methods appendix names the database; that was right about the database
+  and wrong to treat descent as settled with it, and the dismissal rested on a current-release
+  comparison that had already had the strain proteomes deleted out of it — correcting for the
+  drift twice. Descent is now measured rather than hypothesised, from the per-taxid detail in
+  the artefact, with no second pass.
+- **The contrast with the viral denylist is what makes this a finding rather than a loose end.**
+  The same pass counted the Viruses superkingdom at the same release: **5,379,748** against
+  ESM3's stated ~4M, a 1.34x gap. For *that* list the paper describes a second step — sequences
+  must also "align almost exclusively to other viral sequences in UniProt" — and a 26% reduction
+  from a specificity filter is an ordinary consequence of it. "Almost exclusively" is
+  unquantified, which §A0 already records as an open question.
+
+  **No comparable step is described for the select-agent list.** Its stated procedure is "all
+  sequences in UniProt belonging to organisms on the Select Agents and Toxins List", with
+  nothing between the list and the count. So the viral figure is consistent with the stated
+  method and the select-agent figure is not, at minimum by 1.7x and on the literal reading by
+  6.8x.
+- **What may be concluded, and what may not.** This is a gap between a stated method and a
+  reported result, both now measured in the same units — UniProtKB sequences at the release the
+  paper names — so it is not the apples-to-oranges artefact D-150 corrected. Either the denylist
+  omitted material the stated procedure would include, or the description is incomplete; the
+  published text does not let us choose, and A1.8 will not guess. It is **not** evidence about
+  how much denylisted material survived into the corpus: that is the scoring pass, and this
+  figure bounds the denylist's size rather than the filter's reach.
+- **This validates the reading, not the seed set.** A1.8's UniRef100 query set counts a
+  different object and nothing published can validate it (D-150 stands on that point). What is
+  checked here is whether the regulation's 70 entries were resolved to the organisms the lab
+  resolved them to, and the answer is that no resolution we can construct reproduces their
+  total.
+- **Consequence for A1.6.** Its "roughly 4M validates the viral seed set" claim is still wrong
+  for the reason D-150 gave — 4M counts UniProt sequences, its 3,159,223 counts UniRef100
+  clusters. But it now has the comparison it actually wanted: 5,379,748 taxonomically viral
+  UniProtKB sequences at 2023_02, against a stated ~4M after a specificity filter. That checks
+  A1.6's *reading*, and it passes in the sense that the difference has a described cause.
+- **Rejected:** Re-running the pass with descent disabled to measure the no-descent reading —
+  the per-taxid counts in the artefact answer it exactly and for nothing, and a 2.6-hour pass to
+  re-derive a number already in hand is not a measurement, it is a habit. Reporting 1,277,073 as
+  "the denylist at the correct release" without the decomposition — it is the literal reading's
+  figure and 60% of it is one entry (avian influenza, 766,512), which an aggregate hides.
+  Choosing the 229,787 reading because it is closest to 187,000 — fitting a reading to a target
+  is what D-150 had to withdraw a hypothesis for, and the bracket is the honest output.
+
+### D-158 — The clause-(b) exposure is measured descriptively from the staged UniRef90 and UniRef50 tiers, with no threshold invented
 - **Date:** 2026-10-18
 - **Task:** A1.6
+- **Numbering:** appended as D-157 and renumbered to D-158 on 2026-10-18. A1.8's D-157 was
+  already on `main` when this was written, so every track that pulls sees that number as
+  A1.8's; and renumbering an entry another track is actively working from would create the
+  ambiguity the rule exists to prevent. Note that the stated tie-breaker points the other
+  way — this entry is cited from `src/`, A1.8's only from task files — but those citations
+  are all in unmerged files on one branch and moved in a single pass. The commits
+  "A1.6: D-157 — measure the clause-(b) exposure, inventing no threshold" and
+  "A1.6: the exposure measurement, and one pass implementation rather than two" refer to
+  this entry.
 - **Context:** The project owner asked whether band 1's hits are unique to viruses. D-156 settled
   the half of that question the source answers: clause (b) — "align almost exclusively to other
   viral sequences in UniProt" — is deliberately dropped by the strict reading, so the

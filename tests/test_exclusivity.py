@@ -1,4 +1,4 @@
-"""Tests for `amazebio.exclusivity` — A1.6's clause-(b) exposure measurement (D-157).
+"""Tests for `amazebio.exclusivity` — A1.6's clause-(b) exposure measurement (D-158).
 
 The pass asks one question per seed — does the cluster containing it, at 90% and at 50%
 identity, hold a non-viral member — and every way it can come out plausible and wrong is a
@@ -16,7 +16,7 @@ way of counting the wrong taxids or the wrong ids:
   appears first and the join lands on the wrong cluster — producing a verdict for a seed
   that was never asked about.
 * **A seed with no row dropped from the denominator.** Dropping it rather than counting it
-  `UNDETERMINED` shrinks the denominator and flatters the share, which is the error D-157's
+  `UNDETERMINED` shrinks the denominator and flatters the share, which is the error D-158's
   two-denominator rule exists to prevent.
 * **A tie broken by stream order.** A seed reachable through two viral members must get the
   same verdict whichever is read first, or the result depends on the scheduler.
@@ -240,7 +240,7 @@ def test_entries_split_across_chunks_are_not_lost() -> None:
 
 
 def test_parallel_path_agrees_with_the_serial_one_and_keeps_order() -> None:
-    """`scan_parallel` drives this config too — that is why it is a protocol (D-157)."""
+    """`scan_parallel` drives this config too — that is why it is a protocol (D-158)."""
     blocks = [
         entry(f"UniRef90_{i}", member(f"UniRef100_V{i}", 12242, representative=True))
         for i in range(40)
