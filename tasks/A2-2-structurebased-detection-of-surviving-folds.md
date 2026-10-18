@@ -61,25 +61,26 @@ bioconda's single foldseek 10.941cd33 build **is** CUDA-capable, established by 
 reporting "No GPU devices found" rather than "compiled without CUDA"; and the 2.3 GB ProstT5
 GGUF downloads unauthenticated, so it is not a blocked acquisition.
 
-**In flight: the GPU measurement.** `tools/fold_throughput.py` measures 3Di throughput and
-`tools/ec2_folds.py` launches it on a `g6.xlarge`. Both are committed on the branch with tests,
-and a run is in progress; results land under `corpora/results/a2-2/throughput/`.
+**Finished: the GPU measurement (D-164).** `tools/fold_throughput.py` measures 3Di throughput and
+`tools/ec2_folds.py` launches it; both are on the branch with tests. One `g6.xlarge` run (NVIDIA
+L4) measured **64.48x** over CPU at the largest rung both devices ran, both arms linear, and the
+instance reproduced the container's CPU figure to within 1.7% — which is what licenses reading
+D-163's CPU numbers and these GPU ones off one scale. Artefacts and `run.json` at
+`corpora/results/a2-2/throughput/20261018T170641Z-9303d375d237/`.
 
-Four things about that pair are deliberate, and each is a trap avoided rather than a preference.
-It measures **both devices on one machine**, so the headline is a ratio this run took rather than
-an instance figure divided by a container figure. It **proves the GPU is usable** with
-`nvidia-smi` and a one-sequence foldseek probe checked for foldseek's own "No GPU devices found"
-wording before timing anything, because the failure mode is silent: with no usable GPU foldseek
-falls back to the CPU and returns a believable number. It boots the **driver-bearing Deep
-Learning AMI**, not the base AL2023 one every other `ec2_*` tool uses, which carries no NVIDIA
-driver. And the **CPU arm has its own short ladder**, because at the measured CPU rate the
-largest rung is about twenty hours; the CPU arm exists only to pair with the GPU arm on identical
-input, and it runs first so the pairing is banked before the long rungs start.
+**The depth is therefore pre-registered at A2.1 parity: 363 Maa, 24.7 GPU instance-hours.** Not a
+census, which is 1,682 instance-hours and about seventy days on the only GPU type the policy
+permits. Parity is the target because A3.2 merges this table with A2.1's, A2.4's and A2.5's, and
+`metrics/detections.md` forbids pooling a `lower_bound` table with a `population` one.
 
 **What is left, in order.**
 
-1. **Read the GPU speedup off that run** and pre-register a depth from it. The projection is in
-   the artefact: A2.1 parity is 363 Maa and a census of both releases is 24,691 Maa.
+1. **Make the detection pass survivable.** 24.7 instance-hours exceeds one instance's window, so
+   it needs a longer timer or per-object resumability — the same conclusion A2.4 reached about
+   deepening, and it should reuse that shape rather than reinvent it. While doing that, fix the
+   heartbeat in `fold_throughput.py`: it publishes between rungs rather than on an interval, so
+   the 32-minute CPU rung was 32 minutes of silence, which is only half of what AGENTS.md
+   requires and exactly the condition under which silence means nothing.
 2. **Fix the fold-family universe and its membership rule.** §A2 names three folds in prose, not
    by identifier. D-083 says this membership rule is "a finding about the registry, not a detail
    of the pipeline" and names A2.2 as facing the question; D-097 adds that the id-to-label

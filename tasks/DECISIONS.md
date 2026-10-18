@@ -6963,3 +6963,70 @@ decision has a threshold or parameter in it, the number goes in the entry.
   This entry records a **probe, not a result**: the throughput above came from a scratch
   measurement outside `amazebio.repro.run`, with no `run.json`, and no number from it may appear
   in a write-up. What it is for is sizing, which is exactly what D-098 said to measure first.
+
+### D-164 — The GPU speedup is 64x measured, so A2.2 pre-registers A2.1's depth and not a census
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** D-163 established that 3Di prediction, not the search, is A2.2's entire cost, and
+  that on CPU it is out of reach at any depth this project works at. The project owner then
+  authorized a GPU instance. What that buys had to be measured rather than assumed, because the
+  depth A2.2 pre-registers follows from it, and because D-098's throughput estimate was wrong by
+  a factor of a thousand for never leaving the fixed-cost regime.
+  **Measured on one `g6.xlarge`** (NVIDIA L4, driver 595.91.07, 23,034 MiB, 4 vCPU), both devices
+  on the same machine over the identical protein set — Evo 1 viral records from the pinned staged
+  object, genes called by the Prodigal metagenomic mode D-077 pins. Artefacts and `run.json` at
+  `corpora/results/a2-2/throughput/20261018T170641Z-9303d375d237/`, commit passed in by the
+  launcher because the instance has no checkout.
+
+  | rung | residues | CPU | GPU | GPU s/residue |
+  |---|---|---|---|---|
+  | 100 | 26,430 | 461.9 s | 8.1 s | 0.000306 |
+  | 500 | 113,549 | 1,896.1 s | 29.4 s | 0.000259 |
+  | 1,725 | 375,687 | — | 96.7 s | 0.000257 |
+  | 6,000 | 1,241,827 | — | 316.1 s | 0.000255 |
+  | 20,000 | 3,765,328 | — | 923.6 s | **0.000245** |
+
+  **The headline is 64.48x**, at rung 500 — the largest rung both devices ran, so the ratio is
+  one machine's measurement and not an instance figure divided by a container figure. Both arms
+  are linear with no outliers at a 25% tolerance; the GPU's own rate still improves slightly with
+  size (0.000259 at 500 against 0.000245 at 20,000), so against the CPU reference the asymptotic
+  ratio is 68x. The conservative paired figure is the one to quote.
+  **The container's figure reproduced on the instance.** CPU rung 100 took 461.9 s here against
+  D-163's 469.9 s in the session container — 1.7% apart on 4 cores each. That is the cheapest
+  available evidence that the two environments measure the same thing, and it is what licenses
+  reading D-163's CPU projections and this entry's GPU ones off the same scale.
+  **The GPU was proved present before anything was timed on it.** `nvidia-smi` reported the L4
+  and a one-sequence foldseek probe returned `usable: true`. This is not ceremony: with no usable
+  GPU, foldseek falls back to the CPU and returns a believable number, so an unproved GPU arm
+  could have been CPU timings wearing a label, and the error would have been invisible in the
+  artefact and in any test.
+- **Decision:** **A2.2's pre-registered depth is A2.1 parity — 363 Maa, the depth A2.1 actually
+  searched — and explicitly not a census.** At the measured 0.000245 s/residue that is **24.7 GPU
+  instance-hours** (wall clock on one instance, not core-hours). A census of both releases is
+  24,691 Maa, which is **1,682 GPU instance-hours**, about seventy days on the one GPU type the
+  policy permits; a 64x speedup moves the census from impossible to merely unaffordable, and
+  pretending otherwise would be the same error D-163 made about CPU one rung down.
+  Parity is the right target for a reason that is not budget: A3.2 merges A2.2's table with
+  A2.1's, A2.4's and A2.5's, and `metrics/detections.md` forbids pooling a `lower_bound` table
+  with a `population` one. A structural table far shallower than the profile table would not be
+  comparable with it, and one far deeper would not buy comparability either.
+- **Rejected:** A census on GPU — 1,682 instance-hours, and the cost question would have to go
+  back to the owner for something A2.1 itself did not do. A depth set by what fits one run window
+  — that is letting the instrument choose the measurement, and it is how A2.1's first pass ended
+  up at a rate it later had to deepen tenfold. A single number from the 500-rung GPU rate — it is
+  6% pessimistic against the 20,000-rung rate, and quoting the warm-up is the specific mistake
+  D-098 recorded.
+- **Consequence:** 24.7 instance-hours **exceeds one instance's window**, so A2.2's detection pass
+  needs either a longer timer or per-object resumability before it can run — the same conclusion
+  A2.4 reached about deepening, and it should reuse that shape rather than reinvent it. The
+  measurement also leaves one weakness in `tools/fold_throughput.py` worth fixing before the real
+  pass: the heartbeat publishes between rungs, not on an interval, so the 32-minute CPU rung was
+  32 minutes of silence. AGENTS.md requires a heartbeat on an interval precisely because silence
+  cannot distinguish a dead process from a slow one, and this run only half-honoured that.
+  Three launches were spent getting here and none of them to the measurement itself: a pixi URL
+  re-derived by eye, then a payload guard that failed on a complete payload, then success. Both
+  failures died in about forty seconds through their own `die` path with their logs in object
+  storage, rather than idling away a 150-minute window, which is the behaviour AGENTS.md's
+  shutdown rules exist to produce. The lasting fix was not either patch but simulating the
+  instance's bootstrap locally — build the real payload, unpack it, run both precheck steps
+  against it — which would have caught both for nothing.
