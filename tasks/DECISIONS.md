@@ -7237,3 +7237,79 @@ decision has a threshold or parameter in it, the number goes in the entry.
   hand-maintained against generated frontmatter with nothing checking the two agree, so it can
   drift again. The new line pointing at `BOARD.md` as authoritative is a mitigation, not a
   mechanism.
+
+### D-169 — A2.2's fold universe is re-derived at family level, because D-166's list was never shipped and its capsid set contradicted its own rule
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Numbering:** appended as D-168 and renumbered to D-169 before pushing — the repo audit's
+  D-168 landed on `main` in between and is already cited from `AGENTS.md`. Commit messages on
+  branch `ccr-7a87e8bd-9ow1h1` citing D-168 for the fold universe mean this entry.
+- **Context:** D-166 fixed the three folds §A2 names at **166 ECOD representatives** and required
+  the enumerated identifier list to ship as an artefact with the table. **That artefact was never
+  written.** The list existed only in the session that derived it, so the universe had to be
+  re-derived from the pinned release before anything could be searched — and re-deriving it
+  turned up two things.
+  The pin itself re-verifies exactly. ECOD **v295.2**, generated 2026-08-27, retrieved
+  unauthenticated. One correction of record: the publisher keeps **no per-version filename** for
+  the current release — the distribution listing stops at `develop292` while `ecod.latest.domains.txt`
+  *is* v295.2 — so the pin cannot be a URL and is now the version string plus a sha256
+  (`cd3abc43…afe8`). The file holds **2,943,252** classified domain rows; D-166's 2,943,253 is
+  that count plus the header line.
+  **1. The capsid fold was selected one level up, and that contradicts D-166's own finding.**
+  D-166 established that ECOD's `jelly-roll` X-group mixes Concanavalin A lectins and
+  galactose-binding domains with viral capsids, and concluded that selection must be at **family**
+  level by enumerated identifier. It then selected the capsid fold at the **H-group**
+  `Nucleoplasmin-like/VP (viral coat and capsid proteins)` — 16,690 domains, 119 curated
+  representatives, both of which reproduce exactly. But that group is nucleoplasmin-*like*: it
+  carries **867 plainly cellular domains** — nucleoplasmin itself (132), peptide-N-glycanase and
+  PNGaseA (64), Cu(2+) monooxygenase (162), TGF-beta propeptide (201), NPL (141) and others — and
+  **12 of the 119 representatives are cellular**. A further 665 domains and 10 representatives sit
+  in ECOD's two *unnamed* families of the group, and `10.2.1.0` holds peptide-N-glycanase outright
+  (`e1pgsA1`, PDB 1pgs). Admitting any of those as a reference structure manufactures the exact
+  false positive the family-level rule was adopted to prevent: a corpus protein matching the
+  nucleoplasmin or N-glycanase jelly-roll would be reported as a surviving viral capsid fold.
+  **2. D-166's RdRp list was illustrative, not exhaustive.** Its prose names six families
+  (`RdRP_1`, `RdRP_3`, `RdRP`, `Birna_RdRp_palm`, `Birna_RdRp_C`, `CoV_RPol_N`). Applied literally,
+  with the host set excluded, those six select **1,441 domains and 18 representatives** — not the
+  1,907 and 31 recorded — and they miss influenza PB1, flavivirus NS5, the mononegavirus and
+  bunyavirus L polymerases, the coronavirus nsp12 thumb, `RdRP_4`, `RdRP_5` and the permutotetra
+  and cypovirus polymerases. Every one of those is a canonical viral RdRp. Two mechanical traps
+  explain part of the gap: ECOD's family names are **comma-joined Pfam lists**, so `CoV_RPol_N`
+  appears only as `RdRP_1,CoV_RPol_N` and an exact-string match never finds it; and RdRp's palm
+  and thumb are filed under two different topologies, so a list drawn from one topology silently
+  covers half the fold.
+- **Decision:** **Apply D-166's family-level rule consistently to all three folds, and ship the
+  enumerated lists as code and as an artefact.** `src/amazebio/folds.py` holds them; the artefact
+  is `fold-universe.json`, and it carries the **excluded** identifiers beside the included ones,
+  because what a denominator leaves out is as much a part of its membership rule as what it admits.
+  **Jelly-roll capsid** — the 64 demonstrably viral families of the H-group: **15,158 domains, 97
+  representatives**. The 25 cellular families and 2 unnamed families are listed by identifier and
+  excluded. Put to the project owner as a three-way choice between this strict set (97), keeping
+  the unnamed family (107), and holding D-166's whole H-group as recorded (119); **the owner chose
+  the strict set.**
+  **Viral RdRp** — the complete enumeration across both topologies: **27 families, 2,583 domains,
+  30 representatives**, against D-166's recorded 31. Host RNAi polymerase families stay excluded
+  exactly as D-166 decided, and they are listed by identifier too (269 domains), since they are
+  this fold's sharpest decoys and D-170 uses them as such.
+  **Class I fusion glycoprotein** — **15 families, 7,361 domains, 14 representatives**, against
+  D-166's recorded 9,606 and 16. **The gap is deliberately not padded.** Reaching 9,606 needs
+  either the coronavirus S1 beta domain, which is receptor binding and not fusion, or ECOD's
+  unnamed families in the `MPER trimer` topology — a topology that carries HIV gp41 beside
+  bZIP transcription factors, GATA domains, syntaxin, fungal rhodopsin, mitochondrial carriers
+  and a phage fibritin trimerisation domain. Guessing which of those D-166 counted would be
+  inventing a denominator.
+  **The reference set is therefore 141 structures, not 166**, all 141 fetched from RCSB and cut to
+  ECOD's ranges without a single drop.
+- **Rejected:** Holding the recorded 166 — the capsid component of it demonstrably admits cellular
+  reference structures, and a false positive in the largest of the three folds is the costliest
+  error this detector can make. Re-deriving by regex over family names — D-166's finding 3 already
+  measured what that costs, and the comma-joined names found here are a second, independent reason.
+  Reconstructing D-166's exact lists by searching for combinations that reproduce 1,907 and 9,606 —
+  that fits a number rather than stating a rule, and the rule is the thing a reviewer checks.
+- **Consequence:** The three folds' membership rules are now in code, in an artefact, and
+  checkable against the registry by identifier, with the asymmetry D-166 identified preserved and
+  sharpened: the capsid fold borrows a curator's grouping **minus a correction of ours**, RdRp
+  borrows families and assembles them across topologies, and the fusion class is ours outright.
+  That last one remains the structural coverage gap A2.2's Done-when criterion asks to be
+  documented, and it is now also the fold whose denominator differs most from what D-166 recorded.
+  **Nothing in this entry looks at a corpus hit.** The threshold is D-170.
