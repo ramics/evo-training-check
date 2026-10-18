@@ -248,3 +248,84 @@ shipped files alone.
 **Left:** the pass to finish and reconcile against the published 187K; then one shard as a smoke
 test and the 2.5% sample (D-133); then the aggregate with its interval, realised family count
 and the statement that no all-clear is made.
+
+## State — 2026-10-17, third
+
+`in-progress`, owner `claude`. **Branch `ccr-44355df9-hi20t9`** now carries the work (it
+continues `ccr-51fc983f-tyojje`, which it contains); `main` has this file, the board and the
+decisions.
+
+**The seed pass finished, and it does not reconcile — for one measurable reason.** 1,079,124
+seeded clusters of 350,950,053, read from the whole staged UniRef100 2023_02 tier in 54 minutes
+from commit `b00640f`. That is 5.8x the published 187K, and **D-146** traces essentially all of
+it to a single list entry: avian influenza reads onto Influenza A entire, 112,716 of the 114,467
+expanded taxa. The other 52 taxon-naming entries contribute about 1,750 between them.
+
+**D-133's budget is wrong by about 34x and the correction is in D-146.** It assumed 187K seeds
+where there are 1,079,124, and it costed one search where the pass runs six cells per shard.
+The full 2.5% sample is about 1,135 instance-hours and $180, not one launch of nineteen hours.
+Its *comparison* with the exhaustive pass stands — both sides were costed the same way — but
+nothing should be planned against its absolute figure.
+
+**The owner's call (D-146): keep D-137's reading, measure the split, report two strata.** The
+primary result is the seed set without the influenza entry's exclusively-claimed clusters, which
+is what the scoring pass is sized against; influenza is reported separately and named.
+
+**Done since.** `selectagents.expand_by_entry`, `seeds.Attribution` and `seeds.EntryCounts` give
+the pass a per-entry decomposition, off by default so A1.6's single-entry viral arm pays nothing
+for it. A test asserts the per-entry expansion unions to the pooled one exactly under all three
+readings. `reconcile` now names the largest contributor from the measurement rather than from the
+source. Full `check` green, 984 passed.
+
+**And a provenance gap closed.** `repro.run` writes its manifest on block exit, so the upload
+inside that block had no file to send: the first pass staged its results and left its `run.json`
+on an instance that terminated. Fixed, with a test. The first pass is traceable only via its code
+tarball key, which is why the re-run supersedes it at the same keys.
+
+**In flight.** The attributed re-run is on `i-0425941a33e981a94` (m6i.2xlarge spot, launched
+22:2x UTC, about an hour, commit `5cd5e07`). `r6i` spot is still refused for capacity, as A1.6
+and the first pass both saw.
+
+**Left.** The attributed counts, and the primary-stratum figure they produce; then the scoring
+pass, which needs sizing against that figure rather than against D-133's; then the aggregate with
+its interval, realised family count and the statement that no all-clear is made.
+
+**Note for whoever sizes the scoring pass.** A1.6's band mode — the machinery this arm needs — is
+on branch `ccr-81045ff3-7u9p0a` and is not merged. It is hardwired to the viral seed set, so this
+arm needs it to take a seed FASTA. Do not write a second copy.
+
+**Waiting on the project owner:** nothing.
+
+## State — 2026-10-18
+
+`in-progress`, owner `claude`. Branch `ccr-44355df9-hi20t9`.
+
+**The attributed re-run is done and it overturned D-146's headline.** 1,079,124 seeded clusters,
+reproducing the first pass exactly, now decomposed per list entry with a `run.json` that actually
+leaves the instance. By clusters the set is broad-based — *Burkholderia pseudomallei* 30.7%,
+avian influenza 25.4%, *Ralstonia solanacearum* 14.7%, top five 82% — not the single-entry
+concentration the taxon counts suggested. Taxon count is not cluster count.
+
+**The reconciliation gap is closed, and not by any reading.** D-150: ESM3's 187K counts
+UniProtKB sequences and this arm counts UniRef100 clusters. Executing their stated method against
+UniProtKB gives 140,591 against the published 187,000. The seed set stands as the query set; the
+reconciliation target is what was wrong.
+
+**The strain-descent hypothesis was withdrawn before its launch was spent** — the methods
+appendix names the database, and the owner asked whether the published material answered the
+question before a pass was run on a guess fitted to the gap.
+
+**Done.** Per-entry attribution (`selectagents.expand_by_entry`, `seeds.Attribution`,
+`seeds.EntryCounts`), the manifest upload fix, and a watcher that no longer reads a previous
+run's artefacts as this run's completion — it terminated a relaunch ninety seconds in and printed
+the stale reconciliation as if it were new. Full `check` green, 986 passed.
+
+**Left.** `reconcile` to compare against the UniProtKB-level count per D-150 rather than the raw
+187K. Then the scoring pass: size it against this seed set and the six-cell grid, not against
+D-133's withdrawn arithmetic. Then the aggregate with its interval, realised family count and the
+statement that no all-clear is made.
+
+**Note for whoever sizes the scoring pass.** A1.6's band mode is on branch
+`ccr-81045ff3-7u9p0a`, unmerged, and hardwired to the viral seed set. Do not write a second copy.
+
+**Waiting on the project owner:** nothing.
