@@ -35,6 +35,7 @@ import argparse
 import io
 import json
 import os
+import shlex
 import tarfile
 import time
 from pathlib import Path
@@ -173,7 +174,11 @@ print("=== payload imports cleanly ===")
 PRECHECK
 
 export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
-( "$PYBIN" tools/esm3_calibrate.py \
+# `set -e` with `( cmd ; echo )` aborts the subshell before its echo, so the script ends
+# without reaching `die` and the instance idles until the boot timer — seen for real on
+# A1.8's release count, 2026-10-18. Disarm it around the run and route the code through die.
+set +e
+"$PYBIN" tools/esm3_calibrate.py \
     --release {release} --tier {tier} \
     --taxdump /opt/amazebio/taxdmp.zip \
     --outdir /opt/amazebio/out --workdir /mnt/work \
@@ -184,10 +189,14 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
     --band-denominator {band_denominator} --band-shard {band_shard} \
     {verify_flags} {resume_flags} {artefact_flags} \
-    {sample_flags} {sidecar_flags} \
+    {sample_flags} {sidecar_flags} {seeds_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
-    --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
+    --progress-seconds 300
+rc=$?
+set -e
+echo "=== calibrate exited $rc ==="
+if [ "$rc" -ne 0 ]; then die "calibrate failed with $rc" "$rc"; fi
 
 echo "=== amazebio a1-6 calibration finished $(date -Is) ==="
 die "run complete" 0
@@ -349,6 +358,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--cap-shard-points", default="1,2")
     ap.add_argument("--cap-fractions", default="0.5,0.2")
+    ap.add_argument(
+        "--seeds-uri",
+        help="score this seed set instead of the viral one, with its .taxids.tsv sidecar "
+        "from the same prefix. A1.8's select-agent arm is this flag plus a band (D-159)",
+    )
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
     ap.add_argument(
         "--spot",
@@ -429,6 +443,7 @@ def main(argv: list[str] | None = None) -> int:
         # bucket with no DeleteObject. The tool refuses the same-key case outright; this is
         # what keeps the launcher on the right side of that refusal.
         sidecar_flags=("--stage-sidecars-only" if args.stage_sidecars_only else ""),
+        seeds_flags=(f"--seeds-uri {shlex.quote(args.seeds_uri)}" if args.seeds_uri else ""),
         artefact_flags=(f"--artefact-name {args.artefact_name}" if args.artefact_name else ""),
         resume_flags=(
             f"--resume-band-from {args.resume_band_from}" if args.resume_band_from else ""
