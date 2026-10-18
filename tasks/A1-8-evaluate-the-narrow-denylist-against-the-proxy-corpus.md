@@ -293,6 +293,8 @@ its interval, realised family count and the statement that no all-clear is made.
 **Note for whoever sizes the scoring pass.** A1.6's band mode — the machinery this arm needs — is
 on branch `ccr-81045ff3-7u9p0a` and is not merged. It is hardwired to the viral seed set, so this
 arm needs it to take a seed FASTA. Do not write a second copy.
+*(Superseded 2026-10-18: that branch merged to `main` in PR #22. See the correction at the end of
+this file — the band mode is in `src/amazebio/similarity.py` on `main`.)*
 
 **Waiting on the project owner:** nothing.
 
@@ -327,6 +329,7 @@ statement that no all-clear is made.
 
 **Note for whoever sizes the scoring pass.** A1.6's band mode is on branch
 `ccr-81045ff3-7u9p0a`, unmerged, and hardwired to the viral seed set. Do not write a second copy.
+*(Superseded 2026-10-18: merged to `main` in PR #22. See the correction at the end of this file.)*
 
 **Waiting on the project owner:** nothing.
 
@@ -362,6 +365,7 @@ the statement that no all-clear is made.
 
 **Note for whoever sizes it.** A1.6's band mode is on branch `ccr-81045ff3-7u9p0a`, unmerged,
 and hardwired to the viral seed set. Do not write a second copy.
+*(Superseded 2026-10-18: merged to `main` in PR #22. See the correction at the end of this file.)*
 
 **Waiting on the project owner:** nothing.
 
@@ -419,3 +423,18 @@ re-run for a flag is not worth 2.3 hours. **Read this artefact with D-159 beside
 **Not yet compared with A1.6's 0.6537%-0.6844%.** Same shard, same six cells, same instrument —
 but different denylists of different and unquantified relative breadth. The comparison needs an
 argument, not a subtraction.
+
+## Correction — 2026-10-18, repo audit
+
+**A1.6's band mode is on `main`. It is not on a branch, and the three notes above saying
+otherwise are wrong.** Branch `ccr-81045ff3-7u9p0a` merged via PR #22 and is an ancestor of
+`main`; the band machinery is in `src/amazebio/similarity.py` (`IDENTITY_BAND_EDGES`,
+`SEED_BANDS`, `band_of`, `band_labels`), with its launcher at `tools/ec2_similarity.py`.
+
+Those notes exist to stop a second copy being written. Left uncorrected they cause exactly that,
+because the next worker looks on a branch, finds work that has already landed, and concludes it
+has to be rebuilt. **Size the scoring pass against `main`.**
+
+What still holds from them: the band mode was hardwired to the viral seed set, so this arm needs
+it to take a seed FASTA. Check that against `main` before planning the change — it is the one
+substantive claim in those notes, and it is the part worth re-reading the code for.

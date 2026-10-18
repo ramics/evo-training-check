@@ -21,13 +21,26 @@ Three phases, strictly ordered by dependency rather than preference:
 
 ## Repo map
 
+**The module and tool lists below are excerpts, not inventories.** There are 31 modules in
+`src/amazebio/` and 36 scripts in `tools/`; the ones named here are the entry points worth
+knowing before you plan anything. For the rest, read the docstring — every module and tool
+opens with one line saying what it is for and which task it belongs to. Do not infer from this
+map that something does not exist.
+
 ```
 DESIGN.md             the specification — authoritative, read it before planning anything
 AGENTS.md             this file: process, conventions, non-negotiables
 README.md             setup and everyday commands
 pixi.toml / pixi.lock the pinned environment (conda-forge + bioconda + python)
 pyproject.toml        package metadata, lint and test config
-src/amazebio/         library code
+.github/workflows/    CI — runs exactly the seven steps `check` runs
+policies/             the policy evidence store: primary-source quotes, each traceable
+  README.md           how a quote is stored and verified; read before adding one
+  sources.json        the source register — retrieval status, digests, blockers
+  specs/              each filter policy as executable predicates, three readings
+  captures/           the captured primary sources the quotes cite
+pdfs/                 owner-supplied subscription sources and supplements
+src/amazebio/         library code — 31 modules; a selection follows
   repro.py            seeding, input pinning, run provenance
   survival.py         the frozen route taxonomy and headline metrics
   uniref.py           streaming acquisition of a pinned UniRef release, per release
@@ -35,7 +48,15 @@ src/amazebio/         library code
   ictv.py             the pinned ICTV Virus Metadata Resource — the benchmark ground truth
   genomad.py          the tool A4.2 benchmarks: version bound, output parser, scope note
   misassignment.py    taxonomy-tool error by direction, exact intervals, leakage propagation
-metrics/survival.md   FROZEN — the headline metric spec; changing it is a DECISIONS entry
+  similarity.py       parameters, readings and rates-with-intervals for the A1.6 pass
+  seeds.py            reconstructs ESM3-open's denylist seed sets from pinned inputs
+  policyspec.py       published filter prose as an executable predicate
+  ec2.py              launch-time facts about this account's EC2, shared by every launcher
+metrics/              the output contracts — a change to one is a DECISIONS entry
+  survival.md         FROZEN — the headline metric spec
+  detections.md       the shared detection schema every A2 detector emits
+  manifests.md        the surviving-corpus manifest contract
+tools/                36 scripts; a selection follows
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tools/stage_uniref.py stages a pinned UniRef release into object storage, streaming
 tools/count_clusters.py counts clusters in a staged tier and checks the composition
@@ -44,6 +65,10 @@ tools/ec2_count.py    runs the count in-region on EC2; see "Running work on EC2"
 tools/esm3_composition.py writes ESM3's stated composition and its reconciliation gaps
 tools/taxonomy_dependency.py which taxonomy tool the denylist's removals actually rest on
 tools/taxonomy_benchmark.py builds the labelled set and scores the tool's error by direction
+tools/policies.py     verifies every quote in policies/ against its cited source; CI runs it
+tools/specs.py        validates the filter policy specs; CI runs it
+tools/esm3_calibrate.py prices an in-region pass; the worked example for heartbeats
+tools/ec2_similarity.py launches it; its `die` is the worked example for shutdown paths
 tasks/README.md       the task protocol in detail
 tasks/BOARD.md        GENERATED — never hand-edit
 tasks/DECISIONS.md    append-only log of resolved ambiguities
@@ -53,8 +78,11 @@ data/                 pinned inputs (git-ignored)
 artifacts/            pipeline outputs and run manifests (git-ignored)
 ```
 
-Run `pixi run -e dev check` before every commit — it is exactly what CI runs (lint, format,
-task graph, tests), so a green local run means a green CI run.
+Run `pixi run -e dev check` before every commit — it is exactly what CI runs, so a green local
+run means a green CI run. Seven steps, in order: lint, format, task graph, **policy evidence**,
+**filter specs**, **model inventory**, tests. The three in bold are the evidence checks, and
+they are the ones a change to `policies/` trips; do not read "lint and tests" and assume a
+documentation-only change is safe.
 
 ## How to pick up work
 
@@ -139,7 +167,7 @@ forgotten.
 
 ## Gates
 
-Five tasks carry `gate: true`. They are not work items so much as checkpoints that make it
+Six tasks carry `gate: true`. They are not work items so much as checkpoints that make it
 *structurally impossible* to walk past a commitment by accident:
 
 | Gate | Holds | Why |
@@ -147,8 +175,13 @@ Five tasks carry `gate: true`. They are not work items so much as checkpoints th
 | **A1.1** released-vs-actual data verified | all corpus reconstruction | Determines whether Phase A audits the real thing or a proxy, and therefore how strongly every downstream claim may be worded. |
 | **A3.3** headline counts independently reimplemented | Phase A write-up, preprint | §7 requires a second method before publication. Not optional. |
 | **B5.1** pre-registration frozen | all Phase B analysis | §B5 requires the analysis plan fixed before results are seen. A freeze after the fact is not a freeze. |
-| **C2.2** whole-family holdout validated | leakage-score results | §C2: a random split leaks family identity, and a leakage score with leaked evaluation refutes itself. |
+| **C6.3** headline curves independently reimplemented | cost-curve results, preprint | §7's second-method requirement, one phase over: a claim that filtering *cannot* work for a family is at least as consequential as a Phase A count. |
 | **X3.1** disclosure window honoured | preprint | §4 requires disclosure before any preprint; §7 requires treating the window as substance. |
+| **C2.2** whole-family holdout validated | nothing — `deferred` | Superseded by the collateral cost curve (C5.1–C7.1) in DESIGN v0.4; D-009. Carries `gate: true` and an empty `blocks` so it stays visible as a commitment deliberately not run, per `deferred` above. C6.3 is the live gate on Phase C results. |
+
+`tasks/BOARD.md`'s **Gates** section is generated from this frontmatter and lists the five live
+gates with what each currently holds. It is the authoritative view; this table explains *why*
+each exists. If they disagree, the board is right and this table is stale — fix it here.
 
 If you believe a gate should open, that is a decision for the project owner, recorded in
 `DECISIONS.md`. It is never a judgement call made mid-task.
