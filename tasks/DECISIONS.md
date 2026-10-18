@@ -6353,3 +6353,58 @@ decision has a threshold or parameter in it, the number goes in the entry.
   rises as the seed sample deepens, which is the only evidence available about the gap to a
   full-seed rate. The write-up leads with the 0.70 bound, reports the bands beneath it, and states
   the design effect, because a reader who assumes binomial will understate the interval by 15x.
+
+### D-154 — Correction to D-153: band 1's figure is not a clean lower bound, because the seed set implements only the first clause of the rule
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** Raised by the project owner asking whether the matching material might simply be
+  the parts of viruses that are not distinctive — shared with hosts, ubiquitous, uninformative.
+  Checking rather than reasoning: `src/amazebio/seeds.py` says so in its own module docstring,
+  and D-153 failed to carry it into the result.
+
+  ESM3's viral denylist has **two** clauses: a sequence qualifies if it is (a) annotated as viral
+  in UniProt **and** (b) "align[s] almost exclusively to other viral sequences in UniProt". Clause
+  (b) is what excludes viral sequence that also resembles host protein. The seed set implements
+  **clause (a) only** — clause (b) needs its own alignment pass and its own reading of
+  "almost exclusively", which the source does not quantify. The seed set is therefore a
+  **superset** of the denylist the source describes.
+- **The error in D-153.** It states "every figure is a lower bound (D-134)" without qualification.
+  That holds for the seed-*sampling* axis and not for the seed-*construction* axis. Two errors run
+  in opposite directions:
+  - **1/100 of the seeds → understates.** A record matched by an unsampled seed is not counted.
+  - **Annotation-only seeds → overstates.** A record matching a viral sequence that clause (b)
+    would have excluded is counted as surviving material the filter should have removed, when the
+    filter never undertook to remove it.
+
+  So band 1's figure is a floor in one respect and a ceiling in another, and **the net direction
+  is not known**. "At least 0.6844%" is not a supportable phrasing and must not appear in the
+  write-up. The honest form states both axes and claims neither direction.
+- **Decision:** D-153's headline stands as a *measurement of the annotation-only reading*, not as
+  a bound on the filter's failure rate. Every figure from this band is labelled with the reading
+  it implements. The `lower_bound` flag in the artefact remains correct for what it was built to
+  mark — the seed sample — and the write-up may not read it as a claim about the whole result;
+  a flag that means one axis and is read as meaning the result is the D-150 failure again, one
+  level down.
+- **What would settle it, and it is not expensive.** Clause (b) is a restriction *on the seed
+  set*, applied before the corpus pass: for each candidate seed, align it against UniProt and keep
+  it only if its matches are almost exclusively viral. That is a seeds-against-UniProt pass, not a
+  seeds-against-corpus pass, and A1.8 is staging UniProtKB 2023_02 permanently at
+  `corpora/uniprotkb/2023_02/`, so it becomes an in-region job. The reading of "almost
+  exclusively" needs its own entry and must be fixed before the result is inspected, per §2.
+- **The owner's other question is not answered by this band at all.** Whether the matched records
+  are genuinely viral material or host protein that merely resembles it is a question about what
+  the records *are*, and this band only measures that they align. The 77%-at-≥0.90 figure in D-153
+  rules out distant family resemblance; it does not distinguish a captured host gene from a viral
+  one. That is the survival-route and homology-class work (A2.*, B3.*), and D-153 should not be
+  read as bearing on it.
+- **Rejected:** Reporting band 1 with the "at least" phrasing and a caveat further down — D-150
+  established in this same task that a caveat which does not change the number it qualifies is not
+  a safeguard. Narrowing the seed set now and rerunning — clause (b) is worth implementing, but
+  band 1's measurement of the annotation-only reading is still the measurement of a reading, and
+  §A0 treats the spread between readings as the result. Dropping the annotation-only arm once
+  clause (b) exists — the spread between the two is exactly what §A0 asks for.
+- **Consequence:** the write-up reports band 1 as the annotation-only reading and reports the
+  clause-(b) reading beside it once it exists; the difference between them is a §A0 finding about
+  how much of the apparent leakage rests on an unquantified phrase in the methods appendix. Band 2
+  is not the next priority — clause (b) is, because it changes what the existing numbers mean
+  rather than making them more precise.

@@ -623,8 +623,12 @@ and **7,366 seed families**. 132,473 strata, 129,113 of them unplaced singletons
 Artefact: `corpora/results/a1-6/band-complete.json`. Two launches and a resume (D-148), about
 $0.75 in total. `i-091497604cc5e805d` terminated.
 
-**Every figure is a lower bound** (D-134): 1% of the seed set can only find fewer records and
-lower identities than the whole set would.
+**These are not clean lower bounds — see D-154, which corrects D-153 on exactly this.** Two
+errors run in opposite directions: 1/100 of the seeds understates, and the seed set implements
+only the *first* clause of ESM3's rule ("annotated as viral") and not the second ("aligns almost
+exclusively to other viral sequences"), which makes it a superset of their denylist and
+overstates. The net direction is not known. **Do not write "at least" in front of these figures.**
+They are a measurement of the annotation-only reading.
 
 | | any identity | **≥0.70 (charitable)** | ≥0.90 | design effect |
 |---|---|---|---|---|
@@ -656,7 +660,16 @@ a measured reassurance rather than an assumption.
 15-24x binomial. D-109 argued the case expecting ~40.
 
 **What this is not.** 0.3125% of the corpus, UniRef100 only, 1% of the seeds, MGnify90 unscored
-(D-133). Not validated against any published size (D-150). A bound, not a rate.
+(D-133). Not validated against any published size (D-150). Not a bound in a known direction
+(D-154). And **not a statement about what the matched records are** — this band measures that they
+align, not whether they are viral material or host protein that resembles it. The 77%-at-≥0.90
+figure rules out distant resemblance; it does not separate a captured host gene from a viral one.
+That is A2.*'s and B3.*'s question.
+
+**The next priority is clause (b), not band 2** (D-154). Restricting the seed set to sequences
+that align almost exclusively to other viral sequences changes what the numbers above *mean*;
+band 2 only makes them more precise. It is a seeds-against-UniProtKB pass, and A1.8 is staging
+that archive in-region, so it is affordable.
 
 ## Notes
 
