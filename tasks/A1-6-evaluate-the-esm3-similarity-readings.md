@@ -507,3 +507,30 @@ with `lower_bound: true`.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Correction from A1.8 — 2026-10-18 (D-150)
+
+**The "~4M validates the viral seed set" claim does not hold, and this task's state block
+asserts it in two places.**
+
+ESM3's version of record, §A.6.1 p47: "we identify ∼4M sequences that are **annotated as viral
+in UniProt**". That figure counts UniProtKB sequences. This task's 3,159,223 is UniRef100
+clusters. The two are different objects, so their agreement is a coincidence of scale and not
+evidence that the reconstruction is right — in the same way, and for the same reason, that
+A1.8's select-agent set came out 5.8x its published figure.
+
+**What is not affected.** The seed set itself, the band run in flight, and every measurement
+resting on them. A1.6's seed set is a query set for searching the staged corpus, and breadth is
+the conservative choice for an audit; nothing about it depends on matching the publisher's count.
+D-100's other validation — 350,950,053 clusters matching the publisher's own release-note count
+exactly — is a UniRef-to-UniRef comparison and stands untouched.
+
+**What is affected.** The sentence "ESM3 states the viral denylist is roughly 4M sequences —
+which is worth having because D-032 established the reported 10.6M removals cannot validate a
+reconstruction" describes a validation target this task does not have. It needs removing from
+the write-up and from this file's state block. The honest position is that **no published
+denylist size can validate either arm's reconstruction**, because every published size is of a
+different object; what can be validated is the *reading*, by executing the stated method against
+UniProtKB, which is what A1.8 did for its arm (140,591 against a published 187K).
+
+Left here for whoever resumes A1.6 rather than edited into its state block by another task.

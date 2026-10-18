@@ -6164,3 +6164,76 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the cheap direction. 2.5% is now an afternoon and $7 rather than three days and $13-18, so the
   depth question goes back to the project owner with a measured number behind it for the first
   time.
+
+### D-150 — Correction to D-146: the 187K is counted in UniProtKB, not UniRef, and the published text says so
+- **Date:** 2026-10-18
+- **Task:** A1.8 (and a correction A1.6 must act on)
+- **Context:** D-146 reported the select-agent seed set at 1,079,124 UniRef100 clusters against
+  a published 187K, attributed 98.5% of the *taxon* expansion to the avian influenza entry, and
+  predicted that entry would dominate the clusters too. The attributed re-run settled it and
+  the prediction was wrong. By clusters the set is broad-based: *Burkholderia pseudomallei*
+  331,065 (30.7%), avian influenza 273,715 (25.4%), *Ralstonia solanacearum* 158,953,
+  *Xanthomonas oryzae* 71,777, *Bacillus anthracis* 49,623 — the top five are 82%. Taxon count
+  and cluster count are different quantities, and the inference between them was unfounded:
+  bacteria carry few taxa and thousands of sequenced strains each.
+
+  **The reconciliation gap is not a reading problem at all.** ESM3's version of record,
+  §A.6.1, p47: "To create the Select Agents Denylist we identify all sequences **in UniProt**
+  belonging to organisms on the Select Agents and Toxins List (114). This process gives us 147K
+  non-viral sequences and 40K additional viral sequences." The 187K counts UniProtKB sequences.
+  A1.8 counts UniRef100 clusters. The two numbers were never comparable, and the whole 5.8x is
+  that.
+
+  Their stated method, executed directly against UniProtKB for the listed organisms and their
+  strains, gives **140,591** against the published 187,000 — 0.75x, where the UniRef100
+  comparison was 5.8x. The residual is unremarkable: the UniProt release differs from the one
+  in force, and their treatment of toxin-producing organisms is unstated (D-137).
+- **Decision: the seed set stands; the reconciliation target is replaced.** The UniRef100 set is
+  not an attempt to reproduce their denylist object — it is the query set for searching the
+  staged corpus, built that way because UniProtKB is not staged and because cluster members
+  catch material a representative-only set misses (D-092). Breadth is the conservative choice
+  for an audit. What was wrong is checking it against a figure that counts something else.
+  `reconcile` therefore compares against the UniProtKB-level count of the same reading, and
+  reports the UniRef100 total as the query set's size rather than as a candidate for the
+  published figure. The one-line caveat already in `reconcile`'s output — "compared against
+  UniRef clusters, not UniProtKB entries" — was correct and far too quiet to stop a worker
+  building a hypothesis on top of it; a caveat that does not change the number it qualifies is
+  not a safeguard.
+- **The strain-descent hypothesis is withdrawn before it was run.** Faced with the gap, this
+  task reasoned that ESM3 might have matched listed species without descending to strains, and
+  priced a pass to test it. The arithmetic was sound — UniProtKB species-only counts predicted a
+  7.5-8.0x reduction, and the effect sorted exactly where the mechanism says it should
+  (*Xanthomonas oryzae* 255x, *Francisella tularensis* 186x, against *Bacillus anthracis* 1.1x
+  and Ebola 1.0x). It was also a reading chosen because it would close a gap, which is the thing
+  §B1 step 0 and AGENTS.md both warn against, and it was unnecessary: one sentence in the
+  methods appendix names the database. The launch was not spent, because the project owner asked
+  whether the published material already answered the question. It did.
+- **A1.6 has the same defect and does not yet know.** Its viral arm reconciles 3,159,223
+  UniRef100 viral-seeded clusters against ESM3's stated ~4M and reads the closeness as
+  validation of the reconstruction (D-100 and its state block). The same paragraph of the same
+  appendix says that figure is counted the same way: "we identify ∼4M sequences that are
+  annotated as viral in UniProt". So that comparison is also UniRef clusters against UniProtKB
+  sequences, and its agreement is a coincidence of scale rather than evidence. **This does not
+  invalidate A1.6's seed set or the band run now in flight** — the seed set is a query set there
+  too — but the "roughly 4M validates the reconstruction" claim must come out of the write-up,
+  and A1.6's state block records a validation target that it does not have. Flagged in that
+  task's file rather than only here.
+- **What this costs, stated rather than buried.** Phase A loses a validation it believed it had
+  for both arms. Neither reconstruction can be checked against a published size, because the
+  only published sizes are of a different object; the available check is to execute the stated
+  method against UniProtKB, which is what the 140,591 above is, and that validates the *reading*
+  rather than the seed set. Under-specification is data (§A0), and "the paper's only stated
+  denylist sizes cannot validate any corpus-level reconstruction" is a finding of exactly the
+  kind §A0 asks for.
+- **Reference (114) settles nothing further, and that is worth recording.** It is the live CDC
+  summary page, dated 2024 and undated on its face — the page D-138 already assessed and
+  declined in favour of the CFR at 2024-06-01. The citation confirms D-138's reasoning rather
+  than changing it.
+- **Rejected:** Rebuilding the seed set from UniProtKB to match their object exactly — it would
+  reproduce their denylist and then search the corpus with a strictly narrower query set, which
+  makes the audit less likely to find surviving material; the error would run in the direction
+  that flatters the safeguard, which §2 forbids. Running the no-descent pass anyway as a
+  sensitivity — it tests a hypothesis the text has already answered, and an hour spent
+  confirming a withdrawn guess is an hour not spent on the scoring pass. Leaving D-146 standing
+  with a correction appended inline — it is append-only, and D-146's headline claim is wrong
+  rather than incomplete.

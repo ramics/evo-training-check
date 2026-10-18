@@ -295,3 +295,37 @@ on branch `ccr-81045ff3-7u9p0a` and is not merged. It is hardwired to the viral 
 arm needs it to take a seed FASTA. Do not write a second copy.
 
 **Waiting on the project owner:** nothing.
+
+## State — 2026-10-18
+
+`in-progress`, owner `claude`. Branch `ccr-44355df9-hi20t9`.
+
+**The attributed re-run is done and it overturned D-146's headline.** 1,079,124 seeded clusters,
+reproducing the first pass exactly, now decomposed per list entry with a `run.json` that actually
+leaves the instance. By clusters the set is broad-based — *Burkholderia pseudomallei* 30.7%,
+avian influenza 25.4%, *Ralstonia solanacearum* 14.7%, top five 82% — not the single-entry
+concentration the taxon counts suggested. Taxon count is not cluster count.
+
+**The reconciliation gap is closed, and not by any reading.** D-150: ESM3's 187K counts
+UniProtKB sequences and this arm counts UniRef100 clusters. Executing their stated method against
+UniProtKB gives 140,591 against the published 187,000. The seed set stands as the query set; the
+reconciliation target is what was wrong.
+
+**The strain-descent hypothesis was withdrawn before its launch was spent** — the methods
+appendix names the database, and the owner asked whether the published material answered the
+question before a pass was run on a guess fitted to the gap.
+
+**Done.** Per-entry attribution (`selectagents.expand_by_entry`, `seeds.Attribution`,
+`seeds.EntryCounts`), the manifest upload fix, and a watcher that no longer reads a previous
+run's artefacts as this run's completion — it terminated a relaunch ninety seconds in and printed
+the stale reconciliation as if it were new. Full `check` green, 986 passed.
+
+**Left.** `reconcile` to compare against the UniProtKB-level count per D-150 rather than the raw
+187K. Then the scoring pass: size it against this seed set and the six-cell grid, not against
+D-133's withdrawn arithmetic. Then the aggregate with its interval, realised family count and the
+statement that no all-clear is made.
+
+**Note for whoever sizes the scoring pass.** A1.6's band mode is on branch
+`ccr-81045ff3-7u9p0a`, unmerged, and hardwired to the viral seed set. Do not write a second copy.
+
+**Waiting on the project owner:** nothing.
