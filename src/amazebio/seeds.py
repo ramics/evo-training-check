@@ -9,6 +9,13 @@ The two seed sets, as the source describes them:
 
 * **Viral denylist** — "sequences that are annotated as viral in UniProt and align almost
   exclusively to other viral sequences in UniProt", roughly 4M sequences.
+
+  **That 4M counts UniProtKB sequences, and this module counts UniRef100 clusters, so it
+  cannot validate the reconstruction** (D-150). The two are different objects and their
+  closeness is a coincidence of scale rather than evidence. A1.6 believed it had a validation
+  target here and did not; the available check is to execute the stated reading against
+  UniProtKB, which validates the reading rather than the seed set. Breadth is still the
+  conservative choice for an audit, so the set stands as a query set — see below.
 * **Select-agent denylist** — "all sequences in UniProt belonging to organisms on the
   Select Agents and Toxins List".
 
