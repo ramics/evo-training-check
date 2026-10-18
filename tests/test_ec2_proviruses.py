@@ -243,3 +243,15 @@ def test_a_stale_heartbeat_is_not_reported_as_this_runs():
     source = _PATH.read_text()
     assert "started_at" in source
     assert 'beat.get("written_at", "")) >= started_at' in source
+
+
+def test_collection_ignores_archived_sub_prefixes():
+    """Archived runs live under the results prefix, because the bucket has no delete.
+
+    Flattening them onto their basenames overwrote the live tables with the archived ones, and
+    which copy survived depended on listing order. Observed: 20 objects collapsed into 10 files.
+    """
+    source = _PATH.read_text()
+    collect = source[source.index("nested = 0") :]
+    assert 'if "/" in name:' in collect
+    assert "rsplit" not in collect.split("if nested:")[0]

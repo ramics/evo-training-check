@@ -472,14 +472,25 @@ def watch_and_collect(
     collected = 0
     out = REPO / "artifacts" / "a2-4"
     out.mkdir(parents=True, exist_ok=True)
+    nested = 0
     for page in s3.get_paginator("list_objects_v2").paginate(
         Bucket=bucket, Prefix=f"{RESULTS_PREFIX}/"
     ):
         for obj in page.get("Contents", []):
-            name = obj["Key"].rsplit("/", 1)[-1]
+            name = obj["Key"][len(RESULTS_PREFIX) + 1 :]
+            # Only what sits directly under the prefix. Archived runs live in sub-prefixes of
+            # it — the corpus bucket has no delete, so preserving a band's results means
+            # copying them aside rather than moving them — and flattening those onto their
+            # basenames silently overwrote the live tables with the archived ones. Which copy
+            # survived depended on listing order, which is luck rather than design.
+            if "/" in name:
+                nested += 1
+                continue
             body = s3.get_object(Bucket=bucket, Key=obj["Key"])["Body"].read()
             (out / name).write_bytes(body)
             collected += 1
+    if nested:
+        print(f"  ({nested} object(s) in archived sub-prefixes left where they are)")
     print(f"collected {collected} artefact(s) into {out.relative_to(REPO)}")
     return 0 if collected else 1
 
