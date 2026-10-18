@@ -233,36 +233,72 @@ def probe_gpu(foldseek: str, model: Path, workdir: Path) -> dict[str, Any]:
     return {"usable": True}
 
 
+#: How often a running rung reports that it is still alive, in seconds. AGENTS.md requires a
+#: heartbeat "on an interval" for anything longer than a few minutes, and 60 s is well inside the
+#: shortest rung while being far more often than the console can be relied on.
+HEARTBEAT_INTERVAL_S = 60
+
+
 def time_createdb(
-    foldseek: str, faa: Path, model: Path, outdir: Path, *, gpu: bool, threads: int
+    foldseek: str,
+    faa: Path,
+    model: Path,
+    outdir: Path,
+    *,
+    gpu: bool,
+    threads: int,
+    on_tick: Any = None,
+    tick_interval_s: float = HEARTBEAT_INTERVAL_S,
+    poll_interval_s: float = 1.0,
 ) -> dict[str, Any]:
     """One rung: time `foldseek createdb` and report what it cost.
 
     Wall clock is taken around the process rather than read from foldseek's own summary line,
     so the figure includes everything the real pass would pay — model load, tokenisation,
     inference and the database write.
+
+    `on_tick(elapsed_s)` is called about every :data:`HEARTBEAT_INTERVAL_S` *while the rung
+    runs*, which is the whole reason this is `Popen` and not `subprocess.run`. The first version
+    published only between rungs, so the 32-minute CPU rung was 32 minutes of silence — half of
+    what AGENTS.md requires, and exactly the condition under which silence means nothing at all:
+    from outside, a rung still working and a rung whose process has died look identical.
+
+    Output goes to temporary files rather than pipes. A rung emits enough on stderr that a pipe
+    nobody is draining can fill and deadlock the child, and the child here is the thing being
+    timed.
     """
     db = outdir / ("db-gpu" if gpu else "db-cpu")
     for stale in outdir.glob(db.name + "*"):
         stale.unlink() if stale.is_file() else shutil.rmtree(stale)
+    cmd = [
+        foldseek,
+        "createdb",
+        str(faa),
+        str(db),
+        "--prostt5-model",
+        str(model),
+        "--gpu",
+        "1" if gpu else "0",
+        "--threads",
+        str(threads),
+    ]
+    out_path = outdir / f"createdb-{'gpu' if gpu else 'cpu'}.out"
+    err_path = outdir / f"createdb-{'gpu' if gpu else 'cpu'}.err"
     started = time.monotonic()
-    done = subprocess.run(
-        [
-            foldseek,
-            "createdb",
-            str(faa),
-            str(db),
-            "--prostt5-model",
-            str(model),
-            "--gpu",
-            "1" if gpu else "0",
-            "--threads",
-            str(threads),
-        ],
-        capture_output=True,
-        text=True,
-    )
+    with out_path.open("w") as out_fh, err_path.open("w") as err_fh:
+        proc = subprocess.Popen(cmd, stdout=out_fh, stderr=err_fh, text=True)
+        next_tick = started + tick_interval_s
+        while proc.poll() is None:
+            time.sleep(poll_interval_s)
+            now = time.monotonic()
+            if now >= next_tick:
+                if on_tick is not None:
+                    on_tick(round(now - started, 1))
+                next_tick = now + tick_interval_s
     elapsed = time.monotonic() - started
+    stdout = out_path.read_text(errors="replace")
+    stderr = err_path.read_text(errors="replace")
+    done = subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
     blob = done.stdout + done.stderr
     # A GPU rung that silently fell back to the CPU is worse than a failed rung, because its
     # number looks right. The probe above should have caught it; this is the second line.
@@ -542,6 +578,21 @@ def main(argv: list[str] | None = None) -> int:
             for n in ladders[device]:
                 faa, residues = fastas[n]
                 print(f"=== {device} rung {n} proteins / {residues} residues", flush=True)
+
+                def tick(elapsed: float, device: str = device, n: int = n) -> None:
+                    """Report mid-rung, so a long rung is never a silent one."""
+                    print(f"    still running after {elapsed}s", flush=True)
+                    heartbeat(
+                        s3,
+                        args.s3_uri,
+                        "throughput-progress.json",
+                        {
+                            "stage": "timing",
+                            "running": {"device": device, "proteins": n, "elapsed_s": elapsed},
+                            **result,
+                        },
+                    )
+
                 point = time_createdb(
                     args.foldseek,
                     faa,
@@ -549,6 +600,7 @@ def main(argv: list[str] | None = None) -> int:
                     workdir,
                     gpu=(device == "gpu"),
                     threads=args.threads,
+                    on_tick=tick,
                 )
                 point["proteins"] = n
                 point["residues"] = residues
