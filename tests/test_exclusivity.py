@@ -263,3 +263,100 @@ def test_parallel_path_agrees_with_the_serial_one_and_keeps_order() -> None:
     assert parallel == serial
     assert total.clusters == 40
     assert total.exclusive == 40
+
+
+def _tier_gz(path: object, entries: list[bytes]) -> None:
+    """Write a gzipped tier document, root element and all, as the staged bytes are."""
+    import gzip
+
+    doc = (
+        b'<?xml version="1.0" encoding="UTF-8"?>\n'
+        b'<UniRef90 releaseDate="2023-05-03" version="2023_02">\n'
+        + b"</entry>\n".join(entries)
+        + b"</entry>\n</UniRef90>\n"
+    )
+    with gzip.open(path, "wb") as fh:  # type: ignore[arg-type]
+        fh.write(doc)
+
+
+def test_tool_reads_a_tier_end_to_end_and_reports_real_byte_counts(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """The whole on-instance path, which is the only thing a `DryRun` cannot check.
+
+    It also pins the two byte counters. `GunzipStream` exposes them as attributes, so a
+    `tell()` lookup yields 0 and the manifest reads as though the pass read nothing — on a
+    run that read the whole tier. That is the same class of error as D-144 and D-150: a
+    quantity taken from a field whose name was assumed.
+    """
+    import importlib.util
+    import json
+    import pathlib
+    import zipfile
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    spec = importlib.util.spec_from_file_location(
+        "seed_exclusivity", root / "tools" / "seed_exclusivity.py"
+    )
+    assert spec and spec.loader
+    tool = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tool)
+
+    nodes = "\n".join(
+        [
+            "1\t|\t1\t|\tno rank\t|",
+            "10239\t|\t1\t|\tsuperkingdom\t|",
+            "11158\t|\t10239\t|\tgenus\t|",
+            "2\t|\t1\t|\tsuperkingdom\t|",
+            "562\t|\t2\t|\tspecies\t|",
+        ]
+    )
+    taxdump = tmp_path / "taxdmp.zip"
+    with zipfile.ZipFile(taxdump, "w") as archive:
+        archive.writestr("nodes.dmp", nodes)
+
+    source = tmp_path / "uniref90.xml.gz"
+    _tier_gz(
+        source,
+        [
+            entry("UniRef90_1", member("UniRef100_V1", 11158, representative=True)),
+            entry(
+                "UniRef90_2",
+                member("UniRef100_V2", 11158, representative=True)
+                + member("UniRef100_C", CELLULAR),
+            ),
+            # All-cellular under a viral common ancestor: the entry-level property must not
+            # make this look viral, or the pass invents a seed.
+            entry("UniRef90_3", member("UniRef100_C2", CELLULAR, representative=True)),
+        ],
+    )
+
+    outdir = tmp_path / "out"
+    code = tool.main(
+        [
+            "--tier",
+            "uniref90",
+            "--taxdump",
+            str(taxdump),
+            "--source",
+            str(source),
+            "--outdir",
+            str(outdir),
+            "--workers",
+            "1",
+            "--allow-dirty",
+        ]
+    )
+    assert code == 0
+
+    import gzip as _gzip
+
+    with _gzip.open(outdir / "exclusivity-rows-2023_02-uniref90.tsv.gz", "rt") as fh:
+        rows = dict(line.split() for line in fh)
+    assert rows == {"UniRef100_V1": EXCLUSIVE, "UniRef100_V2": NON_EXCLUSIVE}
+
+    payload = json.loads((outdir / "exclusivity-counts-2023_02-uniref90.json").read_text())
+    assert payload["counts"]["clusters"] == 3
+    assert payload["counts"]["viral_covering"] == 2
+    assert payload["counts"]["non_exclusive"] == 1
+    assert payload["decision"] == "D-158"
+    assert payload["compressed_bytes_read"] > 0
+    assert payload["decompressed_bytes_read"] > 0
