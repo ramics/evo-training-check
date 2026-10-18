@@ -671,6 +671,87 @@ that align almost exclusively to other viral sequences changes what the numbers 
 band 2 only makes them more precise. It is a seeds-against-UniProtKB pass, and A1.8 is staging
 that archive in-region, so it is affordable.
 
+
+## Note for the next session — 2026-10-18
+
+**Read in this order:** D-134, D-153, D-154, **D-156** (which corrects D-154), then this block.
+D-156 is the one that changes what you do.
+
+### Where the task is
+
+Branch `ccr-81045ff3-7u9p0a`, 946 tests, full `check` green, nothing left on a branch that
+matters — the instrument is all there. Band 1 is **complete and paid for**:
+`corpora/results/a1-6/band-complete.json`, nine groups over shard 0's 1,097,174 records from
+31,381 seeds (1/100). Two launches, one spot reclaim, one resume, about $0.75. No instance is
+running.
+
+### The one thing to get right before touching anything
+
+Band 1 ran the **strict** reading's seed set (annotated-viral only) against the **charitable**
+reading's 0.70 threshold, and D-153 labelled the 0.70 column "charitable". That combination is not
+one of the three readings D-015 fixed. **The fix is relabelling, not recomputation** (D-156):
+
+- the **any-identity** column is the strict reading proper, since strict removes on any detected
+  hit — ≥1.5473% to ≥4.0975% across our settings, and these **are** clean lower bounds, because
+  the only sampling error on that reading is the 1/100 seed sample;
+- the **0.70** column is the strict seed set at the charitable threshold, which is a hybrid and
+  should be named as one — 0.6537% to 0.6844%, remarkably flat across settings;
+- the **charitable reading's seed set is not executable** from the published text, because clause
+  (b) ("align almost exclusively to other viral sequences") carries no number and D-015 declined
+  to invent one. That is a §A0 finding to report, not a gap to close.
+
+**Do not implement clause (b)** unless the project owner asks for it as a *fourth* reading with
+its own entry. An earlier version of this note told you to do it next; D-156 withdraws that.
+
+### What is genuinely left
+
+1. **Relabel the write-up per D-156.** No compute. This is the whole of the correction.
+2. **Stage the strata sidecars** — `--stage-sidecars-only`, one launch, about $0.20. Saves every
+   later band and A1.8 a 52-minute corpus pass. Needs the owner's go-ahead.
+3. **A per-cell heartbeat before band 2.** The heartbeat covers the corpus pass only; a search
+   cell publishes nothing until it finishes. Band 1's longest cell was a 95-minute silence in
+   which a live run and a dead one are indistinguishable from outside — survivable because the
+   cell is the unit, and dangerous at band 2's ~15.8-hour cells. `AGENTS.md` has the general form.
+4. **Band 2** (`--band-denominator 10`) only if the owner authorises it. Its value is now the
+   *seed* axis alone: the 0.70 figure is already flat across sensitivities, so what band 2 buys is
+   how far the bound rises as the seed sample deepens — the only available evidence about the gap
+   to a full-seed rate. Not authorised.
+
+### Things that will bite you
+
+- **Resume from the band artefact with the most cells, never the newest.** `band-complete.json`
+  is published holding **no cells** hours before the last one lands, because `publish()` runs
+  before the band stage. Open each candidate and count `band.cells`. A resumed run also needs
+  `--artefact-name` pointing somewhere new, and the tool refuses the same-key case outright.
+- **The watcher dies at 2 hours** in this harness, three times over in this task. The run
+  survives; the launcher's `finally` termination does not. Poll object storage and terminate
+  explicitly, or the boot-armed timer bills the remainder.
+- **Nothing published can validate either seed set** (D-150). ESM3's stated sizes count UniProtKB
+  entries; we count UniRef100 clusters. A1.8 is producing a viral entry count at release 2023_02
+  which validates the *reading* only. UniProtKB 2023_02 is staged at
+  `corpora/uniprotkb/2023_02/knowledgebase2023_02.tar.gz`, 182.7 GB — **do not download it again**.
+- **Use the measured 11.8% unplaced share** (D-152), not A4.2's 36%, which measured something else.
+- **Design effects are 239-557.** A binomial interval understates by 15-24x.
+- **A band re-run overwrites band 1 unless you rename its artefact.** `--measure band` defaults
+  to `band.json`, which already holds a published result, and this bucket has no `DeleteObject`
+  — so the overwrite is irreversible. Pass `--artefact-name` something new. Found 2026-10-18
+  while setting up D-160's re-run, before launching rather than after.
+- **Do not `--resume-band-from` a re-run that exists to emit something new.** A resumed cell is
+  skipped, and a skipped cell emits nothing — so a resume would have produced six reused cells,
+  zero seed-hit sidecars, and an artefact that looked complete. The resume is right for
+  recovering a reclaim and wrong for changing what a cell records.
+- **The staged sample carries no strata sidecars**, so every band owes its own 52.5-minute
+  corpus pass (D-142, and `sample_source: corpus-pass` in band 1's own artefact). Budget it:
+  it is the difference between a 4-hour band and a 5-hour one.
+
+### The process lesson, three times in one task
+
+D-150 was a caveat sitting quietly in code. D-154 was a qualifier sitting quietly in a docstring.
+D-156 was a decision already recorded in `policies/specs/` that nobody re-read. Each time a number
+travelled without the thing that qualified it. **Before treating a gap as work, check whether a
+fixed reading already governs it** — and when you carry a seed set, artefact or figure forward,
+carry its qualifier into the result, not into a note beside it.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
@@ -701,3 +782,79 @@ different object; what can be validated is the *reading*, by executing the state
 UniProtKB, which is what A1.8 did for its arm (140,591 against a published 187K).
 
 Left here for whoever resumes A1.6 rather than edited into its state block by another task.
+
+## The viral reading, measured at the right release — 2026-10-18 (D-157)
+
+A1.8 read all of UniProtKB 2023_02 and counted the Viruses superkingdom on the same pass, so
+this arm now has the comparison it wanted. Both members matched the publisher's own entry
+statistics exactly, so the read is whole.
+
+**5,379,748 taxonomically viral UniProtKB sequences at release 2023_02**, against ESM3's stated
+~4M. A 1.34x gap with a described cause: the paper's viral denylist is not "annotated as viral"
+alone but sequences that *also* "align almost exclusively to other viral sequences in UniProt",
+and a 26% reduction from a specificity filter is what that step is for. "Almost exclusively" is
+unquantified, which is already on the open-questions list.
+
+So this arm's **reading** checks out — the difference between our set and theirs is accounted
+for by a step they describe. That is worth having, and it is the strongest statement available.
+
+**It still does not validate the seed set,** and the correction from 2026-10-18 above stands:
+3,159,223 UniRef100 clusters cannot be compared with a UniProt sequence count, so the "roughly
+4M validates the reconstruction" sentence has to come out regardless. What replaces it is this:
+the reading is validated against the stated method at the correct release; the seed set is a
+query set and nothing published can size it.
+
+Worth knowing for contrast: the select-agent arm does **not** come out this way. Its stated
+procedure has no second step, and no reading of the regulation reproduces its published total —
+1.7x over at the most conservative, 6.8x on the literal reading (D-157).
+
+## The clause-(b) exposure, measured without implementing clause (b) — 2026-10-18
+
+D-158. **Branch `ccr-ff660039-p1xxuf`** carries the work. `main` has only D-158 and this block.
+D-158 was appended as D-157 and renumbered — A1.8 took that number and landed first; its
+`Numbering:` line has the reasoning and names the two commit messages that cite the old one.
+
+The project owner asked whether band 1's hits are unique to viruses. D-156 answers the half the
+source answers — clause (b) is deliberately dropped by the strict reading, so the annotation-only
+seed set is that reading's own and quantifying "almost exclusively" invents the number D-015
+declined. What it left open is **how much of band 1's figure rests on seeds clause (b) would have
+excluded**, and that is answerable from staged bytes without choosing a cut.
+
+**Built and green** (13 tests, full `check` at 959 passed): `src/amazebio/exclusivity.py` reduces a
+UniRef90 or UniRef50 cluster block to a verdict about the seeds it covers, and `Tally` turns rows
+into the two seed-side shares D-157 fixes. `seeds.scan_parallel` is now generic over a
+`BatchScanner` protocol so it drives this reduction unchanged rather than the project carrying two
+copies of its ordering and back-pressure guarantees.
+
+**Two things the next worker should not rediscover.**
+
+- **Workers need only the viral taxid set, not the seed set.** UniRef is strictly hierarchical, so
+  the cluster containing a seed also contains that seed's viral member. Emitting one row per viral
+  member reaches every seed and the join happens once, afterwards, against the staged seed FASTA.
+  Shipping 3.16M ids to each of seven workers would cost a few hundred megabytes per worker to
+  answer the same question.
+- **`UNDETERMINED` is a seed-level outcome and cannot be a cluster-level one.** A cluster with no
+  placed taxid has no viral member either, so it can carry no verdict about any seed. `Tally`
+  therefore counts a seed it never saw a row for, rather than dropping it — dropping it would
+  shrink the denominator and flatter the share, which is the error D-157's two-denominator rule
+  exists to prevent.
+
+**Three schema facts, read from the staged bytes rather than assumed.** Both tiers carry a
+`UniRef100 ID` and an `NCBI taxonomy` property on every member and representative, so each tier
+joins to the seed set directly and neither needs reconstructing from the other. `member count`
+**includes** the representative — a cluster reporting 3,252 has 3,251 `<member>` elements.
+`uniref.xsd` is staged but settles neither point: properties are generic `type`/`value` pairs
+there. This is the fourth time in this task a field would have been taken on trust.
+
+**Left, in order.** The on-instance pass script; the launcher and its first-party import-closure
+test, modelled on `tools/ec2_count.py`, which already launches this exact shape per `--tier` over
+these tiers; the join step from staged rows to the two shares. Then the launch.
+
+**Spend is authorised: about $0.10.** 62.73 GB plus 30.39 GB of compressed stream, roughly 45
+minutes sequentially on one spot instance, scaled from D-100's measured full-tier pass of 118.68 GB
+in 3,202.5 s on 8 vCPU with 7 parsing workers. Read from the session container instead it is 93 GB
+of metered egress at the 42.5 MB/s this project has measured — slower and two orders of magnitude
+dearer, so this is in-region work by `AGENTS.md`'s test.
+
+**Nothing on this is waiting on the project owner.** The spend is authorised and the
+measurement's definition is fixed, so what remains is the launcher and the pass.
