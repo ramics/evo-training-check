@@ -58,7 +58,11 @@ MMSEQS_SHA256 = "bd9b0234da5949ad528d5b5f9ea4cda9c1e23dce14b46c0791d4d919a76e61c
 #: as query and needs a small target for its grid points to complete at all; the cap
 #: measurement subsamples the query and needs a large target, since hits per seed is what the
 #: cap truncates and it scales with the target.
-SAMPLE_RATES = {"curve": 2000, "caps": 50}
+#: `band` is 40, which is the 2.5% sample D-122 already staged — the band searches one of its
+#: eight shards, so 0.3125% of the corpus (D-128). It is listed rather than inferred because a
+#: band run against a freshly sampled corpus at any other rate would not be the sample the
+#: checksums, the strata sidecars and every figure in D-128 refer to.
+SAMPLE_RATES = {"curve": 2000, "caps": 50, "band": 40}
 
 #: Used when --hard-stop-minutes is not given. Not an argparse default, because a watcher
 #: attaching to a running instance must be able to tell "I armed this" from "someone else
@@ -68,7 +72,11 @@ DEFAULT_HARD_STOP_MINUTES = 400
 
 #: Where each measurement's result lands, matching `esm3_calibrate.ARTEFACT_NAMES`. The
 #: watcher polls this key, so a mismatch reads as a run that produced nothing.
-RESULT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
+RESULT_NAMES = {
+    "curve": "calibration.json",
+    "caps": "cap-measurement.json",
+    "band": "band.json",
+}
 
 #: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
 #: Shipped through S3 rather than baked into UserData, which is capped at 16 KiB.
@@ -174,7 +182,9 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --query-fractions {query_fractions} --shard-points {shard_points} \
     --cap-query-denominator {cap_query_denominator} \
     --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
-    {sample_flags} \
+    --band-denominator {band_denominator} --band-shard {band_shard} \
+    {verify_flags} {resume_flags} {artefact_flags} \
+    {sample_flags} {sidecar_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
     --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
@@ -297,10 +307,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "--measure",
-        choices=("curve", "caps"),
+        choices=("curve", "caps", "band"),
         default="curve",
-        help="what the instance measures. `caps` prices the hit cap where it binds and "
-        "relaxed coverage against D-109's three-cell fallback (default: %(default)s)",
+        help="what the instance does. `caps` prices the hit cap where it binds and relaxed "
+        "coverage against D-109's three-cell fallback; `band` runs the pass itself — one "
+        "seed band's six cells over one shard (default: %(default)s)",
     )
     # The cap measurement wants the opposite trade from the cost curve: a *larger* target
     # against a small query, because hits per seed — the thing the cap truncates — scales
@@ -308,6 +319,34 @@ def main(argv: list[str] | None = None) -> int:
     # over UniRef100 is about 2 G residues against rate 2000's 67 M, which is the difference
     # between a cap that can be made to bind and one that cannot.
     ap.add_argument("--cap-query-denominator", type=int, default=100)
+    # D-134's band 1 and D-128's single shard. Both are defaults rather than constants because
+    # band 2 is the same code at `--band-denominator 10`.
+    ap.add_argument("--band-denominator", type=int, default=100)
+    ap.add_argument("--band-shard", type=int, default=0)
+    ap.add_argument(
+        "--stage-sidecars-only",
+        action="store_true",
+        help="add the strata sidecars to the already-staged sample and stop. One launch, so "
+        "later bands and A1.8 do not each rebuild them (D-142)",
+    )
+    ap.add_argument(
+        "--artefact-name",
+        help="result filename, and so its S3 key. Required alongside --resume-band-from "
+        "when resuming from the default key, since a run may not overwrite its own source",
+    )
+    ap.add_argument(
+        "--resume-band-from",
+        metavar="S3_URI",
+        help="a band.json an earlier run published; its completed cells are reused instead "
+        "of rebought. A spot reclaim on 2026-10-17 took the sixth cell of six, which is what "
+        "this exists for",
+    )
+    ap.add_argument(
+        "--verify-sample-against",
+        metavar="S3_URI",
+        help="a staged manifest the rebuilt sample must match byte for byte. This is what "
+        "makes the corpus pass and the band one launch instead of two (D-142)",
+    )
     ap.add_argument("--cap-shard-points", default="1,2")
     ap.add_argument("--cap-fractions", default="0.5,0.2")
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
@@ -319,6 +358,12 @@ def main(argv: list[str] | None = None) -> int:
         "can be reclaimed mid-run",
     )
     args = ap.parse_args(argv)
+    if args.resume_band_from and not args.artefact_name:
+        raise SystemExit(
+            "--resume-band-from needs --artefact-name: a resumed run that writes its own "
+            "source key destroys the cells it is resuming, before it reads them. Checked "
+            "here so it costs an error rather than a boot."
+        )
     if args.sample_rate is None:
         args.sample_rate = SAMPLE_RATES[args.measure]
 
@@ -378,6 +423,22 @@ def main(argv: list[str] | None = None) -> int:
         tier=args.tier,
         measure=args.measure,
         cap_query_denominator=args.cap_query_denominator,
+        band_denominator=args.band_denominator,
+        # A resumed run must not write the key it resumed from: the first publish lands
+        # before the band stage, so it would destroy the cells being carried forward, in a
+        # bucket with no DeleteObject. The tool refuses the same-key case outright; this is
+        # what keeps the launcher on the right side of that refusal.
+        sidecar_flags=("--stage-sidecars-only" if args.stage_sidecars_only else ""),
+        artefact_flags=(f"--artefact-name {args.artefact_name}" if args.artefact_name else ""),
+        resume_flags=(
+            f"--resume-band-from {args.resume_band_from}" if args.resume_band_from else ""
+        ),
+        verify_flags=(
+            f"--verify-sample-against {args.verify_sample_against}"
+            if args.verify_sample_against
+            else ""
+        ),
+        band_shard=args.band_shard,
         cap_shard_points=args.cap_shard_points,
         cap_fractions=args.cap_fractions,
         sample_flags=_sample_flags(args),

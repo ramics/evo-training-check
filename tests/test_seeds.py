@@ -272,7 +272,7 @@ def test_sampling_and_shard_hashes_agree_across_processes() -> None:
     out = list(scan_parallel([MANY], cfg, workers=4, batch_bytes=1024))
     placed: dict[str, int] = {}
     for batch in out:
-        for shard, cid, _seq in batch.samples:
+        for shard, cid, _seq, _taxid in batch.samples:
             assert placed.setdefault(cid, shard) == shard
             assert shard == bucket_of(cid + "#shard", 4)
 
@@ -385,3 +385,41 @@ def test_attribution_survives_the_parallel_path() -> None:
         merged.merge(batch.entries)
     assert merged.claimed == {"a virus family": 400}
     assert merged.exclusive == {"a virus family": 400}
+
+
+def test_ranks_are_parsed_alongside_the_parent_relation() -> None:
+    tax = _taxonomy()
+    assert tax.rank[11157] == "family"
+    assert tax.rank[11158] == "genus"
+    assert tax.rank[1] == "no rank"
+
+
+def test_the_family_of_a_lineage_is_found_by_climbing() -> None:
+    tax = _taxonomy()
+    assert tax.ancestor_at_rank(11158) == 11157, "a genus resolves to the family above it"
+    assert tax.ancestor_at_rank(11157) == 11157, "a family is its own family"
+
+
+def test_a_lineage_with_no_family_node_returns_none_rather_than_a_substitute() -> None:
+    """D-140 keeps unplaced clusters as their own stratum, for the reason D-141 establishes.
+    Attributing them to the nearest rank would invent a membership the taxonomy does not
+    assert."""
+    tax = _taxonomy()
+    assert tax.ancestor_at_rank(1280) is None, "species under a superkingdom has no family"
+    assert tax.ancestor_at_rank(99999) is None, "an unknown taxid is not placed"
+
+
+def test_the_climb_terminates_at_a_self_parented_root() -> None:
+    # taxid 1 is its own parent. The descent test pins the other direction; this pins that
+    # the upward walk cannot spin on it either.
+    assert _taxonomy().ancestor_at_rank(1) is None
+
+
+def test_the_rank_is_read_from_a_full_width_nodes_dmp_row() -> None:
+    """The fixture's rows stop after the rank; the real file carries a dozen more fields.
+    Both have to parse, because the fixture is what the tests see and the real file is what
+    the instance reads."""
+    row = "11157\t|\t10239\t|\tfamily\t|\t\t|\t0\t|\t1\t|\t0\t|\t1\t|\t0\t|\t1\t|\t0\t|\t0\t|\t\t|"
+    tax = Taxonomy.from_nodes_dmp([row])
+    assert tax.rank[11157] == "family"
+    assert tax.ancestor_at_rank(11157) == 11157

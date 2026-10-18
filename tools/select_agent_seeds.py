@@ -611,7 +611,7 @@ def _execute(
                     counts.merge(batch.counts)
                     if batch.entries is not None:
                         entry_counts.merge(batch.entries)
-                    for cluster_id, sequence in batch.seeds:
+                    for cluster_id, sequence, _taxid in batch.seeds:
                         seeds.write_fasta(fasta, cluster_id, sequence)
                     now = time.monotonic()
                     if now - last_beat >= args.heartbeat_seconds:

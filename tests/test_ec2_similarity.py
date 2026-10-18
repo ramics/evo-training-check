@@ -270,3 +270,19 @@ def test_user_data_imports_the_payload_before_the_corpus_pass() -> None:
     data = tool.USER_DATA
     assert "PAYLOAD is short" in data
     assert data.index("PRECHECK") < data.rindex("tools/esm3_calibrate.py")
+
+
+def test_resuming_without_an_artefact_name_is_refused_at_launch() -> None:
+    """A resumed run that writes its own source key destroys the cells it is resuming, before
+    it reads them, in a bucket with no DeleteObject. Caught at launch so it costs an error
+    rather than a boot and a corpus pass."""
+    with pytest.raises(SystemExit, match="needs --artefact-name"):
+        tool.main(
+            [
+                "--measure",
+                "band",
+                "--resume-band-from",
+                "s3://b/corpora/results/a1-6/band.json",
+                "--dry-run",
+            ]
+        )

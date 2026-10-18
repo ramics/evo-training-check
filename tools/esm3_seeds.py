@@ -34,7 +34,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import repro, seeds, uniref
+from amazebio import repro, seeds, similarity, uniref
 from amazebio.repro import ReproError
 
 S3_REGION = "us-east-1"
@@ -218,7 +218,11 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         started = time.monotonic()
         stream = uniref.GunzipStream(reader)
         config = seeds.ScanConfig(denylist_taxids=frozenset(viral))
-        with open(fasta_path, "wb") as fasta:
+        # The seed strata sidecar, beside the FASTA for the same reason the sample's is
+        # (D-142): the FASTA is a bare cluster id, and the realised seed-family count D-134
+        # ships with every rate cannot be recovered from it afterwards.
+        taxid_path = fasta_path.with_suffix(".taxids.tsv")
+        with open(fasta_path, "wb") as fasta, open(taxid_path, "wb") as taxids:
             for batch in seeds.scan_parallel(
                 _chunks(stream, args.limit_bytes, args.progress_seconds),
                 config,
@@ -226,8 +230,9 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 batch_bytes=args.batch_bytes,
             ):
                 counts.merge(batch.counts)
-                for cluster_id, sequence in batch.seeds:
+                for cluster_id, sequence, taxid in batch.seeds:
                     seeds.write_fasta(fasta, cluster_id, sequence)
+                    similarity.write_taxid_row(taxids, cluster_id, taxid)
         elapsed = time.monotonic() - started
 
         compressed = getattr(reader, "tell", lambda: 0)() or 0

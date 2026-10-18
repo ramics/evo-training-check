@@ -241,6 +241,7 @@ def _stage_args(tmp_path, **over):
         code_commit="abc123",
         sample_from=None,
         measure="caps",
+        stage_sidecars_only=False,
     )
     base.update(over)
     return argparse.Namespace(**base)
@@ -441,3 +442,68 @@ def test_large_uploads_prefer_a_managed_transfer(tmp_path) -> None:
 
     tool._put_large(_Plain(), "buk", "corpora/k/shard.faa", path)
     assert calls[-1] == ("put_object", "corpora/k/shard.faa")
+
+
+def test_sidecars_can_be_staged_into_an_existing_sample_without_rewriting_it(tmp_path) -> None:
+    """The sample staged before D-142 has no strata sidecars, and its shards must not be
+    rewritten to add them — an overwrite in this bucket destroys the earlier object. Without
+    this every later band pays the 52-minute corpus pass again just to rebuild them, and
+    D-134's band 2 is six launches."""
+    seed = tmp_path / "viral-seeds.faa"
+    seed.write_bytes(b">UniRef100_S1\nMKVL\n")
+    shards = []
+    sidecars = []
+    for i in range(2):
+        s = tmp_path / f"shard-{i:02d}.faa"
+        s.write_bytes(b">UniRef100_C\nMKVLAA\n")
+        shards.append(s)
+        side = s.with_suffix(".taxids.tsv")
+        side.write_bytes(b"UniRef100_C\t11157\n")
+        sidecars.append(side)
+    seed_side = seed.with_suffix(".taxids.tsv")
+    seed_side.write_bytes(b"UniRef100_S1\t11157\n")
+    sidecars.append(seed_side)
+
+    prefix = f"corpora/{tool.shardstore.sample_prefix('2023_02', 'uniref100', 40)}"
+    # Everything the earlier staging wrote is already present, including the manifest.
+    client = _StageS3(
+        existing=[f"{prefix}/{p.name}" for p in (seed, *shards)]
+        + [f"{prefix}/{tool.shardstore.MANIFEST_NAME}"]
+    )
+    uri = tool._stage_sample(
+        _stage_args(tmp_path, stage_sidecars_only=True),
+        client,
+        "bucket",
+        "corpora",
+        seed,
+        shards,
+        tool.seeds.SeedCounts(clusters=2, seeded=1),
+        [1, 1],
+        [6, 6],
+        sidecars,
+    )
+    # Scoped to the sample prefix: the progress heartbeat is a separate key and a legitimate
+    # write, and asserting on every put would fail for the wrong reason.
+    written = {k for k in client.puts if k.startswith(prefix + "/")}
+    assert written == {f"{prefix}/{p.name}" for p in sidecars}, "only the sidecars go up"
+    assert not any(k.endswith(".faa") for k in written), "the sample's own objects are untouched"
+    assert tool.shardstore.MANIFEST_NAME not in "".join(written), "the manifest is left alone"
+    assert uri.endswith(tool.shardstore.MANIFEST_NAME)
+
+
+def test_staging_sidecars_only_does_not_need_stage_sample_and_refuses_both(tmp_path) -> None:
+    """The flag was unreachable when first written: staging was gated on --stage-sample alone,
+    so --stage-sidecars-only bought a launch that staged nothing. Caught in review of the
+    handoff that told the next worker to run it."""
+    argv = [
+        "--measure",
+        "band",
+        "--source",
+        str(tmp_path / "x.xml.gz"),
+        "--taxdump",
+        str(tmp_path / "t.zip"),
+        "--stage-sample",
+        "--stage-sidecars-only",
+    ]
+    with pytest.raises(SystemExit, match="Pick one"):
+        tool.main(argv)
