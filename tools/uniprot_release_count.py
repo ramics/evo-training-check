@@ -266,7 +266,11 @@ def _open_archive(args: argparse.Namespace, client: Any, bucket: str, prefix: st
     if not args.from_url and client is not None:
         key = f"{prefix}/{STAGED_KEY}" if prefix else STAGED_KEY
         if _staged_size(client, bucket, key) == int(release["bytes"]):
-            reader = objectstore.S3RandomRead(client, bucket, key)
+            # Sequential, not random-access. `S3RandomRead` issues a ranged GET per `read`,
+            # and a gzip decompressor reads in small blocks — measured at 3.9 MB/s against
+            # 128 MB/s streaming, which turned a two-and-a-half-hour pass into a fifteen-hour
+            # one that the dead man's switch would have killed with no result.
+            reader = objectstore.S3SequentialRead(client, bucket, key)
             return _Source(f"s3://{bucket}/{key}", reader)
     request = urllib.request.Request(
         str(release["url"]), headers={"User-Agent": "amazebio-audit/1.0"}
