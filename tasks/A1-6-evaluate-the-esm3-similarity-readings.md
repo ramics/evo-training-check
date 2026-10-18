@@ -504,6 +504,39 @@ What to look for in `band.json`: `searched_records` should be **1,097,174** and
 the cap run's target exactly. Six distinct cell slugs, all carrying `-q100`. Nine groups, each
 with `lower_bound: true`.
 
+
+## The validation target was never one — correction from A1.8 — 2026-10-18
+
+D-150, raised by the A1.8 track. **A1.6 has recorded a validation target it does not have.**
+
+The state blocks above say the reconstruction "has a validation target that works — ESM3 states
+the viral denylist is roughly 4M sequences". The same paragraph of the same methods appendix says
+that figure counts sequences **in UniProt**: "we identify ~4M sequences that are annotated as
+viral in UniProt". A1.6 counts **UniRef100 clusters** — 3,159,223 of them. The two are different
+objects, so the closeness is a coincidence of scale and not evidence of anything. Every earlier
+line in this file calling the 4M a validation target is wrong and stays only as a record of the
+error.
+
+**What this does not touch.** The seed set and the band run are unaffected. The set was never an
+attempt to reproduce ESM3's denylist object — it is the query set for searching the staged
+corpus, built from UniRef100 because UniProtKB is not staged and because cluster members catch
+material a representative-only set misses (D-092). Breadth is the conservative direction for an
+audit, which is why rebuilding it from UniProtKB to match their object is refused: it would make
+the audit *less* likely to find surviving material, and §2 forbids an error in that direction.
+
+**What it costs.** Phase A loses a validation it believed it had, on both arms. No corpus-level
+reconstruction here can be checked against a published size, because the only published sizes
+count a different object. "The paper's only stated denylist sizes cannot validate any
+corpus-level reconstruction" is itself a §A0 finding and belongs in the write-up as one.
+
+**For the write-up, concretely:** strike any sentence offering the 4M as corroboration, and do
+not replace it with a hedged version of the same comparison.
+
+**Noted for the next worker.** D-150 makes the general point better than this file can: the
+caveat was already in the code — "compared against UniRef clusters, not UniProtKB entries" — and
+it was far too quiet to stop a hypothesis being built on top of it. A caveat that does not change
+the number it qualifies is not a safeguard.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
