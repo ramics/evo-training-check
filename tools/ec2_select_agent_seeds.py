@@ -444,10 +444,27 @@ def _report(s3: Any, bucket: str, listing: list[dict[str, Any]]) -> int:
         f"   representative not seeded: {counts.get('representative_not_seeded', 0):,}"
     )
     if rec:
-        print(
-            f"against the published {rec.get('published_sequences', 0):,}: "
-            f"{rec.get('delta', 0):+,} — a match is not expected in either direction (D-137)"
-        )
+        # Read the keys `reconcile` actually publishes. It used to carry a `delta` that
+        # subtracted a UniProtKB sequence count from a UniRef100 cluster count, which D-150
+        # removed; `.get("delta", 0)` then printed a confident "+0" — a perfect match where
+        # there is no comparison at all. A default that invents the most reassuring possible
+        # number is worse than a missing line.
+        reading = rec.get("reading_against_published")
+        if reading is None:
+            print(
+                f"query set {rec.get('query_set_clusters', 0):,} UniRef100 clusters. The "
+                f"published {rec.get('published_sequences', 0):,} counts UniProtKB sequences "
+                "and is not comparable with it; no pinned UniProtKB count was found (D-150)."
+            )
+        else:
+            print(
+                f"query set {rec.get('query_set_clusters', 0):,} UniRef100 clusters "
+                "(not comparable with the published figure, which counts UniProtKB "
+                "sequences — D-150).\n"
+                f"the reading against the published {rec.get('published_sequences', 0):,}: "
+                f"{reading['uniprot_sequences']:,} at release "
+                f"{reading.get('uniprot_release')} ({reading['delta']:+,})"
+            )
     return 0
 
 

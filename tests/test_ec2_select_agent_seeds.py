@@ -322,3 +322,69 @@ def test_the_user_data_precheck_actually_runs_against_the_shipped_payload(
     )
     assert done.returncode == 0, f"the shipped precheck fails:\n{done.stderr}"
     assert "payload imports cleanly" in done.stdout
+
+
+def test_the_report_never_invents_a_delta_against_an_incomparable_figure() -> None:
+    """A missing key defaulted to 0 and printed "+0" — a perfect match that does not exist.
+
+    `reconcile` stopped publishing `delta` when D-150 established that the published 187,000
+    counts UniProtKB sequences while this pass counts UniRef100 clusters. The launcher kept
+    reading it with `.get("delta", 0)`, so the first run after that change reported
+    "against the published 187,000: +0" — the single most reassuring number available, and
+    meaningless. A default that fabricates agreement is worse than a missing line.
+    """
+    import io
+    import json as _json
+
+    payload = {
+        "counts": {"clusters": 350_950_053, "seeded": 1_079_124, "representative_not_seeded": 1},
+        "reconciliation": {
+            "query_set_clusters": 1_079_124,
+            "published_sequences": 187_000,
+            "reading_against_published": {
+                "uniprot_sequences": 140_591,
+                "uniprot_release": "2026_03",
+                "delta": -46_409,
+            },
+        },
+    }
+
+    class FakeS3:
+        def get_object(self, **kw: object) -> dict:
+            return {"Body": io.BytesIO(_json.dumps(payload).encode())}
+
+    import contextlib
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = tool._report(FakeS3(), "b", [{"Key": "corpora/results/a1-8/seed-counts-x.json"}])
+    out = buf.getvalue()
+    assert rc == 0
+    assert "+0" not in out, out
+    assert "140,591" in out and "-46,409" in out
+    assert "not comparable" in out
+
+
+def test_the_report_says_so_when_no_pinned_uniprot_count_exists() -> None:
+    import contextlib
+    import io
+    import json as _json
+
+    payload = {
+        "counts": {"clusters": 1, "seeded": 1},
+        "reconciliation": {
+            "query_set_clusters": 1_079_124,
+            "published_sequences": 187_000,
+            "reading_against_published": None,
+        },
+    }
+
+    class FakeS3:
+        def get_object(self, **kw: object) -> dict:
+            return {"Body": io.BytesIO(_json.dumps(payload).encode())}
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        tool._report(FakeS3(), "b", [{"Key": "corpora/results/a1-8/seed-counts-x.json"}])
+    assert "+0" not in buf.getvalue()
+    assert "not comparable" in buf.getvalue()
