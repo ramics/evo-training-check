@@ -7364,3 +7364,77 @@ decision has a threshold or parameter in it, the number goes in the entry.
   task reached `review` with its original criteria unmeetable for three days before anyone noticed,
   because nothing checks Done-when against the decisions that supersede it — `board.py` validates
   the graph, not the criteria.
+
+### D-171 — A2.2's threshold is 500 bits with brackets [400, 600] and 3Di+AA scoring, and the near-fold decoys are a finding in their own right
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Numbering:** appended as D-170 and renumbered to D-171 before pushing — A1.6's D-170 landed
+  on `main` while this branch was running the calibration. Commit messages on branch
+  `ccr-7a87e8bd-9ow1h1` citing D-170 for A2.2's threshold mean this entry.
+- **Context:** D-167 fixed everything about A2.2's score except its value — corpus as query, the
+  141 pinned reference structures as target, coverage floor on the target at `--cov-mode 1 -c
+  0.5`, bit score rather than E-value — and deferred one option, `--alignment-type 0` (3Di only)
+  against foldseek's default 3Di+amino-acid scoring, "to the threshold calibration". Both are
+  settled here, from decoys, before any corpus hit was seen; `amazebio.repro` enforces the order.
+  **The decoy design, declared before the run.** A shuffled sequence is not a test here: three
+  shuffled reference domains returned no hit at all at `-e 1000` in the probe. The decoys that
+  matter are real proteins that *share the fold and are not viral* — and D-166 and D-169
+  enumerated precisely those while deciding what to exclude. Four classes, 400 queries each:
+  `near_fold_nonviral` (the excluded cellular capsid families and the host RNAi polymerases),
+  `unrelated_fold` (ECOD X-groups disjoint from the universe's), `shuffled` (the positives'
+  sequences shuffled at a pinned seed), and `positive` (held-out non-representative domains of
+  the fold families). A positive sharing a PDB entry with any reference structure was dropped —
+  393 of them — because the same deposition re-scored against itself measures nothing.
+  Every query took the corpus's own path: amino acids through ProstT5, then the search, so the
+  prediction error sits inside the threshold rather than outside it. 1,567 queries, 385,185
+  residues; 3Di predicted once in 1h39m on four cores and both modes searched against the same
+  query database. Target false-positive rate **1% on `near_fold_nonviral`**, declared in advance.
+- **Decision:** **Declared threshold 500 bits; brackets 400 and 600; alignment mode 3Di+AA.**
+  Realised at the declared cut: `near_fold_nonviral` 3/389 (0.8%), `unrelated_fold` 0/394,
+  `shuffled` 0/392, `positive` 242/392 (61.7%).
+  **The grid was extended upward once and the declared value did not move.** The rule — the
+  lowest grid value holding the target on the binding class — and the target were both fixed
+  beforehand. The first grid stopped at 500, which is where the rule's answer fell, so the value
+  had no upper neighbour and `metrics/survival.md` requires *two* bracketing values. Nothing was
+  inserted below 500, so the selection provably could not change: 400 gives 4/389 = 0.0103, which
+  misses 1%, and 500 gives 3/389 = 0.0077, which holds. This is the declared procedure being
+  completed, not a threshold re-picked after seeing results, and it is recorded rather than done
+  quietly.
+  **The mode choice was made after seeing the sweep, and is recorded as such.** D-167 deferred
+  the option without fixing a rule, so unlike the threshold this one was not pre-registered. The
+  rule applied: among modes whose declared threshold holds the target, take the higher
+  true-positive rate. 3Di+AA gives 61.7% against 3Di-only's 11.2% at the same cut and the same
+  false-positive target. The margin is a factor of five, so no defensible rule chooses otherwise.
+- **Rejected:** `--alignment-type 0`, despite being the more attractive option on independence
+  grounds — it scores 3Di alone, so it does not re-use the amino-acid signal A2.1 already
+  searches. At the declared cut it finds one fifth as many true fold members. On the probe it also
+  scored a shuffled decoy at 58 bits above a genuine domain at 17. Calibrating on shuffles alone,
+  which would have put the cut near 60 bits and left the near-fold false-positive rate at 60%.
+- **Consequence, and this is the substantive one:** **the near-fold non-viral decoys are detected
+  at a rate that no bit score separates from the true positives until most sensitivity is gone.**
+  At 100 bits they run at 56% while unrelated folds and shuffles are already at 0.8% — seventy
+  times apart — and the near-fold curve tracks the positive curve closely (0.56 against 0.79 at
+  100 bits, 0.51 against 0.78 at 140) before separating above 160. Holding them to 1% costs
+  sensitivity: 61.7% at the declared cut against 78.8% at 100 bits. **And it never reaches zero:
+  3 of 389 cellular near-fold proteins pass at 500 bits.**
+  That is the method working, not failing. Nucleoplasmin, peptide-N-glycanase and Cu(2+)
+  monooxygenase genuinely have the jelly-roll capsid fold. What the curve measures is that
+  *"carries this fold"* and *"is viral-derived"* are different claims, and this instrument cannot
+  fully separate them. Three things follow. It is the quantitative justification for D-169
+  excluding those families from the reference set. It is a stated limitation for the write-up,
+  not a parameter to tune — and a sharper one than §A2 anticipated for this route. And it means
+  the dominant false-positive source in the real pass will be cellular proteins carrying these
+  folds, which bacterial and metagenomic records do contain, rather than chance alignments.
+  **A second ceiling:** 13% of held-out true fold members never hit their own fold at all, even
+  at 20 bits. Predicted-3Di fold search misses them outright, which caps what any threshold here
+  can achieve and belongs beside the survival figures as a sensitivity bound.
+  **Two corrections to D-167**, both found by running the chain rather than trusting the note.
+  `convertalis` does **not** refuse against a ProstT5 database in the direction D-167 itself
+  chose — ProstT5 as query, structures as target — and reports every requested column; 34,822
+  rows in 3Di+AA and 71,689 in 3Di-only. The refusal D-167 recorded must have been with the
+  ProstT5 database as the *target*; read literally, that entry says this pipeline is impossible.
+  And foldseek silently disables `--sort-by-structure-bits` for want of C-alpha data, the same
+  shape of trap D-167 found with `--tmscore-threshold`. Harmless here because the calibration and
+  the real search share one geometry, but it means the reported `bits` is the plain alignment bit
+  score and not a structure-weighted one, which a reviewer comparing to published foldseek
+  figures needs to know.
