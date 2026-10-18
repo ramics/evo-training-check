@@ -293,3 +293,32 @@ def test_an_artefact_written_after_launch_is_this_runs() -> None:
 
     args = argparse.Namespace(watch_seconds=0, max_watch_minutes=1)
     assert tool._watch(FakeEc2(), FakeS3(), "i-1", "b", "corpora", args, launched) == 0
+
+
+def test_the_user_data_precheck_actually_runs_against_the_shipped_payload(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Run the precheck snippet verbatim, not a corrected copy of it.
+
+    The sibling launcher's precheck loaded its tool by spec without registering it in
+    `sys.modules`; the tool defined a dataclass, so the import raised from inside
+    `dataclasses` and `die` reported it as a short payload. It cost a launch on 2026-10-18.
+    The unit tests passed throughout, because they ran their own fixed version of the
+    snippet. This one extracts the real thing and runs it against the real payload.
+    """
+    import io
+    import subprocess
+    import sys
+    import tarfile
+
+    with tarfile.open(fileobj=io.BytesIO(tool.build_payload(ROOT))) as tar:
+        tar.extractall(tmp_path, filter="data")
+    assert not (tmp_path / "pyproject.toml").exists(), "the instance has no repository"
+
+    body = tool.USER_DATA.split("<<'PRECHECK'", 1)[1].split("\nPRECHECK", 1)[0]
+    body = body.split("\n", 1)[1]
+    done = subprocess.run(
+        [sys.executable, "-I", "-"], input=body, text=True, capture_output=True, cwd=tmp_path
+    )
+    assert done.returncode == 0, f"the shipped precheck fails:\n{done.stderr}"
+    assert "payload imports cleanly" in done.stdout

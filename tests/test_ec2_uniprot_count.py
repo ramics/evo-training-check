@@ -174,3 +174,74 @@ def test_the_staged_key_is_fixed_rather_than_derived() -> None:
     """The bucket has no DeleteObject, so the key is reviewed before it is written once."""
     shipped = _load(SHIPPED_TOOL, "uniprot_release_count_for_key_test")
     assert shipped.STAGED_KEY == "uniprotkb/2023_02/knowledgebase2023_02.tar.gz"
+
+
+# --- the instance path, rehearsed locally -------------------------------------------------
+
+
+def _extract_payload(dest: pathlib.Path) -> pathlib.Path:
+    import io
+    import tarfile
+
+    with tarfile.open(fileobj=io.BytesIO(tool.build_payload(ROOT))) as tar:
+        tar.extractall(dest, filter="data")
+    return dest
+
+
+def test_the_user_data_precheck_actually_runs_against_the_shipped_payload(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The precheck is a program, and nothing executed it before an instance did.
+
+    This is the failure that cost launch i-0a5252d10b65d2a8d on 2026-10-18. The snippet
+    loaded the tool by spec without registering it in `sys.modules`, so the tool's first
+    dataclass raised `AttributeError` from inside `dataclasses`; `die` then reported it as
+    "PAYLOAD_MODULES is short", which it was not. The unit test above ran a *corrected* copy
+    of the same snippet, so it passed while the shipped one could not work.
+
+    So the snippet is extracted from `USER_DATA` verbatim and run against the extracted
+    payload, in a separate interpreter with no repository on the path.
+    """
+    import subprocess
+
+    script = tool.USER_DATA
+    body = script.split("<<'PRECHECK'", 1)[1].split("\nPRECHECK", 1)[0]
+    body = body.split("\n", 1)[1]  # drop the remainder of the `|| die ...` line
+    root = _extract_payload(tmp_path)
+    assert not (root / "pyproject.toml").exists(), "the instance has no repository"
+
+    done = subprocess.run(
+        [sys.executable, "-I", "-"],
+        input=body,
+        text=True,
+        capture_output=True,
+        cwd=root,
+    )
+    assert done.returncode == 0, f"the shipped precheck fails:\n{done.stderr}"
+    assert "payload imports cleanly" in done.stdout
+
+
+def test_the_rendered_user_data_is_valid_bash() -> None:
+    """A bash program assembled by str.format, with {{ }} escaping, run as root once."""
+    import subprocess
+
+    rendered = tool.USER_DATA.format(
+        hard_stop_minutes=480,
+        bucket="b",
+        prefix="corpora",
+        code_key="corpora/code/x.tar.gz",
+        region="us-east-1",
+        taxdump_url="https://example.invalid/taxdmp.zip",
+        taxdump_sha256="0" * 64,
+        stage_flag="--stage",
+        reading_flags="",
+        commit="abc123",
+    )
+    done = subprocess.run(["bash", "-n"], input=rendered, text=True, capture_output=True)
+    assert done.returncode == 0, done.stderr
+    # Shell braces are legitimate here (`die() {`, `${2:-1}`); an unfilled `str.format`
+    # field is not, and would reach the instance as a literal.
+    import re
+
+    leftover = re.findall(r"(?<![$\w]){([a-z_][a-z0-9_]*)}", rendered)
+    assert not leftover, f"unsubstituted format fields: {sorted(set(leftover))}"

@@ -143,6 +143,10 @@ import sys, importlib.util
 sys.path.insert(0, "src")
 spec = importlib.util.spec_from_file_location("sas", "tools/select_agent_seeds.py")
 mod = importlib.util.module_from_spec(spec)
+# Registered before execution: `dataclasses` resolves annotations through
+# `sys.modules[cls.__module__]`, so a module loaded by spec alone dies on its first
+# dataclass. This tool has none today, which is luck rather than design.
+sys.modules["sas"] = mod
 spec.loader.exec_module(mod)
 print("=== payload imports cleanly ===")
 PRECHECK

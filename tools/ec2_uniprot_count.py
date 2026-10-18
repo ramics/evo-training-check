@@ -125,6 +125,10 @@ import sys, importlib.util
 sys.path.insert(0, "src")
 spec = importlib.util.spec_from_file_location("urc", "tools/uniprot_release_count.py")
 mod = importlib.util.module_from_spec(spec)
+# Registered before execution. `dataclasses` resolves annotations through
+# `sys.modules[cls.__module__]`, so a module loaded by spec alone dies on its first
+# dataclass with an AttributeError — which `die` would then report as a short payload.
+sys.modules["urc"] = mod
 spec.loader.exec_module(mod)
 print("=== payload imports cleanly ===")
 PRECHECK
