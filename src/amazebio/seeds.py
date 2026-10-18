@@ -9,6 +9,13 @@ The two seed sets, as the source describes them:
 
 * **Viral denylist** — "sequences that are annotated as viral in UniProt and align almost
   exclusively to other viral sequences in UniProt", roughly 4M sequences.
+
+  **That 4M counts UniProtKB sequences, and this module counts UniRef100 clusters, so it
+  cannot validate the reconstruction** (D-150). The two are different objects and their
+  closeness is a coincidence of scale rather than evidence. A1.6 believed it had a validation
+  target here and did not; the available check is to execute the stated reading against
+  UniProtKB, which validates the reading rather than the seed set. Breadth is still the
+  conservative choice for an audit, so the set stands as a query set — see below.
 * **Select-agent denylist** — "all sequences in UniProt belonging to organisms on the
   Select Agents and Toxins List".
 
@@ -52,7 +59,11 @@ from collections.abc import Iterable, Iterator
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import IO
+from typing import IO, Any, Protocol, TypeVar
+
+#: What one batch of entry blocks reduces to. `scan_parallel` is generic over it so the
+#: ordering and back-pressure guarantees below hold for every reduction over these tiers.
+_R = TypeVar("_R")
 
 #: NCBI taxonomy id of the Viruses superkingdom. Everything beneath it is viral, phages
 #: included — they are viruses, and nothing in ESM3's description carves them out.
@@ -90,25 +101,55 @@ TAXDUMP_2023_04 = TaxdumpPin(
 class Taxonomy:
     """The parent-of relation from `nodes.dmp`, and descent queries over it."""
 
-    __slots__ = ("parent",)
+    __slots__ = ("parent", "rank")
 
-    def __init__(self, parent: dict[int, int]) -> None:
+    def __init__(self, parent: dict[int, int], rank: dict[int, str] | None = None) -> None:
         self.parent = parent
+        self.rank = rank if rank is not None else {}
 
     @classmethod
     def from_nodes_dmp(cls, lines: Iterable[bytes | str]) -> Taxonomy:
-        """Parse `nodes.dmp`. Each row is `taxid\\t|\\tparent\\t|\\t...`."""
+        """Parse `nodes.dmp`. Each row is `taxid\\t|\\tparent\\t|\\trank\\t|\\t...`."""
         parent: dict[int, int] = {}
+        rank: dict[int, str] = {}
         for raw in lines:
             line = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw
-            fields = line.split("\t|\t", 2)
+            fields = line.split("\t|\t", 3)
             if len(fields) < 2:
                 continue
             try:
-                parent[int(fields[0])] = int(fields[1])
+                taxid = int(fields[0])
+                parent[taxid] = int(fields[1])
             except ValueError:
                 continue
-        return cls(parent)
+            if len(fields) > 2:
+                # The row continues past the rank, and on the fixture's three-field rows it
+                # ends with a bare `\t|`. Either way the rank is what precedes the next
+                # delimiter, so cut there rather than trusting the split to have done it.
+                rank[taxid] = fields[2].split("\t|", 1)[0].strip()
+        return cls(parent, rank)
+
+    def ancestor_at_rank(self, taxid: int, rank: str = "family") -> int | None:
+        """The ancestor of `taxid` at `rank`, or None if the lineage has no node there.
+
+        Climbs rather than descends because the caller has one taxid and wants one answer.
+        Returns None rather than a nearest-rank substitute: a cluster whose lineage carries
+        no family node is not a member of some other family. D-140 keeps those as their own
+        stratum and D-141 says why: pooling them makes the interval a function of that one
+        stratum's own rate, measured at 10.9x the singleton standard error when the rates
+        differ.
+        """
+        node = taxid
+        seen: set[int] = set()
+        while node not in seen:
+            seen.add(node)
+            if self.rank.get(node) == rank:
+                return node
+            par = self.parent.get(node)
+            if par is None or par == node:
+                return None
+            node = par
+        return None
 
     @classmethod
     def from_taxdump_zip(cls, path: str | Path) -> Taxonomy:
@@ -325,10 +366,12 @@ class ScanConfig:
             if entry is None:
                 continue
             if result.counts.observe(entry, self.viral):  # type: ignore[arg-type]
-                result.seeds.append((entry.cluster_id, entry.sequence))
+                result.seeds.append((entry.cluster_id, entry.sequence, entry.representative_taxid))
             if self.sample_rate and bucket_of(entry.cluster_id, self.sample_rate) == 0:
                 shard = bucket_of(entry.cluster_id + "#shard", self.buckets)
-                result.samples.append((shard, entry.cluster_id, entry.sequence))
+                result.samples.append(
+                    (shard, entry.cluster_id, entry.sequence, entry.representative_taxid)
+                )
         return result
 
 
@@ -337,8 +380,17 @@ class BatchResult:
     """One batch's reduction: counts, the seeds it found, and the sample it drew."""
 
     counts: SeedCounts = field(default_factory=SeedCounts)
-    seeds: list[tuple[str, str]] = field(default_factory=list)
-    samples: list[tuple[int, str, str]] = field(default_factory=list)
+    #: `(cluster_id, sequence, representative_taxid)`. The taxid rides along for the same
+    #: reason it does on `samples` (D-142): the seed FASTA is a bare cluster id too, and the
+    #: realised **seed**-family count D-134 ships with every rate cannot be recovered from it.
+    seeds: list[tuple[str, str, int | None]] = field(default_factory=list)
+    #: `(shard, cluster_id, sequence, representative_taxid)`. The taxid is carried because the
+    #: staged FASTA cannot hold it — MMseqs2 keys on the first whitespace-delimited token, so
+    #: `write_fasta` writes a bare cluster id — and the interval's strata need a taxid for
+    #: **every** sampled cluster, not only the ones that go on to match. Emitting it here
+    #: makes a staged sample self-describing; recovering it afterwards would need a second
+    #: corpus pass (D-142).
+    samples: list[tuple[int, str, str, int | None]] = field(default_factory=list)
 
 
 def iter_entry_blocks(chunks: Iterable[bytes], batch_bytes: int = 8 << 20) -> Iterator[list[bytes]]:
@@ -366,27 +418,39 @@ def iter_entry_blocks(chunks: Iterable[bytes], batch_bytes: int = 8 << 20) -> It
         yield batch
 
 
-_WORKER_CONFIG: ScanConfig | None = None
+class BatchScanner(Protocol[_R]):
+    """What `scan_parallel` needs of a config: reduce raw entry blocks to one result.
+
+    A protocol rather than `ScanConfig` because the same pass drives more than one
+    reduction over the same tiers — `exclusivity.ExclusivityConfig` is the other — and two
+    copies of the ordering and back-pressure logic below would be two chances to get them
+    differently wrong. The config must be picklable: it crosses to the workers once.
+    """
+
+    def scan(self, blocks: Iterable[bytes]) -> _R: ...
 
 
-def _init_worker(config: ScanConfig) -> None:
+_WORKER_CONFIG: BatchScanner[Any] | None = None
+
+
+def _init_worker(config: BatchScanner[Any]) -> None:
     global _WORKER_CONFIG
     _WORKER_CONFIG = config
 
 
-def _scan_batch(blocks: list[bytes]) -> BatchResult:
+def _scan_batch(blocks: list[bytes]) -> Any:
     assert _WORKER_CONFIG is not None, "worker started without a config"
     return _WORKER_CONFIG.scan(blocks)
 
 
 def scan_parallel(
     chunks: Iterable[bytes],
-    config: ScanConfig,
+    config: BatchScanner[_R],
     *,
     workers: int,
     batch_bytes: int = 8 << 20,
     max_in_flight: int | None = None,
-) -> Iterator[BatchResult]:
+) -> Iterator[_R]:
     """Parse entries across worker processes, yielding batch reductions **in order**.
 
     Decompression stays in the calling process because a gzip stream cannot be split;

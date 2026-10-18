@@ -37,6 +37,7 @@ aligner. This measures what running them costs.
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import os
 import shutil
@@ -65,12 +66,20 @@ STRICT = ("-c", "0.8", "--cov-mode", "1", "-s", "7.5")
 
 #: One artefact name per mode, because the corpus bucket has no DeleteObject: a second mode
 #: writing to the first's key would overwrite a preserved grid permanently.
-ARTEFACT_NAMES = {"curve": "calibration.json", "caps": "cap-measurement.json"}
+ARTEFACT_NAMES = {
+    "curve": "calibration.json",
+    "caps": "cap-measurement.json",
+    "band": "band.json",
+}
 
 #: Progress keys, one per mode for the same reason the artefacts are. Separate from the
 #: artefact because a heartbeat is not a deliverable, and small because it is overwritten
 #: every few minutes in a bucket that cannot delete anything.
-HEARTBEAT_NAMES = {"curve": "progress-curve.json", "caps": "progress-caps.json"}
+HEARTBEAT_NAMES = {
+    "curve": "progress-curve.json",
+    "caps": "progress-caps.json",
+    "band": "progress-band.json",
+}
 
 
 def human(n: float) -> str:
@@ -190,13 +199,51 @@ def main(argv: list[str] | None = None) -> int:
         "(D-122, D-123)",
     )
     ap.add_argument(
+        "--stage-sidecars-only",
+        action="store_true",
+        help="upload just the strata sidecars into an existing sample's prefix, leaving its "
+        "shards, seed set and manifest untouched. For the sample staged before the sidecars "
+        "existed (D-142), so later bands do not each rebuild them",
+    )
+    ap.add_argument(
+        "--resume-band-from",
+        metavar="S3_URI",
+        help="a band.json an earlier run published. Its cells for this same band and shard "
+        "are reused rather than recomputed, and carried into the combined result — without "
+        "it a re-run rebuys every completed cell and then overwrites them with the new one",
+    )
+    ap.add_argument(
+        "--verify-sample-against",
+        metavar="S3_URI",
+        help="after the corpus pass, check the rebuilt shards are byte-identical to this "
+        "staged manifest. The staged 2.5% sample carries no strata sidecars (D-142), so "
+        "building them needs the pass re-run; this is what makes a band over the rebuilt "
+        "shards a result about the staged sample rather than about a lookalike",
+    )
+    ap.add_argument(
+        "--band-denominator",
+        type=int,
+        default=100,
+        help="the seed band to run: 1/N of the seed set by hash. 100 is D-134's band 1, "
+        "which re-runs the cap measurement's own query set; 1 is the whole set (default: "
+        "%(default)s)",
+    )
+    ap.add_argument(
+        "--band-shard",
+        type=int,
+        default=0,
+        help="which staged shard the band searches. D-128 runs one shard, not eight "
+        "(default: %(default)s)",
+    )
+    ap.add_argument(
         "--measure",
-        choices=("curve", "caps"),
+        choices=("curve", "caps", "band"),
         default="curve",
         help="`curve` times the cost model's grid, which is what D-104 was fitted on. "
         "`caps` measures the two items D-105 and D-109 left open: what the hit cap costs "
         "where it binds, and what relaxing coverage costs to buy the three readings from "
-        "one search (default: %(default)s)",
+        "one search. `band` is the pass itself — one seed band's six cells over one shard, "
+        "reporting rates with intervals (default: %(default)s)",
     )
     ap.add_argument(
         "--artefact-name",
@@ -233,6 +280,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.buckets < 1:
         raise SystemExit("--buckets must be at least 1")
+    if args.stage_sample and args.stage_sidecars_only:
+        raise SystemExit(
+            "--stage-sample stages the whole sample; --stage-sidecars-only adds sidecars to "
+            "one already staged. Pick one."
+        )
     if args.stage_sample and args.sample_from:
         raise SystemExit("--stage-sample builds a sample; --sample-from loads one. Pick one.")
     if args.sample_from and not args.sample_from.startswith("s3://"):
@@ -489,8 +541,27 @@ def _load_staged_sample(
         args.sample_rate = staged.sample_rate
 
     local: dict[str, Path] = {}
-    for obj, dest in [(staged.seed_fasta, seed_fasta)] + [
-        (sh, shard_paths[sh.index]) for sh in staged.shards
+    # The sidecars land beside the file they describe, keyed by name rather than by index:
+    # they are the strata for the shard FASTAs and the seed set, and `write_taxid_row` named
+    # them `<stem>.taxids.tsv` (D-142). A sample staged before they existed lists none, and
+    # that sample still owes a corpus pass to produce them.
+    sidecar_dests = {
+        f"{dest.stem}.taxids.tsv": dest.with_suffix(".taxids.tsv")
+        for dest in (seed_fasta, *shard_paths)
+    }
+    sidecar_pairs = []
+    for obj in staged.sidecars or ():
+        dest = sidecar_dests.get(obj.key.rsplit("/", 1)[-1])
+        if dest is None:
+            raise SystemExit(
+                f"staged sidecar {obj.key!r} does not match any shard or the seed set; the "
+                "strata and the records they describe have to be the same files"
+            )
+        sidecar_pairs.append((obj, dest))
+    for obj, dest in [
+        (staged.seed_fasta, seed_fasta),
+        *[(sh, shard_paths[sh.index]) for sh in staged.shards],
+        *sidecar_pairs,
     ]:
         client.download_file(bucket, obj.key, str(dest))
         local[obj.key] = dest
@@ -540,6 +611,7 @@ def _stage_sample(
     counts: seeds.SeedCounts,
     shard_counts: list[int],
     shard_residues: list[int],
+    sidecar_paths: list[Path] | None = None,
 ) -> str | None:
     """Stage the sample so no later run pays for the corpus pass again.
 
@@ -555,11 +627,22 @@ def _stage_sample(
     # absolute key, which would have written several gigabytes outside `corpora/` — permanently,
     # in a bucket with no DeleteObject.
     sample_root = f"{prefix}/{shardstore.sample_prefix(args.release, args.tier, args.sample_rate)}"
-    plan = shardstore.plan_uploads(sample_root, shard_paths, seed_fasta)
+    if args.stage_sidecars_only:
+        # The sample was staged before the sidecars existed (D-142). Its shards and seed set
+        # are already there and must not be rewritten, so only the sidecars go up — and the
+        # manifest is left alone, since this run cannot prove anything about objects it did
+        # not produce. Without this every later band pays the 52-minute pass again purely to
+        # rebuild them, and D-134's band 2 is six launches.
+        plan = shardstore.plan_uploads(sample_root, [], seed_fasta, sidecar_paths)[1:]
+    else:
+        plan = shardstore.plan_uploads(sample_root, shard_paths, seed_fasta, sidecar_paths)
     manifest_key = f"{sample_root}/{shardstore.MANIFEST_NAME}"
 
     present = shardstore.existing_keys(client, bucket, sample_root + "/")
-    clashes = sorted(({k for _, k in plan} | {manifest_key}) & present)
+    wanted = {k for _, k in plan}
+    if not args.stage_sidecars_only:
+        wanted |= {manifest_key}
+    clashes = sorted(wanted & present)
     if clashes:
         raise SystemExit(
             "refusing to stage over existing objects — this bucket has no DeleteObject, so "
@@ -568,8 +651,21 @@ def _stage_sample(
 
     total = len(plan)
     print(f"  staging {total} objects under s3://{bucket}/{sample_root}/", flush=True)
+
+    if args.stage_sidecars_only:
+        for path, key in plan:
+            _put_large(client, bucket, key, path)
+        _progress(client, bucket, prefix, args, stage="staging", done=total, total=total)
+        print(
+            f"  staged {total} sidecars; the sample's own objects were left untouched",
+            flush=True,
+        )
+        return f"s3://{bucket}/{manifest_key}"
+
     staged_shards = []
-    for (path, key), index in zip(plan[1:], range(len(shard_paths)), strict=True):
+    shard_plan = plan[1 : 1 + len(shard_paths)]
+    sidecar_plan = plan[1 + len(shard_paths) :]
+    for (path, key), index in zip(shard_plan, range(len(shard_paths)), strict=True):
         _put_large(client, bucket, key, path)
         staged_shards.append(
             shardstore.describe_shard(
@@ -579,6 +675,10 @@ def _stage_sample(
         _progress(client, bucket, prefix, args, stage="staging", done=index + 1, total=total)
     seed_path, seed_key = plan[0]
     _put_large(client, bucket, seed_key, seed_path)
+    staged_sidecars = []
+    for path, key in sidecar_plan:
+        _put_large(client, bucket, key, path)
+        staged_sidecars.append(shardstore.describe(path, key))
     _progress(client, bucket, prefix, args, stage="staging", done=total, total=total)
 
     staged = shardstore.ShardManifest(
@@ -590,6 +690,7 @@ def _stage_sample(
         viral_seeded_clusters=counts.viral_seeded,
         seed_fasta=shardstore.describe(seed_path, seed_key),
         shards=staged_shards,
+        sidecars=staged_sidecars or None,
         seed_counts={k: v for k, v in counts.to_dict().items() if isinstance(v, int)},
         code_commit=args.code_commit,
         taxdump_pin=seeds.TAXDUMP_2023_04.date,
@@ -648,7 +749,42 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 manifest.parameter(name, value)
         manifest.input_file(args.taxdump, role="taxonomy")
 
+        if args.resume_band_from:
+            name = args.artefact_name or ARTEFACT_NAMES["band"]
+            destination = f"{prefix}/results/a1-6/{name}"
+            src_bucket, src_key = _parse_s3_uri(args.resume_band_from)
+            if src_key == destination and src_bucket == bucket:
+                raise SystemExit(
+                    f"--resume-band-from reads {args.resume_band_from} and this run would "
+                    f"write the same key. The first publish happens before the band stage, "
+                    "so the cells being resumed would be destroyed before they were read — "
+                    "and this bucket has no DeleteObject. Pass --artefact-name to write "
+                    "somewhere else."
+                )
+        if args.verify_sample_against and args.sample_from:
+            raise SystemExit(
+                "--sample-from loads a staged sample and already verifies it; "
+                "--verify-sample-against checks one this run rebuilds. Pick one."
+            )
+        # Read before the corpus pass, because the first `publish()` lands before the band
+        # stage does and would otherwise rewrite the very object being resumed from. The
+        # same-key case is refused above; this ordering covers the rest.
+        prior: list[dict[str, Any]] | None = None
+        if args.resume_band_from:
+            if client is None:
+                raise SystemExit("--resume-band-from needs S3")
+            rbucket, rkey = _parse_s3_uri(args.resume_band_from)
+            rbody = client.get_object(Bucket=rbucket, Key=rkey)["Body"].read()
+            prior = json.loads(rbody).get("band", {}).get("cells") or []
+            print(f"loaded {len(prior)} published cells from {args.resume_band_from}", flush=True)
+            manifest.parameter("resumed_from", args.resume_band_from)
+
         staged: shardstore.ShardManifest | None = None
+        # Set by the corpus pass below and left empty by `--sample-from`, which runs no pass
+        # and therefore produces no sidecars. The two options are mutually exclusive, so a
+        # staging run always takes the corpus-pass branch; this is declared here so the
+        # staging call does not depend on which branch happened to assign it.
+        sidecar_paths: list[Path] = []
         if args.sample_from:
             # The corpus pass is skipped entirely. The shards, the seed set and the
             # denominators all come from the staged manifest, and every object is verified
@@ -676,6 +812,12 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             started = time.monotonic()
             stream = uniref.GunzipStream(reader)
             handles = [p.open("wb") for p in shard_paths]
+            # The strata sidecar, one per shard, beside the FASTA. It exists because the FASTA
+            # cannot carry the taxid and the interval needs one for every sampled cluster
+            # rather than only the matching ones (D-142). Written in the same pass, so a
+            # sample staged from here is self-describing and no second corpus pass is owed.
+            taxid_paths = [p.with_suffix(".taxids.tsv") for p in shard_paths]
+            taxid_handles = [p.open("wb") for p in taxid_paths]
             # The sample and the seed set are independent: a viral cluster can be in both, and
             # must be, or the target would be missing exactly the records the filter is
             # supposed to remove.
@@ -683,7 +825,9 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
             )
             try:
-                with seed_fasta.open("wb") as seedfh:
+                seed_taxid_path = seed_fasta.with_suffix(".taxids.tsv")
+                sidecar_paths = [*taxid_paths, seed_taxid_path]
+                with seed_fasta.open("wb") as seedfh, seed_taxid_path.open("wb") as seed_taxidfh:
                     for batch in seeds.scan_parallel(
                         _chunks(
                             stream,
@@ -702,16 +846,39 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                         batch_bytes=args.batch_bytes,
                     ):
                         counts.merge(batch.counts)
-                        for cluster_id, sequence in batch.seeds:
+                        for cluster_id, sequence, taxid in batch.seeds:
                             seeds.write_fasta(seedfh, cluster_id, sequence)
-                        for shard, cluster_id, sequence in batch.samples:
+                            similarity.write_taxid_row(seed_taxidfh, cluster_id, taxid)
+                        for shard, cluster_id, sequence, taxid in batch.samples:
                             seeds.write_fasta(handles[shard], cluster_id, sequence)
+                            similarity.write_taxid_row(taxid_handles[shard], cluster_id, taxid)
                             shard_counts[shard] += 1
                             shard_residues[shard] += len(sequence)
             finally:
-                for handle in handles:
+                for handle in (*handles, *taxid_handles):
                     handle.close()
             corpus_seconds = time.monotonic() - started
+
+            if args.verify_sample_against:
+                # Before anything is searched, and before the strata are even read: if the
+                # rebuilt shards are not the staged ones, every number this run would publish
+                # is about a different sample and the run should cost nothing further.
+                if client is None:
+                    raise SystemExit("--verify-sample-against needs S3")
+                vbucket, vkey = _parse_s3_uri(args.verify_sample_against)
+                body = client.get_object(Bucket=vbucket, Key=vkey)["Body"].read()
+                against = shardstore.ShardManifest.from_json(body)
+                print(
+                    f"verifying the rebuilt sample against {args.verify_sample_against}",
+                    flush=True,
+                )
+                shardstore.verify_rebuilt(against, seed_fasta, shard_paths)
+                print(
+                    f"  identical to the staged sample: {len(shard_paths)} shards and the "
+                    "seed set match their recorded digests",
+                    flush=True,
+                )
+                manifest.parameter("verified_against", args.verify_sample_against)
 
         if staged is not None:
             print(
@@ -761,6 +928,25 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
             print(f"  uploaded s3://{bucket}/{key}", flush=True)
 
+        def stage_ids(path: Path, role: str) -> None:
+            """Stage an identifier-bearing artefact, which is not the same act as publishing.
+
+            D-125 fixes that the published figure is counts by survival route and homology
+            class, never by organism or taxon, with per-record detail in the disclosure
+            package only; D-126 fixes that the detail is nonetheless *staged* rather than
+            held nowhere, because A3.3's reimplementation and the downstream consumers need
+            it. So this goes to its own prefix rather than beside the aggregates, and the
+            commit is in the key because this bucket has no DeleteObject and an overwrite
+            destroys the earlier object irreversibly.
+            """
+            if not (args.upload_results and client is not None):
+                return
+            tag = args.code_commit or "nocommit"
+            key = f"{prefix}/results/a1-6/disclosure/seed-hits/{tag}/{path.name}"
+            client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
+            manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
+            print(f"  staged s3://{bucket}/{key}", flush=True)
+
         def publish() -> None:
             """Write the timing artefact, and upload it if asked.
 
@@ -782,7 +968,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         publish()
         upload(seed_fasta, "viral-seed-set")
 
-        if args.stage_sample:
+        if args.stage_sample or args.stage_sidecars_only:
             staged_uri = _stage_sample(
                 args,
                 client,
@@ -793,6 +979,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 counts,
                 shard_counts,
                 shard_residues,
+                sidecar_paths,
             )
             if staged_uri:
                 payload["staged_sample"] = staged_uri
@@ -804,7 +991,20 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 publish()
 
         if not args.skip_search:
-            if args.measure == "caps":
+            if args.measure == "band":
+                _run_band(
+                    args,
+                    work,
+                    seed_fasta,
+                    shard_paths,
+                    shard_residues,
+                    taxonomy,
+                    payload,
+                    publish,
+                    prior,
+                    stage_ids,
+                )
+            elif args.measure == "caps":
                 _measure_caps(
                     args,
                     work,
@@ -1401,6 +1601,246 @@ def _hit_count(query: Path, target: Path, result: Path, work: Path) -> int:
         return -1
     with tsv.open("rb") as handle:
         return sum(1 for _ in handle)
+
+
+def _filter_seed_fasta(src: Path, dest: Path, denominator: int) -> int:
+    """Write the band's seed sample, returning how many seeds it holds.
+
+    Streams rather than loading: the full seed set is 3.16M records. The ids come back from
+    `select_seeds` by the same hash rule the cap run used, so band 1 re-runs that query set.
+    """
+    kept = 0
+    with src.open("rb") as fh, dest.open("wb") as out:
+        keep = False
+        for raw in fh:
+            if raw.startswith(b">"):
+                ident = raw[1:].split()[0].decode("ascii", "replace")
+                keep = bool(next(similarity.select_seeds([ident], denominator), None))
+                kept += keep
+            if keep:
+                out.write(raw)
+    return kept
+
+
+def _seed_family_count(sidecar: Path, denominator: int, taxonomy: Any) -> int:
+    """The realised seed-family count D-134 ships with every rate.
+
+    Counts distinct families among the *sampled* seeds, not the whole seed set: it is the
+    sample's family coverage that limits what the band can say at family level, and quoting
+    the full set's would overstate it by the factor the sampling exists to buy.
+    """
+    families: set[str] = set()
+    with sidecar.open() as fh:
+        for cluster_id, taxid in similarity.parse_taxid_rows(fh):
+            if not next(similarity.select_seeds([cluster_id], denominator), None):
+                continue
+            family = None if taxid is None else taxonomy.ancestor_at_rank(taxid)
+            families.add(similarity.stratum_id(cluster_id, family))
+    return len(families)
+
+
+def _band_cell(
+    args: argparse.Namespace,
+    work: Path,
+    db: Path,
+    qdb: Path,
+    target: Path,
+    key: similarity.CellKey,
+    index: similarity.FamilyIndex,
+) -> similarity.TargetStream:
+    """One cell's search, read back through the stream the band reports from.
+
+    The search is the aligner's own coverage filter at the cell's `--cov-mode`, not a relaxed
+    search with a post-filter: D-124 established that two filtered searches recover all three
+    readings exactly, and that the post-filtered set was a strict superset rather than the
+    same set.
+    """
+    out_db = db / f"B-{key.slug()}"
+    tmp = work / "tmp"
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True, exist_ok=True)
+    params = similarity.search_argv(
+        sensitivity=key.sensitivity, cap=similarity.HIT_CAP, coverage_mode=key.cov_mode
+    )
+    elapsed = _mmseqs(
+        "search",
+        str(qdb),
+        str(target),
+        str(out_db),
+        str(tmp),
+        *params,
+        "--threads",
+        str(args.threads),
+    )
+    print(f"  search {key.slug()} {elapsed:.0f}s", flush=True)
+    tsv = work / f"band-hits-{key.slug()}.tsv"
+    _mmseqs(
+        "convertalis",
+        str(qdb),
+        str(target),
+        str(out_db),
+        str(tsv),
+        "--format-output",
+        similarity.CONVERTALIS_FORMAT,
+    )
+    sorted_tsv = _sort_by_target(tsv, work)
+    tsv.unlink(missing_ok=True)
+    # D-160: the band emits which seeds produced a counted record, per cell. Band 1's
+    # artefact kept no identifier at all, so D-158's second denominator had no input.
+    stream = similarity.TargetStream.for_search(key.cov_mode, index=index, track_seeds=True)
+    guard = similarity.Saturation(cap=similarity.HIT_CAP)
+    with sorted_tsv.open() as handle:
+        for row in similarity.parse_hits(handle):
+            stream.observe(row)
+            guard.observe(row.query)
+    stream.close()
+    sorted_tsv.unlink(missing_ok=True)
+    guard.check()
+    return stream
+
+
+def _run_band(
+    args: argparse.Namespace,
+    work: Path,
+    seed_fasta: Path,
+    shard_paths: list[Path],
+    shard_residues: list[int],
+    taxonomy: Any,
+    payload: dict[str, Any],
+    publish: Any,
+    prior: list[dict[str, Any]] | None = None,
+    stage_ids: Any = None,
+) -> None:
+    """One seed band: six cells over the target shard, each published as it finishes.
+
+    The cell is the atom (D-134), so a reclaim or a timeout costs only the cell in flight and
+    a re-run skips what is already on disk. Cells are ordered cheapest sensitivity first, so
+    a run that is cut short has produced whole cells rather than two thirds of one.
+    """
+    denominator = args.band_denominator
+    shard = args.band_shard
+    if shard >= len(shard_paths):
+        raise SystemExit(f"--band-shard {shard} but only {len(shard_paths)} shards are present")
+
+    sidecar = shard_paths[shard].with_suffix(".taxids.tsv")
+    if not sidecar.exists():
+        raise SystemExit(
+            f"no strata sidecar at {sidecar.name}. The staged sample predates them, so this "
+            "band owes one corpus pass to build it — see D-142. Refusing rather than "
+            "reporting a rate with no interval."
+        )
+    print(f"building strata from {sidecar.name}", flush=True)
+    with sidecar.open() as fh:
+        index = similarity.FamilyIndex.build(similarity.parse_taxid_rows(fh), taxonomy)
+    unplaced_share = index.unplaced_records / max(index.searched_records, 1)
+    print(
+        f"  {index.searched_records:,} records, {len(index.totals):,} strata, "
+        f"{index.unplaced_records:,} unplaced ({unplaced_share:.1%})",
+        flush=True,
+    )
+
+    seed_sidecar = seed_fasta.with_suffix(".taxids.tsv")
+    if not seed_sidecar.exists():
+        raise SystemExit(f"no seed strata sidecar at {seed_sidecar.name}; see D-142")
+    seed_families = _seed_family_count(seed_sidecar, denominator, taxonomy)
+
+    band_seeds = work / f"band-seeds-q{denominator}.faa"
+    kept = _filter_seed_fasta(seed_fasta, band_seeds, denominator)
+    print(f"  band 1/{denominator}: {kept:,} seeds, {seed_families:,} seed families", flush=True)
+
+    db = work / "db"
+    db.mkdir(parents=True, exist_ok=True)
+    qdb = db / f"Q-q{denominator}"
+    _mmseqs("createdb", str(band_seeds), str(qdb))
+    target = db / f"T{shard}"
+    _mmseqs("createdb", str(shard_paths[shard]), str(target))
+
+    payload["band"] = {
+        "seed_denominator": denominator,
+        "lower_bound": denominator > 1,
+        "shard": shard,
+        "seeds_searched": kept,
+        "seed_families": seed_families,
+        "searched_records": index.searched_records,
+        "strata": len(index.totals),
+        "unplaced_records": index.unplaced_records,
+        "cells": [],
+    }
+    publish()
+
+    # Cells an earlier run of this same band already paid for. `CellKey` documents the skip
+    # and nothing implemented it until a spot reclaim took the sixth cell of six and a re-run
+    # would have rebought the five that survived — and, because one result object is rewritten
+    # on every publish, would have replaced them with the one new cell.
+    cells: list[similarity.CellResult] = []
+    done: dict[str, similarity.CellResult] = {}
+    for raw in prior or ():
+        cell = similarity.cell_from_dict(raw)
+        if cell.key.shard != shard or cell.key.seed_denominator != denominator:
+            continue
+        if cell.searched_clusters != index.searched_records:
+            raise SystemExit(
+                f"published cell {cell.key.slug()} searched {cell.searched_clusters:,} "
+                f"records against this run's {index.searched_records:,}; they are not the "
+                "same target and their counts must not be combined"
+            )
+        done[cell.key.slug()] = cell
+    if done:
+        print(f"  resuming: {len(done)} cells already published", flush=True)
+
+    for sensitivity in sorted(similarity.SENSITIVITIES):
+        for cov_mode in sorted(similarity.SEARCH_READINGS):
+            key = similarity.CellKey(shard, sensitivity, cov_mode, seed_denominator=denominator)
+            if key.slug() in done:
+                cell = done[key.slug()]
+                cells.append(cell)
+                payload["band"]["cells"].append(cell.to_dict())
+                payload["band"]["combined"] = similarity.combine_cells(cells)
+                print(f"  skip {key.slug()} (already published)", flush=True)
+                continue
+            stream = _band_cell(args, work, db, qdb, target, key, index)
+            cell = similarity.cell_from_stream(
+                key,
+                stream,
+                index,
+                seeds_searched=kept,
+                seed_families=seed_families,
+                searched_residues=shard_residues[shard],
+            )
+            cells.append(cell)
+            payload["band"]["cells"].append(cell.to_dict())
+            # D-158's second denominator, staged per cell (D-160). Written before `publish`
+            # for the same reason the seed set is: it exists now, and a run cut short after
+            # the aggregate but before this would leave the denominator unrecoverable
+            # without re-running the search that produced it.
+            # Guarded on the stream rather than only on the caller: `seeds_hit_ids`
+            # refuses when tracking was off, and raising here would discard a search
+            # already paid for. A cell that cannot emit the denominator still reports
+            # its bands.
+            if stage_ids is not None and stream.track_seeds:
+                ids_path = work / f"seed-hits-{key.slug()}.tsv.gz"
+                with gzip.open(ids_path, "wb") as fh:
+                    for mode, idents in sorted(stream.seeds_hit_ids().items()):
+                        for ident in idents:
+                            fh.write(f"{mode}\t{ident}\n".encode())
+                stage_ids(ids_path, "seed-hits")
+                ids_path.unlink(missing_ok=True)
+            # Published per cell, not at the end. A run that dies on cell five has still paid
+            # for four and must not lose them — the lesson AGENTS.md records from the runs
+            # that published nothing in four hours.
+            payload["band"]["combined"] = similarity.combine_cells(cells)
+            publish()
+            for group in payload["band"]["combined"]["groups"]:
+                r = group["rate"]
+                lead = "at least " if r["lower_bound"] else ""
+                shown = "n/a" if r["rate"] is None else f"{lead}{r['rate']:.4%}"
+                lo, hi = r["ci95"]
+                span = "" if lo is None else f" (95% CI {lo:.4%}-{hi:.4%})"
+                print(
+                    f"  s{group['sensitivity']:g} mode {group['reading']}: {shown}{span}, "
+                    f"{r['families']} strata, {group['seed_families']:,} seed families",
+                    flush=True,
+                )
 
 
 if __name__ == "__main__":

@@ -34,7 +34,9 @@ import itertools
 import math
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import IO, Any
+
+from amazebio.seeds import bucket_of
 
 #: The columns the pass asks `convertalis` for, in order. `fident` carries the identity the
 #: threshold reading needs; `qcov` and `tcov` are what make the three coverage readings
@@ -83,6 +85,33 @@ SEARCH_READINGS: dict[int, tuple[int, ...]] = {1: (0, 1), 2: (2,)}
 #: still counted — the literal reading's threshold is undetermined (D-107), so the pass may
 #: not assume the charitable cut is the floor of interest.
 IDENTITY_BAND_EDGES: tuple[float, ...] = (0.0, 0.70, 0.75, 0.80, 0.90, 1.0)
+
+#: D-134's bands on the **seed** axis, as denominators of a hash sample: 1/100, 1/10, all.
+#:
+#: The pass samples seeds rather than slicing them because band counts are per corpus record.
+#: They are additive across shards — the shards are a hash partition of the corpus sample, so
+#: no record is in two — but **not** across query slices: a record matched by seeds in two
+#: slices would be counted once per slice, and its band is a max over all seeds rather than a
+#: sum. Sampling needs no such merge, and the thing it costs is stated rather than hidden, in
+#: `lower_bound` below.
+#:
+#: Band 1's denominator of 100 reproduces the query set the cap measurement already ran, which
+#: is what prices band 2 (D-134).
+SEED_BANDS: tuple[int, ...] = (100, 10, 1)
+
+
+def select_seeds(identifiers: Iterable[str], denominator: int) -> Iterator[str]:
+    """The seeds in a 1/`denominator` hash sample, in input order.
+
+    The same `bucket_of(ident, denominator) == 0` rule the cap measurement used, so a band at
+    100 re-runs exactly that query set and the two are comparable. A denominator of 1 is the
+    whole set and is not a sample.
+    """
+    if denominator < 1:
+        raise ValueError(f"seed denominator must be at least 1, got {denominator!r}")
+    for ident in identifiers:
+        if denominator == 1 or bucket_of(ident, denominator) == 0:
+            yield ident
 
 
 def band_labels() -> tuple[str, ...]:
@@ -212,6 +241,22 @@ class Saturation:
             return None
         return self.max_hits / self.cap
 
+    def check(self) -> None:
+        """Raise if the cap bound, which D-105 requires rather than publishing the counts.
+
+        A saturated run's counts are a lower bound caused by our own truncation, which is a
+        different thing from the lower bound a sampled seed set produces and must not be
+        reported as if it were the same one. Failing is the only way the two cannot be
+        confused, and D-128 measured the cap at 5% of its value at this target size, so this
+        is a guard rather than an expected path.
+        """
+        if self.saturated:
+            raise ValueError(
+                f"{self.queries_at_cap} of {len(self.per_query)} seeds reached the hit cap of "
+                f"{self.cap}; their counts are truncated, so the cell is not a result. Raise "
+                "the cap and re-run rather than publishing it (D-105)."
+            )
+
     def to_dict(self) -> dict[str, object]:
         return {
             "cap": self.cap,
@@ -329,6 +374,21 @@ class TargetStream:
     bands: dict[int, list[int]] = field(default_factory=dict)
     records: dict[int, int] = field(default_factory=dict)
     rows: int = 0
+    #: The strata of the shard being searched. Given one, the stream also counts hit records
+    #: per stratum, which is the numerator side of D-140's interval. This does **not**
+    #: reintroduce the unbounded structure the class exists to avoid: `stratum_hits` is
+    #: bounded by the number of strata in the target shard, which is known before the run
+    #: from the shard itself, rather than by the hit rate, which is the unknown result.
+    index: FamilyIndex | None = None
+    stratum_hits: dict[int, dict[str, int]] = field(default_factory=dict)
+    #: Collect the *queries* that produced a counted hit, per reading — D-158's second
+    #: denominator, which band 1 could not supply because nothing identifier-bearing survived
+    #: into its artefact (D-160). Opt-in because the bound is the query set rather than the
+    #: number of strata: 31,381 seeds at band 1 is a few megabytes, and the full-seed band 3
+    #: would be nearer 240 MB across three readings. Known before the run either way, which is
+    #: the property that matters — unlike the hit rate, it cannot surprise the run.
+    track_seeds: bool = False
+    seeds_hit: dict[int, set[str]] = field(default_factory=dict)
     _target: str | None = None
     _best: list[float] = field(default_factory=list)
 
@@ -339,16 +399,36 @@ class TargetStream:
                 raise ValueError(f"unknown coverage reading {mode!r}")
             self.bands.setdefault(mode, [0] * (len(IDENTITY_BAND_EDGES) - 1))
             self.records.setdefault(mode, 0)
+            self.stratum_hits.setdefault(mode, {})
+            if self.track_seeds:
+                self.seeds_hit.setdefault(mode, set())
 
     @classmethod
-    def for_search(cls, cov_mode: int, coverage: float = COVERAGE) -> TargetStream:
-        """The readings one coverage-filtered search may speak for (D-124)."""
+    def for_search(
+        cls,
+        cov_mode: int,
+        coverage: float = COVERAGE,
+        index: FamilyIndex | None = None,
+        track_seeds: bool = False,
+    ) -> TargetStream:
+        """The readings one coverage-filtered search may speak for (D-124).
+
+        With `index`, the stream also counts hit records per stratum, which is what the band
+        needs and the cap measurement does not. With `track_seeds`, it also collects which
+        queries produced a counted record — D-158's second denominator, which band 1 could
+        not supply (D-160).
+        """
         if cov_mode not in SEARCH_READINGS:
             raise ValueError(
                 f"--cov-mode {cov_mode!r} is not one of the searches the pass runs "
                 f"({sorted(SEARCH_READINGS)})"
             )
-        return cls(coverage=coverage, derive=SEARCH_READINGS[cov_mode])
+        return cls(
+            coverage=coverage,
+            derive=SEARCH_READINGS[cov_mode],
+            index=index,
+            track_seeds=track_seeds,
+        )
 
     def observe(self, row: HitRow) -> None:
         if self._target is not None and row.target != self._target:
@@ -364,11 +444,17 @@ class TargetStream:
             self._best = [-1.0] * len(self.derive)
         self.rows += 1
         for i, mode in enumerate(self.derive):
-            if (
-                coverage_passes(mode, row.qcov, row.tcov, self.coverage)
-                and row.fident > self._best[i]
-            ):
+            if not coverage_passes(mode, row.qcov, row.tcov, self.coverage):
+                continue
+            if row.fident > self._best[i]:
                 self._best[i] = row.fident
+            if self.track_seeds:
+                # Row-local on purpose, and it does not wait for `_flush`: a row that passes
+                # coverage necessarily gives its target a non-negative best, so that target
+                # is counted under this reading, so this query contributed a counted record.
+                # Membership only — a seed's hit *count* is a property of the corpus sample,
+                # and weighting by it would fold two samples into one number (D-158).
+                self.seeds_hit[mode].add(row.query)
 
     def extend(self, rows: Iterable[HitRow]) -> TargetStream:
         for row in rows:
@@ -376,11 +462,21 @@ class TargetStream:
         return self
 
     def _flush(self) -> None:
+        target = self._target
         for i, mode in enumerate(self.derive):
             best = self._best[i]
             if best >= 0:
                 self.bands[mode][band_of(best)] += 1
                 self.records[mode] += 1
+                if self.index is not None and target is not None:
+                    key = self.index.of.get(target)
+                    if key is None:
+                        raise ValueError(
+                            f"hit target {target!r} is not in the shard's strata; the hit "
+                            "table and the target shard describe different records"
+                        )
+                    counts = self.stratum_hits[mode]
+                    counts[key] = counts.get(key, 0) + 1
         self._target = None
         self._best = []
 
@@ -408,12 +504,32 @@ class TargetStream:
         return sum(self.bands[mode][start:])
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        out: dict[str, object] = {
             "rows": self.rows,
             "bands": {str(m): self.bands[m] for m in self.derive},
             "records": {str(m): self.records[m] for m in self.derive},
             "band_labels": list(band_labels()),
         }
+        if self.track_seeds:
+            # Counts, never the ids. A count is not an identifier, so it may travel in the
+            # published aggregate; the ids are identifier-bearing and go to the staged
+            # disclosure package instead (D-125 as amended by D-126, D-160).
+            out["seeds_with_hits"] = {str(m): len(self.seeds_hit[m]) for m in self.derive}
+        return out
+
+    def seeds_hit_ids(self) -> dict[int, list[str]]:
+        """The queries that produced a counted record, per reading, sorted.
+
+        Sorted so the sidecar is byte-identical across runs that read the same rows: a set's
+        iteration order is not stable across processes, and an artefact that differs run to
+        run cannot be checksummed or compared.
+        """
+        if not self.track_seeds:
+            raise ValueError(
+                "seeds_hit_ids() needs track_seeds=True set before the rows were observed; "
+                "it cannot be recovered afterwards without re-reading the hit table"
+            )
+        return {mode: sorted(self.seeds_hit[mode]) for mode in self.derive}
 
 
 @dataclass(frozen=True)
@@ -428,14 +544,38 @@ class CellKey:
     shard: int
     sensitivity: float
     cov_mode: int
+    seed_denominator: int = 1
+
+    def __post_init__(self) -> None:
+        if self.seed_denominator < 1:
+            raise ValueError(f"seed denominator must be at least 1, got {self.seed_denominator!r}")
 
     def slug(self) -> str:
-        """A stable key for the cell's artefact. Must not change once results exist."""
-        return f"shard{self.shard:02d}-s{self.sensitivity:g}-cov{self.cov_mode}"
+        """A stable key for the cell's artefact. Must not change once results exist.
+
+        The seed band is in the key, because the corpus bucket has no `DeleteObject` and two
+        bands against the same shard would otherwise collide on a name — the second one
+        silently reading as the first. A full-seed cell keeps D-128's original slug, so band 3
+        is not renamed by this having been added.
+        """
+        base = f"shard{self.shard:02d}-s{self.sensitivity:g}-cov{self.cov_mode}"
+        return base if self.seed_denominator == 1 else f"{base}-q{self.seed_denominator}"
 
     @property
     def readings(self) -> tuple[int, ...]:
         return SEARCH_READINGS[self.cov_mode]
+
+    @property
+    def lower_bound(self) -> bool:
+        """Whether this cell's counts understate the truth, which a sampled seed set does.
+
+        A corpus record is counted if **any** seed matches it, so dropping seeds can only drop
+        records and can only lower a record's best identity. The understatement is monotone in
+        the sample fraction and runs toward less apparent leakage, which §2 treats as the same
+        class of failure as overstating it — hence a flag that travels with the number rather
+        than a note in the write-up (D-134).
+        """
+        return self.seed_denominator > 1
 
 
 @dataclass
@@ -454,12 +594,32 @@ class CellResult:
     families: dict[int, list[tuple[int, int]]]
     searched_clusters: int = 0
     searched_residues: int = 0
+    #: The realised size of the seed sample, and the number of families it drew from. Both are
+    #: properties of the *query* set, so they are identical across shards and **summing them
+    #: would be meaningless** — `combine_cells` requires agreement instead. `seed_families` is
+    #: load-bearing: D-134 makes it ship with every rate, because 1/100 of the seeds covers
+    #: materially fewer families than the full set and that, not the record count, is what
+    #: limits anything said at family level.
+    seeds_searched: int = 0
+    seed_families: int = 0
+    #: Per reading, how many of the searched seeds produced a counted record (D-158's second
+    #: denominator; D-160 for why band 1 had to be re-run to get it). Deliberately **not**
+    #: carried into `combine_cells`: unlike `bands`, which sum over shards, and unlike
+    #: `seeds_searched`, which must agree across them, this is neither. A seed can hit in one
+    #: shard and not another, so the cross-shard figure is a *union* of the id sets and cannot
+    #: be recovered from per-shard counts. The union is taken from the staged sidecar, which is
+    #: where the ids live.
+    seeds_with_hits: dict[int, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         return {
             "shard": self.key.shard,
             "sensitivity": self.key.sensitivity,
             "cov_mode": self.key.cov_mode,
+            "seed_denominator": self.key.seed_denominator,
+            "lower_bound": self.key.lower_bound,
+            "seeds_searched": self.seeds_searched,
+            "seed_families": self.seed_families,
             "slug": self.key.slug(),
             "bands": {str(m): self.bands[m] for m in sorted(self.bands)},
             "families": {
@@ -467,7 +627,43 @@ class CellResult:
             },
             "searched_clusters": self.searched_clusters,
             "searched_residues": self.searched_residues,
+            "seeds_with_hits": {
+                str(m): self.seeds_with_hits[m] for m in sorted(self.seeds_with_hits)
+            },
         }
+
+
+def cell_from_dict(raw: dict[str, Any]) -> CellResult:
+    """Rehydrate a cell published by an earlier run, so a resumed band keeps what it paid for.
+
+    The band publishes per cell and rewrites one result object, so a re-run that did not read
+    the previous one back would replace completed cells rather than add to them — losing work
+    that is already paid for, in a bucket where an overwrite is irreversible. This is the
+    read half of the skip `CellKey` documents.
+    """
+    key = CellKey(
+        shard=int(raw["shard"]),
+        sensitivity=float(raw["sensitivity"]),
+        cov_mode=int(raw["cov_mode"]),
+        seed_denominator=int(raw.get("seed_denominator", 1)),
+    )
+    if raw.get("slug") and raw["slug"] != key.slug():
+        raise ValueError(
+            f"published cell says it is {raw['slug']!r} but its own fields spell "
+            f"{key.slug()!r}; refusing to reuse a cell whose identity is ambiguous"
+        )
+    return CellResult(
+        key=key,
+        bands={int(m): list(v) for m, v in raw["bands"].items()},
+        families={int(m): [tuple(p) for p in v] for m, v in raw["families"].items()},
+        searched_clusters=int(raw.get("searched_clusters", 0)),
+        searched_residues=int(raw.get("searched_residues", 0)),
+        seeds_searched=int(raw.get("seeds_searched", 0)),
+        seed_families=int(raw.get("seed_families", 0)),
+        # Absent from every cell published before D-160, which is the point of the default:
+        # a resumed band must be able to reuse those cells rather than rebuy them.
+        seeds_with_hits={int(m): int(v) for m, v in raw.get("seeds_with_hits", {}).items()},
+    )
 
 
 def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
@@ -477,7 +673,22 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
     clusters actually searched, never the corpus or the sample as designed: a run that has done
     three shards of eight must report a rate over three shards, or the number is a fiction about
     work not yet paid for.
+
+    **Seed bands are not pooled.** Band counts from two seed samples cover overlapping seed
+    sets, so adding them double counts every record both bands found; and a band's counts mean
+    "at least this many, from this fraction of the seeds", which is not a quantity that
+    survives addition. D-134 makes that a third no-pooling axis alongside D-108's two arms and
+    D-109's two denominators, and this function refuses it rather than trusting a caller to
+    remember.
     """
+    denominators = {cell.key.seed_denominator for cell in cells}
+    if len(denominators) > 1:
+        raise ValueError(
+            "cells span seed bands "
+            + ", ".join(f"1/{d}" for d in sorted(denominators))
+            + "; their counts cover overlapping seed sets, so summing them double counts "
+            "every record both bands found. Combine each band on its own (D-134)."
+        )
     seen: set[tuple[int, float, int]] = set()
     groups: dict[tuple[float, int], dict[str, Any]] = {}
     for cell in cells:
@@ -498,17 +709,39 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
                     "shards": [],
                     "searched_clusters": 0,
                     "searched_residues": 0,
+                    "seeds_searched": cell.seeds_searched,
+                    "seed_families": cell.seed_families,
                 },
             )
+            # The query set is the same on every shard, so these agree rather than add. A
+            # disagreement means two cells ran against different seed sets and their record
+            # counts are not summable at all, which is worth failing on.
+            for name, value in (
+                ("seeds_searched", cell.seeds_searched),
+                ("seed_families", cell.seed_families),
+            ):
+                if slot[name] != value:
+                    raise ValueError(
+                        f"shard {cell.key.shard} reports {name}={value} against "
+                        f"{slot[name]} from an earlier shard at the same sensitivity and "
+                        "reading; the seed set must be identical across shards for their "
+                        "record counts to be summable"
+                    )
             slot["bands"] = [a + b for a, b in zip(slot["bands"], cell.bands[mode], strict=True)]
             slot["families"].extend(cell.families.get(mode, []))
             slot["shards"].append(cell.key.shard)
             slot["searched_clusters"] += cell.searched_clusters
             slot["searched_residues"] += cell.searched_residues
 
-    out: dict[str, Any] = {"band_labels": list(band_labels()), "groups": []}
+    denominator = denominators.pop() if denominators else 1
+    out: dict[str, Any] = {
+        "band_labels": list(band_labels()),
+        "seed_denominator": denominator,
+        "lower_bound": denominator > 1,
+        "groups": [],
+    }
     for (sensitivity, mode), slot in sorted(groups.items()):
-        rate = rate_with_interval(slot["families"])
+        rate = rate_with_interval(slot["families"], lower_bound=denominator > 1)
         out["groups"].append(
             {
                 "sensitivity": sensitivity,
@@ -518,6 +751,8 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
                 "records": sum(slot["bands"]),
                 "searched_clusters": slot["searched_clusters"],
                 "searched_residues": slot["searched_residues"],
+                "seeds_searched": slot["seeds_searched"],
+                "seed_families": slot["seed_families"],
                 "rate": rate.to_dict(),
             }
         )
@@ -536,10 +771,18 @@ class Rate:
     families: int
     records: int
     hits: int
+    #: True when the seed set was sampled, so the rate understates the truth. It sits on the
+    #: estimate rather than beside it because the two qualifiers on this number are different
+    #: in kind and a reader has to keep them apart: the interval is the **corpus** axis, a
+    #: 0.3125% hash sample whose denominator is fully known, while this flag is the **seed**
+    #: axis, which contributes a bound and no interval at all. Collapsing them into one figure
+    #: would be false precision in the direction of understating leakage (D-134).
+    lower_bound: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return {
             "rate": self.rate,
+            "lower_bound": self.lower_bound,
             "standard_error": self.standard_error,
             "ci95": [self.low, self.high],
             "design_effect": self.design_effect,
@@ -548,8 +791,27 @@ class Rate:
             "hits": self.hits,
         }
 
+    def describe(self) -> str:
+        """The rate as a sentence, with "at least" in it when that is what it is.
 
-def rate_with_interval(clusters: Sequence[tuple[int, int]], z: float = 1.96) -> Rate:
+        The non-negotiables require the reporting limits enforced in the harness rather than
+        left to the write-up, and this is that for the bound: a figure formatted from here
+        cannot lose the qualifier on its way into prose.
+        """
+        if self.rate is None:
+            return "no records searched"
+        lead = "at least " if self.lower_bound else ""
+        body = f"{lead}{self.rate:.4%}"
+        if self.low is not None and self.high is not None:
+            body += f" (95% CI {self.low:.4%}-{self.high:.4%} from the corpus sample)"
+        else:
+            body += " (no interval: one family is not a sample of families)"
+        return f"{body}, {self.families} families"
+
+
+def rate_with_interval(
+    clusters: Sequence[tuple[int, int]], z: float = 1.96, lower_bound: bool = False
+) -> Rate:
     """A hit rate and its interval, treating families as the sampling unit.
 
     `clusters` is one `(hits, records)` pair per family drawn into the sample. The estimator
@@ -566,18 +828,23 @@ def rate_with_interval(clusters: Sequence[tuple[int, int]], z: float = 1.96) -> 
 
     `families` travels with every rate because it, not the record count, is the effective
     sample size for anything said at family level.
+
+
+    `lower_bound` marks the estimate as understating the truth, which it does whenever the
+    seed set was sampled. It is a property of the query set rather than of this arithmetic,
+    so it is passed in rather than inferred.
     """
     k = len(clusters)
     total_hits = sum(a for a, _ in clusters)
     total_records = sum(b for _, b in clusters)
     if total_records == 0:
-        return Rate(None, None, None, None, None, k, 0, total_hits)
+        return Rate(None, None, None, None, None, k, 0, total_hits, lower_bound)
 
     r = total_hits / total_records
     if k < 2:
         # One family is not a sample of families. A point estimate with no interval is the
         # honest output, and it is what makes the realised family count load-bearing.
-        return Rate(r, None, None, None, None, k, total_records, total_hits)
+        return Rate(r, None, None, None, None, k, total_records, total_hits, lower_bound)
 
     residual = sum((a - r * b) ** 2 for a, b in clusters)
     var = k * residual / ((k - 1) * total_records**2)
@@ -593,4 +860,167 @@ def rate_with_interval(clusters: Sequence[tuple[int, int]], z: float = 1.96) -> 
         families=k,
         records=total_records,
         hits=total_hits,
+        lower_bound=lower_bound,
     )
+
+
+#: How a stratum id is spelled. Placed clusters share their family's id; an unplaced cluster is
+#: its own stratum (D-140, for the reason D-141 establishes), so its id carries the cluster.
+#: Two prefixes rather than a bare int because the two kinds must never collide in a dict, and
+#: a reader of a published stratum count needs to see which kind they are looking at.
+PLACED_PREFIX = "f:"
+UNPLACED_PREFIX = "u:"
+
+
+def stratum_id(cluster_id: str, family: int | None) -> str:
+    """The stratum a corpus record belongs to, for the interval's sampling unit."""
+    return f"{PLACED_PREFIX}{family}" if family is not None else f"{UNPLACED_PREFIX}{cluster_id}"
+
+
+@dataclass
+class FamilyIndex:
+    """Which stratum each searched corpus record is in, and how many records each holds.
+
+    The interval needs one `(hits, records)` pair per stratum, and `records` counts every
+    record **searched** in that stratum rather than every record that hit — so it cannot come
+    from the hit table, which only ever shows the hits. It comes from the target shard, which
+    is the only place the misses appear at all.
+
+    `totals` is therefore the denominator side of the ratio estimator and `of` is what turns a
+    hit row's target into the stratum it contributes to.
+    """
+
+    of: dict[str, str] = field(default_factory=dict)
+    totals: dict[str, int] = field(default_factory=dict)
+
+    @classmethod
+    def build(
+        cls, entries: Iterable[tuple[str, int | None]], taxonomy: Any, rank: str = "family"
+    ) -> FamilyIndex:
+        """Index a shard from its `(cluster_id, taxid)` pairs.
+
+        `taxonomy` is an `amazebio.seeds.Taxonomy`; it is typed loosely to keep this module
+        importable without one, which is what lets the tests run the estimator on synthetic
+        strata. A cluster with no taxid is unplaced, the same as one whose lineage carries no
+        node at `rank` — in both cases the taxonomy does not assert a family for it, which is
+        the only thing the distinction would be used for.
+        """
+        index = cls()
+        for cluster_id, taxid in entries:
+            family = None if taxid is None else taxonomy.ancestor_at_rank(taxid, rank)
+            key = stratum_id(cluster_id, family)
+            if index.of.setdefault(cluster_id, key) != key:
+                raise ValueError(
+                    f"{cluster_id!r} appears twice in the shard with different families; a "
+                    "record in two strata would be counted twice in the denominator"
+                )
+            index.totals[key] = index.totals.get(key, 0) + 1
+        return index
+
+    @property
+    def unplaced_records(self) -> int:
+        return sum(n for k, n in self.totals.items() if k.startswith(UNPLACED_PREFIX))
+
+    @property
+    def searched_records(self) -> int:
+        return sum(self.totals.values())
+
+    def pairs(self, hits: dict[str, int]) -> list[tuple[int, int]]:
+        """One `(hits, records)` pair per stratum, for `rate_with_interval`.
+
+        Every searched stratum is included, **including those with no hits**: a family that
+        was searched and matched nothing is evidence about the rate, and dropping it would
+        divide by a denominator the search did not use. That is the same error as reporting a
+        rate over the sample as designed rather than the shards actually run.
+        """
+        unknown = set(hits) - set(self.totals)
+        if unknown:
+            raise ValueError(
+                f"{len(unknown)} strata have hits but were never searched, e.g. "
+                f"{sorted(unknown)[0]!r}; the hit table and the target shard disagree"
+            )
+        out = []
+        for key, records in self.totals.items():
+            got = hits.get(key, 0)
+            if got > records:
+                raise ValueError(
+                    f"stratum {key!r} has {got} hit records against {records} searched; a "
+                    "record counted more than once inflates the rate"
+                )
+            out.append((got, records))
+        return out
+
+
+def cell_from_stream(
+    key: CellKey,
+    stream: TargetStream,
+    index: FamilyIndex,
+    *,
+    seeds_searched: int,
+    seed_families: int,
+    searched_residues: int,
+) -> CellResult:
+    """Assemble one cell's artefact from the search it just read.
+
+    `searched_clusters` is taken from the index rather than passed in, because the denominator
+    has to be the records the search actually ran against and the index is the only thing that
+    counted them. Passing it separately is how a rate ends up quoted over the sample as
+    designed instead of the shard that ran.
+    """
+    if tuple(stream.derive) != key.readings:
+        raise ValueError(
+            f"the search read readings {tuple(stream.derive)} but cell {key.slug()} speaks "
+            f"for {key.readings}; a cell must not report a reading its search cannot support"
+        )
+    return CellResult(
+        key=key,
+        bands={mode: list(stream.bands[mode]) for mode in stream.derive},
+        families={mode: index.pairs(stream.stratum_hits[mode]) for mode in stream.derive},
+        searched_clusters=index.searched_records,
+        searched_residues=searched_residues,
+        seeds_searched=seeds_searched,
+        seed_families=seed_families,
+        seeds_with_hits=(
+            {mode: len(stream.seeds_hit[mode]) for mode in stream.derive}
+            if stream.track_seeds
+            else {}
+        ),
+    )
+
+
+#: What an unplaced cluster's taxid field holds in the sidecar. A cluster whose representative
+#: carries no taxid is written explicitly rather than omitted: an absent row and a row saying
+#: "no taxid" are different claims, and only one of them survives a truncated file.
+NO_TAXID = "-"
+
+
+def write_taxid_row(handle: IO[bytes], cluster_id: str, taxid: int | None) -> None:
+    """Append one `cluster_id\\ttaxid` row to a shard's strata sidecar."""
+    value = NO_TAXID if taxid is None else str(taxid)
+    handle.write(f"{cluster_id}\t{value}\n".encode("ascii"))
+
+
+def parse_taxid_rows(lines: Iterable[str | bytes]) -> Iterator[tuple[str, int | None]]:
+    """Read a strata sidecar back as `(cluster_id, taxid)` pairs.
+
+    A malformed row raises rather than being skipped. The sidecar is the denominator of every
+    rate this arm publishes, so a row quietly dropped is a record quietly removed from the
+    denominator, which moves the rate up.
+    """
+    for number, raw in enumerate(lines, start=1):
+        line = raw.decode("ascii", "replace") if isinstance(raw, bytes) else raw
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        cluster_id, _, value = line.partition("\t")
+        if not cluster_id or not value:
+            raise ValueError(f"strata sidecar line {number} is not a cluster/taxid pair: {line!r}")
+        if value == NO_TAXID:
+            yield cluster_id, None
+            continue
+        try:
+            yield cluster_id, int(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"strata sidecar line {number} has a non-numeric taxid: {value!r}"
+            ) from exc
