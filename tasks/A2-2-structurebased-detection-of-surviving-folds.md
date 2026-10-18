@@ -61,11 +61,25 @@ bioconda's single foldseek 10.941cd33 build **is** CUDA-capable, established by 
 reporting "No GPU devices found" rather than "compiled without CUDA"; and the 2.3 GB ProstT5
 GGUF downloads unauthenticated, so it is not a blocked acquisition.
 
+**In flight: the GPU measurement.** `tools/fold_throughput.py` measures 3Di throughput and
+`tools/ec2_folds.py` launches it on a `g6.xlarge`. Both are committed on the branch with tests,
+and a run is in progress; results land under `corpora/results/a2-2/throughput/`.
+
+Four things about that pair are deliberate, and each is a trap avoided rather than a preference.
+It measures **both devices on one machine**, so the headline is a ratio this run took rather than
+an instance figure divided by a container figure. It **proves the GPU is usable** with
+`nvidia-smi` and a one-sequence foldseek probe checked for foldseek's own "No GPU devices found"
+wording before timing anything, because the failure mode is silent: with no usable GPU foldseek
+falls back to the CPU and returns a believable number. It boots the **driver-bearing Deep
+Learning AMI**, not the base AL2023 one every other `ec2_*` tool uses, which carries no NVIDIA
+driver. And the **CPU arm has its own short ladder**, because at the measured CPU rate the
+largest rung is about twenty hours; the CPU arm exists only to pair with the GPU arm on identical
+input, and it runs first so the pairing is banked before the long rungs start.
+
 **What is left, in order.**
 
-1. **Measure the GPU speedup.** It sets the depth A2.2 can pre-register and it cannot be measured
-   here, because nothing in this container has a GPU. It is measured on the instance, as the
-   first thing the instance does.
+1. **Read the GPU speedup off that run** and pre-register a depth from it. The projection is in
+   the artefact: A2.1 parity is 363 Maa and a census of both releases is 24,691 Maa.
 2. **Fix the fold-family universe and its membership rule.** §A2 names three folds in prose, not
    by identifier. D-083 says this membership rule is "a finding about the registry, not a detail
    of the pipeline" and names A2.2 as facing the question; D-097 adds that the id-to-label
