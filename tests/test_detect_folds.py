@@ -161,7 +161,7 @@ THRESHOLDS = {
     "alignment_mode": "3di_aa",
     "cov_mode": 1,
     "min_target_coverage": 0.5,
-    "decision_ref": "D-170",
+    "decision_ref": "D-171",
 }
 
 
@@ -386,4 +386,4 @@ def test_an_uncalibrated_mode_is_refused(tool, tmp_path):
     got = tool.load_threshold(p, mode="3di_aa")
     assert got["declared"] == 100.0
     assert got["brackets"] == [90.0, 120.0]
-    assert got["decision_ref"] == "D-170"
+    assert got["decision_ref"] == "D-171"

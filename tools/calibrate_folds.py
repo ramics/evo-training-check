@@ -638,7 +638,7 @@ def main(argv: list[str] | None = None) -> int:
             "detector": "foldseek",
             "registry": "ECOD",
             "registry_version": folds.ECOD_V295_2.version,
-            "decision": "D-170",
+            "decision": "D-171",
             "declared_alignment_mode": declared_mode,
             "alignment_mode_rule": ALIGNMENT_MODE_RULE,
             "geometry": {

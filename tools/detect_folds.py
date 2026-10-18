@@ -245,7 +245,7 @@ def target_to_fold(universe: dict[str, Any]) -> dict[str, str]:
 
 
 def load_threshold(path: Path, *, mode: str | None = None) -> dict[str, Any]:
-    """The declared bit score and its two brackets, from the calibration artefact (D-170)."""
+    """The declared bit score and its two brackets, from the calibration artefact (D-171)."""
     body = json.loads(path.read_text())
     modes = body.get("modes", {})
     if not modes:
@@ -268,7 +268,7 @@ def load_threshold(path: Path, *, mode: str | None = None) -> dict[str, Any]:
         "alignment_mode": chosen_mode,
         "cov_mode": 1,
         "min_target_coverage": 0.5,
-        "decision_ref": "D-170",
+        "decision_ref": "D-171",
         "unavailable": list(UNAVAILABLE_COLUMNS),
         "unavailable_why": (
             "a ProstT5 query database holds 3Di strings and no C-alpha coordinates, so TM-score "
