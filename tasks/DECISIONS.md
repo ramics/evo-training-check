@@ -7030,3 +7030,40 @@ decision has a threshold or parameter in it, the number goes in the entry.
   shutdown rules exist to produce. The lasting fix was not either patch but simulating the
   instance's bootstrap locally — build the real payload, unpack it, run both precheck steps
   against it — which would have caught both for nothing.
+
+### D-165 — A2.2's spending ceiling is $30, enforced as the shutdown timer
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** Shown D-164's figures — 24.7 GPU instance-hours for the pre-registered depth,
+  against 1,682 for a census — the project owner authorized the pass with a ceiling of **$30**.
+  Measured prices, read from the account the same day: `g6.xlarge` spot quoted $0.503-$0.760/h
+  across availability zones, `g5.xlarge` spot $0.434-$0.532/h. On-demand could not be verified
+  from here at all: `pricing:GetProducts` is denied, so the only on-demand figure available is a
+  remembered one, which is not a figure.
+- **Decision:** The ceiling lives in `tools/ec2_folds.py` as `DEFAULT_MAX_SPEND_USD`, and the
+  launcher derives the instance's shutdown timer from it and the live price. The reason it is
+  code and not a note: the timer baked into `UserData` at launch is the *only* spend control
+  that survives the launch, because `ec2:ModifyInstanceAttribute` is denied and there is no
+  shell on the instance. An instance that outlives its budget cannot be reined in, only killed —
+  and only by a launcher that is still alive to do it. A ceiling that cannot buy a window long
+  enough to clear setup (about three minutes of boot, environment build and weights) refuses to
+  launch rather than burning it.
+  **The price is read, never remembered.** Spot comes from `describe_spot_price_history` and
+  takes the *worst* recent quote on purpose: the launch does not pin an availability zone, so
+  budgeting from the cheapest under-reserves precisely when it lands in the dear one. With
+  `--no-spot` the tool demands an explicit `--price-per-hour`, because budgeting against a rate
+  it cannot look up is how a ceiling silently becomes a guess.
+  **Spot is the default**, one-time and terminate-on-interruption, matching the other launchers.
+- **Rejected:** Treating $30 as guidance and launching with the previous fixed 150-minute
+  timer — it happens to be well inside budget, but it is inside by luck rather than by
+  construction, and the next person to raise the timer would not know what they were spending.
+  Budgeting against a remembered on-demand price — unverifiable here, and the direction of a
+  wrong guess is unknowable. Reserving the whole ceiling as one window — at $0.76/h it is
+  39 hours, longer than the pass needs and long enough that a spot reclaim late in it would
+  waste most of the budget; resumability, not a longer timer, is what protects the money.
+- **Consequence:** The ceiling is not the binding constraint — at the quoted price it buys about
+  39 instance-hours against a pass that needs 25. **What blocks the pass is method, not money**,
+  and three things have to exist first: the fold reference set and its stated membership rule,
+  the thresholds declared before any hit is looked at, and A1.4's manifests regenerated, since
+  `artifacts/` is empty in a fresh container and nothing in object storage holds them.
+  Resumability is the fourth, and it is what makes spot safe to rely on for a 25-hour pass.
