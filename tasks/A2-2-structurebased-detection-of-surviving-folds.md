@@ -94,10 +94,21 @@ permits. Parity is the target because A3.2 merges this table with A2.1's, A2.4's
    criterion asks for. Host RNAi polymerases are excluded from RdRp deliberately: they share the
    fold and are not viral-derived content.
 
-3. **Fix thresholds before any hit is inspected**, per D-076's rule that a threshold must not
-   scale with how much corpus a run happened to read. Foldseek's E-value is target-database-size
-   dependent in exactly the way D-076 rejects, so the declared cut should be a TM-score, with the
-   normalisation direction stated, plus a coverage floor analogous to A2.1's `MIN_MODEL_COVERAGE`.
+3. **Fix the threshold's value by decoy calibration (D-167 settled everything else).** The
+   search geometry is now measured rather than assumed: the **corpus is the query** and the
+   166-structure reference set is the target, because a ProstT5 database holds 3Di strings and
+   no coordinates, so only the structure side can be the target. That inverts AGENTS.md's
+   "query the small side" rule — the tool decides it here — and it flips the coverage floor onto
+   the target (`--cov-mode 1`), since the reference domain is now the target and the requirement
+   is that half the reference *fold* is matched. The score is the bit score, which is
+   database-size independent and so satisfies D-076 outright.
+   **A2.2 can never report a TM-score or LDDT for an Evo hit**, on the publisher's own
+   statement. The evidence is a structural-alphabet alignment, not a superposition, which caps
+   how strongly the fold claim can be worded and belongs in the write-up.
+   What remains is the cut itself: the reference set searched against shuffled or unrelated
+   queries, to pick a bit score at a stated false-discovery rate with its two bracketing values
+   fixed at the same time.
+
 4. **Then the search**, emitting `metrics/detections.md`'s schema with `detector: foldseek`
    (already a valid detector string, pinned by `tests/test_survival.py`), `element_kind` from the
    record's component per D-079 and never from the hit, and routes from `amazebio.apply.route_for`

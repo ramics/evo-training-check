@@ -7137,3 +7137,66 @@ decision has a threshold or parameter in it, the number goes in the entry.
   curator's definition of a viral capsid, can assemble a defensible one for RdRp from Pfam-keyed
   families, and cannot borrow one at all for the fusion class §A2 names. Thresholds come next and
   are not set here; nothing in this entry looks at a hit.
+
+### D-167 — A2.2 searches corpus-as-query against the pinned reference set, and cannot report a TM-score at all
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** The threshold had to be fixed before any hit was inspected, and the plan going in
+  was the obvious one: TM-score, the field's standard fold-similarity measure, cut at the
+  literature's same-fold convention, with the small reference side as the query per AGENTS.md's
+  rule about which side of a search to make the query. Testing that plan against foldseek
+  10.941cd33 rather than declaring it found three things, each of which changed it.
+  **1. `--tmscore-threshold` can be silently disabled.** With TM alignment foldseek prints
+  `Cannot use --tmscore-threshold with --sort-by-structure-bits 0` followed by
+  `Disabling --tmscore-threshold`, and continues. A declared threshold the tool discards is
+  worse than none, because the run still produces a plausible table.
+  **2. A ProstT5 database holds 3Di strings and no coordinates.** There is no `_ca` file, so
+  `--alignment-type 1` dies outright, and `convertalis` refuses to report at all — not merely
+  for coordinate-derived columns. That was checked: requesting only `query,target,bits,evalue,
+  prob,fident,alnlen,qlen,tlen` still fails on the missing `_ca`, in both directions. The
+  publisher states the same thing: such a database "supports monomer search and clustering, but
+  does not enable features requiring Ca information, such as `--alignment-type 1`, TM-score or
+  LDDT output".
+  **3. The supported direction is the inverse of the one AGENTS.md's rule would pick.** The
+  documented path is `easy-search QUERY.fasta <structureDB> res tmp --prostt5-model weights`:
+  sequence as **query**, structures as **target**. Verified end to end here — 18 rows, exit 0 —
+  and the C-alpha message is then a warning, not an error. The usual "query the small side"
+  reasoning does not apply because the tool decides it: only the structure side has
+  coordinates, so only it can be the target.
+- **Decision:** **The corpus is the query and the 166-structure reference set (D-166) is the
+  target.** Coverage floor on the **target**, `--cov-mode 1`, because the reference domain is
+  now the target and the requirement is that at least half of the reference *fold* is matched —
+  A2.1's `MIN_MODEL_COVERAGE` of 0.5 carried over to this geometry. Getting this backwards
+  would let a sliver of a capsid fold inside a large corpus protein count as a detection, and
+  `--cov-mode 2` was the intended setting until the direction inverted.
+  **The score is the bit score, not the E-value.** Both are available and coordinate-free; the
+  bit score is chosen because it does not depend on database size at all, which satisfies
+  D-076's rule directly rather than by argument. Worth recording that the rule would be
+  satisfied either way here: D-076 rejected E-values because they scale with the number of
+  targets searched, so a headline would drift with how much corpus a run happened to read — but
+  under this inversion the target database is the *fixed* reference set and the varying quantity,
+  corpus size, is the query count, which the E-value does not depend on. The bit score needs no
+  such reasoning to be safe, so it is what the detection records.
+  **Reported, so a reviewer can re-cut without re-searching:** bit score, E-value, target
+  coverage, alignment length, query and target length, and fraction identical. `alntmscore`,
+  `qtmscore`, `ttmscore` and `lddt` are structurally unavailable and are recorded as such rather
+  than as nulls that look like missing data.
+- **Rejected:** TM-score at the literature same-fold cut — impossible here, on the publisher's
+  own statement, not merely unmeasured. Predicting full 3D structures for the corpus so that
+  TM-score becomes available — the publisher puts ProstT5 at 400-4000x faster than ColabFold
+  structure prediction, and D-163 already measured the 3Di step alone at 173x the cost of a
+  profile search; full structures are orders of magnitude beyond any budget this project has.
+  `--alignment-type 0` (3Di only) over the default 3Di+AA, which was tempting for independence
+  from sequence — deferred to the threshold calibration rather than chosen here, since it
+  changes the score distribution and therefore the cut.
+- **Consequence:** **A2.2 can never state a TM-score or an LDDT for a hit in the Evo corpora.**
+  That is a limit on how strongly the fold claim may be worded — the evidence is a structural
+  alphabet alignment against a reference fold, not a superposition — and it belongs in the
+  write-up as a stated limitation rather than being discovered by a reviewer. It also partly
+  undercuts the independence §A2 wants from the structural route: the 3Di string is predicted
+  from sequence, so this detector is not as independent of sequence as a search over real
+  structures would be, and the default alignment mode scores amino acids alongside 3Di.
+  **The threshold's value is still open and is the next step**, deliberately: it needs a decoy
+  calibration — the reference set searched against shuffled or unrelated queries — to pick a
+  bit score at a stated false-discovery rate, with its two bracketing values fixed in the same
+  breath, as `metrics/survival.md` requires. Nothing in this entry has looked at a corpus hit.
