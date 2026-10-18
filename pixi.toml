@@ -125,6 +125,25 @@ platforms = ["linux-64"]
 [feature.vibrant.dependencies]
 vibrant = "==1.2.1"
 
+# A2.2's instrument. §A2 names Foldseek for the three virus-characteristic folds, and 10.941cd33
+# is the newest bioconda release at pinning. Its own environment and solve group because the
+# package is a compiled binary with no Python side the pipeline imports — the pipeline calls its
+# CLI, exactly as A2.4 calls geNomad's.
+#
+# Two things about this pin are load-bearing and were established rather than assumed (D-163).
+# bioconda ships **one** linux-64 build per version with no CUDA variant, so whether the packaged
+# binary could use a GPU at all was open; `--gpu 1` on a machine without one reports "No GPU
+# devices found" rather than "compiled without CUDA", which settles that this build is
+# CUDA-capable and therefore that the GPU route stays a lockfile entry instead of a side-channel
+# binary. That matters because 3Di prediction is the whole cost of A2.2 — 18.58 core-hours per
+# million residues on CPU, 173x the profile search it feeds — so the binary that does it is the
+# one part of this task that must be pinned rather than downloaded.
+[feature.foldseek]
+platforms = ["linux-64"]
+
+[feature.foldseek.dependencies]
+foldseek = "==10.941cd33"
+
 [feature.dev.dependencies]
 pytest = ">=8.3,<9"
 ruff = ">=0.8,<0.9"
@@ -148,6 +167,11 @@ proviruses = { features = [
 vibrant = { features = [
   "vibrant",
 ], solve-group = "vibrant", no-default-feature = true }
+# A2.2's instrument, same shape as the two above: a binary and its runtime, called as a CLI by
+# the pipeline that reads the corpus from the dev environment.
+foldseek = { features = [
+  "foldseek",
+], solve-group = "foldseek", no-default-feature = true }
 
 [tasks]
 # Regenerate the task board from task frontmatter.
