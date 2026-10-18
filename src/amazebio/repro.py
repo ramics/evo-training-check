@@ -81,6 +81,22 @@ def set_seeds(seed: int) -> int:
     return seed
 
 
+def _porcelain_path(line: str) -> str:
+    """The path from one `git status --porcelain` line.
+
+    Not a fixed `line[3:]` slice. Porcelain's status field is two columns and a space, but a
+    modified-yet-unstaged file's line *begins* with a space (` M pixi.lock`) and the captured
+    output is stripped as a whole — so the first such line arrives one character short and a
+    fixed slice eats the first character of the path. The dirty-tree refusal then names a file
+    that does not exist: "pixi.lock" reported as "ixi.lock", "tests/..." as "ests/...", both
+    observed. The existing test missed it because an *untracked* file's line (`?? new.txt`) has
+    no leading space, which is the one case a fixed slice gets right.
+    """
+    body = line.lstrip()
+    _, _, path = body.partition(" ")
+    return (path or body).strip().strip('"')
+
+
 def git_state(repo: Path | None = None) -> dict[str, Any]:
     """Current commit and dirtiness, or an explicit unavailable marker."""
     cwd = str(repo) if repo else None
@@ -108,7 +124,9 @@ def git_state(repo: Path | None = None) -> dict[str, Any]:
         "commit": commit,
         "branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
         "dirty": bool(status),
-        "dirty_paths": sorted(line[3:] for line in status.splitlines()) if status else [],
+        "dirty_paths": sorted(_porcelain_path(line) for line in status.splitlines())
+        if status
+        else [],
     }
 
 
