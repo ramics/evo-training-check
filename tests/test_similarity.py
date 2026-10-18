@@ -867,3 +867,51 @@ def test_resuming_does_not_change_the_combined_result() -> None:
     one_run = sim.combine_cells(cells)
     resumed = sim.combine_cells([sim.cell_from_dict(c.to_dict()) for c in cells[:-1]] + [cells[-1]])
     assert resumed == one_run
+
+
+# --- The fine cut inside the top band ------------------------------------------------------
+
+
+def test_the_frozen_bands_are_not_changed_by_the_fine_cut() -> None:
+    """`IDENTITY_BAND_EDGES` is frozen by D-105 and metrics/survival.md. This is extra."""
+    assert sim.IDENTITY_BAND_EDGES == (0.0, 0.70, 0.75, 0.80, 0.90, 1.0)
+    assert sim.FINE_TOP_EDGES[0] == 0.90, "the fine cut lives inside the top band"
+    assert sim.FINE_TOP_EDGES[-1] == 1.0
+
+
+def test_exact_identity_gets_its_own_slot() -> None:
+    """ "The sequence is present" and "present bar one residue in a hundred" differ."""
+    labels = sim.fine_top_labels()
+    assert labels[-1] == "1.00 exact"
+    assert sim.fine_top_slot(1.0) == len(sim.FINE_TOP_EDGES) - 1
+    assert sim.fine_top_slot(0.999) != sim.fine_top_slot(1.0)
+    assert sim.fine_top_slot(0.90) == 0
+    assert sim.fine_top_slot(0.96) == 1
+    assert sim.fine_top_slot(0.985) == 2
+    assert sim.fine_top_slot(0.995) == 3
+
+
+def test_the_fine_histogram_sums_to_the_top_band() -> None:
+    """If these disagree the detail is describing a different set from the band it refines."""
+    rows = [
+        sim.HitRow(query="q", target=f"t{i:03d}", fident=f, qcov=0.9, tcov=0.9)
+        for i, f in enumerate([0.91, 0.93, 0.96, 0.985, 0.995, 1.0, 1.0, 0.5, 0.72])
+    ]
+    stream = sim.TargetStream.for_search(1).extend(rows).close()
+    mode = 1
+    assert sum(stream.fine_top[mode]) == stream.bands[mode][-1]
+    assert stream.fine_top[mode][-1] == 2, "two exact matches"
+
+
+def test_a_cell_published_before_the_fine_cut_contributes_no_silent_zero() -> None:
+    """An old cell did not measure this; it must not look like it measured zero."""
+    raw = {
+        "shard": 0,
+        "sensitivity": 5.7,
+        "cov_mode": 1,
+        "seed_denominator": 100,
+        "bands": {"1": [10, 2, 1, 1, 4]},
+        "families": {"1": [[1, 10]]},
+    }
+    cell = sim.cell_from_dict(raw)
+    assert cell.fine_top == {}, "absent, not zeroed"

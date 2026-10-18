@@ -79,6 +79,17 @@ COVERAGE_READINGS: tuple[int, ...] = (0, 1, 2)
 #: too expensive.
 SEARCH_READINGS: dict[int, tuple[int, ...]] = {1: (0, 1), 2: (2,)}
 
+#: A finer cut **inside** the top band, reported alongside the frozen bands and never in
+#: place of them. `IDENTITY_BAND_EDGES` is frozen by D-105 parameter 6 and `metrics/survival.md`,
+#: so it is not touched; this is additional diagnostic detail.
+#:
+#: The reason it is needed: the top band is 0.90-1.00, and for an audit the difference between
+#: 0.91 and 1.00 is the difference between a distant relative of listed material surviving and
+#: the material itself surviving close to intact. A1.8's band 1 put 23.2% of its matches in that
+#: band and could not say which (2026-10-18). Counting is in constant memory, so it costs the
+#: pass nothing and does not reintroduce the unbounded structure `TargetStream` exists to avoid.
+FINE_TOP_EDGES: tuple[float, ...] = (0.90, 0.95, 0.98, 0.99, 1.0)
+
 #: D-105 parameter 6. The lowest edge is the charitable reading's inferred 0.70 (D-015); the
 #: 0.70-0.75 band is separated because 8.07% of hit rows fall in it and the records on which
 #: two sensitivity settings disagree are 98% inside it. Rows below 0.70 are still emitted and
@@ -381,6 +392,9 @@ class TargetStream:
     #: from the shard itself, rather than by the hit rate, which is the unknown result.
     index: FamilyIndex | None = None
     stratum_hits: dict[int, dict[str, int]] = field(default_factory=dict)
+    #: Records whose best identity falls in each `FINE_TOP_EDGES` interval, plus a final slot
+    #: for an exact 1.0. Diagnostic detail inside the frozen top band, not a change to it.
+    fine_top: dict[int, list[int]] = field(default_factory=dict)
     _target: str | None = None
     _best: list[float] = field(default_factory=list)
 
@@ -392,6 +406,8 @@ class TargetStream:
             self.bands.setdefault(mode, [0] * (len(IDENTITY_BAND_EDGES) - 1))
             self.records.setdefault(mode, 0)
             self.stratum_hits.setdefault(mode, {})
+            # One slot per interval, plus one for exact identity.
+            self.fine_top.setdefault(mode, [0] * len(FINE_TOP_EDGES))
 
     @classmethod
     def for_search(
@@ -444,6 +460,8 @@ class TargetStream:
             if best >= 0:
                 self.bands[mode][band_of(best)] += 1
                 self.records[mode] += 1
+                if best >= FINE_TOP_EDGES[0]:
+                    self.fine_top[mode][fine_top_slot(best)] += 1
                 if self.index is not None and target is not None:
                     key = self.index.of.get(target)
                     if key is None:
@@ -483,8 +501,10 @@ class TargetStream:
         return {
             "rows": self.rows,
             "bands": {str(m): self.bands[m] for m in self.derive},
+            "fine_top": {str(m): self.fine_top[m] for m in self.derive},
             "records": {str(m): self.records[m] for m in self.derive},
             "band_labels": list(band_labels()),
+            "fine_top_labels": list(fine_top_labels()),
         }
 
 
@@ -548,6 +568,9 @@ class CellResult:
     key: CellKey
     bands: dict[int, list[int]]
     families: dict[int, list[tuple[int, int]]]
+    #: Diagnostic detail inside the frozen top band (`FINE_TOP_EDGES`), additive the same way.
+    #: Defaulted so a cell written before this existed still loads.
+    fine_top: dict[int, list[int]] = field(default_factory=dict)
     searched_clusters: int = 0
     searched_residues: int = 0
     #: The realised size of the seed sample, and the number of families it drew from. Both are
@@ -570,6 +593,8 @@ class CellResult:
             "seed_families": self.seed_families,
             "slug": self.key.slug(),
             "bands": {str(m): self.bands[m] for m in sorted(self.bands)},
+            "fine_top": {str(m): self.fine_top[m] for m in sorted(self.fine_top)},
+            "fine_top_labels": list(fine_top_labels()),
             "families": {
                 str(m): [list(p) for p in self.families[m]] for m in sorted(self.families)
             },
@@ -600,6 +625,11 @@ def cell_from_dict(raw: dict[str, Any]) -> CellResult:
     return CellResult(
         key=key,
         bands={int(m): list(v) for m, v in raw["bands"].items()},
+        # Absent in cells published before the fine histogram existed. Empty rather than
+        # zeroed, so `combine_cells` can tell "this cell did not measure it" from "it
+        # measured zero" — a cell from an older run must not contribute a silent zero to a
+        # total that other cells did measure.
+        fine_top={int(m): list(v) for m, v in (raw.get("fine_top") or {}).items()},
         families={int(m): [tuple(p) for p in v] for m, v in raw["families"].items()},
         searched_clusters=int(raw.get("searched_clusters", 0)),
         searched_residues=int(raw.get("searched_residues", 0)),
@@ -647,6 +677,7 @@ def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -
                 (cell.key.sensitivity, mode),
                 {
                     "bands": [0] * (len(IDENTITY_BAND_EDGES) - 1),
+                    "fine_top": [0] * len(FINE_TOP_EDGES),
                     "families": [],
                     "shards": [],
                     "searched_clusters": 0,
@@ -670,6 +701,10 @@ def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -
                         "record counts to be summable"
                     )
             slot["bands"] = [a + b for a, b in zip(slot["bands"], cell.bands[mode], strict=True)]
+            if cell.fine_top.get(mode):
+                slot["fine_top"] = [
+                    a + b for a, b in zip(slot["fine_top"], cell.fine_top[mode], strict=True)
+                ]
             slot["families"].extend(cell.families.get(mode, []))
             slot["shards"].append(cell.key.shard)
             slot["searched_clusters"] += cell.searched_clusters
@@ -678,6 +713,7 @@ def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -
     denominator = denominators.pop() if denominators else 1
     out: dict[str, Any] = {
         "band_labels": list(band_labels()),
+        "fine_top_labels": list(fine_top_labels()),
         "seed_denominator": denominator,
         "lower_bound": denominator > 1,
         "net_direction": net_direction,
@@ -693,6 +729,7 @@ def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -
                 "reading": mode,
                 "shards": sorted(slot["shards"]),
                 "bands": slot["bands"],
+                "fine_top": slot["fine_top"],
                 "records": sum(slot["bands"]),
                 "searched_clusters": slot["searched_clusters"],
                 "searched_residues": slot["searched_residues"],
@@ -922,6 +959,28 @@ class FamilyIndex:
         return out
 
 
+def fine_top_slot(fident: float) -> int:
+    """Which `FINE_TOP_EDGES` interval an identity falls in; the last slot is exact 1.0.
+
+    Exact identity gets its own slot rather than being folded into 0.99-1.0, because "the
+    sequence is present" and "the sequence is present bar one residue in a hundred" are
+    different claims and an audit should not have to infer which it measured.
+    """
+    if fident >= 1.0:
+        return len(FINE_TOP_EDGES) - 1
+    for i in range(len(FINE_TOP_EDGES) - 2, -1, -1):
+        if fident >= FINE_TOP_EDGES[i]:
+            return i
+    raise ValueError(f"{fident!r} is below the top band; nothing should reach here")
+
+
+def fine_top_labels() -> tuple[str, ...]:
+    edges = FINE_TOP_EDGES
+    out = [f"{lo:.2f}-{hi:.2f}" for lo, hi in itertools.pairwise(edges)]
+    out.append("1.00 exact")
+    return tuple(out)
+
+
 def cell_from_stream(
     key: CellKey,
     stream: TargetStream,
@@ -946,6 +1005,7 @@ def cell_from_stream(
     return CellResult(
         key=key,
         bands={mode: list(stream.bands[mode]) for mode in stream.derive},
+        fine_top={mode: list(stream.fine_top[mode]) for mode in stream.derive},
         families={mode: index.pairs(stream.stratum_hits[mode]) for mode in stream.derive},
         searched_clusters=index.searched_records,
         searched_residues=searched_residues,
