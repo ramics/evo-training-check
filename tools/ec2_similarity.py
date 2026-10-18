@@ -183,7 +183,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --cap-query-denominator {cap_query_denominator} \
     --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
     --band-denominator {band_denominator} --band-shard {band_shard} \
-    {verify_flags} {resume_flags} \
+    {verify_flags} {resume_flags} {artefact_flags} \
     {sample_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
@@ -324,6 +324,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--band-denominator", type=int, default=100)
     ap.add_argument("--band-shard", type=int, default=0)
     ap.add_argument(
+        "--artefact-name",
+        help="result filename, and so its S3 key. Required alongside --resume-band-from "
+        "when resuming from the default key, since a run may not overwrite its own source",
+    )
+    ap.add_argument(
         "--resume-band-from",
         metavar="S3_URI",
         help="a band.json an earlier run published; its completed cells are reused instead "
@@ -347,6 +352,12 @@ def main(argv: list[str] | None = None) -> int:
         "can be reclaimed mid-run",
     )
     args = ap.parse_args(argv)
+    if args.resume_band_from and not args.artefact_name:
+        raise SystemExit(
+            "--resume-band-from needs --artefact-name: a resumed run that writes its own "
+            "source key destroys the cells it is resuming, before it reads them. Checked "
+            "here so it costs an error rather than a boot."
+        )
     if args.sample_rate is None:
         args.sample_rate = SAMPLE_RATES[args.measure]
 
@@ -407,6 +418,11 @@ def main(argv: list[str] | None = None) -> int:
         measure=args.measure,
         cap_query_denominator=args.cap_query_denominator,
         band_denominator=args.band_denominator,
+        # A resumed run must not write the key it resumed from: the first publish lands
+        # before the band stage, so it would destroy the cells being carried forward, in a
+        # bucket with no DeleteObject. The tool refuses the same-key case outright; this is
+        # what keeps the launcher on the right side of that refusal.
+        artefact_flags=(f"--artefact-name {args.artefact_name}" if args.artefact_name else ""),
         resume_flags=(
             f"--resume-band-from {args.resume_band_from}" if args.resume_band_from else ""
         ),

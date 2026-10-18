@@ -714,11 +714,36 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 manifest.parameter(name, value)
         manifest.input_file(args.taxdump, role="taxonomy")
 
+        if args.resume_band_from:
+            name = args.artefact_name or ARTEFACT_NAMES["band"]
+            destination = f"{prefix}/results/a1-6/{name}"
+            src_bucket, src_key = _parse_s3_uri(args.resume_band_from)
+            if src_key == destination and src_bucket == bucket:
+                raise SystemExit(
+                    f"--resume-band-from reads {args.resume_band_from} and this run would "
+                    f"write the same key. The first publish happens before the band stage, "
+                    "so the cells being resumed would be destroyed before they were read — "
+                    "and this bucket has no DeleteObject. Pass --artefact-name to write "
+                    "somewhere else."
+                )
         if args.verify_sample_against and args.sample_from:
             raise SystemExit(
                 "--sample-from loads a staged sample and already verifies it; "
                 "--verify-sample-against checks one this run rebuilds. Pick one."
             )
+        # Read before the corpus pass, because the first `publish()` lands before the band
+        # stage does and would otherwise rewrite the very object being resumed from. The
+        # same-key case is refused above; this ordering covers the rest.
+        prior: list[dict[str, Any]] | None = None
+        if args.resume_band_from:
+            if client is None:
+                raise SystemExit("--resume-band-from needs S3")
+            rbucket, rkey = _parse_s3_uri(args.resume_band_from)
+            rbody = client.get_object(Bucket=rbucket, Key=rkey)["Body"].read()
+            prior = json.loads(rbody).get("band", {}).get("cells") or []
+            print(f"loaded {len(prior)} published cells from {args.resume_band_from}", flush=True)
+            manifest.parameter("resumed_from", args.resume_band_from)
+
         staged: shardstore.ShardManifest | None = None
         # Set by the corpus pass below and left empty by `--sample-from`, which runs no pass
         # and therefore produces no sidecars. The two options are mutually exclusive, so a
@@ -913,18 +938,6 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
         if not args.skip_search:
             if args.measure == "band":
-                prior = None
-                if args.resume_band_from:
-                    if client is None:
-                        raise SystemExit("--resume-band-from needs S3")
-                    rbucket, rkey = _parse_s3_uri(args.resume_band_from)
-                    body = client.get_object(Bucket=rbucket, Key=rkey)["Body"].read()
-                    prior = json.loads(body).get("band", {}).get("cells") or []
-                    print(
-                        f"loaded {len(prior)} published cells from {args.resume_band_from}",
-                        flush=True,
-                    )
-                    manifest.parameter("resumed_from", args.resume_band_from)
                 _run_band(
                     args,
                     work,
