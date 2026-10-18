@@ -6128,3 +6128,385 @@ decision has a threshold or parameter in it, the number goes in the entry.
   and band 1 is not a result until it lands. `AGENTS.md` gains the general form of this: a
   per-cell publish is only half a design, and the half that reads it back is the half that gets
   forgotten, because nothing exercises it until something fails.
+
+### D-149 — The measured cost is 0.996 core-min/Mb, 2.74x cheaper than the single-genome figure
+- **Date:** 2026-10-18
+- **Task:** A2.4
+- **Context:** D-117 measured geNomad at 2.73 core-minutes per Mb on one complete, gene-dense
+  *E. coli* K-12 assembly, and every band price since has rested on it. D-145 made the first band
+  0.25% precisely because that figure was a one-genome extrapolation onto a corpus of draft
+  assemblies, where gene density, contig count and per-call overhead all differ. This is the
+  measurement it was run to get.
+- **What was measured.** Evo 1's `stage1_gtdb`, 0.25% by genome hash: **375 genomes, 32,669
+  contigs, 699,031,198 bases**. `genomad annotate` plus `find-proviruses` ran from 00:12:14Z to
+  01:39:07Z — **87 minutes wall on 8 vCPU, 11.6 core-hours — 0.996 core-minutes per Mb.**
+  **That is 2.74 times cheaper than D-117's figure**, and in the direction that makes the task
+  affordable rather than the one that kills it. Draft assemblies are less gene-dense than a
+  finished reference, which is the obvious explanation and is not established by this
+  measurement; what is established is the rate.
+  The sampling also reproduced exactly: an earlier instance, separately launched, sampled the
+  same 375 genomes and the same 699,031,198 bases. D-078's design asks for membership to be a
+  property of the record id and the seed alone, and that is now demonstrated across two machines
+  rather than argued.
+- **Decision:** 0.996 core-min/Mb is A2.4's working rate, measured, superseding D-117's 2.73 for
+  every price from here. Against D-147's corrected 634,000 Mb corpus:
+  **0.25% = 26 core-hours, ~3.3 wall hours. 2.5% = 263 core-hours, ~33 wall hours, about $7 on
+  spot.** Both are per detection pass, and D-150's de-duplication is what makes "per detection
+  pass" the same as "per band" rather than a third of it.
+  D-117's figure stays on the record rather than being amended: it was correctly measured on what
+  it was measured on, and the gap between it and this one is the whole argument for calibrating.
+- **Rejected:** Treating the 2.74x as a reason to go straight to a census. 29,000 core-hours
+  becomes 10,500 at the measured rate, which is still far beyond the ceiling and the budget.
+  Reporting the rate without the sample that produced it. A rate from 375 genomes of one release
+  is not yet known to hold for Evo 2, whose component is tar-packed and differently assembled;
+  the band measures that too and the figure is revised if it differs.
+- **Consequence:** The band did what D-118 designed it to do, and the answer changed the plan in
+  the cheap direction. 2.5% is now an afternoon and $7 rather than three days and $13-18, so the
+  depth question goes back to the project owner with a measured number behind it for the first
+  time.
+
+### D-150 — Correction to D-146: the 187K is counted in UniProtKB, not UniRef, and the published text says so
+- **Date:** 2026-10-18
+- **Task:** A1.8 (and a correction A1.6 must act on)
+- **Context:** D-146 reported the select-agent seed set at 1,079,124 UniRef100 clusters against
+  a published 187K, attributed 98.5% of the *taxon* expansion to the avian influenza entry, and
+  predicted that entry would dominate the clusters too. The attributed re-run settled it and
+  the prediction was wrong. By clusters the set is broad-based: *Burkholderia pseudomallei*
+  331,065 (30.7%), avian influenza 273,715 (25.4%), *Ralstonia solanacearum* 158,953,
+  *Xanthomonas oryzae* 71,777, *Bacillus anthracis* 49,623 — the top five are 82%. Taxon count
+  and cluster count are different quantities, and the inference between them was unfounded:
+  bacteria carry few taxa and thousands of sequenced strains each.
+
+  **The reconciliation gap is not a reading problem at all.** ESM3's version of record,
+  §A.6.1, p47: "To create the Select Agents Denylist we identify all sequences **in UniProt**
+  belonging to organisms on the Select Agents and Toxins List (114). This process gives us 147K
+  non-viral sequences and 40K additional viral sequences." The 187K counts UniProtKB sequences.
+  A1.8 counts UniRef100 clusters. The two numbers were never comparable, and the whole 5.8x is
+  that.
+
+  Their stated method, executed directly against UniProtKB for the listed organisms and their
+  strains, gives **140,591** against the published 187,000 — 0.75x, where the UniRef100
+  comparison was 5.8x. The residual is unremarkable: the UniProt release differs from the one
+  in force, and their treatment of toxin-producing organisms is unstated (D-137).
+- **Decision: the seed set stands; the reconciliation target is replaced.** The UniRef100 set is
+  not an attempt to reproduce their denylist object — it is the query set for searching the
+  staged corpus, built that way because UniProtKB is not staged and because cluster members
+  catch material a representative-only set misses (D-092). Breadth is the conservative choice
+  for an audit. What was wrong is checking it against a figure that counts something else.
+  `reconcile` therefore compares against the UniProtKB-level count of the same reading, and
+  reports the UniRef100 total as the query set's size rather than as a candidate for the
+  published figure. The one-line caveat already in `reconcile`'s output — "compared against
+  UniRef clusters, not UniProtKB entries" — was correct and far too quiet to stop a worker
+  building a hypothesis on top of it; a caveat that does not change the number it qualifies is
+  not a safeguard.
+- **The strain-descent hypothesis is withdrawn before it was run.** Faced with the gap, this
+  task reasoned that ESM3 might have matched listed species without descending to strains, and
+  priced a pass to test it. The arithmetic was sound — UniProtKB species-only counts predicted a
+  7.5-8.0x reduction, and the effect sorted exactly where the mechanism says it should
+  (*Xanthomonas oryzae* 255x, *Francisella tularensis* 186x, against *Bacillus anthracis* 1.1x
+  and Ebola 1.0x). It was also a reading chosen because it would close a gap, which is the thing
+  §B1 step 0 and AGENTS.md both warn against, and it was unnecessary: one sentence in the
+  methods appendix names the database. The launch was not spent, because the project owner asked
+  whether the published material already answered the question. It did.
+- **A1.6 has the same defect and does not yet know.** Its viral arm reconciles 3,159,223
+  UniRef100 viral-seeded clusters against ESM3's stated ~4M and reads the closeness as
+  validation of the reconstruction (D-100 and its state block). The same paragraph of the same
+  appendix says that figure is counted the same way: "we identify ∼4M sequences that are
+  annotated as viral in UniProt". So that comparison is also UniRef clusters against UniProtKB
+  sequences, and its agreement is a coincidence of scale rather than evidence. **This does not
+  invalidate A1.6's seed set or the band run now in flight** — the seed set is a query set there
+  too — but the "roughly 4M validates the reconstruction" claim must come out of the write-up,
+  and A1.6's state block records a validation target that it does not have. Flagged in that
+  task's file rather than only here.
+- **What this costs, stated rather than buried.** Phase A loses a validation it believed it had
+  for both arms. Neither reconstruction can be checked against a published size, because the
+  only published sizes are of a different object; the available check is to execute the stated
+  method against UniProtKB, which is what the 140,591 above is, and that validates the *reading*
+  rather than the seed set. Under-specification is data (§A0), and "the paper's only stated
+  denylist sizes cannot validate any corpus-level reconstruction" is a finding of exactly the
+  kind §A0 asks for.
+- **Reference (114) settles nothing further, and that is worth recording.** It is the live CDC
+  summary page, dated 2024 and undated on its face — the page D-138 already assessed and
+  declined in favour of the CFR at 2024-06-01. The citation confirms D-138's reasoning rather
+  than changing it.
+- **Rejected:** Rebuilding the seed set from UniProtKB to match their object exactly — it would
+  reproduce their denylist and then search the corpus with a strictly narrower query set, which
+  makes the audit less likely to find surviving material; the error would run in the direction
+  that flatters the safeguard, which §2 forbids. Running the no-descent pass anyway as a
+  sensitivity — it tests a hypothesis the text has already answered, and an hour spent
+  confirming a withdrawn guess is an hour not spent on the scoring pass. Leaving D-146 standing
+  with a correction appended inline — it is append-only, and D-146's headline claim is wrong
+  rather than incomplete.
+
+### D-151 — Detection is cached per release and component, because only the route varies by reading
+- **Date:** 2026-10-18
+- **Task:** A2.4
+- **Numbering:** appended as D-150 and renumbered to D-151 on 2026-10-18. A1.8's D-150 was already on `main`; this entry was cited from nothing, so it is the cheaper to move. This is the second time A2.4 has done this — the number was written into the heredoc before the headings were re-read, which is the one thing `AGENTS.md`'s rule exists to prevent.
+- **Context:** The first band at 0.25% ran overnight and produced, in eight hours, the charitable
+  reading for both releases and nothing else. Watching it showed why: `tools/detect_proviruses.py`
+  looped over A1.4's manifests and did the whole detection inside that loop — read the corpus,
+  sample, run geNomad, search the registries — once per manifest. Evo 1 appears in three readings
+  and Evo 2 in three, so that is **six detection passes where two would do**.
+  The duplication is pure. The sampled genomes, the provirus calls and the profile hits are
+  properties of the release and the component; **the only reading-specific part is the route** —
+  `out_of_scope` under charitable and literal, where no rule reaches GTDB, and
+  `retained_by_design` under strict's wildcard scope.
+- **Decision:** Cache the detection on `(release, component)` and apply the route per manifest.
+  The cache holds route-free hits, so a route can never be stamped onto a reading it did not come
+  from; a reused source row carries `reused: true`, so a reader can tell a measured row from a
+  carried-over one; and the concordance travels with the cache for the same reason the hits do.
+  The reuse branch was **exercised before launch** rather than trusted: a local probe over Evo 1's
+  three readings ran geNomad once and reused it twice, which is the behaviour and not just the
+  code path.
+- **Rejected:** Deriving the literal and strict tables from the charitable ones by hand. For GTDB
+  the charitable and literal routes are identical, so literal's tables would be a copy — but
+  `AGENTS.md` requires every number to trace to an artefact a pipeline produced, and a table
+  assembled by editing another table is exactly what that forbids.
+  Keeping the duplication and buying a bigger budget. The four remaining manifests of the first
+  band would have cost about eleven hours and produced no measurement that the first two had not
+  already made.
+  Letting the running band finish. It had roughly eleven hours of work left against eleven and a
+  half hours of its own shutdown timer, with the VIBRANT arm uncounted, so it would have been cut
+  mid-manifest having spent the night on relabelling.
+- **Consequence:** A 0.25% band over both releases is about seven hours including setup rather
+  than about nineteen, and a 2.5% band is about 33 wall hours rather than a hundred. The
+  arithmetic that made 2.5% look unaffordable in D-144 and D-145 was measuring a pipeline doing
+  three times the work it needed to; with D-149's measured rate and this fix, the depth question
+  is open again on much better terms.
+  The first band's charitable results are preserved at
+  `corpora/results/a2-4/band1-run1-20261018/` rather than being overwritten, because D-149 cites
+  their numbers and the corpus bucket has no delete.
+
+### D-152 — The taxonomy-unplaced share is 11.8% measured, not A4.2's 36%; D-141's conclusion stands on the measured figure
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-140 and D-141 both reason about what to do with corpus records the pinned
+  taxonomy cannot place at family rank, and both took the magnitude of that set from A4.2 —
+  "given A4.2's 36%, the unplaced set is expected to be large". A4.2 measured a different thing:
+  the fraction of *genomes the denylist targets* that its taxonomy tool fails to place. Band 1
+  has now measured the quantity those entries actually depend on, over shard 0's 1,097,174
+  records: **129,113 unplaced, 11.8%**.
+- **Decision:** the figure is replaced wherever those entries reason from it, and **both
+  conclusions stand unchanged**. D-140's singleton treatment and D-141's refutation of the
+  pooling argument do not depend on the share being large — D-141's point is that a pooled
+  stratum contributes `(A - r*B)^2`, which is unstable in either direction whatever its size, and
+  that singletons contribute the binomial term, which is the honest statement that those records
+  carry no family information. A smaller unplaced set makes the choice matter less, not
+  differently.
+- **What it does change.** The design effect is diluted by exactly the unplaced fraction, so at
+  11.8% rather than 36% the realised design effect is *higher* than those entries implied and the
+  intervals correspondingly wider relative to binomial. Band 1's published cells report the
+  realised figures directly, so nothing is inferred from this entry; it exists so a reader
+  checking D-141's arithmetic is not working from a borrowed number.
+- **Rejected:** Leaving the 36% in place as "the order of magnitude" — it is not this
+  measurement, it is a different quantity from a different task, and §7's adversarial reader
+  checks the provenance of a number before its plausibility. Re-deriving D-141's comparison at
+  11.8% before band 1 completes — the entries' conclusions are insensitive to the share, and the
+  measured intervals ship with every cell.
+- **Consequence:** the write-up cites 11.8% from band 1 for this quantity and A4.2's 36% only for
+  A4.2's own. One general point: both figures are about "things the taxonomy cannot place", which
+  is what made the substitution feel safe, and they are not the same denominator.
+
+### D-153 — Band 1 is complete, and the sensitivity sweep it paid for answers the question it was bought for
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-109 bought the three-sensitivity sweep for one reason, stated at the time: `-s` is
+  our parameter rather than the publisher's, so the sweep is what separates a property of the
+  filter from a property of our instrument. Band 1 is now complete — nine groups over shard 0's
+  1,097,174 records, from 31,381 seeds (1/100), published across two launches and a resume
+  (D-148). Every figure is a lower bound (D-134).
+- **The answer, which is the finding.** At the charitable reading's 0.70 identity cut the figure is
+  **almost invariant to our settings**: 0.6537% to 0.6844% across all nine cells, a relative spread
+  of 4.7%. The any-identity figure over the same cells runs 1.5473% to 4.0975% — a factor of 2.6.
+  So the sub-threshold tail is largely a property of our instrument, and **the quantity the
+  charitable reading actually turns on is a property of the filter**. That is the cleanest form
+  the sweep's result could have taken, and it is why the sweep was not optional.
+- **Decision: the headline figure for this band is the banded one at 0.70, not the any-identity
+  rate.** Both are published and both are lower bounds, but a single number quoted from this band
+  is the 0.70 figure, because the any-identity rate is the one that moves with `-s` and would
+  misattribute our aligner's reach to the filter's failure. Writing it up the other way round
+  would be the more alarming presentation and the less defensible one.
+- **The result does not balance on the inferred threshold as much as feared.** D-105 parameter 6
+  separated the 0.70-0.75 band because 8.07% of hit *rows* fell in it. Measured per record at
+  `-s 5.7 cov1`: of the 7,509 records at or above 0.70, only **255 (3.4%)** sit in 0.70-0.75,
+  while **5,754 (77%)** are at 0.90 or above. The identity distribution is bimodal — a large
+  sub-threshold tail, a trough, then a spike of near-identical matches — so the inferred cut falls
+  in the trough rather than through the mass. The banding stays, because that is now a measured
+  reassurance rather than an assumption.
+- **D-109's refusal of a binomial interval is vindicated by a wider margin than it claimed.**
+  It argued a design effect of 40 would make the honest interval six times the binomial one.
+  Measured: **238.8 to 557.0** across the nine cells, so the honest intervals are 15 to 24 times
+  binomial. A binomial interval here would have been wrong by more than an order of magnitude,
+  and the design effect falls as sensitivity rises, which is itself consistent with the extra
+  hits being spread rather than clumped.
+- **What this is not.** Not a corpus-level claim: it is 0.3125% of the corpus, UniRef100 only,
+  from 1% of the seed set, and MGnify90 is unscored (D-133 names that gap as Phase A's, not this
+  task's). Not validated against any published size (D-150). Not a rate — a bound, in the
+  direction §2 requires.
+- **Rejected:** Quoting the any-identity rate as the headline — it is the number that moves 2.6x
+  with a parameter of ours. Dropping the any-identity figures — the literal reading's threshold is
+  undetermined (D-107), so the pass may not assume 0.70 is the floor of interest. Treating the
+  0.70 invariance as grounds to stop sweeping in band 2 — one band at one depth, and the sweep is
+  what made the claim available.
+- **Consequence:** band 2's value is now mainly in the seed axis rather than the sensitivity axis,
+  since the 0.70 figure is already stable across settings; what band 2 buys is how far the bound
+  rises as the seed sample deepens, which is the only evidence available about the gap to a
+  full-seed rate. The write-up leads with the 0.70 bound, reports the bands beneath it, and states
+  the design effect, because a reader who assumes binomial will understate the interval by 15x.
+
+### D-154 — Correction to D-153: band 1's figure is not a clean lower bound, because the seed set implements only the first clause of the rule
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** Raised by the project owner asking whether the matching material might simply be
+  the parts of viruses that are not distinctive — shared with hosts, ubiquitous, uninformative.
+  Checking rather than reasoning: `src/amazebio/seeds.py` says so in its own module docstring,
+  and D-153 failed to carry it into the result.
+
+  ESM3's viral denylist has **two** clauses: a sequence qualifies if it is (a) annotated as viral
+  in UniProt **and** (b) "align[s] almost exclusively to other viral sequences in UniProt". Clause
+  (b) is what excludes viral sequence that also resembles host protein. The seed set implements
+  **clause (a) only** — clause (b) needs its own alignment pass and its own reading of
+  "almost exclusively", which the source does not quantify. The seed set is therefore a
+  **superset** of the denylist the source describes.
+- **The error in D-153.** It states "every figure is a lower bound (D-134)" without qualification.
+  That holds for the seed-*sampling* axis and not for the seed-*construction* axis. Two errors run
+  in opposite directions:
+  - **1/100 of the seeds → understates.** A record matched by an unsampled seed is not counted.
+  - **Annotation-only seeds → overstates.** A record matching a viral sequence that clause (b)
+    would have excluded is counted as surviving material the filter should have removed, when the
+    filter never undertook to remove it.
+
+  So band 1's figure is a floor in one respect and a ceiling in another, and **the net direction
+  is not known**. "At least 0.6844%" is not a supportable phrasing and must not appear in the
+  write-up. The honest form states both axes and claims neither direction.
+- **Decision:** D-153's headline stands as a *measurement of the annotation-only reading*, not as
+  a bound on the filter's failure rate. Every figure from this band is labelled with the reading
+  it implements. The `lower_bound` flag in the artefact remains correct for what it was built to
+  mark — the seed sample — and the write-up may not read it as a claim about the whole result;
+  a flag that means one axis and is read as meaning the result is the D-150 failure again, one
+  level down.
+- **What would settle it, and it is not expensive.** Clause (b) is a restriction *on the seed
+  set*, applied before the corpus pass: for each candidate seed, align it against UniProt and keep
+  it only if its matches are almost exclusively viral. That is a seeds-against-UniProt pass, not a
+  seeds-against-corpus pass, and A1.8 is staging UniProtKB 2023_02 permanently at
+  `corpora/uniprotkb/2023_02/`, so it becomes an in-region job. The reading of "almost
+  exclusively" needs its own entry and must be fixed before the result is inspected, per §2.
+- **The owner's other question is not answered by this band at all.** Whether the matched records
+  are genuinely viral material or host protein that merely resembles it is a question about what
+  the records *are*, and this band only measures that they align. The 77%-at-≥0.90 figure in D-153
+  rules out distant family resemblance; it does not distinguish a captured host gene from a viral
+  one. That is the survival-route and homology-class work (A2.*, B3.*), and D-153 should not be
+  read as bearing on it.
+- **Rejected:** Reporting band 1 with the "at least" phrasing and a caveat further down — D-150
+  established in this same task that a caveat which does not change the number it qualifies is not
+  a safeguard. Narrowing the seed set now and rerunning — clause (b) is worth implementing, but
+  band 1's measurement of the annotation-only reading is still the measurement of a reading, and
+  §A0 treats the spread between readings as the result. Dropping the annotation-only arm once
+  clause (b) exists — the spread between the two is exactly what §A0 asks for.
+- **Consequence:** the write-up reports band 1 as the annotation-only reading and reports the
+  clause-(b) reading beside it once it exists; the difference between them is a §A0 finding about
+  how much of the apparent leakage rests on an unquantified phrase in the methods appendix. Band 2
+  is not the next priority — clause (b) is, because it changes what the existing numbers mean
+  rather than making them more precise.
+
+### D-155 — A2.4's first band, complete: viral families survive as prophage in genomes the filter never examined
+- **Date:** 2026-10-18
+- **Task:** A2.4
+- **Context:** The 0.25% band (D-145) over both releases, on the de-duplicated build (D-151),
+  `i-0bbdd4b09995095ed`, 05:10Z to 10:38Z — **5 hours 28 minutes**, self-terminated with
+  `run complete`. Twelve detection tables and six concordance artefacts, at
+  `corpora/results/a2-4/`.
+- **The result.** Every detection carries `element_kind: prophage`, `estimate_kind: lower_bound`,
+  and a route that follows the reading rather than the biology:
+
+  | release | genomes | bases | proviruses | Pfam viral | RVDB-prot |
+  |---|---|---|---|---|---|
+  | Evo 1 (v214.1) | 375 | 699 Mb | 128 | 203 / 1,719 = 11.8% (10.4-13.4) | 90 / 13,679 = 0.66% (0.54-0.81) |
+  | Evo 2 (v214.1 + 220.0) | 300 | 946 Mb | 178 | 251 / 1,719 = 14.6% (13.0-16.4) | 153 / 13,679 = 1.12% (0.96-1.31) |
+
+  **What this is.** Viral protein families, inside integrated elements, inside bacterial genomes
+  that the filter's own rules never reached — `rules=0, uniform=True` for GTDB in every reading
+  (A1.4). It is `out_of_scope` under the charitable and literal readings and
+  `retained_by_design` under strict's wildcard scope, **with identical counts**, because the
+  detection is the same and only the reading's scope differs. That is D-007's first-class route
+  arriving as measurement rather than as an argument from published methods.
+  **What this is not.** Not a conformance failure: no rule was broken, because no rule applied.
+  Not an estimate of the population: a lower bound twice over (D-113, D-115), so the true figures
+  are at least these.
+- **The concordance (D-114), per release:** Evo 1, 40 records, both 6, geNomad-only 0,
+  VIBRANT-only 1, neither 33, **kappa 0.908 (0.731-1.000)**. Evo 2, 28 records, both 6,
+  geNomad-only 1, VIBRANT-only 3, neither 18, **kappa 0.652 (0.337-0.968)**.
+  The two instruments agree strongly on Evo 1 and only moderately on Evo 2, and the disagreement
+  is **directional**: VIBRANT calls elements geNomad does not, three times to one. Reported as
+  direction rather than resolved, per D-114. A2.4's headline comes from geNomad, so on Evo 2 it
+  is the more conservative of the two instruments — the bound is if anything safer there, not
+  weaker.
+- **Decision:** This is A2.4's reportable result at 0.25%. Every Done-when criterion is met: hit
+  tables with route attribution, two-tool concordance on a documented nested subsample, and
+  parameters and versions in the `run.json` and the pins. The cache's correctness was checked
+  rather than assumed — literal matches charitable exactly on the shared route, strict carries
+  `retained_by_design` with the same counts, and the four reused source rows say `reused: true`.
+- **Rejected:** Reporting the Pfam and RVDB fractions together. Their membership criteria come
+  from different authorities and D-022 forbids pooling the denominators; the 11.8% and the 0.66%
+  are answers to different questions about the same detections.
+  Calling the Evo 1 / Evo 2 difference a finding about the filters. Evo 2's component is a
+  superset of Evo 1's (D-130) and its sampled genomes are larger on average, so more families is
+  the expected direction and this band does not separate that from any difference in filtering.
+- **Consequence:** Phase A has a measured prophage route for both releases, which A3.2 can
+  cross-tabulate against A2.1's profile hits — same registries, same thresholds, different
+  detector and kind, so the merge is a join. The depth question goes to the project owner: at
+  D-149's measured rate with D-151's de-duplication, 2.5% is about 33 wall hours and $7, which
+  exceeds one instance's window and so needs a longer timer or per-object resumability.
+
+### D-156 — Correction to D-154: the annotation-only seed set is the strict reading's, by design; band 1 mixed two readings
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-154 treated the seed set's omission of clause (b) — "align almost exclusively to
+  other viral sequences in UniProt" — as a gap to be closed, and named closing it the next
+  priority. Reading `policies/specs/` before implementing it shows that is wrong, and that the
+  readings were fixed on this exact point by D-015.
+  - **`esm3-open-strict.yaml` deliberately drops the clause**, in its own words: "Drop the
+    'almost exclusively' narrowing: everything annotated as viral in UniProt seeds the denylist,
+    which is what 'data related to viruses' says." So the annotation-only seed set **is** the
+    strict reading's seed set. It is not a defective charitable seed set.
+  - **`esm3-open-charitable.yaml` keeps the clause and leaves it unquantified**, also explicitly:
+    "'Almost exclusively' stays unquantified and is not reinterpreted here — the charitable
+    reading supplies the one number it can argue for from the text, and leaves the other gap
+    visible."
+- **So the real defect in band 1 is a labelling error, not a missing computation.** It ran the
+  **strict reading's seed set** against the **charitable reading's 0.70 threshold**, and D-153
+  reported the 0.70 column as "the charitable reading". That combination is **not one of the three
+  readings D-015 fixed**. The arithmetic is sound and the artefact is fine; what was wrong is the
+  name attached to the column.
+- **Decision — three parts.**
+  1. **Band 1 is relabelled, not rerun.** Its nine groups are the strict seed set at three
+     identity cuts, three coverage readings and three sensitivities. The 0.70 column is "the
+     strict seed set at the charitable reading's threshold" and the any-identity column is the
+     **strict reading proper**, since strict removes on any detected hit. On that reading band 1
+     already reports a reading as fixed: ≥1.5473% to ≥4.0975% depending on our settings.
+  2. **"At least" is restored for the strict reading, and only there.** Against the strict seed
+     set the only sampling error is the 1/100 seed sample, which understates. D-154 was right that
+     the figures are not clean bounds *for the charitable reading* and wrong to generalise it:
+     for the strict reading they are clean lower bounds.
+  3. **Clause (b) is not implemented.** Quantifying "almost exclusively" would add a number D-015
+     deliberately declined to invent, and §A0 treats the unquantifiable gap as the finding. The
+     charitable reading's seed set is **not executable**, and that is a result to report rather
+     than a problem to solve. If the project owner later wants it quantified it is a **fourth**
+     reading with its own entry, not a correction to the charitable one.
+- **The owner's question is answered by the source, not by a pass.** Asked whether the matching
+  material is simply the undistinctive parts of viruses, the charitable spec already records the
+  authors' own consequence: because clause (b) requires near-exclusive viral alignment, "sequence
+  with cellular homologs never entered the seed set, so virus-associated protein families with
+  cellular relatives are outside this filter by construction, at any threshold." So under their
+  own rule the answer is the reverse of the worry — the shared-with-hosts material was never
+  targeted, which is why the strict reading exists and why §B is where that question is settled.
+- **Rejected:** Implementing clause (b) as D-154 proposed — it invents the number D-015 declined,
+  and it would have been spent before anyone noticed the readings already covered this. Rerunning
+  band 1 — the computation is right. Leaving D-154 standing with this appended inline — the log is
+  append-only and D-154's headline recommendation is wrong rather than incomplete.
+- **Consequence:** A1.6's deliverable is the strict reading's surviving-record figures plus the
+  finding that the charitable reading's seed set cannot be executed from the published text. One
+  process point, the third of its kind in this task: D-150 was a quiet caveat in code, D-154 was a
+  quiet qualifier in a docstring, and this was a decision already recorded in `policies/specs/`
+  that nobody re-read. **Before treating a gap as work, check whether a fixed reading already
+  governs it.**

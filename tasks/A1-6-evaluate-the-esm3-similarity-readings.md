@@ -504,6 +504,270 @@ What to look for in `band.json`: `searched_records` should be **1,097,174** and
 the cap run's target exactly. Six distinct cell slugs, all carrying `-q100`. Nine groups, each
 with `lower_bound: true`.
 
+
+## The validation target was never one — correction from A1.8 — 2026-10-18
+
+D-150, raised by the A1.8 track. **A1.6 has recorded a validation target it does not have.**
+
+The state blocks above say the reconstruction "has a validation target that works — ESM3 states
+the viral denylist is roughly 4M sequences". The same paragraph of the same methods appendix says
+that figure counts sequences **in UniProt**: "we identify ~4M sequences that are annotated as
+viral in UniProt". A1.6 counts **UniRef100 clusters** — 3,159,223 of them. The two are different
+objects, so the closeness is a coincidence of scale and not evidence of anything. Every earlier
+line in this file calling the 4M a validation target is wrong and stays only as a record of the
+error.
+
+**What this does not touch.** The seed set and the band run are unaffected. The set was never an
+attempt to reproduce ESM3's denylist object — it is the query set for searching the staged
+corpus, built from UniRef100 because UniProtKB is not staged and because cluster members catch
+material a representative-only set misses (D-092). Breadth is the conservative direction for an
+audit, which is why rebuilding it from UniProtKB to match their object is refused: it would make
+the audit *less* likely to find surviving material, and §2 forbids an error in that direction.
+
+**What it costs.** Phase A loses a validation it believed it had, on both arms. No corpus-level
+reconstruction here can be checked against a published size, because the only published sizes
+count a different object. "The paper's only stated denylist sizes cannot validate any
+corpus-level reconstruction" is itself a §A0 finding and belongs in the write-up as one.
+
+**For the write-up, concretely:** strike any sentence offering the 4M as corroboration, and do
+not replace it with a hedged version of the same comparison.
+
+**Noted for the next worker.** D-150 makes the general point better than this file can: the
+caveat was already in the code — "compared against UniRef clusters, not UniProtKB entries" — and
+it was far too quiet to stop a hypothesis being built on top of it. A caveat that does not change
+the number it qualifies is not a safeguard.
+
+
+## Handoff — 2026-10-18
+
+`in-progress`. **Branch `ccr-81045ff3-7u9p0a`**, 945 tests, full `check` green. Read this block,
+the three above it and D-134, D-140 to D-142, D-148 and D-150, and you have the task.
+
+**Band 1 is five-sixths published and the sixth cell is in flight.** Instance
+`i-091497604cc5e805d`, resumed, writing to `band-complete.json` so `band.json` cannot be
+touched. It loaded the 5 published cells at 37 s, then started the corpus pass; it skips those
+five and runs only `s7.5 cov2`. **Do not relaunch it.**
+
+**If it fails, resume from the band artefact with the most cells in it — never the newest.**
+`band-complete.json` is published early in the run holding **no cells**, about two and a half
+hours before the sixth one lands, because `publish()` runs before the band stage. Resuming from
+it because it is newest would drop the five paid cells and rebuy all six. Open each candidate and
+count `band.cells`.
+
+**The five published cells**, all lower bounds, over 1,097,174 records, 132,473 strata, 7,366
+seed families, from 1/100 of the seed set:
+
+| | mode 0 | mode 1 | mode 2 |
+|---|---|---|---|
+| s2 | ≥1.5473% | ≥1.7609% | ≥1.9458% |
+| s5.7 | ≥2.3624% | ≥2.9507% | ≥3.6187% |
+| s7.5 | published | published | **in flight** |
+
+The five cells are `s2 cov1`, `s2 cov2`, `s5.7 cov1`, `s5.7 cov2` and `s7.5 cov1`. Since
+`SEARCH_READINGS[1] = (0, 1)`, that `s7.5 cov1` cell speaks for modes 0 **and** 1 — so **eight of
+the nine groups are published** and only `s7.5 cov2` is outstanding. The `s7.5` rates are in
+`band.json` and are omitted here deliberately, so that reading this table cannot substitute for
+reading the artefact once the band is whole.
+
+95% intervals are in `band.json`; the widest among the six values above is ±0.57 points. **Not a
+result yet**: D-109's sensitivity sweep is the only check on whether the rate is a property of the
+filter or of our aligner settings, and it is one cell short. Sensitivity moves the figure 1.5-1.9x
+across the rows above, so no single number here may be quoted alone.
+
+**Measured, and worth carrying (D-152).** The taxonomy-unplaced share is **11.8%** (129,113 of
+1,097,174), not the ~36% D-140 and D-141 borrowed from A4.2, which measured a different quantity.
+Both conclusions stand — D-141's point is that pooling is unstable whatever the share — but the
+design effect is diluted by exactly this fraction, so the realised intervals are wider relative to
+binomial than those entries implied.
+
+**Left, in order.**
+
+1. The sixth cell lands, then `band-complete.json` is the band. Check `searched_records` is
+   1,097,174 and every cell carries `-q100`.
+2. Stage the strata sidecars with `--stage-sidecars-only`, so band 2 and A1.8 do not each rebuild
+   them — six launches otherwise pay the 52-minute pass for nothing. **This is its own launch and
+   its own spend**, roughly $0.20: the flag needs a corpus pass to build what it uploads, so it
+   cannot use `--sample-from`. It needs the owner's go-ahead like any other launch.
+3. Band 2 at `--band-denominator 10` **only if** band 1's measured per-seed cost and hit-table
+   size say it fits (D-134), and it is what decides whether D-128's full-seed band 3 is worth
+   buying.
+4. Strike the 4M validation claim from the write-up (D-150) and report the §A0 finding instead.
+
+**Waiting on the project owner: the spend for steps 2 and 3.** Band 1 is authorised and paid for,
+and the cell in flight completes it. Everything after it is a fresh launch and none is authorised.
+
+**Coming from A1.8, unprompted and worth waiting for rather than duplicating.** Its UniProtKB
+pass is counting at release **2023_02** — the release ESM3 names, which matters because UniProt
+has since lost about 40% of its entries, so a current-release count would prove nothing. That
+pass counts the Viruses superkingdom in the same sweep, since it reads every OX line anyway and a
+separate run would mean a second 182.7 GB download. So **a viral entry count at the correct
+release is on its way**, to check this arm's reading against the stated ~4M.
+
+Two things to keep straight about what that buys. It validates the **reading** — whether "annotated
+as viral in UniProt" was interpreted as they interpreted it — and **not the seed set**, which
+nothing published can validate (D-150). And it does not reinstate the 4M as corroboration for the
+3,159,223 UniRef100 clusters; those remain different objects.
+
+The archive is also being staged permanently at `corpora/uniprotkb/2023_02/`, so a different viral
+reading is an in-region re-read rather than another download. **Do not start a UniProtKB pass for
+this arm** — it is already being paid for once.
+
+**The measured unplaced share is D-152, not the 36% D-140 and D-141 reason from.** That entry
+records why both conclusions stand anyway.
+
+
+## Band 1 is complete — 2026-10-18
+
+D-153. Six cells, nine groups, over shard 0's **1,097,174 records** from **31,381 seeds** (1/100)
+and **7,366 seed families**. 132,473 strata, 129,113 of them unplaced singletons (11.8%, D-152).
+Artefact: `corpora/results/a1-6/band-complete.json`. Two launches and a resume (D-148), about
+$0.75 in total. `i-091497604cc5e805d` terminated.
+
+**These are not clean lower bounds — see D-154, which corrects D-153 on exactly this.** Two
+errors run in opposite directions: 1/100 of the seeds understates, and the seed set implements
+only the *first* clause of ESM3's rule ("annotated as viral") and not the second ("aligns almost
+exclusively to other viral sequences"), which makes it a superset of their denylist and
+overstates. The net direction is not known. **Do not write "at least" in front of these figures.**
+They are a measurement of the annotation-only reading.
+
+| | any identity | **≥0.70 (charitable)** | ≥0.90 | design effect |
+|---|---|---|---|---|
+| s2 mode 0 | ≥1.5473% | **≥0.6537%** | 0.4996% | 557.0 |
+| s2 mode 1 | ≥1.7609% | **≥0.6836%** | 0.5244% | 515.2 |
+| s2 mode 2 | ≥1.9458% | **≥0.6770%** | 0.5572% | 455.0 |
+| s5.7 mode 0 | ≥2.3624% | **≥0.6544%** | 0.4996% | 388.1 |
+| s5.7 mode 1 | ≥2.9507% | **≥0.6844%** | 0.5244% | 331.0 |
+| s5.7 mode 2 | ≥3.6187% | **≥0.6780%** | 0.5572% | 267.5 |
+| s7.5 mode 0 | ≥2.5536% | **≥0.6544%** | 0.4996% | 361.6 |
+| s7.5 mode 1 | ≥3.2687% | **≥0.6844%** | 0.5244% | 304.9 |
+| s7.5 mode 2 | ≥4.0975% | **≥0.6780%** | 0.5572% | 238.8 |
+
+95% intervals are in the artefact; at `s5.7 cov1` the any-identity bound is 2.3746-3.5267%.
+
+**Read the bold column, not the first one.** The 0.70 figure spans 0.6537-0.6844% across all nine
+cells — a relative spread of 4.7% — while the any-identity figure spans a factor of 2.6. The
+sub-threshold tail is largely a property of our aligner settings; the quantity the charitable
+reading turns on is a property of the filter. That is exactly what D-109 bought the sweep to
+distinguish, and it is why a single number from this band must be the 0.70 one.
+
+**The inferred cut falls in a trough, not through the mass.** At `s5.7 cov1` the identity
+distribution is 24,865 below 0.70, then 255 / 279 / 1,221, then 5,754 at ≥0.90. So of the 7,509
+records at or above the cut, 3.4% sit in the 0.70-0.75 band and 77% are near-identical matches.
+D-105 separated that band because 8.07% of hit *rows* fell in it; per record it is 3.4%, which is
+a measured reassurance rather than an assumption.
+
+**Do not use a binomial interval.** Design effects run 238.8 to 557.0, so honest intervals are
+15-24x binomial. D-109 argued the case expecting ~40.
+
+**What this is not.** 0.3125% of the corpus, UniRef100 only, 1% of the seeds, MGnify90 unscored
+(D-133). Not validated against any published size (D-150). Not a bound in a known direction
+(D-154). And **not a statement about what the matched records are** — this band measures that they
+align, not whether they are viral material or host protein that resembles it. The 77%-at-≥0.90
+figure rules out distant resemblance; it does not separate a captured host gene from a viral one.
+That is A2.*'s and B3.*'s question.
+
+**The next priority is clause (b), not band 2** (D-154). Restricting the seed set to sequences
+that align almost exclusively to other viral sequences changes what the numbers above *mean*;
+band 2 only makes them more precise. It is a seeds-against-UniProtKB pass, and A1.8 is staging
+that archive in-region, so it is affordable.
+
+
+## Note for the next session — 2026-10-18
+
+**Read in this order:** D-134, D-153, D-154, **D-156** (which corrects D-154), then this block.
+D-156 is the one that changes what you do.
+
+### Where the task is
+
+Branch `ccr-81045ff3-7u9p0a`, 946 tests, full `check` green, nothing left on a branch that
+matters — the instrument is all there. Band 1 is **complete and paid for**:
+`corpora/results/a1-6/band-complete.json`, nine groups over shard 0's 1,097,174 records from
+31,381 seeds (1/100). Two launches, one spot reclaim, one resume, about $0.75. No instance is
+running.
+
+### The one thing to get right before touching anything
+
+Band 1 ran the **strict** reading's seed set (annotated-viral only) against the **charitable**
+reading's 0.70 threshold, and D-153 labelled the 0.70 column "charitable". That combination is not
+one of the three readings D-015 fixed. **The fix is relabelling, not recomputation** (D-156):
+
+- the **any-identity** column is the strict reading proper, since strict removes on any detected
+  hit — ≥1.5473% to ≥4.0975% across our settings, and these **are** clean lower bounds, because
+  the only sampling error on that reading is the 1/100 seed sample;
+- the **0.70** column is the strict seed set at the charitable threshold, which is a hybrid and
+  should be named as one — 0.6537% to 0.6844%, remarkably flat across settings;
+- the **charitable reading's seed set is not executable** from the published text, because clause
+  (b) ("align almost exclusively to other viral sequences") carries no number and D-015 declined
+  to invent one. That is a §A0 finding to report, not a gap to close.
+
+**Do not implement clause (b)** unless the project owner asks for it as a *fourth* reading with
+its own entry. An earlier version of this note told you to do it next; D-156 withdraws that.
+
+### What is genuinely left
+
+1. **Relabel the write-up per D-156.** No compute. This is the whole of the correction.
+2. **Stage the strata sidecars** — `--stage-sidecars-only`, one launch, about $0.20. Saves every
+   later band and A1.8 a 52-minute corpus pass. Needs the owner's go-ahead.
+3. **A per-cell heartbeat before band 2.** The heartbeat covers the corpus pass only; a search
+   cell publishes nothing until it finishes. Band 1's longest cell was a 95-minute silence in
+   which a live run and a dead one are indistinguishable from outside — survivable because the
+   cell is the unit, and dangerous at band 2's ~15.8-hour cells. `AGENTS.md` has the general form.
+4. **Band 2** (`--band-denominator 10`) only if the owner authorises it. Its value is now the
+   *seed* axis alone: the 0.70 figure is already flat across sensitivities, so what band 2 buys is
+   how far the bound rises as the seed sample deepens — the only available evidence about the gap
+   to a full-seed rate. Not authorised.
+
+### Things that will bite you
+
+- **Resume from the band artefact with the most cells, never the newest.** `band-complete.json`
+  is published holding **no cells** hours before the last one lands, because `publish()` runs
+  before the band stage. Open each candidate and count `band.cells`. A resumed run also needs
+  `--artefact-name` pointing somewhere new, and the tool refuses the same-key case outright.
+- **The watcher dies at 2 hours** in this harness, three times over in this task. The run
+  survives; the launcher's `finally` termination does not. Poll object storage and terminate
+  explicitly, or the boot-armed timer bills the remainder.
+- **Nothing published can validate either seed set** (D-150). ESM3's stated sizes count UniProtKB
+  entries; we count UniRef100 clusters. A1.8 is producing a viral entry count at release 2023_02
+  which validates the *reading* only. UniProtKB 2023_02 is staged at
+  `corpora/uniprotkb/2023_02/knowledgebase2023_02.tar.gz`, 182.7 GB — **do not download it again**.
+- **Use the measured 11.8% unplaced share** (D-152), not A4.2's 36%, which measured something else.
+- **Design effects are 239-557.** A binomial interval understates by 15-24x.
+
+### The process lesson, three times in one task
+
+D-150 was a caveat sitting quietly in code. D-154 was a qualifier sitting quietly in a docstring.
+D-156 was a decision already recorded in `policies/specs/` that nobody re-read. Each time a number
+travelled without the thing that qualified it. **Before treating a gap as work, check whether a
+fixed reading already governs it** — and when you carry a seed set, artefact or figure forward,
+carry its qualifier into the result, not into a note beside it.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Correction from A1.8 — 2026-10-18 (D-150)
+
+**The "~4M validates the viral seed set" claim does not hold, and this task's state block
+asserts it in two places.**
+
+ESM3's version of record, §A.6.1 p47: "we identify ∼4M sequences that are **annotated as viral
+in UniProt**". That figure counts UniProtKB sequences. This task's 3,159,223 is UniRef100
+clusters. The two are different objects, so their agreement is a coincidence of scale and not
+evidence that the reconstruction is right — in the same way, and for the same reason, that
+A1.8's select-agent set came out 5.8x its published figure.
+
+**What is not affected.** The seed set itself, the band run in flight, and every measurement
+resting on them. A1.6's seed set is a query set for searching the staged corpus, and breadth is
+the conservative choice for an audit; nothing about it depends on matching the publisher's count.
+D-100's other validation — 350,950,053 clusters matching the publisher's own release-note count
+exactly — is a UniRef-to-UniRef comparison and stands untouched.
+
+**What is affected.** The sentence "ESM3 states the viral denylist is roughly 4M sequences —
+which is worth having because D-032 established the reported 10.6M removals cannot validate a
+reconstruction" describes a validation target this task does not have. It needs removing from
+the write-up and from this file's state block. The honest position is that **no published
+denylist size can validate either arm's reconstruction**, because every published size is of a
+different object; what can be validated is the *reading*, by executing the stated method against
+UniProtKB, which is what A1.8 did for its arm (140,591 against a published 187K).
+
+Left here for whoever resumes A1.6 rather than edited into its state block by another task.
