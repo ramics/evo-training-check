@@ -72,6 +72,7 @@ PAYLOAD_MODULES = (
     "src/amazebio/uniref.py",
     "src/amazebio/seeds.py",
     "src/amazebio/selectagents.py",
+    "src/amazebio/similarity.py",
     "tools/select_agent_seeds.py",
 )
 
