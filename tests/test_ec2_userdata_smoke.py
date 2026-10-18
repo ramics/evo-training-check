@@ -72,6 +72,7 @@ def _render_user_data(**over: object) -> str:
         "artefact_flags": "",
         "sidecar_flags": "",
         "seeds_flags": "--seeds-uri s3://b/corpora/results/a1-8/sa-seeds.faa",
+        "results_task": "a1-6",
         "threads": 8,
         "workers": 7,
         "budget": 7200.0,

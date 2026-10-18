@@ -190,6 +190,7 @@ set +e
     --band-denominator {band_denominator} --band-shard {band_shard} \
     {verify_flags} {resume_flags} {artefact_flags} \
     {sample_flags} {sidecar_flags} {seeds_flags} \
+    --results-task {results_task} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
     --progress-seconds 300
@@ -359,6 +360,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cap-shard-points", default="1,2")
     ap.add_argument("--cap-fractions", default="0.5,0.2")
     ap.add_argument(
+        "--results-task",
+        default="a1-6",
+        help="which task's results prefix the run writes under. A1.8's select-agent arm "
+        "passes a1-8: the corpus bucket has no DeleteObject, so an artefact written under "
+        "the other arm's key destroys it and substitutes different numbers (D-108)",
+    )
+    ap.add_argument(
         "--seeds-uri",
         help="score this seed set instead of the viral one, with its .taxids.tsv sidecar "
         "from the same prefix. A1.8's select-agent arm is this flag plus a band (D-159)",
@@ -444,6 +452,7 @@ def main(argv: list[str] | None = None) -> int:
         # what keeps the launcher on the right side of that refusal.
         sidecar_flags=("--stage-sidecars-only" if args.stage_sidecars_only else ""),
         seeds_flags=(f"--seeds-uri {shlex.quote(args.seeds_uri)}" if args.seeds_uri else ""),
+        results_task=shlex.quote(args.results_task),
         artefact_flags=(f"--artefact-name {args.artefact_name}" if args.artefact_name else ""),
         resume_flags=(
             f"--resume-band-from {args.resume_band_from}" if args.resume_band_from else ""
@@ -477,7 +486,7 @@ def main(argv: list[str] | None = None) -> int:
     tags = [
         {"Key": "Project", "Value": "ClaudeSpike"},
         {"Key": "Owner", "Value": args.owner},
-        {"Key": "Name", "Value": f"amazebio-a1-6-{args.measure}"},
+        {"Key": "Name", "Value": f"amazebio-{args.results_task}-{args.measure}"},
     ]
     launch: dict[str, Any] = dict(
         ImageId=ami,
@@ -586,8 +595,11 @@ def _watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any) -> 
     """Poll the result key and the console. Returns (exit code, whether time ran out)."""
     deadline = time.monotonic() + args.timeout_minutes * 60
     timed_out = True
-    name = RESULT_NAMES[args.measure]
-    key = f"{prefix}/results/a1-6/{name}"
+    # The artefact name follows --artefact-name when given, for the same reason the prefix
+    # follows --results-task: two arms running the same measure would otherwise watch, and
+    # write, the same key.
+    name = getattr(args, "artefact_name", None) or RESULT_NAMES[args.measure]
+    key = f"{prefix}/results/{args.results_task}/{name}"
     seen_console = 0
     last_searches = -1
 

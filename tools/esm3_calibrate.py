@@ -65,6 +65,14 @@ STRICT = ("-c", "0.8", "--cov-mode", "1", "-s", "7.5")
 
 #: One artefact name per mode, because the corpus bucket has no DeleteObject: a second mode
 #: writing to the first's key would overwrite a preserved grid permanently.
+#: Which task's results prefix this run writes under. A1.6 owns this tool and is the
+#: default, but A1.8 scores its own denylist with the same pass (D-159) and its artefacts
+#: must not land under A1.6's key: the corpus bucket has no `DeleteObject`, so a collision
+#: there destroys the earlier arm's deliverable and replaces it with the other arm's numbers
+#: under a key the write-up cites — silent substitution, and D-108 forbids pooling the two.
+#: Caught before it happened on 2026-10-18, by A1.6 reading this run's UserData.
+DEFAULT_RESULTS_TASK = "a1-6"
+
 ARTEFACT_NAMES = {
     "curve": "calibration.json",
     "caps": "cap-measurement.json",
@@ -218,6 +226,14 @@ def main(argv: list[str] | None = None) -> int:
         "staged manifest. The staged 2.5% sample carries no strata sidecars (D-142), so "
         "building them needs the pass re-run; this is what makes a band over the rebuilt "
         "shards a result about the staged sample rather than about a lookalike",
+    )
+    ap.add_argument(
+        "--results-task",
+        default=DEFAULT_RESULTS_TASK,
+        help="which task's results prefix every artefact, heartbeat and manifest is written "
+        "under. Defaults to the arm that owns this tool; A1.8 scores its own denylist with "
+        "the same pass and must not write under A1.6's keys, which cannot be un-written "
+        "(default: %(default)s)",
     )
     ap.add_argument(
         "--seeds-uri",
@@ -375,7 +391,14 @@ def _chunks(stream: Any, limit: int, progress_seconds: float, heartbeat: Any = N
         yield chunk
 
 
-def _make_heartbeat(client: Any, bucket: str, prefix: str, name: str, commit: str | None) -> Any:
+def _make_heartbeat(
+    client: Any,
+    bucket: str,
+    prefix: str,
+    name: str,
+    commit: str | None,
+    results_task: str = DEFAULT_RESULTS_TASK,
+) -> Any:
     """Write a few hundred bytes to S3 saying how far the corpus pass has got.
 
     Measured need, 2026-10-16: an instance ran 95 minutes on a pass due in 53 with no way to
@@ -392,7 +415,7 @@ def _make_heartbeat(client: Any, bucket: str, prefix: str, name: str, commit: st
     """
     if client is None:
         return None
-    key = f"{prefix}/results/a1-6/{name}"
+    key = f"{prefix}/results/{results_task}/{name}"
 
     def beat(read: int, elapsed: float) -> None:
         body = {
@@ -484,7 +507,7 @@ def _progress(
     """
     if client is None:
         return
-    key = f"{prefix}/results/a1-6/{HEARTBEAT_NAMES[args.measure]}"
+    key = f"{prefix}/results/{args.results_task}/{HEARTBEAT_NAMES[args.measure]}"
     body = {
         "code_commit": args.code_commit,
         "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -756,7 +779,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
         if args.resume_band_from:
             name = args.artefact_name or ARTEFACT_NAMES["band"]
-            destination = f"{prefix}/results/a1-6/{name}"
+            destination = f"{prefix}/results/{args.results_task}/{name}"
             src_bucket, src_key = _parse_s3_uri(args.resume_band_from)
             if src_key == destination and src_bucket == bucket:
                 raise SystemExit(
@@ -844,6 +867,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                                 prefix,
                                 HEARTBEAT_NAMES[args.measure],
                                 args.code_commit,
+                                args.results_task,
                             ),
                         ),
                         config,
@@ -928,7 +952,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         def upload(path: Path, role: str) -> None:
             if not (args.upload_results and client is not None):
                 return
-            key = f"{prefix}/results/a1-6/{path.name}"
+            key = f"{prefix}/results/{args.results_task}/{path.name}"
             client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
             manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
             print(f"  uploaded s3://{bucket}/{key}", flush=True)
@@ -944,7 +968,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             """
             timing_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
             if args.upload_results and client is not None:
-                key = f"{prefix}/results/a1-6/{timing_path.name}"
+                key = f"{prefix}/results/{args.results_task}/{timing_path.name}"
                 client.put_object(Bucket=bucket, Key=key, Body=timing_path.read_bytes())
 
         # The seed set goes up *now*, before the searches, because it is the deliverable
@@ -1044,7 +1068,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
     if args.upload_results and client is not None:
         local = args.outdir / "run-calibration.json"
-        key = f"{prefix}/results/a1-6/run-calibration.json"
+        key = f"{prefix}/results/{args.results_task}/run-calibration.json"
         client.put_object(Bucket=bucket, Key=key, Body=local.read_bytes())
         print(f"  uploaded s3://{bucket}/{key}", flush=True)
     return 0

@@ -243,6 +243,7 @@ def _stage_args(tmp_path, **over):
         sample_from=None,
         measure="caps",
         stage_sidecars_only=False,
+        results_task="a1-6",
     )
     base.update(over)
     return argparse.Namespace(**base)
@@ -575,3 +576,37 @@ def test_the_viral_seed_set_is_not_published_when_another_denylist_is_scored() -
     src = _PATH.read_text()
     assert 'if not args.seeds_uri:\n            upload(seed_fasta, "viral-seed-set")' in src
     assert '"scored-seed-set" if args.seeds_uri else "viral-seed-set"' in src
+
+
+def test_every_write_follows_the_results_task_so_two_arms_cannot_collide() -> None:
+    """The near-miss of 2026-10-18, pinned.
+
+    A1.8 launched this pass to score the select-agent denylist and inherited A1.6's
+    hardcoded `results/a1-6/` prefix with the default `band.json` name. The corpus bucket has
+    no `DeleteObject`, so forty minutes later it would have destroyed A1.6's published band 1
+    artefact and put select-agent numbers under the key D-153 and D-154 cite for the viral
+    arm — not loss but silent substitution, and D-108 forbids pooling the two. A1.6 caught it
+    by reading the running instance's UserData.
+
+    So no write may hardcode a task prefix. Asserted over the source because the failure is a
+    key that is wrong, not a call that is missing, and the mistake is easy to reintroduce one
+    `put_object` at a time.
+    """
+    src = _PATH.read_text()
+    assert "results/a1-6/" not in src, "a hardcoded prefix is how the two arms collided"
+    import re
+
+    writes = re.findall(r'f"\{prefix\}/results/\{([^}]+)\}/', src)
+    assert writes, "no results keys found; has the key format changed?"
+    for holder in writes:
+        assert holder in ("results_task", "args.results_task"), holder
+
+
+def test_the_launcher_watches_the_key_it_told_the_instance_to_write() -> None:
+    """Two arms running the same measure would otherwise watch each other's artefact."""
+    launcher = (_PATH.parent / "ec2_similarity.py").read_text()
+    assert "results/a1-6/" not in launcher
+    assert 'getattr(args, "artefact_name", None) or RESULT_NAMES[args.measure]' in launcher
+    assert (
+        'f"amazebio-{args.results_task}-{args.measure}"' in launcher
+    ), "the instance Name tag made the two arms indistinguishable in a console listing"
