@@ -7313,3 +7313,128 @@ decision has a threshold or parameter in it, the number goes in the entry.
   That last one remains the structural coverage gap A2.2's Done-when criterion asks to be
   documented, and it is now also the fold whose denominator differs most from what D-166 recorded.
   **Nothing in this entry looks at a corpus hit.** The threshold is D-170.
+### D-170 — A1.6's Done-when criteria are amended to the deliverable D-134 and D-150 left it, and the task goes to review
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** A1.6's code is entirely on `main` and no instance is running, but the task was
+  still `in-progress` and the project owner's reading was that it was finished. Checked against
+  its own Done-when, it was not, and the reason was not unfinished work: two of its four criteria
+  had stopped describing the task. "Both manifests exist in A1.4's format" was written when the
+  arm was a corpus-wide pass; D-134 replaced that with nested seed-sample bands reporting a rate
+  with an interval, and D-156 established that the charitable reading's seed set is not executable
+  from the published text at all, so there is no charitable manifest to produce and never will
+  be. "The comparison against the paper's reported 10.6M is written up" was overtaken by D-150:
+  no published denylist size can validate a corpus-level reconstruction, because every published
+  size counts a different object. Its "written up" also has nowhere to land — there is no Phase A
+  write-up in the repo; A6.1 owns it and the A3.3 gate holds it. So the criteria could neither be
+  met nor honestly waived, which is the state in which a task gets marked `done` with its own
+  conditions unmet.
+- **Decision:** The criteria are amended, in place, with the originals kept and struck beside
+  them. The deliverable is now stated as: the strict reading's rate on at least one band with its
+  interval, realised family count and design effect; every figure naming which reading it belongs
+  to per D-156; the charitable reading's non-executability recorded as a §A0 finding; the seed-set
+  construction pinned and checksummed; the absence of any valid published-size comparison recorded
+  as a §A0 finding; and a `run.json`. Against those, A1.6 is met and goes to `review`. Band 1's
+  reading labels are restated as the task's settled position in a closing block rather than left
+  in a mid-file note: the any-identity column is the strict reading proper (≥1.5473% to ≥4.0975%),
+  the 0.70 column is the strict seed set at the charitable threshold (0.6537% to 0.6844%) and is
+  a hybrid of none of D-015's three readings, and D-153's "charitable" label on that column is
+  withdrawn. The withdrawn ~4M validation sentence is struck in place rather than deleted, because
+  it was acted on and the correction is only legible against it. Bands 2 and 3 and the strata
+  sidecars stay unauthorised and are named as owner decisions, not as outstanding work.
+- **Rejected:** Moving A1.6 to `done` — `review` is the honest state, because the amendment is
+  itself a change a reviewer should see, and because the arm's reporting into the write-up is real
+  work that A6.1 owns rather than work that has happened. Leaving the criteria as written and
+  closing against them anyway — that is marking a task done with unmet conditions, and the
+  Definition of done exists to prevent exactly that. Leaving the criteria as written and the task
+  `in-progress` indefinitely — it reads as a fourth in-flight task on the board when nothing is
+  in flight, and it hides a finished measurement behind a stale specification. Deleting the
+  superseded criteria instead of striking them — the original specification is the record of what
+  this task was bought to produce, and the gap between that and what it produced is itself part of
+  the §A0 story. Rewriting the earlier state blocks to remove the withdrawn 4M claim, which an
+  earlier block instructed — it was acted on for days, and a file that shows no trace of a
+  withdrawn claim cannot explain why the correction exists.
+- **Consequence:** Phase A's ESM3 broad arm now has a reportable result with its interval, and two
+  §A0 findings that are results in their own right. **A6.1 inherits two hard constraints:** it must
+  take the reading labels verbatim and must not offer the ~4M as corroboration, in any hedged form.
+  The amendment is not a precedent for loosening criteria to fit an outcome: it is admissible here
+  only because D-134, D-150 and D-156 each changed the deliverable *before* this entry, for
+  recorded reasons, and each is cited. A criterion amended after results are seen and *without* such
+  a prior entry would be the thing the non-negotiables forbid. One thing this does not resolve: the
+  task reached `review` with its original criteria unmeetable for three days before anyone noticed,
+  because nothing checks Done-when against the decisions that supersede it — `board.py` validates
+  the graph, not the criteria.
+
+### D-171 — A2.2's threshold is 500 bits with brackets [400, 600] and 3Di+AA scoring, and the near-fold decoys are a finding in their own right
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Numbering:** appended as D-170 and renumbered to D-171 before pushing — A1.6's D-170 landed
+  on `main` while this branch was running the calibration. Commit messages on branch
+  `ccr-7a87e8bd-9ow1h1` citing D-170 for A2.2's threshold mean this entry.
+- **Context:** D-167 fixed everything about A2.2's score except its value — corpus as query, the
+  141 pinned reference structures as target, coverage floor on the target at `--cov-mode 1 -c
+  0.5`, bit score rather than E-value — and deferred one option, `--alignment-type 0` (3Di only)
+  against foldseek's default 3Di+amino-acid scoring, "to the threshold calibration". Both are
+  settled here, from decoys, before any corpus hit was seen; `amazebio.repro` enforces the order.
+  **The decoy design, declared before the run.** A shuffled sequence is not a test here: three
+  shuffled reference domains returned no hit at all at `-e 1000` in the probe. The decoys that
+  matter are real proteins that *share the fold and are not viral* — and D-166 and D-169
+  enumerated precisely those while deciding what to exclude. Four classes, 400 queries each:
+  `near_fold_nonviral` (the excluded cellular capsid families and the host RNAi polymerases),
+  `unrelated_fold` (ECOD X-groups disjoint from the universe's), `shuffled` (the positives'
+  sequences shuffled at a pinned seed), and `positive` (held-out non-representative domains of
+  the fold families). A positive sharing a PDB entry with any reference structure was dropped —
+  393 of them — because the same deposition re-scored against itself measures nothing.
+  Every query took the corpus's own path: amino acids through ProstT5, then the search, so the
+  prediction error sits inside the threshold rather than outside it. 1,567 queries, 385,185
+  residues; 3Di predicted once in 1h39m on four cores and both modes searched against the same
+  query database. Target false-positive rate **1% on `near_fold_nonviral`**, declared in advance.
+- **Decision:** **Declared threshold 500 bits; brackets 400 and 600; alignment mode 3Di+AA.**
+  Realised at the declared cut: `near_fold_nonviral` 3/389 (0.8%), `unrelated_fold` 0/394,
+  `shuffled` 0/392, `positive` 242/392 (61.7%).
+  **The grid was extended upward once and the declared value did not move.** The rule — the
+  lowest grid value holding the target on the binding class — and the target were both fixed
+  beforehand. The first grid stopped at 500, which is where the rule's answer fell, so the value
+  had no upper neighbour and `metrics/survival.md` requires *two* bracketing values. Nothing was
+  inserted below 500, so the selection provably could not change: 400 gives 4/389 = 0.0103, which
+  misses 1%, and 500 gives 3/389 = 0.0077, which holds. This is the declared procedure being
+  completed, not a threshold re-picked after seeing results, and it is recorded rather than done
+  quietly.
+  **The mode choice was made after seeing the sweep, and is recorded as such.** D-167 deferred
+  the option without fixing a rule, so unlike the threshold this one was not pre-registered. The
+  rule applied: among modes whose declared threshold holds the target, take the higher
+  true-positive rate. 3Di+AA gives 61.7% against 3Di-only's 11.2% at the same cut and the same
+  false-positive target. The margin is a factor of five, so no defensible rule chooses otherwise.
+- **Rejected:** `--alignment-type 0`, despite being the more attractive option on independence
+  grounds — it scores 3Di alone, so it does not re-use the amino-acid signal A2.1 already
+  searches. At the declared cut it finds one fifth as many true fold members. On the probe it also
+  scored a shuffled decoy at 58 bits above a genuine domain at 17. Calibrating on shuffles alone,
+  which would have put the cut near 60 bits and left the near-fold false-positive rate at 60%.
+- **Consequence, and this is the substantive one:** **the near-fold non-viral decoys are detected
+  at a rate that no bit score separates from the true positives until most sensitivity is gone.**
+  At 100 bits they run at 56% while unrelated folds and shuffles are already at 0.8% — seventy
+  times apart — and the near-fold curve tracks the positive curve closely (0.56 against 0.79 at
+  100 bits, 0.51 against 0.78 at 140) before separating above 160. Holding them to 1% costs
+  sensitivity: 61.7% at the declared cut against 78.8% at 100 bits. **And it never reaches zero:
+  3 of 389 cellular near-fold proteins pass at 500 bits.**
+  That is the method working, not failing. Nucleoplasmin, peptide-N-glycanase and Cu(2+)
+  monooxygenase genuinely have the jelly-roll capsid fold. What the curve measures is that
+  *"carries this fold"* and *"is viral-derived"* are different claims, and this instrument cannot
+  fully separate them. Three things follow. It is the quantitative justification for D-169
+  excluding those families from the reference set. It is a stated limitation for the write-up,
+  not a parameter to tune — and a sharper one than §A2 anticipated for this route. And it means
+  the dominant false-positive source in the real pass will be cellular proteins carrying these
+  folds, which bacterial and metagenomic records do contain, rather than chance alignments.
+  **A second ceiling:** 13% of held-out true fold members never hit their own fold at all, even
+  at 20 bits. Predicted-3Di fold search misses them outright, which caps what any threshold here
+  can achieve and belongs beside the survival figures as a sensitivity bound.
+  **Two corrections to D-167**, both found by running the chain rather than trusting the note.
+  `convertalis` does **not** refuse against a ProstT5 database in the direction D-167 itself
+  chose — ProstT5 as query, structures as target — and reports every requested column; 34,822
+  rows in 3Di+AA and 71,689 in 3Di-only. The refusal D-167 recorded must have been with the
+  ProstT5 database as the *target*; read literally, that entry says this pipeline is impossible.
+  And foldseek silently disables `--sort-by-structure-bits` for want of C-alpha data, the same
+  shape of trap D-167 found with `--tmscore-threshold`. Harmless here because the calibration and
+  the real search share one geometry, but it means the reported `bits` is the plain alignment bit
+  score and not a structure-weighted one, which a reviewer comparing to published foldseek
+  figures needs to know.
