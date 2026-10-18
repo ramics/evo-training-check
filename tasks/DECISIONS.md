@@ -7067,3 +7067,73 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the thresholds declared before any hit is looked at, and A1.4's manifests regenerated, since
   `artifacts/` is empty in a fresh container and nothing in object storage holds them.
   Resumability is the fourth, and it is what makes spot safe to rely on for a 25-hour pass.
+
+### D-166 — A2.2's fold universe is selected at ECOD's family level, and one of the three folds has no node to borrow
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** §A2 names three folds in prose — jelly-roll capsid, viral RdRp, class I fusion
+  glycoprotein — and names no identifier for any of them. D-083 says this membership rule is "a
+  finding about the registry, not a detail of the pipeline" and named A2.2 as facing the
+  question; D-097 adds that the id-to-label mapping is an artefact with a stated rule. A2.1's
+  precedent is to borrow somebody else's curation wherever one exists and to say so where it
+  does not.
+  **Registry:** ECOD **v295.2** (generated 2026-08-27), 2,943,253 classified domains, retrieved
+  unauthenticated from the publisher. Chosen over SCOPe 2.08 (last released 2021, so five years
+  of structures missing) and CATH 4.4 because ECOD's family level is keyed to Pfam names, which
+  makes the selection auditable against the registry A2.1 already pinned.
+  **Three things were measured in it, and each changes the rule.**
+  **1. The architecture level is useless here.** `jelly-roll` holds 16,690 domains of
+  `Nucleoplasmin-like/VP (viral coat and capsid proteins)` — the fold §A2 means — beside 15,544
+  Concanavalin A-like lectins, 9,881 galactose-binding domains, 1,801 CUB domains and a calcium
+  ATPase transduction domain. Selecting "jelly-roll" would make lectins count as viral capsids.
+  **2. The topology level is useless for RdRp.** Viral RdRp sits under T-groups named
+  `Adenylyl and guanylyl cyclase catalytic domain-like` and
+  `helical bundle domain in reverse transcriptase-like polymerases`, so selecting at that level
+  imports adenylyl cyclases and reverse transcriptases. Worse, searching the literal phrase
+  "RNA-dependent RNA polymerase" in ECOD's names returns **81 domains**, all birnavirus
+  subdomains — the canonical RdRp families are named for Pfam (`RdRP_1`, `RdRP_3`, `RdRP`) and
+  would have been missed entirely. The same family name also recurs under different topologies,
+  because RdRp is multidomain and its palm and helical bundle are classified apart.
+  **3. "Class I fusion glycoprotein" is a virology category, not a structural group.** Its
+  members are in unrelated branches: `Hemagglutinin HA2 chain` (influenza), `MPER trimer` with
+  family `GP41` (HIV), `S2 subunit of coronavirus spike glycoprotein`, and two paramyxovirus F
+  groups. **No single ECOD node means it.** Name matching is also actively unsafe here: the
+  family name `GP41` matches HIV's envelope *and* a phage tail protein (`E217_GP41`) *and* a
+  Wiskott-Aldrich protein, while `Hemagglutinin` spans both the jelly-roll receptor-binding head
+  and the HA2 fusion stalk, which are different folds doing different jobs.
+- **Decision:** **Select at ECOD's F-group (family) level, by an enumerated list of group
+  identifiers rather than by regex over names**, and ship that list as an artefact with the
+  table, as D-097 requires. Names are evidence for building the list and must not be the
+  mechanism that applies it — finding 3 is the proof.
+  Per fold:
+  **Jelly-roll capsid** — the `Nucleoplasmin-like/VP (viral coat and capsid proteins)` group
+  under `jelly-roll`. Borrowed curation, 16,690 domains, **119 manually curated representatives**.
+  **Viral RdRp** — the enumerated RdRp families (`RdRP_1`, `RdRP_3`, `RdRP`, `Birna_RdRp_palm`,
+  `Birna_RdRp_C`, `CoV_RPol_N`), 1,907 domains, **31 representatives**, explicitly **excluding
+  the host RNAi polymerase families** that share the fold. A eukaryotic RNAi polymerase is not
+  viral-derived content, and counting one as a surviving viral homolog would be a false positive
+  of exactly the kind this audit exists to avoid — the same call A2.1 made excluding integrase
+  and transposase from its viral family set.
+  **Class I fusion glycoprotein** — enumerated by this project, because there is nothing to
+  borrow: 9,606 domains, **16 representatives**. This is the one fold whose membership rule is
+  ours rather than a curator's, and it ships labelled that way. It is also the weakest of the
+  three and is the structural coverage gap A2.2's Done-when criterion asks to be documented.
+  **The reference set is the representatives, not every domain** — 166 structures in total,
+  fetched from RCSB by accession and cut to ECOD's residue ranges. Fold search is the point, so
+  representatives are the right reference; and it keeps the reference side the small side, which
+  AGENTS.md requires to be worked out before anything is sized.
+- **Rejected:** Selecting by architecture or topology — findings 1 and 2 measure what that
+  costs. Selecting by regex over family names — finding 3 shows it imports phage tail proteins
+  under the HIV envelope's name. SCOPe 2.08 — five years stale, and this audit's corpora are
+  current. Foldseek's prebuilt PDB or CATH50 databases as the reference — they are whole chains
+  and whole-chain classifications, and a capsid fold inside a larger protein is the case that
+  matters. BFVD, the predicted viral structure database — it is predictions over sequences that
+  may themselves descend from the corpora under audit, and a reference set has to be independent
+  of the thing it measures. Every domain rather than representatives — 28,203 structures to
+  gain fold-level sensitivity that representatives already provide.
+- **Consequence:** The fold universe is a denominator of **three folds and 166 reference
+  structures**, with its membership rule stated per fold and one of the three marked as this
+  project's own construction. That asymmetry is itself reportable: the audit can borrow a
+  curator's definition of a viral capsid, can assemble a defensible one for RdRp from Pfam-keyed
+  families, and cannot borrow one at all for the fusion class §A2 names. Thresholds come next and
+  are not set here; nothing in this entry looks at a hit.

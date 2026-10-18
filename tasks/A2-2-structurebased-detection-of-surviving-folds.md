@@ -81,13 +81,19 @@ permits. Parity is the target because A3.2 merges this table with A2.1's, A2.4's
    heartbeat in `fold_throughput.py`: it publishes between rungs rather than on an interval, so
    the 32-minute CPU rung was 32 minutes of silence, which is only half of what AGENTS.md
    requires and exactly the condition under which silence means nothing.
-2. **Fix the fold-family universe and its membership rule.** §A2 names three folds in prose, not
-   by identifier. D-083 says this membership rule is "a finding about the registry, not a detail
-   of the pipeline" and names A2.2 as facing the question; D-097 adds that the id-to-label
-   mapping is an artefact with a stated rule. Candidate reference sides are all retrievable and
-   none is paywalled: SCOPe 2.08, ECOD v295.2 and CATH 4.4 all serve their classification files,
-   and foldseek itself distributes **PDB**, **CATH50** and **BFVD** (viral predicted structures)
-   as prebuilt databases.
+2. ~~**Fix the fold-family universe and its membership rule.**~~ **Done (D-166).** ECOD v295.2,
+   selected at family level by enumerated identifiers rather than by name, giving three folds and
+   **166 curated representative structures** as the reference side. The three measurements that
+   set the rule: the `jelly-roll` architecture holds more lectin than capsid, so it cannot be the
+   unit of selection; viral RdRp is filed under topologies named for adenylyl cyclases and
+   reverse transcriptases, and searching its own English name finds 81 birnavirus domains and
+   misses the canonical families entirely; and **"class I fusion glycoprotein" has no ECOD node
+   at all** — its members sit in unrelated branches, and the name `GP41` matches a phage tail
+   protein as readily as HIV's envelope. So that one fold's membership is this project's own
+   construction, shipped labelled as such, and it is the structural coverage gap the Done-when
+   criterion asks for. Host RNAi polymerases are excluded from RdRp deliberately: they share the
+   fold and are not viral-derived content.
+
 3. **Fix thresholds before any hit is inspected**, per D-076's rule that a threshold must not
    scale with how much corpus a run happened to read. Foldseek's E-value is target-database-size
    dependent in exactly the way D-076 rejects, so the declared cut should be a TM-score, with the
