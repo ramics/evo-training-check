@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,12 @@ def _load(name: str, rel: str):
     spec = importlib.util.spec_from_file_location(name, ROOT / rel)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    # Registered before execution, not after: `@dataclass` resolves its own module through
+    # `sys.modules[cls.__module__]`, so a module loaded this way without being registered
+    # raises `AttributeError: 'NoneType' object has no attribute '__dict__'` the moment the
+    # file defines a dataclass. That is exactly what killed one A2.2 launch — the instance's
+    # payload precheck used this pattern and reported a complete payload as short.
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -132,7 +139,7 @@ def test_user_data_renders_within_the_limit_and_shuts_down_safely(folds):
     assert code.count("|| die ") >= 5
     assert "nvidia-smi || die" in code
     # The payload import check runs before the weights download and the measurement.
-    assert code.index("payload imports cleanly") < code.index("databases ProstT5")
+    assert code.index("imports cleanly") < code.index("databases ProstT5")
 
 
 def test_user_data_refuses_to_render_when_too_large(folds):
@@ -188,6 +195,41 @@ def test_user_data_unpacks_pixi_rather_than_chmodding_the_download(folds):
     # single `pixi` binary, so writing the download straight to /usr/local/bin cannot work.
     assert text.index("sha256sum -c -") < text.index("tar xzf pixi.tar.gz")
     assert "install -m 0755 pixi /usr/local/bin/pixi" in text
+
+
+def test_precheck_imports_through_the_normal_machinery(folds):
+    """The payload guard must not be able to fail on a complete payload.
+
+    One launch died here. The precheck used `spec_from_file_location` plus
+    `module_from_spec` without registering the module in `sys.modules`, so the first
+    `@dataclass` in the shipped tool raised `AttributeError` on
+    `sys.modules.get(cls.__module__).__dict__` — and the guard reported a short PAYLOAD when
+    the payload was complete. A false positive here costs a launch, exactly like the true
+    positive it exists to catch.
+    """
+    text = folds.render_user_data(
+        bucket="b",
+        prefix="p",
+        code_key="p/code.tar.gz",
+        region="us-east-1",
+        commit="deadbeef",
+        devices="cpu,gpu",
+        ladder="100",
+        cpu_ladder="100",
+        threads=4,
+        hard_stop_minutes=10,
+        pixi_url=folds.PIXI_URL,
+        pixi_sha256=folds.PIXI_SHA256,
+    )
+    # Commands only: the comments above this guard quote the broken pattern by name in
+    # order to explain it, and matching prose would fail on the explanation.
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    assert "spec_from_file_location" not in code
+    assert "module_from_spec" not in code
+    # Every shipped first-party module, by name, and then the tool started the way the run
+    # starts it — so the check exercises the import path the measurement will use.
+    assert "importlib.import_module" in code
+    assert "fold_throughput.py --help" in code
 
 
 def test_results_go_to_a_task_scoped_prefix(folds):

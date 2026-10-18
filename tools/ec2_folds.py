@@ -149,16 +149,29 @@ pixi install -e dev -e foldseek || die "pixi env solve/install failed"
 FOLDSEEK="$(pixi run -e foldseek bash -c 'command -v foldseek')"
 echo "=== foldseek: $FOLDSEEK $($FOLDSEEK version) ==="
 
-# Import the shipped tool before the long work, not after. On the instance a short PAYLOAD
+# Import the shipped code before the long work, not after. On the instance a short PAYLOAD
 # costs an hour and a launch; here it costs a second.
-pixi run -e dev python -c "
-import importlib.util, sys
-sys.path.insert(0, 'src')
-spec = importlib.util.spec_from_file_location('ft', 'tools/fold_throughput.py')
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
-print('=== payload imports cleanly ===')
-" || die "the shipped payload cannot import; PAYLOAD is short"
+#
+# Through the ordinary import machinery, and that detail is the whole lesson of the launch
+# this replaced. The first version loaded the tool with `spec_from_file_location` +
+# `module_from_spec` without registering it in `sys.modules`, and `@dataclass` then died on
+# `sys.modules.get(cls.__module__).__dict__` being None. So the guard against a short payload
+# failed on a payload that was complete — a false positive that killed the run just as
+# effectively as the bug it was watching for. Importing every shipped module by name, and
+# starting the tool the way the run starts it, tests the path that will actually be used.
+pixi run -e dev python - <<'PRECHECK' || die "shipped modules cannot import; PAYLOAD is short"
+import importlib
+import pathlib
+import sys
+
+sys.path.insert(0, "src")
+for path in sorted(pathlib.Path("src/amazebio").glob("*.py")):
+    if path.stem != "__init__":
+        importlib.import_module(f"amazebio.{{path.stem}}")
+print("=== every shipped module imports cleanly ===")
+PRECHECK
+pixi run -e dev python tools/fold_throughput.py --help >/dev/null \
+  || die "the shipped tool cannot start"
 
 # 2.3 GB of f16 GGUF from huggingface.co/Rostlab/ProstT5, unauthenticated (D-163).
 pixi run -e foldseek foldseek databases ProstT5 /opt/amazebio/prostt5 /opt/amazebio/tmpdb \
