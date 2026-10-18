@@ -184,7 +184,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --cap-shard-points {cap_shard_points} --cap-fractions {cap_fractions} \
     --band-denominator {band_denominator} --band-shard {band_shard} \
     {verify_flags} {resume_flags} {artefact_flags} \
-    {sample_flags} \
+    {sample_flags} {sidecar_flags} \
     --threads {threads} --workers {workers} --search-budget-seconds {budget} \
     --upload-results --allow-dirty --code-commit {commit} \
     --progress-seconds 300 ; echo "=== calibrate exited $? ===" )
@@ -324,6 +324,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--band-denominator", type=int, default=100)
     ap.add_argument("--band-shard", type=int, default=0)
     ap.add_argument(
+        "--stage-sidecars-only",
+        action="store_true",
+        help="add the strata sidecars to the already-staged sample and stop. One launch, so "
+        "later bands and A1.8 do not each rebuild them (D-142)",
+    )
+    ap.add_argument(
         "--artefact-name",
         help="result filename, and so its S3 key. Required alongside --resume-band-from "
         "when resuming from the default key, since a run may not overwrite its own source",
@@ -422,6 +428,7 @@ def main(argv: list[str] | None = None) -> int:
         # before the band stage, so it would destroy the cells being carried forward, in a
         # bucket with no DeleteObject. The tool refuses the same-key case outright; this is
         # what keeps the launcher on the right side of that refusal.
+        sidecar_flags=("--stage-sidecars-only" if args.stage_sidecars_only else ""),
         artefact_flags=(f"--artefact-name {args.artefact_name}" if args.artefact_name else ""),
         resume_flags=(
             f"--resume-band-from {args.resume_band_from}" if args.resume_band_from else ""

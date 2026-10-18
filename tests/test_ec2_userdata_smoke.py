@@ -70,6 +70,7 @@ def _render_user_data(**over: object) -> str:
         "verify_flags": "",
         "resume_flags": "",
         "artefact_flags": "",
+        "sidecar_flags": "",
         "threads": 8,
         "workers": 7,
         "budget": 7200.0,

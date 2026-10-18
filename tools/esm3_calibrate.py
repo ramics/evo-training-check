@@ -279,6 +279,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.buckets < 1:
         raise SystemExit("--buckets must be at least 1")
+    if args.stage_sample and args.stage_sidecars_only:
+        raise SystemExit(
+            "--stage-sample stages the whole sample; --stage-sidecars-only adds sidecars to "
+            "one already staged. Pick one."
+        )
     if args.stage_sample and args.sample_from:
         raise SystemExit("--stage-sample builds a sample; --sample-from loads one. Pick one.")
     if args.sample_from and not args.sample_from.startswith("s3://"):
@@ -943,7 +948,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         publish()
         upload(seed_fasta, "viral-seed-set")
 
-        if args.stage_sample:
+        if args.stage_sample or args.stage_sidecars_only:
             staged_uri = _stage_sample(
                 args,
                 client,

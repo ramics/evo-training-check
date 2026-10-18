@@ -489,3 +489,21 @@ def test_sidecars_can_be_staged_into_an_existing_sample_without_rewriting_it(tmp
     assert not any(k.endswith(".faa") for k in written), "the sample's own objects are untouched"
     assert tool.shardstore.MANIFEST_NAME not in "".join(written), "the manifest is left alone"
     assert uri.endswith(tool.shardstore.MANIFEST_NAME)
+
+
+def test_staging_sidecars_only_does_not_need_stage_sample_and_refuses_both(tmp_path) -> None:
+    """The flag was unreachable when first written: staging was gated on --stage-sample alone,
+    so --stage-sidecars-only bought a launch that staged nothing. Caught in review of the
+    handoff that told the next worker to run it."""
+    argv = [
+        "--measure",
+        "band",
+        "--source",
+        str(tmp_path / "x.xml.gz"),
+        "--taxdump",
+        str(tmp_path / "t.zip"),
+        "--stage-sample",
+        "--stage-sidecars-only",
+    ]
+    with pytest.raises(SystemExit, match="Pick one"):
+        tool.main(argv)
