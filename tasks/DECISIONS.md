@@ -6790,3 +6790,53 @@ decision has a threshold or parameter in it, the number goes in the entry.
   work can both read. The process point is the one worth carrying: checking the inputs a spec names
   belongs in writing the spec, not in executing it, and an entry that checks one of its inputs
   carefully is not thereby an entry that checked them all.
+
+### D-161 — The two registries' survival fractions are not comparable, and the difference is measured
+- **Date:** 2026-10-18
+- **Task:** A2.4 (governs A3.2 and the Phase A write-up)
+- **Context:** A2.4's first band reports **11.8% of Pfam's viral families** and **0.66% of
+  RVDB-prot's** surviving as prophage in Evo 1, from the same proteins. Read side by side that
+  looks like Pfam being eight times more permissive, and a reader will reach for one number as
+  the headline. Both readings are wrong, and the reasons are separable and measurable.
+- **What was measured**, on identical input — 5,314 genes, 1,201,328 residues, 128 proviruses:
+  **The denominators answer different questions.** Pfam's 1,719 is *this project's derived*
+  viral subset (D-075), weighted toward well-characterised phage domains, with the blind spot
+  D-083 measured. RVDB-prot's 13,679 is the publisher's clustering of the whole known
+  virosphere, overwhelmingly eukaryotic viruses that **cannot** occur in a bacterial prophage.
+  RVDB's denominator therefore carries a large, structurally unreachable mass.
+  **There is also a real sensitivity gap, and it is not a counting artefact.** Pfam returns
+  **173 detections per 1,000 genes against RVDB's 33**, a 5.2x difference. Multi-domain
+  inflation is ruled out: hits per family-record pair are 1.19 and 1.16.
+  **The cause is the threshold regime (D-076).** Pfam is searched at its curators' per-model
+  gathering cutoffs — median 26.2, ranging 20.3 to 39.1, so a diverged family can carry a lower
+  bar. RVDB's thresholds derive from one pinned E-value against a pinned Z and are therefore
+  **near-constant across all 13,679 models, spanning 29.4 to 31.5**. A uniform bar cannot be
+  lenient where leniency is warranted, and it sits higher on average. Median best scores, 100.5
+  against 70.8, say the same from the other side: Pfam's phage domain models fit these proteins
+  better because that is what they were built to recognise.
+- **Decision:** The two registries are **not interchangeable instruments**, and neither
+  percentage is reportable on its own.
+  **Pfam's fraction is never quoted as "the fraction of viral families".** Its denominator is
+  this project's reading of "viral" in Pfam, not a published universe, and any use of it says so.
+  **RVDB's fraction is never quoted as a measure of how much survived.** Its denominator
+  includes families no prophage could contain, so the fraction understates by an amount this
+  band does not quantify.
+  What is reportable: **RVDB's absolute counts** — 90 families, 177 detections — and **Pfam's
+  composition**, which is a prophage parts list (`Phage_integrase` 65, `Terminase_6N` 24,
+  `Phage_capsid` 24, `PhageMin_Tail` 23, `Phage_portal` 19). The composition is the evidence
+  that these are integrated phage rather than scattered homology, and it does not depend on
+  either denominator.
+- **Rejected:** Harmonising the thresholds so the registries compare. D-076 fixed them before
+  results existed and A2.1's tables were produced under them; changing them now to make two
+  numbers line up is choosing a threshold for its output, which is the thing the pre-registration
+  discipline exists to prevent.
+  Dropping one registry. They fail in opposite directions — Pfam's universe is ours and narrow,
+  RVDB's is the publisher's and far too broad — and reporting both with this entry attached is
+  more honest than picking the flattering one.
+  Deriving a "phage-relevant subset" of RVDB to fix its denominator. That is a real improvement
+  and it is a new reading of someone else's curation, so it belongs in its own task with its own
+  pre-registration, not in a footnote to this band.
+- **Consequence:** A3.2 must not pool or average the two registries' fractions (already required
+  by D-022, and this entry says why in measured terms). The Phase A write-up carries the
+  composition and the absolute counts; any percentage it quotes names its denominator in the
+  same sentence.
