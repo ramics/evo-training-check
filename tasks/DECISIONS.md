@@ -7313,3 +7313,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   That last one remains the structural coverage gap A2.2's Done-when criterion asks to be
   documented, and it is now also the fold whose denominator differs most from what D-166 recorded.
   **Nothing in this entry looks at a corpus hit.** The threshold is D-170.
+### D-170 — A1.6's Done-when criteria are amended to the deliverable D-134 and D-150 left it, and the task goes to review
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** A1.6's code is entirely on `main` and no instance is running, but the task was
+  still `in-progress` and the project owner's reading was that it was finished. Checked against
+  its own Done-when, it was not, and the reason was not unfinished work: two of its four criteria
+  had stopped describing the task. "Both manifests exist in A1.4's format" was written when the
+  arm was a corpus-wide pass; D-134 replaced that with nested seed-sample bands reporting a rate
+  with an interval, and D-156 established that the charitable reading's seed set is not executable
+  from the published text at all, so there is no charitable manifest to produce and never will
+  be. "The comparison against the paper's reported 10.6M is written up" was overtaken by D-150:
+  no published denylist size can validate a corpus-level reconstruction, because every published
+  size counts a different object. Its "written up" also has nowhere to land — there is no Phase A
+  write-up in the repo; A6.1 owns it and the A3.3 gate holds it. So the criteria could neither be
+  met nor honestly waived, which is the state in which a task gets marked `done` with its own
+  conditions unmet.
+- **Decision:** The criteria are amended, in place, with the originals kept and struck beside
+  them. The deliverable is now stated as: the strict reading's rate on at least one band with its
+  interval, realised family count and design effect; every figure naming which reading it belongs
+  to per D-156; the charitable reading's non-executability recorded as a §A0 finding; the seed-set
+  construction pinned and checksummed; the absence of any valid published-size comparison recorded
+  as a §A0 finding; and a `run.json`. Against those, A1.6 is met and goes to `review`. Band 1's
+  reading labels are restated as the task's settled position in a closing block rather than left
+  in a mid-file note: the any-identity column is the strict reading proper (≥1.5473% to ≥4.0975%),
+  the 0.70 column is the strict seed set at the charitable threshold (0.6537% to 0.6844%) and is
+  a hybrid of none of D-015's three readings, and D-153's "charitable" label on that column is
+  withdrawn. The withdrawn ~4M validation sentence is struck in place rather than deleted, because
+  it was acted on and the correction is only legible against it. Bands 2 and 3 and the strata
+  sidecars stay unauthorised and are named as owner decisions, not as outstanding work.
+- **Rejected:** Moving A1.6 to `done` — `review` is the honest state, because the amendment is
+  itself a change a reviewer should see, and because the arm's reporting into the write-up is real
+  work that A6.1 owns rather than work that has happened. Leaving the criteria as written and
+  closing against them anyway — that is marking a task done with unmet conditions, and the
+  Definition of done exists to prevent exactly that. Leaving the criteria as written and the task
+  `in-progress` indefinitely — it reads as a fourth in-flight task on the board when nothing is
+  in flight, and it hides a finished measurement behind a stale specification. Deleting the
+  superseded criteria instead of striking them — the original specification is the record of what
+  this task was bought to produce, and the gap between that and what it produced is itself part of
+  the §A0 story. Rewriting the earlier state blocks to remove the withdrawn 4M claim, which an
+  earlier block instructed — it was acted on for days, and a file that shows no trace of a
+  withdrawn claim cannot explain why the correction exists.
+- **Consequence:** Phase A's ESM3 broad arm now has a reportable result with its interval, and two
+  §A0 findings that are results in their own right. **A6.1 inherits two hard constraints:** it must
+  take the reading labels verbatim and must not offer the ~4M as corroboration, in any hedged form.
+  The amendment is not a precedent for loosening criteria to fit an outcome: it is admissible here
+  only because D-134, D-150 and D-156 each changed the deliverable *before* this entry, for
+  recorded reasons, and each is cited. A criterion amended after results are seen and *without* such
+  a prior entry would be the thing the non-negotiables forbid. One thing this does not resolve: the
+  task reached `review` with its original criteria unmeetable for three days before anyone noticed,
+  because nothing checks Done-when against the decisions that supersede it — `board.py` validates
+  the graph, not the criteria.
