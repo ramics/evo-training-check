@@ -51,7 +51,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import repro, seeds, selectagents, uniref
+from amazebio import repro, seeds, selectagents, similarity, uniref
 from amazebio.repro import ReproError
 
 S3_REGION = "us-east-1"
@@ -600,8 +600,14 @@ def _execute(
         # nobody can see holding open.
         beat = _heartbeat(client, bucket, prefix, args)
         last_beat = time.monotonic()
+        # The strata sidecar, beside the FASTA for the reason D-142 gives: MMseqs2 keys on
+        # the first whitespace-delimited token, so the seed FASTA carries a bare cluster id
+        # and cannot hold a taxid. The band pass needs one per seed to report the realised
+        # seed-family count that D-134 ships with every rate, and recovering it afterwards
+        # would mean a second corpus pass.
+        taxid_path = fasta_path.with_suffix(".taxids.tsv")
         try:
-            with open(fasta_path, "wb") as fasta:
+            with open(fasta_path, "wb") as fasta, open(taxid_path, "wb") as taxids:
                 for batch in seeds.scan_parallel(
                     _chunks(stream, args.limit_bytes, args.progress_seconds),
                     config,
@@ -611,8 +617,9 @@ def _execute(
                     counts.merge(batch.counts)
                     if batch.entries is not None:
                         entry_counts.merge(batch.entries)
-                    for cluster_id, sequence, _taxid in batch.seeds:
+                    for cluster_id, sequence, taxid in batch.seeds:
                         seeds.write_fasta(fasta, cluster_id, sequence)
+                        similarity.write_taxid_row(taxids, cluster_id, taxid)
                     now = time.monotonic()
                     if now - last_beat >= args.heartbeat_seconds:
                         beat(
@@ -656,6 +663,7 @@ def _execute(
         counts_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
         manifest.output_file(fasta_path, role="select-agent-seed-set")
+        manifest.output_file(taxid_path, role="select-agent-seed-strata")
         manifest.output_file(counts_path, role="seed-counts")
         if bounded:
             manifest.note(
@@ -704,6 +712,7 @@ def _execute(
         if args.upload_results and client is not None:
             for path, role in (
                 (fasta_path, "select-agent-seed-set"),
+                (taxid_path, "select-agent-seed-strata"),
                 (counts_path, "seed-counts"),
             ):
                 key = f"{prefix}/results/a1-8/{path.name}"

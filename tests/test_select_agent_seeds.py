@@ -544,3 +544,98 @@ def test_the_run_manifest_is_uploaded_with_the_results(tmp_path: Path) -> None:
     manifest = json.loads(uploaded[manifest_key])
     assert manifest["parameters"]["code_commit"] == "deadbeef"
     assert manifest["outputs"], "a manifest with no outputs traces nothing"
+
+
+@needs_taxonomy
+def test_the_pass_writes_a_strata_sidecar_beside_the_seed_fasta(tmp_path: Path) -> None:
+    """Without it the band pass refuses, and the taxid cannot be recovered afterwards.
+
+    MMseqs2 keys on the first whitespace-delimited token, so `write_fasta` emits a bare
+    cluster id and the FASTA cannot carry a taxid (D-142). The realised seed-family count
+    that ships with every rate (D-134) needs one per seed, and the only other way to get it
+    is a second pass over 118 GB of corpus.
+    """
+    from amazebio.similarity import parse_taxid_rows
+
+    corpus = _mini_corpus(tmp_path / "mini.xml.gz")
+    outdir = tmp_path / "out"
+    tool.main(
+        # fmt: off
+        [
+            "--taxdump",
+            str(TAXDUMP),
+            "--source",
+            str(corpus),
+            "--outdir",
+            str(outdir),
+            "--workers",
+            "1",
+            "--allow-dirty",
+        ]
+        # fmt: on
+    )
+    fasta = outdir / "select-agent-seeds-2023_02-uniref100.faa"
+    sidecar = fasta.with_suffix(".taxids.tsv")
+    assert sidecar.exists(), "the band pass refuses without this"
+
+    rows = list(parse_taxid_rows(sidecar.read_text().splitlines()))
+    seeded = json.loads((outdir / "seed-counts-2023_02-uniref100.json").read_text())["counts"][
+        "seeded"
+    ]
+    assert len(rows) == seeded, "one row per seed, or the family count is off"
+    ids = [cluster_id for cluster_id, _ in rows]
+    assert ids == sorted(set(ids), key=ids.index), "no duplicates"
+    # The mini corpus seeds Yersinia pestis by its representative and Bacillus anthracis
+    # only through a member, which is the case the taxid column has to get right.
+    assert dict(rows)["UniRef100_A"] == 632
+
+
+@needs_taxonomy
+def test_the_sidecar_is_uploaded_with_the_seed_set(tmp_path: Path) -> None:
+    """Staged apart, the pair is useless: the band pass needs both or neither."""
+    corpus = _mini_corpus(tmp_path / "mini.xml.gz")
+    uploaded: dict[str, bytes] = {}
+
+    class FakeS3:
+        def put_object(self, **kw: Any) -> None:
+            uploaded[str(kw["Key"])] = bytes(kw["Body"])
+
+    import argparse
+
+    from amazebio.seeds import Taxonomy
+
+    args = argparse.Namespace(
+        release="2023_02",
+        tier="uniref100",
+        taxdump=TAXDUMP,
+        captures=CAPTURES,
+        mapping=MAPPING,
+        source=str(corpus),
+        outdir=tmp_path / "out",
+        limit_bytes=0,
+        workers=1,
+        batch_bytes=1 << 20,
+        upload_results=True,
+        allow_dirty=True,
+        code_commit="deadbeef",
+        progress_seconds=1e9,
+        heartbeat_seconds=1e9,
+        toxin_producers=False,
+        alternatives=False,
+    )
+    taxa, provenance = tool.load_reading(
+        CAPTURES, MAPPING, toxin_producers=False, alternatives=False
+    )
+    taxonomy = Taxonomy.from_taxdump_zip(TAXDUMP)
+    attribution, _ = tool.load_attribution(
+        CAPTURES, MAPPING, taxonomy, toxin_producers=False, alternatives=False
+    )
+    assert (
+        tool._execute(
+            args, FakeS3(), "bucket", "corpora", taxa.expand(taxonomy), provenance, attribution
+        )
+        == 0
+    )
+    assert any(
+        k.endswith("select-agent-seeds-2023_02-uniref100.taxids.tsv") for k in uploaded
+    ), sorted(uploaded)
