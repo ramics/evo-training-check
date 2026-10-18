@@ -608,7 +608,7 @@ def cell_from_dict(raw: dict[str, Any]) -> CellResult:
     )
 
 
-def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
+def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -> dict[str, Any]:
     """Aggregate completed cells into banded counts and rates, per sensitivity and reading.
 
     Grouped by `(sensitivity, reading)` and summed over shards only. The denominator is the
@@ -680,10 +680,13 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
         "band_labels": list(band_labels()),
         "seed_denominator": denominator,
         "lower_bound": denominator > 1,
+        "net_direction": net_direction,
         "groups": [],
     }
     for (sensitivity, mode), slot in sorted(groups.items()):
-        rate = rate_with_interval(slot["families"], lower_bound=denominator > 1)
+        rate = rate_with_interval(
+            slot["families"], lower_bound=denominator > 1, net_direction=net_direction
+        )
         out["groups"].append(
             {
                 "sensitivity": sensitivity,
@@ -720,11 +723,25 @@ class Rate:
     #: axis, which contributes a bound and no interval at all. Collapsing them into one figure
     #: would be false precision in the direction of understating leakage (D-134).
     lower_bound: bool = False
+    #: Where the *whole* figure sits relative to the truth, which is not the same question
+    #: `lower_bound` answers. That flag marks one axis — the seed sample understates — and
+    #: D-154 found it being read as a claim about the result, which it is not: the seed set
+    #: implements clause (a) only and is therefore a superset of the denylist, so seed
+    #: construction **overstates** while seed sampling understates. A1.8's select-agent arm
+    #: has the same structure with a larger broadening term, measured at 1.7x to 6.8x
+    #: (D-157, D-159).
+    #:
+    #: Default `"unknown"`, so a caller must assert a direction rather than inherit one. The
+    #: non-negotiables put reporting limits in the harness rather than in good intentions,
+    #: and "at least X%" appearing in output that D-154 says may not be phrased that way is
+    #: exactly the gap between a decision and the code that is supposed to enforce it.
+    net_direction: str = "unknown"
 
     def to_dict(self) -> dict[str, object]:
         return {
             "rate": self.rate,
             "lower_bound": self.lower_bound,
+            "net_direction": self.net_direction,
             "standard_error": self.standard_error,
             "ci95": [self.low, self.high],
             "design_effect": self.design_effect,
@@ -742,17 +759,26 @@ class Rate:
         """
         if self.rate is None:
             return "no records searched"
-        lead = "at least " if self.lower_bound else ""
+        # "at least" only when the whole figure is a floor. The seed sample being a floor is
+        # not that, because seed construction pushes the other way (D-154, D-159).
+        lead = "at least " if self.net_direction == "lower" else ""
         body = f"{lead}{self.rate:.4%}"
         if self.low is not None and self.high is not None:
             body += f" (95% CI {self.low:.4%}-{self.high:.4%} from the corpus sample)"
         else:
             body += " (no interval: one family is not a sample of families)"
-        return f"{body}, {self.families} families"
+        tail = f"{body}, {self.families} families"
+        if self.net_direction == "unknown":
+            tail += " (sampled seeds understate; the seed set is broader than the denylist "
+            tail += "and overstates — net direction not established)"
+        return tail
 
 
 def rate_with_interval(
-    clusters: Sequence[tuple[int, int]], z: float = 1.96, lower_bound: bool = False
+    clusters: Sequence[tuple[int, int]],
+    z: float = 1.96,
+    lower_bound: bool = False,
+    net_direction: str = "unknown",
 ) -> Rate:
     """A hit rate and its interval, treating families as the sampling unit.
 
@@ -780,13 +806,15 @@ def rate_with_interval(
     total_hits = sum(a for a, _ in clusters)
     total_records = sum(b for _, b in clusters)
     if total_records == 0:
-        return Rate(None, None, None, None, None, k, 0, total_hits, lower_bound)
+        return Rate(None, None, None, None, None, k, 0, total_hits, lower_bound, net_direction)
 
     r = total_hits / total_records
     if k < 2:
         # One family is not a sample of families. A point estimate with no interval is the
         # honest output, and it is what makes the realised family count load-bearing.
-        return Rate(r, None, None, None, None, k, total_records, total_hits, lower_bound)
+        return Rate(
+            r, None, None, None, None, k, total_records, total_hits, lower_bound, net_direction
+        )
 
     residual = sum((a - r * b) ** 2 for a, b in clusters)
     var = k * residual / ((k - 1) * total_records**2)
@@ -803,6 +831,7 @@ def rate_with_interval(
         records=total_records,
         hits=total_hits,
         lower_bound=lower_bound,
+        net_direction=net_direction,
     )
 
 

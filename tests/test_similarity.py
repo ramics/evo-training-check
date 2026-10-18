@@ -545,16 +545,35 @@ def test_a_full_seed_pass_is_not_labelled_a_bound() -> None:
         assert g["rate"]["lower_bound"] is False
 
 
-def test_the_rate_describes_itself_with_at_least_only_when_it_is_a_bound() -> None:
+def test_at_least_needs_an_asserted_direction_not_just_a_sampled_seed_set() -> None:
+    """`lower_bound` marks one axis; "at least" is a claim about the whole figure.
+
+    D-154 found the two being conflated after the number existed: the seed set implements
+    clause (a) only, so seed *construction* overstates while seed *sampling* understates, and
+    the net direction is not established. A1.8's arm has the same shape with a broadening
+    term measured at 1.7x to 6.8x (D-157, D-159). So a sampled seed set alone no longer
+    renders "at least" — a caller has to assert the direction, and the default is "unknown".
+
+    This is the reporting limit put in the harness rather than in the write-up's good
+    intentions, which is what the non-negotiables ask for.
+    """
     clusters = [(1, 100), (3, 100), (2, 100)]
-    assert sim.rate_with_interval(clusters, lower_bound=True).describe().startswith("at least ")
-    bare = sim.rate_with_interval(clusters).describe()
-    assert not bare.startswith("at least ")
+    sampled = sim.rate_with_interval(clusters, lower_bound=True)
+    assert not sampled.describe().startswith("at least "), "a sampled seed axis is not a bound"
+    assert "net direction not established" in sampled.describe()
+    assert sampled.to_dict()["lower_bound"] is True, "the seed axis is still recorded"
+    assert sampled.to_dict()["net_direction"] == "unknown"
+
+    asserted = sim.rate_with_interval(clusters, lower_bound=True, net_direction="lower")
+    assert asserted.describe().startswith("at least ")
+
+    bare = sim.rate_with_interval(clusters, net_direction="lower").describe()
+    assert bare.startswith("at least ")
     assert "95% CI" in bare and "3 families" in bare
 
 
 def test_a_rate_with_no_interval_says_so_rather_than_implying_precision() -> None:
-    said = sim.rate_with_interval([(3, 100)], lower_bound=True).describe()
+    said = sim.rate_with_interval([(3, 100)], lower_bound=True, net_direction="lower").describe()
     assert "at least" in said and "no interval" in said
 
 
