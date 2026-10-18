@@ -771,3 +771,28 @@ different object; what can be validated is the *reading*, by executing the state
 UniProtKB, which is what A1.8 did for its arm (140,591 against a published 187K).
 
 Left here for whoever resumes A1.6 rather than edited into its state block by another task.
+
+## The viral reading, measured at the right release — 2026-10-18 (D-157)
+
+A1.8 read all of UniProtKB 2023_02 and counted the Viruses superkingdom on the same pass, so
+this arm now has the comparison it wanted. Both members matched the publisher's own entry
+statistics exactly, so the read is whole.
+
+**5,379,748 taxonomically viral UniProtKB sequences at release 2023_02**, against ESM3's stated
+~4M. A 1.34x gap with a described cause: the paper's viral denylist is not "annotated as viral"
+alone but sequences that *also* "align almost exclusively to other viral sequences in UniProt",
+and a 26% reduction from a specificity filter is what that step is for. "Almost exclusively" is
+unquantified, which is already on the open-questions list.
+
+So this arm's **reading** checks out — the difference between our set and theirs is accounted
+for by a step they describe. That is worth having, and it is the strongest statement available.
+
+**It still does not validate the seed set,** and the correction from 2026-10-18 above stands:
+3,159,223 UniRef100 clusters cannot be compared with a UniProt sequence count, so the "roughly
+4M validates the reconstruction" sentence has to come out regardless. What replaces it is this:
+the reading is validated against the stated method at the correct release; the seed set is a
+query set and nothing published can size it.
+
+Worth knowing for contrast: the select-agent arm does **not** come out this way. Its stated
+procedure has no second step, and no reading of the regulation reproduces its published total —
+1.7x over at the most conservative, 6.8x on the literal reading (D-157).
