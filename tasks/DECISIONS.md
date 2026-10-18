@@ -6510,3 +6510,84 @@ decision has a threshold or parameter in it, the number goes in the entry.
   quiet qualifier in a docstring, and this was a decision already recorded in `policies/specs/`
   that nobody re-read. **Before treating a gap as work, check whether a fixed reading already
   governs it.**
+
+### D-157 — The clause-(b) exposure is measured descriptively from the staged UniRef90 and UniRef50 tiers, with no threshold invented
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** The project owner asked whether band 1's hits are unique to viruses. D-156 settled
+  the half of that question the source answers: clause (b) — "align almost exclusively to other
+  viral sequences in UniProt" — is deliberately dropped by the strict reading, so the
+  annotation-only seed set is the strict reading's own seed set and not a defective one, and
+  quantifying the clause would invent the number D-015 declined to invent.
+
+  What D-156 leaves unmeasured is **how much of band 1's figure rests on seeds that clause (b)
+  would have excluded.** That is answerable descriptively, from bytes already staged, without
+  choosing a cut — so it is neither the fourth reading D-156 declined nor a correction to the
+  charitable one.
+- **The measurement.** UniRef90 and UniRef50 are the publisher's own homology groupings at 90%
+  and 50% identity, both staged for 2023_02 beside the UniRef100 tier the seed set came from.
+  For each seed — a UniRef100 cluster in the strict seed set — ask whether the UniRef90 cluster
+  containing it has any non-viral member, and separately whether its UniRef50 cluster does. A
+  seed whose homologues at 50% identity include cellular sequence is one clause (b) would
+  plausibly have dropped.
+- **Fixed now, before any result exists, per §2 and the non-negotiables.**
+  1. **Two tiers, reported separately, as a two-point curve.** No single blended number, no
+     interpolation between them, no chosen cut. A seed is *described* at two fixed identities,
+     never classified as inside or outside the denylist.
+  2. **Viral means a descendant of taxid 10239**, over the representative and every member,
+     identical to `UniRefEntry.is_viral_seeded`, under the already-pinned
+     `taxdmp_2023-04-01.zip`. The exclusivity test reuses the seed set's own test so the two
+     cannot disagree.
+  3. **Two denominators, both reported.** Over all realised band-1 sample seeds, and over those
+     band-1 sample seeds that actually produced a hit record. The second is what bears on the
+     headline; the first is what says whether the hit-producing seeds are unusual among the
+     sampled ones.
+  4. **A seed with no placed taxid is a third outcome**, counted and reported as its own share
+     rather than folded into either — D-152's lesson, one level down.
+  5. **Reported by survival route and homology class only, never by organism or taxon** (D-125),
+     with per-seed detail in the disclosure package only.
+- **Why these bytes rather than an alignment pass.** The tiers are publisher-computed,
+  contemporaneous with the release the seed set was built from, already pinned and already
+  staged, and they introduce **no parameter of ours** — which is the whole reason this is a
+  descriptive measurement and not a reading. An alignment of seeds against UniProt would need a
+  cut on "almost exclusively", which is exactly what D-015 and D-156 refuse.
+- **Three schema facts, verified against the staged bytes rather than assumed.** This task has
+  now been bitten three times by a field whose meaning was taken on trust, so these were read
+  before the design rested on them:
+  - Every `<member>` and `<representativeMember>` in **both** tiers carries a
+    `UniRef100 ID` property and an `NCBI taxonomy` property, so each tier joins to the seed set
+    directly by UniRef100 id and needs no separate mapping and no reconstruction from the other
+    tier.
+  - The `member count` property **includes the representative** — a cluster reporting 3,252 has
+    3,251 `<member>` elements — so a count taken from the elements alone is short by one per
+    cluster, and the taxid scan must cover the representative block as well.
+  - `uniref.xsd` is staged but cannot answer either question: properties are generic
+    `type`/`value` pairs in the schema, so only the entries themselves settle what is present.
+- **What this does not do, and must never be labelled as.** It is not clause (b): clause (b) is
+  a condition on alignment against the whole of UniProt, and UniRef membership is a proxy for it
+  at two fixed identities. It does not make the charitable seed set executable — D-156 stands,
+  and that inexecutability remains the §A0 finding. It bounds the *exposure* of band 1's figure
+  to the dropped clause; it does not correct the figure, and no corrected figure is to be
+  derived from it. And it says nothing about whether a matched *corpus record* is viral material
+  or host protein that resembles it — that is about what the records are rather than that they
+  align, and D-154 assigns it to A2.\* and B3.\*.
+- **Cost, and why it is in-region.** 62.73 GB plus 30.39 GB of compressed stream. Scaling D-100's
+  measured full-tier pass — UniRef100 2023_02, 118.68 GB in 3,202.5 s on 8 vCPU with 7 parsing
+  workers — gives about 28 minutes for the 90 tier and 14 for the 50, so roughly 45 minutes
+  sequentially on one instance, about **$0.10 on spot**. Read from the session container instead
+  it is 93 GB of metered egress at the 42.5 MB/s this project has measured, which is both slower
+  and two orders of magnitude dearer. This is the data-movement test in `AGENTS.md`, and it
+  passes it.
+- **Rejected:** Implementing clause (b) — D-156, and it remains rejected; this measurement exists
+  *because* clause (b) is not to be implemented. A single share across both tiers, or a share at
+  one tier only — either is a threshold by the back door, which is the thing being avoided.
+  Reconstructing the 50 tier from the 90 pass, which is possible since every member carries its
+  `UniRef50 ID` — reading the 50 tier directly is 30 GB and no join, against a 60M-key
+  aggregation held in memory for no gain. Weighting by hit records rather than counting seeds —
+  a seed's hit count is a property of the corpus sample, so weighting by it would fold two
+  samples into one number.
+- **Consequence:** band 1's figures ship with the two-tier exposure share beside them, and the
+  write-up states the exposure rather than adjusting the figure. If the share at 50% is large,
+  the §A0 finding about the unquantified phrase gets quantitative support; if it is small, band
+  1's strict-reading figures stand with less of a caveat attached. Both outcomes are reportable
+  and the direction is not known before the pass, which is why this entry exists before it.
