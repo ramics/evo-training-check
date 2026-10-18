@@ -218,7 +218,7 @@ def test_entries_split_across_chunks_are_not_lost() -> None:
         ),
         entry("UniRef90_3", member("UniRef100_C2", CELLULAR, representative=True)),
     ]
-    config = ExclusivityConfig(viral=VIRAL)
+    config = ExclusivityConfig(denylist_taxids=VIRAL)
 
     whole = ExclusivityResult()
     for batch in iter_entry_blocks(_stream(blocks, 1 << 20)):
@@ -246,7 +246,7 @@ def test_parallel_path_agrees_with_the_serial_one_and_keeps_order() -> None:
         for i in range(40)
     ]
     chunks = _stream(blocks, 512)
-    config = ExclusivityConfig(viral=VIRAL)
+    config = ExclusivityConfig(denylist_taxids=VIRAL)
 
     serial: list[tuple[str, str]] = []
     for batch in iter_entry_blocks(chunks, batch_bytes=1024):

@@ -258,7 +258,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             )
 
         counts = exclusivity.ExclusivityCounts()
-        config = exclusivity.ExclusivityConfig(viral=viral)
+        config = exclusivity.ExclusivityConfig(denylist_taxids=viral)
         stream = uniref.GunzipStream(reader)
         started = time.monotonic()
         emitted = 0

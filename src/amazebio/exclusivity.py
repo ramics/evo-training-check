@@ -119,7 +119,7 @@ class ClusterReduction:
     viral_ids: tuple[str, ...]
 
 
-def cluster_rows(block: bytes, viral: frozenset[int]) -> ClusterReduction | None:
+def cluster_rows(block: bytes, denylist: frozenset[int]) -> ClusterReduction | None:
     """Reduce one cluster block, or `None` if the block is not an entry at all.
 
     The verdict is a property of the **whole** cluster, so it is computed over every member's
@@ -140,7 +140,7 @@ def cluster_rows(block: bytes, viral: frozenset[int]) -> ClusterReduction | None
             # be a viral seed, so it contributes nothing but is not itself an unknown.
             continue
         placed += 1
-        if int(taxon.group(1)) in viral:
+        if int(taxon.group(1)) in denylist:
             ident = _UNIREF100_ID.search(piece)
             if ident is not None:
                 viral_ids.append(ident.group(1).decode("ascii", "replace"))
@@ -217,14 +217,20 @@ class ExclusivityConfig:
     Deliberately the same shape as `seeds.ScanConfig` — a frozen config with a `scan` method
     over raw entry blocks — so `seeds.scan_parallel` drives this pass unchanged rather than
     the project carrying two parallel-pass implementations that can drift apart.
+
+    `denylist_taxids` rather than `viral`, following D-139's rename of the shared seed
+    machinery. The *mechanism* here is generic — does the cluster containing this seed hold a
+    member from outside the denylist's taxa — even though the *question* is viral-only:
+    clause (b) is a clause of the viral denylist, and the select-agent denylist has none, so
+    there is no select-agent exposure share for this to measure.
     """
 
-    viral: frozenset[int]
+    denylist_taxids: frozenset[int]
 
     def scan(self, blocks: Iterable[bytes]) -> ExclusivityResult:
         result = ExclusivityResult()
         for block in blocks:
-            reduced = cluster_rows(block, self.viral)
+            reduced = cluster_rows(block, self.denylist_taxids)
             if reduced is None:
                 continue
             result.counts.observe(reduced)
