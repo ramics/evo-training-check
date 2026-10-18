@@ -124,20 +124,39 @@ def _pins() -> Any:
 # --- the reconciliation -------------------------------------------------------------------
 
 
-def test_the_reconciliation_names_both_biases() -> None:
-    """A bare delta invites reading a shortfall as a reconstruction failure (D-137)."""
-    rec = tool.reconcile(150_000)
-    assert rec["published_sequences"] == 187_000
-    assert rec["rebuilt_sequences"] == 150_000
-    assert rec["delta"] == -37_000
+def test_the_cluster_count_is_never_differenced_against_the_published_figure() -> None:
+    """The defect D-150 corrects, pinned so it cannot come back.
+
+    187K counts UniProtKB sequences; this pass counts UniRef100 clusters. The earlier version
+    subtracted one from the other and labelled the result `delta`, which is how a 5.8x
+    artefact of mismatched objects came to be read as a reconstruction discrepancy. No key may
+    carry that subtraction.
+    """
+    rec = tool.reconcile(1_079_124)
+    assert rec["query_set_clusters"] == 1_079_124
+    assert "delta" not in rec and "rebuilt_sequences" not in rec
+    assert rec["published_counts"].startswith("UniProtKB sequences")
     assert rec["known_downward_pressure"] and rec["known_upward_pressure"]
-    assert "not expected" in rec["note"]
 
 
-def test_the_reconciliation_handles_an_overshoot() -> None:
-    rec = tool.reconcile(200_000)
-    assert rec["delta"] == 13_000
-    assert rec["delta_share"] == pytest.approx(13_000 / 187_000)
+def test_the_published_figure_is_compared_with_the_reading_at_uniprot_level() -> None:
+    """What the published size can speak to is the reading, and only that."""
+    rec = tool.reconcile(1_079_124)
+    reading = rec["reading_against_published"]
+    assert reading is not None, "the pinned UniProtKB count is committed; it should be found"
+    assert reading["uniprot_sequences"] > 0
+    assert reading["delta"] == reading["uniprot_sequences"] - 187_000
+    assert reading["uniprot_release"], "the release queried travels with the count"
+    assert "not validate" in reading["what_this_checks"]
+    assert reading["release_gap"]
+
+
+def test_a_missing_pinned_count_says_so_rather_than_falling_back(tmp_path: Path) -> None:
+    """Silently comparing clusters with sequences again is the one unacceptable fallback."""
+    rec = tool.reconcile(1_000, uniprot_counts=tmp_path / "absent.json")
+    assert rec["reading_against_published"] is None
+    assert "uniprot_denylist_count" in rec["reading_against_published_note"]
+    assert "delta" not in rec
 
 
 # --- the pass itself ----------------------------------------------------------------------
@@ -436,12 +455,14 @@ def test_the_largest_contributor_is_named_from_the_measurement_not_the_source() 
     assert top is not None
     assert top["entry"] == "flu"
     assert top["exclusive_clusters"] == 90
-    assert top["seeded_without_it"] == 10
+    assert top["query_set_without_it"] == 10
     assert top["share_of_seed_set"] == pytest.approx(0.9)
+    # Never against the published figure: different objects (D-150).
+    assert "delta_without_it" not in top
 
 
 def test_a_shared_cluster_is_not_counted_as_removable_with_one_entry() -> None:
-    """`seeded_without_it` must not promise a reduction another entry would keep."""
+    """`query_set_without_it` must not promise a reduction another entry would keep."""
     from amazebio.seeds import EntryCounts
 
     counts = EntryCounts()
@@ -450,7 +471,7 @@ def test_a_shared_cluster_is_not_counted_as_removable_with_one_entry() -> None:
     top = tool._largest_contributor(2, counts)
     assert top is not None
     assert top["exclusive_clusters"] == 1
-    assert top["seeded_without_it"] == 1
+    assert top["query_set_without_it"] == 1
 
 
 def test_no_contributor_is_reported_when_nothing_was_attributed() -> None:

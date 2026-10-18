@@ -214,20 +214,41 @@ def load_attribution(
     return seeds.Attribution.from_entry_taxa(taxa_by_entry), counts
 
 
-def reconcile(seeded: int, entry_counts: seeds.EntryCounts | None = None) -> dict[str, Any]:
-    """Compare the rebuilt count with the published figure, with both biases named.
+UNIPROT_COUNTS = REPO_ROOT / "policies" / "specs" / "select-agents-2024-06-01-uniprot-counts.json"
 
-    A bare delta would invite reading a shortfall as a reconstruction failure. Under-count and
-    over-count have known, separate causes here (D-137), and both are stated so the number is
-    read as evidence rather than as a score.
+
+def reconcile(
+    seeded: int,
+    entry_counts: seeds.EntryCounts | None = None,
+    uniprot_counts: Path | None = None,
+) -> dict[str, Any]:
+    """Place the pass's count against the published figure — at the level that figure counts.
+
+    **The two numbers are of different objects, and the earlier version of this function
+    compared them anyway.** ESM3 publishes 187K for a denylist it built as "all sequences in
+    UniProt belonging to organisms on the Select Agents and Toxins List" (version of record,
+    A.6.1 p47). This pass counts UniRef100 clusters. Comparing the two produced an apparent
+    5.8x discrepancy, every part of which was the mismatch, and a one-line caveat under the
+    delta did not stop a worker building a hypothesis on top of it (D-150). A caveat that does
+    not change the number it qualifies is not a safeguard, so the number is changed.
+
+    So `query_set` reports the UniRef100 count as what it is — the set searched against the
+    corpus, deliberately broader than the publisher's object because breadth is the
+    conservative choice for an audit (D-092) — and the comparison against 187K is made against
+    the same reading executed over UniProtKB, which `tools/uniprot_denylist_count.py` pins.
+    That validates the reading in D-137; nothing published can validate the seed set, because
+    every published size is of a different object.
     """
-    delta = seeded - PUBLISHED_SEQUENCES
     out: dict[str, Any] = {
+        "query_set_clusters": seeded,
+        "query_set_note": (
+            "UniRef100 clusters seeded by the denylist taxa: the set searched against the "
+            "corpus. Not a reconstruction of the published denylist object and not comparable "
+            "with its size (D-150)."
+        ),
         "published_sequences": PUBLISHED_SEQUENCES,
         "published_source": "D-106, ESM3 version of record: 147K non-viral + 40K viral",
-        "rebuilt_sequences": seeded,
-        "delta": delta,
-        "delta_share": (delta / PUBLISHED_SEQUENCES if PUBLISHED_SEQUENCES else None),
+        "published_counts": "UniProtKB sequences, per the version of record A.6.1 p47",
         "known_downward_pressure": (
             "entries contributing no taxon: toxins under the literal reading, laboratory "
             "constructs, one functional predicate, and agents absent from the pinned taxonomy"
@@ -237,12 +258,29 @@ def reconcile(seeded: int, entry_counts: seeds.EntryCounts | None = None) -> dic
             "restriction: avian influenza, Newcastle disease, the two Mycoplasma entries, and "
             "tick-borne encephalitis virus"
         ),
-        "note": (
-            "A match is not expected in either direction and a mismatch is not a failure. "
-            "Compared against UniRef clusters, not UniProtKB entries, so the "
-            "representative-versus-member gap in amazebio.seeds applies here too."
-        ),
     }
+    path = UNIPROT_COUNTS if uniprot_counts is None else uniprot_counts
+    if path.exists():
+        pinned = json.loads(path.read_text())
+        sequences = pinned["sequences"]
+        delta = sequences - PUBLISHED_SEQUENCES
+        out["reading_against_published"] = {
+            "uniprot_sequences": sequences,
+            "uniprot_release": pinned.get("uniprot_release"),
+            "delta": delta,
+            "delta_share": (delta / PUBLISHED_SEQUENCES if PUBLISHED_SEQUENCES else None),
+            "what_this_checks": (
+                "whether the regulation's entries were resolved to the same organisms the "
+                "lab resolved them to. It does not validate the UniRef100 seed set."
+            ),
+            "release_gap": pinned.get("release_gap"),
+        }
+    else:
+        out["reading_against_published"] = None
+        out["reading_against_published_note"] = (
+            f"no pinned UniProtKB count at {path}; run tools/uniprot_denylist_count.py. "
+            "Without it the published figure has nothing comparable to sit against."
+        )
     if entry_counts is not None:
         out["by_entry"] = entry_counts.to_dict()
         out["largest_contributor"] = _largest_contributor(seeded, entry_counts)
@@ -261,17 +299,18 @@ def _largest_contributor(seeded: int, entry_counts: seeds.EntryCounts) -> dict[s
     if not entry_counts.exclusive:
         return None
     entry, exclusive = entry_counts.exclusive.most_common(1)[0]
-    without = seeded - exclusive
     return {
         "entry": entry,
         "exclusive_clusters": exclusive,
         "share_of_seed_set": (exclusive / seeded if seeded else None),
-        "seeded_without_it": without,
-        "delta_without_it": without - PUBLISHED_SEQUENCES,
+        "query_set_without_it": seeded - exclusive,
         "note": (
-            "Reported because D-146 found one entry carrying almost the whole seed set. "
-            "`seeded_without_it` is the count with this entry's exclusively-claimed clusters "
-            "removed; it is a decomposition of the measurement and not a second reading."
+            "Which entry the query set leans on hardest, named from the measurement so a "
+            "re-pin reports whichever entry then dominates. `query_set_without_it` is the "
+            "count with this entry's exclusively-claimed clusters removed — those are the "
+            "ones no other entry would keep. Deliberately not compared with the published "
+            "figure: that counts UniProtKB sequences and this counts UniRef100 clusters "
+            "(D-150)."
         ),
     }
 
@@ -639,20 +678,26 @@ def _execute(
         if not bounded:
             rec = payload["reconciliation"]
             assert rec is not None
-            print(
-                f"  against the published {rec['published_sequences']:,}: "
-                f"{rec['delta']:+,} ({100 * (rec['delta_share'] or 0):+.1f}%) — "
-                "a match is not expected in either direction, see D-137",
-                flush=True,
-            )
+            # The published 187K counts UniProtKB sequences and this pass counts UniRef100
+            # clusters, so the two are never printed as a delta (D-150).
+            reading = rec.get("reading_against_published")
+            if reading is None:
+                print(f"  {rec['reading_against_published_note']}", flush=True)
+            else:
+                print(
+                    f"  the reading against the published {rec['published_sequences']:,} "
+                    f"UniProtKB sequences: {reading['uniprot_sequences']:,} at release "
+                    f"{reading['uniprot_release']} ({reading['delta']:+,}, "
+                    f"{100 * (reading['delta_share'] or 0):+.1f}%). This checks the reading, "
+                    "not the seed set",
+                    flush=True,
+                )
             top = rec.get("largest_contributor")
             if top is not None:
                 print(
                     f"  largest single contributor: {top['entry']} — "
                     f"{top['exclusive_clusters']:,} clusters claimed by it alone "
-                    f"({100 * (top['share_of_seed_set'] or 0):.1f}% of the seed set); "
-                    f"without them {top['seeded_without_it']:,} "
-                    f"({top['delta_without_it']:+,} against the published figure)",
+                    f"({100 * (top['share_of_seed_set'] or 0):.1f}% of the query set)",
                     flush=True,
                 )
 
