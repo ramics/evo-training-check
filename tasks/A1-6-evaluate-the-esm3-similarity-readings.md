@@ -926,3 +926,42 @@ set and rows the join reads locally.
 
 **Left.** The band 1 re-run, then the join again with its per-cell sidecars to add D-158's second
 denominator. Nothing else, and nothing waiting on the project owner.
+
+## Which band artefact is authoritative, and why there are three — 2026-10-18
+
+A near-miss, recorded because it leaves three near-identical objects in a bucket that cannot
+drop any of them.
+
+**Authoritative: `corpora/results/a1-6/band-complete.json`** — band 1, viral arm, six cells.
+`band.json` is the same run's five-cell state, published before the resumed sixth cell landed
+(D-148). Both are intact and unmodified.
+
+**The two `band-viral-arm-*-backup-20261018.json` keys are byte-identical copies** of those two,
+made at 13:47 on 2026-10-18 as insurance during the near-miss below. They are not a separate
+measurement and nothing should cite them; they exist because a server-side copy was the only
+protection available in a bucket with no `DeleteObject`, and the bucket cannot drop them now.
+
+**What nearly happened.** A1.8 launched a band pass on the select-agent denylist at 13:41
+without `--artefact-name`. `ARTEFACT_NAMES["band"]` is `band.json` and `--upload-results` was
+set, so it would have published **select-agent** results to the key D-153 and D-154 cite for the
+**viral** arm, at about 14:34, irreversibly. Not loss but silent substitution, across exactly the
+arm boundary D-108 says must never be pooled. The instance was terminated at 13:49:54, before
+`publish()`; `band.json` is untouched.
+
+**What exposed it was not the written warning.** The three traps recorded in this file at about
+12:30 included this one, and it fired on another track inside two hours anyway. What actually
+caught it was the **shared progress key**: both arms wrote `corpora/results/a1-6/progress-band.json`,
+so a foreign `code_commit` appeared in this task's own watcher. A collision that looked like
+nuisance was the only reason the real hazard was visible.
+
+**Two lessons, both now fixed in A1.8's `c027951`** (`--results-task`, additive, defaults
+unchanged, 1,079 green): every write carries the arm — artefact, heartbeat, per-cell sidecars,
+manifest, launcher watch key — and the instance `Name` tag no longer derives from `--measure`
+alone, which is why two different arms' instances were indistinguishable in a console listing. A
+test asserts no write hardcodes a task prefix, because the failure mode is a key that is wrong
+rather than a call that is missing.
+
+**Worth copying as technique:** `ec2:DescribeInstanceAttribute` returns a running instance's
+`UserData`, which settles what it was actually told to do. Here it showed the missing flag
+directly instead of inferring intent from a launch command nobody could see. `AGENTS.md` already
+records that channel as allowed; this is the first time in this task it decided anything.
