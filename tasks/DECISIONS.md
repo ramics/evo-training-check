@@ -6669,3 +6669,62 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the §A0 finding about the unquantified phrase gets quantitative support; if it is small, band
   1's strict-reading figures stand with less of a caveat attached. Both outcomes are reportable
   and the direction is not known before the pass, which is why this entry exists before it.
+
+### D-159 — What A1.8's scoring pass measures, and how it may be reported, fixed before any result is seen
+- **Date:** 2026-10-18
+- **Task:** A1.8
+- **Why this is written now.** §2 and AGENTS.md require thresholds, parameters and analysis
+  specs fixed before results are inspected. This arm has a sharper reason than the general one:
+  D-154 found A1.6 reporting a figure as a lower bound when its seed set implemented only the
+  first clause of the rule, and the phrasing had to be withdrawn after the number existed.
+  A1.8's seed set has a larger version of the same problem (D-157), and the honest framing is
+  much easier to agree to before anyone has seen a rate.
+- **What the pass does.** The reconstructed select-agent seed set — 1,079,124 UniRef100 2023_02
+  clusters, `corpora/results/a1-8/select-agent-seeds-2023_02-uniref100.faa` — is scored against
+  the staged 2.5% hash sample of UniRef100 2023_02 (D-122), at the fixed parameters of D-105
+  and D-107: `-c 0.8`, `--max-seqs 100000` behind the saturation guard, three sensitivities
+  (2.0, 5.7, 7.5) against two coverage-filtered searches recovering all three coverage
+  readings — the same six cells per shard A1.6's band 1 ran, so the two arms' instruments are
+  identical and only the query set differs.
+- **What the resulting rate is a rate *of*, stated precisely.** The share of sampled corpus
+  records that align, at or above a given identity, to a sequence **belonging to an organism
+  named on the Select Agents and Toxins List as this project reads it (D-137)**. It is **not**
+  the share of records the filter undertook to remove and did not.
+
+  The gap between those two is measured, not hypothetical. At ESM3's own release the reading
+  yields 1,277,073 UniProtKB sequences where they report 187,000 — 6.8x, and still 1.7x on the
+  narrowest reading the regulation permits (D-157). Our query set is broader again, being
+  UniRef100 clusters rather than UniProt sequences. So a matched record may be material the
+  filter never undertook to remove.
+- **Two errors, running in opposite directions, and neither may be dropped.** This is D-154's
+  structure and it applies here with the larger term:
+  - **Sampling understates.** A 2.5% corpus sample and a 1/100 seed band both miss material: a
+    record matched only by an unsampled seed, or sitting outside the sampled shards, is not
+    counted.
+  - **A query set broader than the denylist overstates.** A record matching select-agent
+    material that ESM3's denylist did not contain is counted as survival of something the
+    filter should have removed, when it undertook no such thing.
+
+  **The net direction is not known, and no figure from this arm may be phrased as a bound in
+  either direction.** "At least X%" and "no more than X%" are both unsupportable. The
+  supportable form names the reading, the sample and both axes.
+- **What may be published, carried forward unchanged.** Counts by survival route and homology
+  class, never by organism or taxon (D-125). The per-record manifest to the disclosure package
+  only, at the key D-126 fixes. Not pooled with A1.6's broad-arm rate (D-108). No all-clear:
+  the pass is sampled and Phase A does not state that nothing on the narrow denylist survived
+  (D-133). Every figure carries the proxy qualifier A1.1 requires on ESM3 results.
+- **The sizing, fixed here so the result is not quietly rescoped to fit a budget.** On D-153's
+  measurement — 31,381 seeds against shard 0 at six cells, 14,852 s wall on eight vCPU — this
+  arm's 1,079,124 seeds give: band 1 (1/100 of seeds) on one shard **≈1.4 h and about $0.25**;
+  band 1 across all eight shards ≈11.3 h; the whole seed set on one shard ≈142 h; the whole
+  seed set on the whole sample ≈1,135 h. **Band 1 on shard 0 runs first**, both as the smoke
+  test and because it is the cell-for-cell comparison with A1.6's band 1 — same shard, same
+  six cells, different denylist. Widening is a separate decision taken with that result in
+  hand, not an assumption built into this one.
+- **Rejected:** Reporting a single survival percentage for "the select-agent denylist" — it
+  names a denylist this arm does not implement, and D-157 measured how far off it is. Calling
+  the figure a lower bound because the sampling axis is a floor — exactly the error D-154 had
+  to correct one level up, and repeating it with a larger broadening term would be worse.
+  Waiting for a clause-(b)-equivalent restriction before scoring — no such clause exists in the
+  select-agent procedure to implement; the gap there is unexplained rather than unapplied
+  (D-157), so there is nothing to wait for.
