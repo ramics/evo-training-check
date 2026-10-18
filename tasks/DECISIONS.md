@@ -6840,3 +6840,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   by D-022, and this entry says why in measured terms). The Phase A write-up carries the
   composition and the absolute counts; any percentage it quotes names its denominator in the
   same sentence.
+
+### D-162 — Correction to D-157: the viral residual is not clause (b)'s effect, and two independent measurements now bracket it
+- **Date:** 2026-10-18
+- **Task:** A1.8 (the measurement is A1.6's, from D-158)
+- **What D-157 said and should not have.** It reported 5,379,748 taxonomically viral UniProtKB
+  sequences at release 2023_02 against ESM3's stated ~4M, and described the 1.34x gap as "a
+  1.34x gap with a described cause", with the A1.6 task note going further: the difference "is
+  accounted for by a step they describe". **That is an attribution, not a measurement**, and it
+  was raised by A1.6 rather than caught here.
+
+  The residual assumes the whole gap is clause (b) — "align[s] almost exclusively to other
+  viral sequences in UniProt" — and that nothing else contributes. At least two other things
+  plausibly do: annotation drift between 2023_02 and whatever snapshot the lab actually read,
+  and the reading of "annotated as viral" itself. A residual is what is left over, and naming
+  it after one of several possible causes is the same move D-154 had to correct one level up,
+  and the same move D-150 corrected when a caveat under a number failed to stop the number
+  being built on.
+- **The count itself is confirmed, independently.** A1.6's exposure pass counted viral members
+  carrying a UniRef100 id out of the UniRef90 and UniRef50 tiers — a different file, a
+  different method, neither calibrated against the other — and got **5,405,462**, which is
+  **0.48%** from this arm's 5,379,748. Both tiers emitted identically that figure, which is
+  also an internal check since every member sits in exactly one cluster at each level, and
+  both matched their release notes on cluster count (170,669,877 and 60,479,070). So the
+  archive read is sound; it is only the interpretation of the gap that was overstated.
+- **What the exposure measurement does and does not bound.** Over band 1's realised 31,381-seed
+  sample, the share of seeds whose cluster holds at least one non-viral member is **13.61% at
+  UniRef90 and 31.48% at UniRef50**. The 26% residual falls inside that range, near the 50%
+  end. This is worth less than it looks, for two reasons A1.6 states and this entry adopts:
+  the criterion is "the cluster holds at least one non-viral member", which fails seeds that
+  clause (b) would keep — one cellular cluster-mate among hundreds is still "almost
+  exclusively" viral — so it is an **upper bound rather than an estimate**; and it is cluster
+  co-membership over UniRef100 seeds at two fixed identities, not a residual over UniProtKB
+  sequences, so the two are different objects landing in the same region rather than one
+  confirming the other.
+- **Decision: the supportable wording, which replaces D-157's.** Two unrelated proxies falling
+  in the same region is evidence that the underlying quantity is of that order, and nothing
+  more. The line A1.8 and A1.6 both use is: *an independent exposure measurement at 50%
+  identity puts an upper bound of 31.5% on the share of viral seeds with cellular homologues,
+  consistent with but not confirming this residual.* **"Clause (b) removes 26%" may not appear
+  anywhere**, in either task's write-up.
+- **What survives of D-157's finding, which is the part that matters.** The asymmetry is
+  untouched. The viral denylist has a second clause that could account for a gap of roughly
+  this size, and the select-agent denylist has no such clause — its stated procedure runs
+  straight from the list to the count — yet no reading of the regulation reproduces its
+  published total, by 1.7x at the narrowest and 6.8x literal. That contrast does not depend on
+  attributing the viral residual to anything in particular, and it is the finding.
+- **Rejected:** Leaving D-157 as written with this entry as a footnote — its A1.6 task note
+  says the difference "is accounted for", which a reader will carry forward as settled; the
+  note is corrected in place and points here. Treating the 13.61%-31.48% range as a
+  measurement of clause (b) and quoting a midpoint — it is an upper bound by construction, and
+  a midpoint of a bound is not an estimate of anything.

@@ -790,13 +790,18 @@ this arm now has the comparison it wanted. Both members matched the publisher's 
 statistics exactly, so the read is whole.
 
 **5,379,748 taxonomically viral UniProtKB sequences at release 2023_02**, against ESM3's stated
-~4M. A 1.34x gap with a described cause: the paper's viral denylist is not "annotated as viral"
-alone but sequences that *also* "align almost exclusively to other viral sequences in UniProt",
-and a 26% reduction from a specificity filter is what that step is for. "Almost exclusively" is
-unquantified, which is already on the open-questions list.
+~4M — a 1.34x gap.
 
-So this arm's **reading** checks out — the difference between our set and theirs is accounted
-for by a step they describe. That is worth having, and it is the strongest statement available.
+**Corrected by D-162, and the correction matters.** This note first said the gap was "accounted
+for by a step they describe", meaning clause (b). That was an attribution, not a measurement: a
+residual assumes the whole gap is clause (b) and that nothing else contributes, when annotation
+drift and the reading of "annotated as viral" are both live. **"Clause (b) removes 26%" may not
+be written anywhere.**
+
+The count itself is independently confirmed — your own exposure pass read 5,405,462 viral
+members out of the UniRef90 and UniRef50 tiers, 0.48% from this figure by a different method on
+a different file. And your 13.61%/31.48% exposure shares bracket the residual without
+confirming it, being an upper bound by construction. The supportable line is in D-162.
 
 **It still does not validate the seed set,** and the correction from 2026-10-18 above stands:
 3,159,223 UniRef100 clusters cannot be compared with a UniProt sequence count, so the "roughly
