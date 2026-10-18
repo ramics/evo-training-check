@@ -364,3 +364,58 @@ the statement that no all-clear is made.
 and hardwired to the viral seed set. Do not write a second copy.
 
 **Waiting on the project owner:** nothing.
+
+## Band 1 result — 2026-10-18
+
+**Complete: six cells, nine groups, shard 0, band 1/100.** Artefact at
+`corpora/results/a1-8/band-select-agent.json`, written by `c027951` on `i-0cd905307d15249ff`.
+10,769 seeds of 1,079,124 (1/100 hash), **34 seed families**, against 1,097,174 records in
+132,473 strata (11.8% unplaced, matching A1.6's D-152 figure on an independently rebuilt shard).
+
+**At the charitable reading's 0.70 cut the figure is 0.8362% to 0.9135%,** and the structure of
+that range is the result:
+
+| coverage reading | ≥0.70, across all three sensitivities |
+|---|---|
+| mode 0 | 0.8362% – 0.8362% |
+| mode 1 | 0.9133% – 0.9135% |
+| mode 2 | 0.9084% – 0.9086% |
+
+**Sensitivity changes nothing.** Within a coverage reading, moving `-s` from 2.0 to 7.5 moves
+the banded figure by at most 0.03% relative — identical to four decimal places at mode 0. The
+whole 9.2% spread is the three readings of ESM3's coverage description (D-107), which is a
+property of the source text rather than of our instrument. Meanwhile the any-identity figure
+runs 13.0186% to 25.5524%, a factor of 1.96. So D-153's finding reproduces on a different
+denylist: the sub-threshold tail is our aligner's reach, and the quantity the charitable
+reading turns on is not.
+
+**The caveat that outweighs the number, and it differs from the viral arm's.** Of the 10,023
+records at ≥0.70 (s5.7 mode 1), **32.9% sit in 0.70-0.75** and 23.2% at ≥0.90. D-153 measured
+the opposite for viral — 3.4% and 77% — and concluded the result "does not balance on the
+inferred threshold as much as feared". **This one does.** The threshold is unpublished (D-107);
+0.70 is our inference from the source, not their number. A third of this arm's matches sit in
+the band immediately above it, so the figure is materially more sensitive to that unknown than
+A1.6's is, and that travels with every quotation of it.
+
+**The banded figure has no interval, and should.** The artefact's interval is on the
+any-identity rate (s5.7 mode 1: 23.80%, 95% CI 21.72%-25.89%, design effect **685**). The
+≥0.70 figure is a band count with no interval attached, because the family-level detail is
+kept for the any-identity rate. "Uncertainty travels with the estimate" is a non-negotiable, so
+the headline cannot ship this way: it needs the interval recomputed over families restricted to
+≥0.70 matches, which the staged per-cell `seed-hits-*.tsv.gz` sidecars can supply without
+re-running anything. **That is the next piece of work, before any figure is quoted.**
+
+A design effect of 685 is the 34 families made quantitative: matches cluster hard within few
+families, so the effective sample is far smaller than 1,097,174 suggests. Widening to more
+shards adds corpus and not families, and will not fix it.
+
+**Labelling defect in this artefact.** It carries `lower_bound: true` and no `net_direction`,
+because the instance ran a commit predating the fix. Per **D-159** that flag may not be read as
+a claim about this result: sampling understates, the query set overstates by a measured 1.7x to
+6.8x (D-157), and the net direction is not established. `b96a678` makes `"at least"` render only
+when a caller asserts a direction; a re-run would relabel, but the numbers are unaffected and a
+re-run for a flag is not worth 2.3 hours. **Read this artefact with D-159 beside it.**
+
+**Not yet compared with A1.6's 0.6537%-0.6844%.** Same shard, same six cells, same instrument —
+but different denylists of different and unquantified relative breadth. The comparison needs an
+argument, not a subtraction.
