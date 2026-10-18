@@ -546,8 +546,13 @@ the three above it and D-134, D-140 to D-142, D-148 and D-150, and you have the 
 **Band 1 is five-sixths published and the sixth cell is in flight.** Instance
 `i-091497604cc5e805d`, resumed, writing to `band-complete.json` so `band.json` cannot be
 touched. It loaded the 5 published cells at 37 s, then started the corpus pass; it skips those
-five and runs only `s7.5 cov2`. **Do not relaunch it** — if it fails, resume again from
-whichever band artefact is newest, with `--artefact-name` pointing somewhere new.
+five and runs only `s7.5 cov2`. **Do not relaunch it.**
+
+**If it fails, resume from the band artefact with the most cells in it — never the newest.**
+`band-complete.json` is published early in the run holding **no cells**, about two and a half
+hours before the sixth one lands, because `publish()` runs before the band stage. Resuming from
+it because it is newest would drop the five paid cells and rebuy all six. Open each candidate and
+count `band.cells`.
 
 **The five published cells**, all lower bounds, over 1,097,174 records, 132,473 strata, 7,366
 seed families, from 1/100 of the seed set:
@@ -556,31 +561,43 @@ seed families, from 1/100 of the seed set:
 |---|---|---|---|
 | s2 | ≥1.5473% | ≥1.7609% | ≥1.9458% |
 | s5.7 | ≥2.3624% | ≥2.9507% | ≥3.6187% |
-| s7.5 | — | in flight | in flight |
+| s7.5 | published | published | **in flight** |
 
-95% intervals are in `band.json`; the widest is ±0.57 points. **Not a result yet**: `s7.5` is
-incomplete, and D-109's sensitivity sweep is the only check on whether the rate is a property of
-the filter or of our aligner settings. Sensitivity moves the figure 1.5-1.9x, so no single number
-here may be quoted alone.
+The five cells are `s2 cov1`, `s2 cov2`, `s5.7 cov1`, `s5.7 cov2` and `s7.5 cov1`. Since
+`SEARCH_READINGS[1] = (0, 1)`, that `s7.5 cov1` cell speaks for modes 0 **and** 1 — so **eight of
+the nine groups are published** and only `s7.5 cov2` is outstanding. The `s7.5` rates are in
+`band.json` and are omitted here deliberately, so that reading this table cannot substitute for
+reading the artefact once the band is whole.
 
-**Measured, and worth carrying.** The taxonomy-unplaced share is **11.8%** (129,113 of
-1,097,174), not the ~36% D-141 borrowed from A4.2 to argue magnitude. D-141's conclusion is
-unaffected — pooling is unstable either way — but the figure in its reasoning is from a different
-measurement and should be cited as this one.
+95% intervals are in `band.json`; the widest among the six values above is ±0.57 points. **Not a
+result yet**: D-109's sensitivity sweep is the only check on whether the rate is a property of the
+filter or of our aligner settings, and it is one cell short. Sensitivity moves the figure 1.5-1.9x
+across the rows above, so no single number here may be quoted alone.
+
+**Measured, and worth carrying (D-152).** The taxonomy-unplaced share is **11.8%** (129,113 of
+1,097,174), not the ~36% D-140 and D-141 borrowed from A4.2, which measured a different quantity.
+Both conclusions stand — D-141's point is that pooling is unstable whatever the share — but the
+design effect is diluted by exactly this fraction, so the realised intervals are wider relative to
+binomial than those entries implied.
 
 **Left, in order.**
 
 1. The sixth cell lands, then `band-complete.json` is the band. Check `searched_records` is
    1,097,174 and every cell carries `-q100`.
 2. Stage the strata sidecars with `--stage-sidecars-only`, so band 2 and A1.8 do not each rebuild
-   them — six launches otherwise pay the 52-minute pass for nothing.
+   them — six launches otherwise pay the 52-minute pass for nothing. **This is its own launch and
+   its own spend**, roughly $0.20: the flag needs a corpus pass to build what it uploads, so it
+   cannot use `--sample-from`. It needs the owner's go-ahead like any other launch.
 3. Band 2 at `--band-denominator 10` **only if** band 1's measured per-seed cost and hit-table
    size say it fits (D-134), and it is what decides whether D-128's full-seed band 3 is worth
    buying.
 4. Strike the 4M validation claim from the write-up (D-150) and report the §A0 finding instead.
 
-**Nothing waits on the project owner.** The spend for band 1 is authorised and spent; band 2 is a
-fresh decision and is not authorised.
+**Waiting on the project owner: the spend for steps 2 and 3.** Band 1 is authorised and paid for,
+and the cell in flight completes it. Everything after it is a fresh launch and none is authorised.
+
+**The measured unplaced share is D-152, not the 36% D-140 and D-141 reason from.** That entry
+records why both conclusions stand anyway.
 
 ## Notes
 
