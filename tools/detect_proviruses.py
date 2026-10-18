@@ -282,8 +282,49 @@ def write_batch(genomes: list[tuple[str, list[tuple[str, str]]]], path: Path) ->
 # --------------------------------------------------------------------------------------
 
 
+def _stream(cmd: list[str], *, label: str, on_line: Any = None) -> tuple[int, str]:
+    """Run a long subprocess with its output visible, keeping the tail for an error message.
+
+    `capture_output=True` was the first version and it made the longest step of the whole pass
+    invisible: geNomad ran for hours with its progress swallowed, and because `beat()` fired
+    only before the call there was no heartbeat either. On an instance whose console is the
+    only channel and cannot distinguish a dead process from a quiet one, that is the silence
+    `AGENTS.md` spends a paragraph on — and A2.4 shipped it twice, once for the corpus read and
+    once here.
+
+    So the output streams, which reaches `/dev/console` through the `tee` in `UserData`, and
+    `on_line` lets the caller beat while it runs. The last lines are kept for the exception,
+    because a failure still has to say why.
+    """
+    import collections
+
+    tail: collections.deque[str] = collections.deque(maxlen=40)
+    process = subprocess.Popen(
+        cmd,
+        cwd=REPO,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    assert process.stdout is not None
+    for line in process.stdout:
+        line = line.rstrip()
+        tail.append(line)
+        print(f"    [{label}] {line}", flush=True)
+        if on_line is not None:
+            on_line(line)
+    return process.wait(), "\n".join(tail)
+
+
 def genomad(
-    fasta: Path, outdir: Path, database: Path, *, splits: int = 8, threads: int | None = None
+    fasta: Path,
+    outdir: Path,
+    database: Path,
+    *,
+    splits: int = 8,
+    threads: int | None = None,
+    on_line: Any = None,
 ) -> Path:
     """Run `annotate` then `find-proviruses`, and return the provirus table.
 
@@ -311,11 +352,9 @@ def genomad(
         ]
         if threads:
             cmd += ["--threads", str(threads)]
-        result = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, check=False)
-        if result.returncode != 0:
-            raise RunError(
-                f"genomad {module} failed ({result.returncode}): {result.stderr[-2000:]}"
-            )
+        code, tail = _stream(cmd, label=f"genomad {module}", on_line=on_line)
+        if code != 0:
+            raise RunError(f"genomad {module} failed ({code}): {tail}")
     stem = fasta.name.split(".")[0]
     table = outdir / f"{stem}_find_proviruses" / f"{stem}_provirus.tsv"
     if not table.exists():
@@ -339,7 +378,7 @@ def vibrant(fasta: Path, outdir: Path, *, threads: int = 4) -> Path | None:
     VIBRANT writes nothing when it finds no prophage in the input, so an absent table is read as
     "no calls" rather than as a failure, the same convention geNomad's own output follows.
     """
-    result = subprocess.run(
+    code, tail = _stream(
         [
             "pixi",
             "run",
@@ -353,10 +392,7 @@ def vibrant(fasta: Path, outdir: Path, *, threads: int = 4) -> Path | None:
             "-t",
             str(threads),
         ],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        check=False,
+        label="vibrant",
     )
     stem = fasta.name.rsplit(".", 1)[0]
     table = (
@@ -368,8 +404,7 @@ def vibrant(fasta: Path, outdir: Path, *, threads: int = 4) -> Path | None:
     if table.exists():
         return table
     print(
-        f"  vibrant produced no coordinate table ({result.returncode}): "
-        f"{result.stderr[-400:] or result.stdout[-400:]}",
+        f"  vibrant produced no coordinate table (exit {code}): {tail[-400:]}",
         flush=True,
     )
     return None
@@ -485,6 +520,19 @@ def detections_from_hits(
             )
         )
     return out
+
+
+def _throttled(fn: Any, seconds: float) -> Any:
+    """Call `fn` with the latest line, at most once every `seconds`."""
+    state = {"last": 0.0}
+
+    def call(line: str) -> None:
+        now = time.time()
+        if now - state["last"] >= seconds:
+            state["last"] = now
+            fn(line)
+
+    return call
 
 
 def host_of_contig(source_seq: str) -> str:
@@ -754,7 +802,21 @@ def main(argv: list[str] | None = None) -> int:
                             genomes=counts["genomes"],
                             bases=counts["bases"],
                         )
-                        table_path = genomad(fasta, work, args.genomad_db)
+                        # Bound explicitly rather than closed over: ruff's B023 is right that
+                        # a closure over the loop variables would report whichever source the
+                        # loop had reached by the time it fired, not the one being searched.
+                        genomad_beat = _throttled(
+                            lambda line, _r=release, _c=component, _n=counts: beat(
+                                "genomad",
+                                release=_r,
+                                component=_c,
+                                genomes=_n["genomes"],
+                                bases=_n["bases"],
+                                last_line=line[:160],
+                            ),
+                            args.heartbeat_seconds,
+                        )
+                        table_path = genomad(fasta, work, args.genomad_db, on_line=genomad_beat)
                         calls = read_genomad_proviruses(table_path)
                         proviruses_total += len(calls)
                         proteins_faa = provirus_proteins(table_path)

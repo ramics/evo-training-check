@@ -322,3 +322,34 @@ def test_contig_indices_are_unique_within_a_merged_genome(tmp_path):
     headers = [line[1:].strip() for line in path.read_text().splitlines() if line.startswith(">")]
     assert headers == ["G1~0", "G1~1", "G1~2"]
     assert len(set(headers)) == len(headers)
+
+
+def test_the_long_subprocess_streams_rather_than_capturing():
+    """geNomad ran for hours with its output swallowed by capture_output=True.
+
+    With beat() firing only before the call, that left the longest step of the pass with no
+    heartbeat and no console output at all — the silence AGENTS.md spends a paragraph on, and
+    A2.4 shipped it twice: once for the corpus read, once here.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    # Scoped to the function bodies, not the file: `_stream`'s own docstring explains the
+    # mistake and names it, and the first version of this test matched that prose.
+    body = source[source.index("def genomad(") :]
+    body = body[: body.index("def provirus_proteins(")]
+    assert "capture_output" not in body
+    assert "def _stream(" in source
+    assert "on_line=genomad_beat" in source
+
+
+def test_the_stream_keeps_a_tail_so_a_failure_still_says_why():
+    source = pathlib.Path(dp.__file__).read_text()
+    stream = source[source.index("def _stream(") : source.index("def genomad(")]
+    assert "maxlen=" in stream and "tail" in stream
+
+
+def test_the_throttle_fires_once_per_interval_not_per_line():
+    calls = []
+    throttled = dp._throttled(calls.append, 3600.0)
+    for i in range(100):
+        throttled(f"line {i}")
+    assert len(calls) == 1, "geNomad emits thousands of lines; one beat per line is a flood"
