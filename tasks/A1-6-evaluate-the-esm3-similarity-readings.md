@@ -965,3 +965,73 @@ rather than a call that is missing.
 `UserData`, which settles what it was actually told to do. Here it showed the missing flag
 directly instead of inferring intent from a launch command nobody could see. `AGENTS.md` already
 records that channel as allowed; this is the first time in this task it decided anything.
+
+## D-158 is complete: both denominators, nine cells, two tiers — 2026-10-18
+
+The band 1 re-run finished all six cells on `i-0b0833e428b5d370e` and terminated through its own
+`die`, 6/6 sidecars staged. Unlike band 1 itself, no cell was lost.
+
+**D-158's second denominator, the one that bears on the headline.** Non-exclusive share among the
+seeds that actually produced a hit record, against the all-sampled baseline of 13.61% (90%) and
+31.48% (50%):
+
+| cell | reading | n | 90% | ×base | 50% | ×base |
+|---|---|---|---|---|---|---|
+| s2 cov1 | 0 | 19,679 | 0.1534 | 1.127 | 0.3584 | 1.138 |
+| s2 cov1 | 1 | 20,407 | 0.1513 | 1.111 | 0.3545 | 1.126 |
+| s2 cov2 | 2 | 20,917 | 0.1468 | 1.078 | 0.3450 | 1.096 |
+| s5.7 cov1 | 0 | 20,539 | 0.1560 | 1.146 | 0.3630 | 1.153 |
+| s5.7 cov1 | 1 | 21,587 | 0.1540 | 1.132 | 0.3584 | 1.139 |
+| s5.7 cov2 | 2 | 21,992 | 0.1488 | 1.093 | 0.3489 | 1.109 |
+| s7.5 cov1 | 0 | 20,685 | 0.1564 | 1.149 | 0.3643 | 1.157 |
+| s7.5 cov1 | 1 | 21,806 | 0.1543 | 1.133 | 0.3588 | 1.140 |
+| s7.5 cov2 | 2 | 22,189 | 0.1494 | 1.097 | 0.3502 | 1.113 |
+
+**The finding, and its size.** Hit-producing seeds are enriched for cellular homology over the
+sampled seed set — **1.078 to 1.157 across all eighteen cell-reading-tier points**, never below 1,
+never above 1.16. So the seeds driving band 1's measured survival are somewhat more exposed to the
+dropped clause (b) than the query set as a whole is. **The direction is consistent and the
+magnitude is modest**: it qualifies band 1's figure, it does not overturn it, and "hit-producing
+seeds are enriched for cellular homology" must not be written in a way that implies more.
+
+**The sweep did its job, which was to tell us whose property this is.** The enrichment is flat in
+sensitivity — 1.127, 1.146, 1.149 at mode 0 — rising slightly from s2 to s5.7 and then plateauing.
+It therefore describes the seeds rather than our aligner settings, which is exactly the separation
+D-109 bought the sensitivity axis to make.
+
+**The search has saturated**, independently supporting D-153's conclusion that the sweep answered
+its question rather than needing extending. Hit-producing seeds at mode 1 go 20,407 → 21,587 →
+21,806: s5.7 adds 1,180 over s2, and s7.5 adds 219 over s5.7, about 1%.
+
+**The complement is the audit-relevant residual.** At the most permissive tier and the most
+permissive coverage reading, roughly **64%** of hit-producing seeds have no non-viral cluster-mate
+at all. That is a **lower bound**, because the exclusivity test fails a seed on a single non-viral
+cluster-mate where clause (b) says "almost exclusively" — so it over-counts non-exclusive seeds and
+under-counts this residual. Material clause (b) would have kept in the denylist, which both
+readings therefore targeted, and whose survival is not explicable as host-homologous sequence.
+**It says nothing about what the matched records are** — D-154 assigns that to A2.\* and B3.\*.
+
+**The re-run reproduces band 1 exactly**, every completed cell matching the published artefact to
+four decimal places on rate and both confidence bounds. Two things follow: the seed-hit emission
+does not perturb the measurement, since it observes rows already being read; and band 1
+demonstrably regenerates from pinned inputs, which is a Done-when criterion this task had never
+exercised because the original run was never repeated.
+
+**Measured per-cell search times, which correct an extrapolation made here today.** 279 s, 248 s,
+1,426 s, 1,151 s, 5,362 s, and cell 6 longer still at over 6,500 s. `cov2` ran faster than `cov1`
+at s2 and s5.7, and this task predicted from those two points that `s7.5 cov2` would also be
+faster. It was not — D-148's description of it as the most expensive cell in the grid was right.
+**D-105 had already measured that the sensitivity settings are not nested**, which is a standing
+warning against extrapolating a ratio across them, and it was in front of whoever did it anyway.
+
+**Artefacts.** `corpora/results/a1-6/exposure/2023_02/report-both-denominators-<commit>.json` with
+its manifest. The per-cell seed-hit sidecars are identifier-bearing and sit in the disclosure
+package at `corpora/results/a1-6/disclosure/seed-hits/<commit>/`, never committed, per D-125 as
+amended by D-126.
+
+**Cost for the whole of D-158 and D-160:** about $0.35 for the exposure pass, about $0.70 for the
+re-run (six hours, one instance, including the 52.5-minute corpus pass the staged sample's missing
+sidecars force), and roughly $0.12 of egress for the join inputs. Under $1.20 in all.
+
+**A1.6's exposure work is done.** What remains on the task is unchanged by it: the arm's own
+reporting into the Phase A write-up.
