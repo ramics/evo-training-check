@@ -300,8 +300,15 @@ OG1_COMPONENTS = (
         "stage1_gtdb",
         "prokaryotic",
         ("stage1/gtdb/",),
-        False,
-        "130 GB, and OpenGenome2's GTDB component supersedes it for A2.4.",
+        True,
+        (
+            "130 GB. Staged on the owner's approval (D-119) after A2.4 established that the "
+            "earlier reading — OpenGenome2's GTDB supersedes it — amounts to substituting one "
+            "release's bacterial genomes for another's. The two releases pin different GTDB "
+            "snapshots, and Phase A exists to measure that difference rather than average it "
+            "away. Without this, the prophage route is measured on one of the two corpora "
+            "under audit."
+        ),
     ),
     Component(
         "stage1_imgpr",

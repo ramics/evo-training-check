@@ -268,13 +268,29 @@ def test_unstaged_components_are_listed_rather_than_omitted() -> None:
     """A wildcard-scope reading's manifest is only honest if the whole release is in it."""
     unstaged = {s.corpus_component for s in SOURCES if s.extra.get("staged") is False}
     assert {
-        "stage1_gtdb",
         "stage1_imgpr",
         "ncbi_eukaryotic_genomes",
         "eukaryotic_genic_windows",
         "metagenomes",
         "mrna",
     } <= unstaged
+
+
+def test_evo_1s_prokaryotic_component_is_staged_and_declared() -> None:
+    """D-119 staged it, reversing D-031's reading that OpenGenome2's GTDB superseded it.
+
+    The two releases pin different GTDB snapshots (D-130), so substituting one for the other
+    would have put a superset in place of a subset. Declared as a prefix, like Evo 2's: the
+    objects under it are not read by A1.4, and `undeclared_objects` matches prefixes so that
+    staging them does not silently fail the inventory guard.
+    """
+    gtdb = [s for s in SOURCES if s.corpus_component == "stage1_gtdb"]
+    assert len(gtdb) == 1
+    (source,) = gtdb
+    assert source.extra.get("staged") is not False
+    assert source.key.endswith("/stage1/gtdb/")
+    assert source.readable is False, "no rule reaches it, so A1.4 does not enumerate it"
+    assert source.extra["objects"] == 14
 
 
 def test_the_viral_components_declare_complementary_evidence() -> None:
