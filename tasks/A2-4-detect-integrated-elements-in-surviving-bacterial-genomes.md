@@ -122,25 +122,33 @@ caught the undeclared GTDB objects first, and they are now declared). The profil
 staged and verified: RVDB-prot at 13,679 profiles against 13,679 stated, Pfam's viral universe
 1,719 of 30,134. The geNomad marker database v1.9 is fetched and its md5 matches the publisher's.
 
-**The first band is running on `i-034bd070ebc7928b8`** (m6i.2xlarge spot, 120 GB, rate 0.0025,
-both releases), with a 17-hour shutdown timer. Progress is at
-`s3://amazebio-corpora-897641797669/corpora/results/a2-4/heartbeat.json`; results land in the
-same prefix as each table is written. Reattach with
-`python3 tools/ec2_proviruses.py --attach i-034bd070ebc7928b8`.
+**The first band produced results, and they are a Phase A finding.** At 0.25%, charitable
+reading, every detection `route: out_of_scope`, `element_kind: prophage`, `estimate_kind:
+lower_bound`:
 
-It replaces `i-016dbf04ae516b99a`, which was terminated after about 80 minutes rather than left
-to finish. That run measured Evo 1 at 375 genomes and 699 Mb — which corrected the corpus size
-(D-147) and showed the pass needed roughly ten hours against a twelve-hour timer, while
-uploading nothing until the very end. A timer firing during Evo 2 would have taken Evo 1's
-finished tables with it. Watching it also exposed a genome straddling a shard boundary being
-appended twice, with colliding contig names into geNomad. Both are fixed; a quarter of an hour
-of billing bought the measurement and the two faults.
+| release | genomes | bases | proviruses | Pfam viral | RVDB-prot |
+|---|---|---|---|---|---|
+| Evo 1 | 375 | 699 Mb | 128 | 203 / 1,719 (11.8%, CI 10.4-13.4) | 90 / 13,679 (0.66%, CI 0.54-0.81) |
+| Evo 2 | 300 | 946 Mb | 178 | 251 / 1,719 (14.6%, CI 13.0-16.4) | 153 / 13,679 (1.12%, CI 0.96-1.31) |
 
-Five proving launches preceded that one and each failed usefully, for pennies: spot capacity on
-`r6i.2xlarge`, my own `| head -4` killing the watcher and with it a healthy instance, the piped
-pixi installer failing with its error swallowed by a redirect, and the geNomad database digest
-left as `None` so the checksum guard refused the run. The last ran the whole path and
-self-terminated with `run complete`.
+Viral protein families surviving as prophage in bacterial genomes **the filter never examined** —
+a scope gap, not a conformance failure, and a lower bound. Evo 2 shows more than Evo 1, which is
+the direction D-130 would predict from its being a superset.
+
+**The concordance criterion is met** (D-114): on Evo 1's nested tenth-subsample, 40 records, both
+tools positive on 6, geNomad-only 0, VIBRANT-only 1, neither 33, **Cohen's kappa 0.91**. The
+prophage count is not an artefact of one instrument.
+
+**The measured cost is 0.996 core-min/Mb** (D-149), 2.74x cheaper than D-117's single-genome
+figure — the number this band existed to produce. And the sampling reproduced exactly across two
+separately launched instances, which demonstrates D-078's determinism rather than arguing it.
+
+These results are preserved at `corpora/results/a2-4/band1-run1-20261018/`.
+
+**The band is being re-run on `i-0bbdd4b09995095ed`** (0.25%, both releases, 15-hour timer),
+de-duplicated per D-151: the first run did six detection passes where two would do, so it spent
+the night relabelling and would have been cut mid-manifest. The re-run covers all six manifests
+in about seven hours.
 
 **Left, in order.**
 1. The VIBRANT arm. The concordance criterion is fixed (D-114) and its parser is written and

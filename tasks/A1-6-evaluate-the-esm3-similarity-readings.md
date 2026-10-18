@@ -504,6 +504,111 @@ What to look for in `band.json`: `searched_records` should be **1,097,174** and
 the cap run's target exactly. Six distinct cell slugs, all carrying `-q100`. Nine groups, each
 with `lower_bound: true`.
 
+
+## The validation target was never one — correction from A1.8 — 2026-10-18
+
+D-150, raised by the A1.8 track. **A1.6 has recorded a validation target it does not have.**
+
+The state blocks above say the reconstruction "has a validation target that works — ESM3 states
+the viral denylist is roughly 4M sequences". The same paragraph of the same methods appendix says
+that figure counts sequences **in UniProt**: "we identify ~4M sequences that are annotated as
+viral in UniProt". A1.6 counts **UniRef100 clusters** — 3,159,223 of them. The two are different
+objects, so the closeness is a coincidence of scale and not evidence of anything. Every earlier
+line in this file calling the 4M a validation target is wrong and stays only as a record of the
+error.
+
+**What this does not touch.** The seed set and the band run are unaffected. The set was never an
+attempt to reproduce ESM3's denylist object — it is the query set for searching the staged
+corpus, built from UniRef100 because UniProtKB is not staged and because cluster members catch
+material a representative-only set misses (D-092). Breadth is the conservative direction for an
+audit, which is why rebuilding it from UniProtKB to match their object is refused: it would make
+the audit *less* likely to find surviving material, and §2 forbids an error in that direction.
+
+**What it costs.** Phase A loses a validation it believed it had, on both arms. No corpus-level
+reconstruction here can be checked against a published size, because the only published sizes
+count a different object. "The paper's only stated denylist sizes cannot validate any
+corpus-level reconstruction" is itself a §A0 finding and belongs in the write-up as one.
+
+**For the write-up, concretely:** strike any sentence offering the 4M as corroboration, and do
+not replace it with a hedged version of the same comparison.
+
+**Noted for the next worker.** D-150 makes the general point better than this file can: the
+caveat was already in the code — "compared against UniRef clusters, not UniProtKB entries" — and
+it was far too quiet to stop a hypothesis being built on top of it. A caveat that does not change
+the number it qualifies is not a safeguard.
+
+
+## Handoff — 2026-10-18
+
+`in-progress`. **Branch `ccr-81045ff3-7u9p0a`**, 945 tests, full `check` green. Read this block,
+the three above it and D-134, D-140 to D-142, D-148 and D-150, and you have the task.
+
+**Band 1 is five-sixths published and the sixth cell is in flight.** Instance
+`i-091497604cc5e805d`, resumed, writing to `band-complete.json` so `band.json` cannot be
+touched. It loaded the 5 published cells at 37 s, then started the corpus pass; it skips those
+five and runs only `s7.5 cov2`. **Do not relaunch it** — if it fails, resume again from
+whichever band artefact is newest, with `--artefact-name` pointing somewhere new.
+
+**The five published cells**, all lower bounds, over 1,097,174 records, 132,473 strata, 7,366
+seed families, from 1/100 of the seed set:
+
+| | mode 0 | mode 1 | mode 2 |
+|---|---|---|---|
+| s2 | ≥1.5473% | ≥1.7609% | ≥1.9458% |
+| s5.7 | ≥2.3624% | ≥2.9507% | ≥3.6187% |
+| s7.5 | — | in flight | in flight |
+
+95% intervals are in `band.json`; the widest is ±0.57 points. **Not a result yet**: `s7.5` is
+incomplete, and D-109's sensitivity sweep is the only check on whether the rate is a property of
+the filter or of our aligner settings. Sensitivity moves the figure 1.5-1.9x, so no single number
+here may be quoted alone.
+
+**Measured, and worth carrying.** The taxonomy-unplaced share is **11.8%** (129,113 of
+1,097,174), not the ~36% D-141 borrowed from A4.2 to argue magnitude. D-141's conclusion is
+unaffected — pooling is unstable either way — but the figure in its reasoning is from a different
+measurement and should be cited as this one.
+
+**Left, in order.**
+
+1. The sixth cell lands, then `band-complete.json` is the band. Check `searched_records` is
+   1,097,174 and every cell carries `-q100`.
+2. Stage the strata sidecars with `--stage-sidecars-only`, so band 2 and A1.8 do not each rebuild
+   them — six launches otherwise pay the 52-minute pass for nothing.
+3. Band 2 at `--band-denominator 10` **only if** band 1's measured per-seed cost and hit-table
+   size say it fits (D-134), and it is what decides whether D-128's full-seed band 3 is worth
+   buying.
+4. Strike the 4M validation claim from the write-up (D-150) and report the §A0 finding instead.
+
+**Nothing waits on the project owner.** The spend for band 1 is authorised and spent; band 2 is a
+fresh decision and is not authorised.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Correction from A1.8 — 2026-10-18 (D-150)
+
+**The "~4M validates the viral seed set" claim does not hold, and this task's state block
+asserts it in two places.**
+
+ESM3's version of record, §A.6.1 p47: "we identify ∼4M sequences that are **annotated as viral
+in UniProt**". That figure counts UniProtKB sequences. This task's 3,159,223 is UniRef100
+clusters. The two are different objects, so their agreement is a coincidence of scale and not
+evidence that the reconstruction is right — in the same way, and for the same reason, that
+A1.8's select-agent set came out 5.8x its published figure.
+
+**What is not affected.** The seed set itself, the band run in flight, and every measurement
+resting on them. A1.6's seed set is a query set for searching the staged corpus, and breadth is
+the conservative choice for an audit; nothing about it depends on matching the publisher's count.
+D-100's other validation — 350,950,053 clusters matching the publisher's own release-note count
+exactly — is a UniRef-to-UniRef comparison and stands untouched.
+
+**What is affected.** The sentence "ESM3 states the viral denylist is roughly 4M sequences —
+which is worth having because D-032 established the reported 10.6M removals cannot validate a
+reconstruction" describes a validation target this task does not have. It needs removing from
+the write-up and from this file's state block. The honest position is that **no published
+denylist size can validate either arm's reconstruction**, because every published size is of a
+different object; what can be validated is the *reading*, by executing the stated method against
+UniProtKB, which is what A1.8 did for its arm (140,591 against a published 187K).
+
+Left here for whoever resumes A1.6 rather than edited into its state block by another task.
