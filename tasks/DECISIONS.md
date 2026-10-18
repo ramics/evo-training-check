@@ -6276,3 +6276,184 @@ decision has a threshold or parameter in it, the number goes in the entry.
   The first band's charitable results are preserved at
   `corpora/results/a2-4/band1-run1-20261018/` rather than being overwritten, because D-149 cites
   their numbers and the corpus bucket has no delete.
+
+### D-152 — The taxonomy-unplaced share is 11.8% measured, not A4.2's 36%; D-141's conclusion stands on the measured figure
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-140 and D-141 both reason about what to do with corpus records the pinned
+  taxonomy cannot place at family rank, and both took the magnitude of that set from A4.2 —
+  "given A4.2's 36%, the unplaced set is expected to be large". A4.2 measured a different thing:
+  the fraction of *genomes the denylist targets* that its taxonomy tool fails to place. Band 1
+  has now measured the quantity those entries actually depend on, over shard 0's 1,097,174
+  records: **129,113 unplaced, 11.8%**.
+- **Decision:** the figure is replaced wherever those entries reason from it, and **both
+  conclusions stand unchanged**. D-140's singleton treatment and D-141's refutation of the
+  pooling argument do not depend on the share being large — D-141's point is that a pooled
+  stratum contributes `(A - r*B)^2`, which is unstable in either direction whatever its size, and
+  that singletons contribute the binomial term, which is the honest statement that those records
+  carry no family information. A smaller unplaced set makes the choice matter less, not
+  differently.
+- **What it does change.** The design effect is diluted by exactly the unplaced fraction, so at
+  11.8% rather than 36% the realised design effect is *higher* than those entries implied and the
+  intervals correspondingly wider relative to binomial. Band 1's published cells report the
+  realised figures directly, so nothing is inferred from this entry; it exists so a reader
+  checking D-141's arithmetic is not working from a borrowed number.
+- **Rejected:** Leaving the 36% in place as "the order of magnitude" — it is not this
+  measurement, it is a different quantity from a different task, and §7's adversarial reader
+  checks the provenance of a number before its plausibility. Re-deriving D-141's comparison at
+  11.8% before band 1 completes — the entries' conclusions are insensitive to the share, and the
+  measured intervals ship with every cell.
+- **Consequence:** the write-up cites 11.8% from band 1 for this quantity and A4.2's 36% only for
+  A4.2's own. One general point: both figures are about "things the taxonomy cannot place", which
+  is what made the substitution feel safe, and they are not the same denominator.
+
+### D-153 — Band 1 is complete, and the sensitivity sweep it paid for answers the question it was bought for
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-109 bought the three-sensitivity sweep for one reason, stated at the time: `-s` is
+  our parameter rather than the publisher's, so the sweep is what separates a property of the
+  filter from a property of our instrument. Band 1 is now complete — nine groups over shard 0's
+  1,097,174 records, from 31,381 seeds (1/100), published across two launches and a resume
+  (D-148). Every figure is a lower bound (D-134).
+- **The answer, which is the finding.** At the charitable reading's 0.70 identity cut the figure is
+  **almost invariant to our settings**: 0.6537% to 0.6844% across all nine cells, a relative spread
+  of 4.7%. The any-identity figure over the same cells runs 1.5473% to 4.0975% — a factor of 2.6.
+  So the sub-threshold tail is largely a property of our instrument, and **the quantity the
+  charitable reading actually turns on is a property of the filter**. That is the cleanest form
+  the sweep's result could have taken, and it is why the sweep was not optional.
+- **Decision: the headline figure for this band is the banded one at 0.70, not the any-identity
+  rate.** Both are published and both are lower bounds, but a single number quoted from this band
+  is the 0.70 figure, because the any-identity rate is the one that moves with `-s` and would
+  misattribute our aligner's reach to the filter's failure. Writing it up the other way round
+  would be the more alarming presentation and the less defensible one.
+- **The result does not balance on the inferred threshold as much as feared.** D-105 parameter 6
+  separated the 0.70-0.75 band because 8.07% of hit *rows* fell in it. Measured per record at
+  `-s 5.7 cov1`: of the 7,509 records at or above 0.70, only **255 (3.4%)** sit in 0.70-0.75,
+  while **5,754 (77%)** are at 0.90 or above. The identity distribution is bimodal — a large
+  sub-threshold tail, a trough, then a spike of near-identical matches — so the inferred cut falls
+  in the trough rather than through the mass. The banding stays, because that is now a measured
+  reassurance rather than an assumption.
+- **D-109's refusal of a binomial interval is vindicated by a wider margin than it claimed.**
+  It argued a design effect of 40 would make the honest interval six times the binomial one.
+  Measured: **238.8 to 557.0** across the nine cells, so the honest intervals are 15 to 24 times
+  binomial. A binomial interval here would have been wrong by more than an order of magnitude,
+  and the design effect falls as sensitivity rises, which is itself consistent with the extra
+  hits being spread rather than clumped.
+- **What this is not.** Not a corpus-level claim: it is 0.3125% of the corpus, UniRef100 only,
+  from 1% of the seed set, and MGnify90 is unscored (D-133 names that gap as Phase A's, not this
+  task's). Not validated against any published size (D-150). Not a rate — a bound, in the
+  direction §2 requires.
+- **Rejected:** Quoting the any-identity rate as the headline — it is the number that moves 2.6x
+  with a parameter of ours. Dropping the any-identity figures — the literal reading's threshold is
+  undetermined (D-107), so the pass may not assume 0.70 is the floor of interest. Treating the
+  0.70 invariance as grounds to stop sweeping in band 2 — one band at one depth, and the sweep is
+  what made the claim available.
+- **Consequence:** band 2's value is now mainly in the seed axis rather than the sensitivity axis,
+  since the 0.70 figure is already stable across settings; what band 2 buys is how far the bound
+  rises as the seed sample deepens, which is the only evidence available about the gap to a
+  full-seed rate. The write-up leads with the 0.70 bound, reports the bands beneath it, and states
+  the design effect, because a reader who assumes binomial will understate the interval by 15x.
+
+### D-154 — Correction to D-153: band 1's figure is not a clean lower bound, because the seed set implements only the first clause of the rule
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** Raised by the project owner asking whether the matching material might simply be
+  the parts of viruses that are not distinctive — shared with hosts, ubiquitous, uninformative.
+  Checking rather than reasoning: `src/amazebio/seeds.py` says so in its own module docstring,
+  and D-153 failed to carry it into the result.
+
+  ESM3's viral denylist has **two** clauses: a sequence qualifies if it is (a) annotated as viral
+  in UniProt **and** (b) "align[s] almost exclusively to other viral sequences in UniProt". Clause
+  (b) is what excludes viral sequence that also resembles host protein. The seed set implements
+  **clause (a) only** — clause (b) needs its own alignment pass and its own reading of
+  "almost exclusively", which the source does not quantify. The seed set is therefore a
+  **superset** of the denylist the source describes.
+- **The error in D-153.** It states "every figure is a lower bound (D-134)" without qualification.
+  That holds for the seed-*sampling* axis and not for the seed-*construction* axis. Two errors run
+  in opposite directions:
+  - **1/100 of the seeds → understates.** A record matched by an unsampled seed is not counted.
+  - **Annotation-only seeds → overstates.** A record matching a viral sequence that clause (b)
+    would have excluded is counted as surviving material the filter should have removed, when the
+    filter never undertook to remove it.
+
+  So band 1's figure is a floor in one respect and a ceiling in another, and **the net direction
+  is not known**. "At least 0.6844%" is not a supportable phrasing and must not appear in the
+  write-up. The honest form states both axes and claims neither direction.
+- **Decision:** D-153's headline stands as a *measurement of the annotation-only reading*, not as
+  a bound on the filter's failure rate. Every figure from this band is labelled with the reading
+  it implements. The `lower_bound` flag in the artefact remains correct for what it was built to
+  mark — the seed sample — and the write-up may not read it as a claim about the whole result;
+  a flag that means one axis and is read as meaning the result is the D-150 failure again, one
+  level down.
+- **What would settle it, and it is not expensive.** Clause (b) is a restriction *on the seed
+  set*, applied before the corpus pass: for each candidate seed, align it against UniProt and keep
+  it only if its matches are almost exclusively viral. That is a seeds-against-UniProt pass, not a
+  seeds-against-corpus pass, and A1.8 is staging UniProtKB 2023_02 permanently at
+  `corpora/uniprotkb/2023_02/`, so it becomes an in-region job. The reading of "almost
+  exclusively" needs its own entry and must be fixed before the result is inspected, per §2.
+- **The owner's other question is not answered by this band at all.** Whether the matched records
+  are genuinely viral material or host protein that merely resembles it is a question about what
+  the records *are*, and this band only measures that they align. The 77%-at-≥0.90 figure in D-153
+  rules out distant family resemblance; it does not distinguish a captured host gene from a viral
+  one. That is the survival-route and homology-class work (A2.*, B3.*), and D-153 should not be
+  read as bearing on it.
+- **Rejected:** Reporting band 1 with the "at least" phrasing and a caveat further down — D-150
+  established in this same task that a caveat which does not change the number it qualifies is not
+  a safeguard. Narrowing the seed set now and rerunning — clause (b) is worth implementing, but
+  band 1's measurement of the annotation-only reading is still the measurement of a reading, and
+  §A0 treats the spread between readings as the result. Dropping the annotation-only arm once
+  clause (b) exists — the spread between the two is exactly what §A0 asks for.
+- **Consequence:** the write-up reports band 1 as the annotation-only reading and reports the
+  clause-(b) reading beside it once it exists; the difference between them is a §A0 finding about
+  how much of the apparent leakage rests on an unquantified phrase in the methods appendix. Band 2
+  is not the next priority — clause (b) is, because it changes what the existing numbers mean
+  rather than making them more precise.
+
+### D-155 — A2.4's first band, complete: viral families survive as prophage in genomes the filter never examined
+- **Date:** 2026-10-18
+- **Task:** A2.4
+- **Context:** The 0.25% band (D-145) over both releases, on the de-duplicated build (D-151),
+  `i-0bbdd4b09995095ed`, 05:10Z to 10:38Z — **5 hours 28 minutes**, self-terminated with
+  `run complete`. Twelve detection tables and six concordance artefacts, at
+  `corpora/results/a2-4/`.
+- **The result.** Every detection carries `element_kind: prophage`, `estimate_kind: lower_bound`,
+  and a route that follows the reading rather than the biology:
+
+  | release | genomes | bases | proviruses | Pfam viral | RVDB-prot |
+  |---|---|---|---|---|---|
+  | Evo 1 (v214.1) | 375 | 699 Mb | 128 | 203 / 1,719 = 11.8% (10.4-13.4) | 90 / 13,679 = 0.66% (0.54-0.81) |
+  | Evo 2 (v214.1 + 220.0) | 300 | 946 Mb | 178 | 251 / 1,719 = 14.6% (13.0-16.4) | 153 / 13,679 = 1.12% (0.96-1.31) |
+
+  **What this is.** Viral protein families, inside integrated elements, inside bacterial genomes
+  that the filter's own rules never reached — `rules=0, uniform=True` for GTDB in every reading
+  (A1.4). It is `out_of_scope` under the charitable and literal readings and
+  `retained_by_design` under strict's wildcard scope, **with identical counts**, because the
+  detection is the same and only the reading's scope differs. That is D-007's first-class route
+  arriving as measurement rather than as an argument from published methods.
+  **What this is not.** Not a conformance failure: no rule was broken, because no rule applied.
+  Not an estimate of the population: a lower bound twice over (D-113, D-115), so the true figures
+  are at least these.
+- **The concordance (D-114), per release:** Evo 1, 40 records, both 6, geNomad-only 0,
+  VIBRANT-only 1, neither 33, **kappa 0.908 (0.731-1.000)**. Evo 2, 28 records, both 6,
+  geNomad-only 1, VIBRANT-only 3, neither 18, **kappa 0.652 (0.337-0.968)**.
+  The two instruments agree strongly on Evo 1 and only moderately on Evo 2, and the disagreement
+  is **directional**: VIBRANT calls elements geNomad does not, three times to one. Reported as
+  direction rather than resolved, per D-114. A2.4's headline comes from geNomad, so on Evo 2 it
+  is the more conservative of the two instruments — the bound is if anything safer there, not
+  weaker.
+- **Decision:** This is A2.4's reportable result at 0.25%. Every Done-when criterion is met: hit
+  tables with route attribution, two-tool concordance on a documented nested subsample, and
+  parameters and versions in the `run.json` and the pins. The cache's correctness was checked
+  rather than assumed — literal matches charitable exactly on the shared route, strict carries
+  `retained_by_design` with the same counts, and the four reused source rows say `reused: true`.
+- **Rejected:** Reporting the Pfam and RVDB fractions together. Their membership criteria come
+  from different authorities and D-022 forbids pooling the denominators; the 11.8% and the 0.66%
+  are answers to different questions about the same detections.
+  Calling the Evo 1 / Evo 2 difference a finding about the filters. Evo 2's component is a
+  superset of Evo 1's (D-130) and its sampled genomes are larger on average, so more families is
+  the expected direction and this band does not separate that from any difference in filtering.
+- **Consequence:** Phase A has a measured prophage route for both releases, which A3.2 can
+  cross-tabulate against A2.1's profile hits — same registries, same thresholds, different
+  detector and kind, so the merge is a join. The depth question goes to the project owner: at
+  D-149's measured rate with D-151's de-duplication, 2.5% is about 33 wall hours and $7, which
+  exceeds one instance's window and so needs a longer timer or per-object resumability.
