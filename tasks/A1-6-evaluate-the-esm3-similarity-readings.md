@@ -480,6 +480,30 @@ session is not permitted to spend, so this needs the project owner's go-ahead.
 
 **Waiting on the project owner:** authorisation to launch. Nothing in the repo waits on code.
 
+
+## Band 1 is running — 2026-10-17
+
+Instance **`i-0d81555e994423a79`**, `m6i.2xlarge` spot, 120 GB gp3, launched from commit
+`ba33811`. Owner authorised the spend; about $0.70 expected.
+
+Dry run returned `DryRunOperation` first, so the parameters and the spot path authorise. Note
+what that does **not** establish, per D-120: a dry run runs no `UserData`, so the end-to-end
+smoke test is what covers the script itself.
+
+One run, two stages. The 52-minute corpus pass rebuilds the sample and its strata sidecars,
+then `shardstore.verify_rebuilt` checks the rebuilt shards against the staged manifest's own
+digests **before anything is searched** — if they differ the run stops having cost only the
+pass. Then band 1's six cells over shard 0, each published to the results prefix as it
+finishes.
+
+Expected: about 5 hours. Boot-armed shutdown at 480 minutes, which D-127 established does fire
+and is reported as `User initiated`. Watch it with `--attach i-0d81555e994423a79`.
+
+What to look for in `band.json`: `searched_records` should be **1,097,174** and
+`searched_residues` **417,056,773**, which are shard 0's figures from the staged manifest and
+the cap run's target exactly. Six distinct cell slugs, all carrying `-q100`. Nine groups, each
+with `lower_bound: true`.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

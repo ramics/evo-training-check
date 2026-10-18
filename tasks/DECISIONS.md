@@ -5902,3 +5902,229 @@ decision has a threshold or parameter in it, the number goes in the entry.
   which is easier to break: a null must not be *easier* to produce than it is to earn.
   The general lesson is the cheap one: a clean exit code and a plausible-looking table are not a
   verified run. This was found by reading the artefact, not by reading the log.
+
+### D-144 — The corpus is 484 Gbp, not 107 Gbp: D-117's census figure was out by four and a half times
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-117 extrapolated a full GTDB census at about 4,900 core-hours from one genome's
+  measured rate of 2.73 core-minutes per Mb. The base count in that arithmetic was the *staged
+  byte* count, read as roughly one byte per base. That assumption was never checked, and it is
+  wrong for one of the two components.
+- **What was measured.** Reading the staged objects directly:
+  **Evo 1's Parquet stores its sequence essentially uncompressed** — one row group of
+  `gtdb_train_shard_0` holds 24,379,463 bases in 24,409,247 compressed bytes, **1.00 bases per
+  byte**. So 127,261,074,759 staged bytes is about **127,000 Mb**, and the original reading
+  happened to be right here.
+  **Evo 2's tar members are gzipped FASTA**, and are not. Twenty-five genomes off `batch1.tar`
+  carry 86,855,551 bases at a mean of 3.47 Mb per genome, against member sizes around 1 MB —
+  about **3.27 bases per byte**. So 109,142,824,960 staged bytes is about **357,000 Mb**, not
+  109,000.
+  **Total: 484,000 Mb across both releases**, against the ~107,000 D-117 worked from. A full
+  census is therefore about **22,000 core-hours**, not 4,900.
+- **Decision:** Correct the figure and re-price every band from it. At 8 vCPU — the policy's
+  2xlarge ceiling — and m6i.2xlarge spot at $0.12-0.21/hour as quoted today:
+  **2.5% of both releases: ~550 core-hours, ~69 wall hours, $13-18.**
+  **0.25%: ~55 core-hours, ~7 wall hours, about $1.50.**
+  The spend was authorised against the old figure, so the new one goes back to the project owner
+  rather than being absorbed: $13-18 is inside the $20 ceiling but it is not the $5-7 they were
+  told, and 69 hours is a different operational proposition from an afternoon.
+- **Rejected:** Proceeding at 2.5% on the grounds that it still fits the ceiling. The
+  authorisation was "as long as the billing doesn't change", and a figure that moves by two and a
+  half times has changed even when it stays under the cap.
+  Treating the per-Mb rate as the remaining uncertainty. It is still a one-genome figure from a
+  complete, gene-dense assembly, so the real cost on GTDB's draft assemblies could move this
+  again in either direction. That is what the first band is for (D-118), and it is now a stronger
+  argument for a *small* first band than it was when the census looked affordable.
+- **Consequence:** D-117's "same order as A1.6's authoritative pass" no longer holds — a census
+  here is several times that, and out of reach at this ceiling. The sampled design of D-115 and
+  D-118 is now forced by cost rather than chosen, which is the opposite of what D-117 concluded
+  and is worth saying plainly in any write-up that cites either.
+  The general lesson is the one D-098 already taught this project once, in the other direction: a
+  cost derived from a number nobody measured is a design decision taken by accident. Here it was
+  bytes read as bases.
+
+### D-145 — The first band is 0.25%, and D-118's 2.5% waits on what it measures
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Context:** D-118 fixed the first band at 2.5% when D-117 priced a full census at 4,900
+  core-hours. D-144 corrected the corpus to 484,000 Mb and the census to about 22,000 core-hours,
+  which puts 2.5% of both releases at roughly 550 core-hours — 69 wall hours at the policy's
+  8 vCPU ceiling, and $13-18 on spot. The owner authorised the pass "as long as the billing
+  doesn't change"; it changed, so the band went back to them.
+- **Decision:** The first band is **0.25%**: about 55 core-hours, 7 wall hours, $1.50. 2.5%
+  is not abandoned, it is sequenced behind the thing it depends on.
+  This is what D-118 designed rather than a retreat from it. The first band exists to *be* the
+  calibration, and the per-genome rate it calibrates is still a one-genome figure taken from a
+  complete, gene-dense *E. coli* assembly. GTDB is mostly draft assemblies in many contigs, where
+  gene density, contig count and the per-call overhead all differ, so the 69-hour figure rests on
+  a number this band is meant to replace. Committing three days of wall clock to it first would
+  invert the design.
+  Membership is nested (D-078), so the 0.25% band is a strict subset of the 2.5% one and
+  deepening re-reads nothing. `estimate_kind` stays `lower_bound`, and the realized rate is
+  recorded per source, so the shallower depth is visible in the artefact rather than inferred.
+- **Rejected:** 2.5% now because it still fits under $20. The authorisation was conditional on
+  the figure, and $13-18 is not $5-7 even inside the cap. Spot reclaim across 69 hours is also
+  likely, and per-object resumability does not exist yet — so the expensive option is the one
+  most likely to need re-running.
+  2.5% on Evo 1 alone, at a quarter the size. Cheaper and sooner, and it would leave the prophage
+  route measured at full depth on one of the two corpora, which is the asymmetry D-116 exists to
+  prevent. A shallower band on both is the better trade than a deeper band on half.
+- **Consequence:** A2.4's first result is a lower bound at 0.25% of both releases, and must be
+  reported as the shallow bound it is — at that depth a null is weak evidence and a detection is
+  still a detection. What the band buys beyond its own result is the measured per-genome cost on
+  real draft assemblies, which is the number every later decision about depth depends on, and
+  which no amount of further arithmetic from D-117's single genome can supply.
+
+### D-146 — One list entry carries 98.5% of the select-agent seed set; the reading stands and the reporting splits
+- **Date:** 2026-10-17
+- **Task:** A1.8
+- **Context:** The full-tier seed pass finished (UniRef100 2023_02, all 118.68 GB of staged
+  object, 54 minutes, commit `b00640f`) and returned **1,079,124 seeded clusters of
+  350,950,053** — 5.8x the 187K ESM3 publishes for this denylist (D-106). D-137 had named both
+  directions of expected discrepancy but no magnitude, so the artefact could report the gap and
+  not decompose it.
+
+  **It decomposes into one entry.** "Avian influenza virus" maps to Influenza A (taxid 11320),
+  and descending it contributes **112,716 of the 114,467 expanded taxa — 98.5%**. The other 52
+  taxon-naming entries contribute about 1,750 between them. Influenza A is also among the most
+  heavily sequenced taxa in UniProt, so its share of *clusters* is larger still. The regulation
+  restricts highly pathogenic avian influenza; the pinned taxonomy has no node for that, so
+  D-137 took the species and recorded the over-inclusion. What is new is the size of it.
+
+  **The lab's own figure says they did not read it this way.** ESM3 reports 147K non-viral plus
+  40K viral. All of Influenza A does not fit in 40K viral sequences by any counting. So the
+  denylist being audited and the denylist being reconstructed differ, and they differ almost
+  entirely in this one entry.
+
+  **It also breaks D-133's budget, twice over.** That entry priced the sampled pass at one
+  launch, about nineteen hours and about $3. Two things are wrong with the figure, and they
+  compound. It assumed 187K seeds, and the seed set is 1,079,124. And it costed a *single*
+  search, where the pass runs six cells per shard — three sensitivities (D-105) against two
+  coverage-filtered searches (D-124). On the same measurement D-133 used — 31,381 seeds against
+  shard 0's 417 M residues, A1.6's cap run of 2026-10-17 (D-128) — the full 2.5% sample is about
+  **1,135 instance-hours and $180**, not one launch. D-133's *comparison* against the exhaustive
+  pass survives, because both sides of it were costed single-cell; its absolute figure does not.
+- **Decision (project owner): measure the split, then report it as two strata. The reading in
+  D-137 is not changed.**
+
+  1. The seed pass is re-run with per-entry attribution, so the influenza share is a measured
+     number rather than an inference from taxon counts. About an hour and under a dollar; it
+     also closes a provenance gap the first pass exposed (below).
+  2. The **primary** result is the seed set with the entry's exclusively-claimed clusters
+     removed — the agents the list names that are not seasonal influenza. This is the figure
+     expected to reconcile against the published 187K, and the one the scoring pass is sized
+     against.
+  3. The influenza contribution is reported as a **separate, named stratum**, not dropped and
+     not pooled. It is a real consequence of a reading the regulation's own wording forces on
+     the pinned taxonomy, and §A0 treats that as a finding.
+- **Why the reading is not simply narrowed, which was the tidier option.** Restricting the entry
+  to H5/H7 lineages would produce one clean reconciled number, and it would do it by overwriting
+  a reading already recorded, argued and pinned — replacing a measured over-inclusion with a
+  curated guess at what the lab meant, in the same artefact that is supposed to show where
+  readings bite. The split keeps both numbers visible and costs an hour.
+- **What "exclusively claimed" means, because the arithmetic depends on it.** A cluster is
+  seeded if *any* member is on the list, so a cluster can be claimed by more than one entry.
+  `claimed` counts a cluster once per claiming entry; `exclusive` counts only clusters a single
+  entry claims alone. Removing an entry removes its exclusive clusters and no others, so
+  `exclusive` is the only one of the two a decision can rest on. `seeds.EntryCounts` keeps them
+  apart and the largest contributor is named from the measurement, so a later re-pin reports
+  whichever entry then dominates rather than this one.
+- **A provenance gap found in the same place, fixed in the same commit.** `repro.run` writes its
+  manifest when its block exits, so `select_agent_seeds.py`'s upload — which sat inside that
+  block — had no file to send. The first pass staged its results and left its `run.json` on an
+  instance that then terminated. The instance has no checkout and no shell, so a manifest that
+  does not leave by object storage does not leave at all, and AGENTS.md is explicit that an
+  untraceable result is not citable. The first pass's figures are recoverable only through its
+  code tarball key; the re-run supersedes it at the same keys.
+- **Consequence for what A1.8 may say.** The arm already makes no all-clear (D-133). It now also
+  may not report a single denylist survival figure without saying which stratum it is: a pooled
+  rate over the reconstructed seed set would be a statement mostly about seasonal influenza
+  wearing a select-agent label, which is precisely the kind of number §7's adversarial reader
+  should catch. Per-stratum reporting is the default, as §B5 already requires elsewhere.
+- **Rejected:** Narrowing the entry and rebuilding — above. Running the pass on the pooled seed
+  set and explaining the composition in the write-up — it spends 1,135 instance-hours mostly on
+  influenza and leaves the headline needing a paragraph of correction. Dropping the entry
+  outright — it is on the list, and an audit that silently declines to look for a listed agent
+  has chosen its own scope.
+
+### D-147 — Correction to D-144: Evo 1 is 275 Gbp, not 127, and the running band measured it
+- **Date:** 2026-10-17
+- **Task:** A2.4
+- **Numbering:** appended as D-146 and renumbered to D-147 on 2026-10-17. A1.8's D-146 was already on `main` when this was written and is the one cited elsewhere; this entry was cited only from its own commit message, so it is the cheaper one to move. The commit "A2.4: D-146 — Evo 1 is 275 Gbp" refers to this entry.
+- **Context:** D-144 corrected D-117's corpus size and got one of its two halves wrong in the
+  same way. It reported Evo 1's Parquet at **1.00 bases per byte**, concluding that the staged
+  byte count was a fair proxy for its base count. That ratio came from comparing bases against
+  `RowGroupMetaData.total_byte_size`, which is the **uncompressed** size. Comparing sequence
+  bytes to the uncompressed size of the column holding them returns 1.00 by construction. It is
+  not a measurement, it is a tautology, and it looked like a confirmation.
+- **What the real figures are, from two independent directions.**
+  Summing the per-column `total_compressed_size` on the same row group gives 11,288,188
+  compressed bytes for 24,379,463 bases: **2.16 bases per compressed byte**. Evo 1's 127,261,074,759
+  staged bytes are therefore about **274,850 Mb**, not 127,261.
+  The first band measured it independently while this was being worked out: at rate 0.0025 it
+  sampled **375 genomes and 699,031,198 bases** of Evo 1, implying **279,612 Mb**. The two agree
+  to **1.7%**, which is the confirmation D-144 thought it had.
+  **Corrected total: Evo 1 ~277,000 Mb plus Evo 2 ~357,000 Mb, about 634,000 Mb.** A full census
+  is roughly **29,000 core-hours**; 0.25% is about 72 core-hours, and 2.5% about 720 — 90 wall
+  hours at the 8 vCPU ceiling.
+- **Decision:** Record the corrected figure and the method that produced it, and treat the
+  *measured* number as authoritative over either byte-count derivation. The band exists to
+  produce measurements; the first thing it measured was the size of the thing it is sampling.
+- **Rejected:** Quietly amending D-144. It is append-only and its arithmetic was cited in the
+  question that set this band's depth; a reader who finds 127,261 Mb there needs to find this
+  entry too.
+  Treating the 1.7% gap as disagreement. The sample is 375 genomes drawn by hash, so a couple of
+  percent either way is what it should do; the point is that two derivations that share no step
+  landed in the same place.
+- **Consequence:** **The same mistake has now been made three times in this task** — D-117 read
+  staged bytes as bases, D-144 half-corrected it and read an uncompressed size as a compressed
+  one, and both times the wrong number looked right enough to act on. The common factor is
+  deriving a quantity from a field whose meaning was assumed rather than checked. Any later
+  figure here is measured from a pass or stated as an estimate with its derivation shown.
+  Nothing about the band's depth changes: 0.25% was chosen because 2.5% was 69 hours, and at the
+  corrected size 2.5% is 90 hours, so the decision is more right than it was, not less.
+
+### D-148 — Band 1 lost its sixth cell to a spot reclaim; the five that survived are reusable and the skip is now implemented
+- **Date:** 2026-10-17
+- **Task:** A1.6
+- **Context:** Band 1 launched on `i-0d81555e994423a79`, `m6i.2xlarge` spot, at 18:32 UTC. The
+  corpus pass rebuilt the sample, `verify_rebuilt` confirmed it byte-identical to the staged
+  manifest, and five of the six cells completed and published. At 23:15:04 the instance was
+  terminated with `StateTransitionReason: Service initiated` — AWS-initiated, which is how a
+  reclaim reads as against the `User initiated` that `AGENTS.md` records for a shutdown or a
+  manual termination. About 4h45m at spot, roughly $0.55.
+- **What was lost and what was not.** Only the `s7.5 cov2` cell, the most expensive in the grid.
+  The other five are in the result object because the band publishes per cell rather than at the
+  end, which is the design `AGENTS.md` demanded after the runs that published nothing in four
+  hours. That part worked.
+- **The defect the reclaim exposed, which is worse than the lost cell.** `CellKey`'s docstring has
+  promised since it was written that a cell "is skipped if its artefact already exists", and
+  **nothing implemented it**. The band rewrites one result object on every publish, so a re-run
+  would have rebought all five surviving cells over about four hours *and then overwritten them
+  with the single new cell* — losing paid work irreversibly, in a bucket where an overwrite
+  destroys the earlier object. The reclaim is what surfaced it; the defect was there from the
+  first commit of the band mode and would have fired on any interruption.
+- **Decision:** the skip is implemented rather than the docstring softened. `cell_from_dict`
+  rehydrates a published cell and refuses one whose slug contradicts its own fields, since a cell
+  is reused on the strength of its slug and a disagreement would skip the wrong one.
+  `--resume-band-from` reads an earlier `band.json` and reuses its cells for the same band and
+  shard, after checking they searched the same record count — a different target is not a
+  resumable run. The property that makes it safe is asserted directly: five published cells plus
+  one new one give the same combined result as six computed in one run.
+- **What this says about spot for this arm, and what it does not.** One reclaim in one run is not
+  a rate, and the cost of this one was about $0.55 and one cell rather than the whole band, so
+  nothing here argues for on demand. What it does argue is that **per-cell publishing without a
+  resume is only half a design** — the publishing bought the five cells and the missing resume
+  would have thrown them away. D-134's band 2 is six launches of about 15.8 hours each, where an
+  interruption is likelier and a rebought cell costs far more, so the resume matters more there
+  than here.
+- **Rejected:** Re-running the whole band — four hours and about $0.55 to recover one cell, when
+  five are already published and verified against the same target. Reporting band 1 from five
+  cells and dropping `s7.5 cov2` — the sensitivity sweep is the only check on whether the rate is
+  a property of the filter or of our aligner settings (D-109), and five cells leave `s7.5` with
+  one reading of three. Switching band 2 to on demand on the strength of one reclaim — one
+  observation, and the resume is the cheaper answer.
+- **Consequence:** the missing cell is a resumed launch of about 50 minutes and roughly $0.10,
+  and band 1 is not a result until it lands. `AGENTS.md` gains the general form of this: a
+  per-cell publish is only half a design, and the half that reads it back is the half that gets
+  forgotten, because nothing exercises it until something fails.

@@ -122,6 +122,26 @@ caught the undeclared GTDB objects first, and they are now declared). The profil
 staged and verified: RVDB-prot at 13,679 profiles against 13,679 stated, Pfam's viral universe
 1,719 of 30,134. The geNomad marker database v1.9 is fetched and its md5 matches the publisher's.
 
+**The first band is running on `i-034bd070ebc7928b8`** (m6i.2xlarge spot, 120 GB, rate 0.0025,
+both releases), with a 17-hour shutdown timer. Progress is at
+`s3://amazebio-corpora-897641797669/corpora/results/a2-4/heartbeat.json`; results land in the
+same prefix as each table is written. Reattach with
+`python3 tools/ec2_proviruses.py --attach i-034bd070ebc7928b8`.
+
+It replaces `i-016dbf04ae516b99a`, which was terminated after about 80 minutes rather than left
+to finish. That run measured Evo 1 at 375 genomes and 699 Mb — which corrected the corpus size
+(D-147) and showed the pass needed roughly ten hours against a twelve-hour timer, while
+uploading nothing until the very end. A timer firing during Evo 2 would have taken Evo 1's
+finished tables with it. Watching it also exposed a genome straddling a shard boundary being
+appended twice, with colliding contig names into geNomad. Both are fixed; a quarter of an hour
+of billing bought the measurement and the two faults.
+
+Five proving launches preceded that one and each failed usefully, for pennies: spot capacity on
+`r6i.2xlarge`, my own `| head -4` killing the watcher and with it a healthy instance, the piped
+pixi installer failing with its error swallowed by a redirect, and the geNomad database digest
+left as `None` so the checksum guard refused the run. The last ran the whole path and
+self-terminated with `run complete`.
+
 **Left, in order.**
 1. The VIBRANT arm. The concordance criterion is fixed (D-114) and its parser is written and
    tested, but nothing runs VIBRANT yet, and until it does every table carries the note saying
