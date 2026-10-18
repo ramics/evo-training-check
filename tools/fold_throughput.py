@@ -76,6 +76,13 @@ MIN_PROTEIN_LENGTH = 20
 #: only at a thousand would be quoting the warm-up.
 LADDER = (100, 500, 1725, 6000, 20000)
 
+#: The CPU arm's ladder, and it has to be its own. At the rate D-163 measured, the largest
+#: rung above would take about twenty hours on CPU, which no permitted run window holds. The
+#: CPU arm is not here to characterise CPU — D-163 already did that — but to pair with the GPU
+#: arm on identical input on one machine, so the ratio is a measurement rather than a quotient
+#: of two runs. Two rungs do that, both already in the linear regime, for about forty minutes.
+CPU_LADDER = (100, 500)
+
 #: Model loading dominates a small rung, so the smallest rungs are the ones most at risk of
 #: measuring the load rather than the work. Any rung whose per-residue cost differs from the
 #: largest rung's by more than this is flagged, not silently averaged in.
@@ -400,6 +407,14 @@ def parse_args(argv: list[str] | None) -> Any:
         default=",".join(str(n) for n in LADDER),
         help="protein counts to time, comma-separated and nested",
     )
+    ap.add_argument(
+        "--cpu-ladder",
+        default=",".join(str(n) for n in CPU_LADDER),
+        help="protein counts to time on CPU, which needs its own and much shorter ladder: at "
+        "the measured CPU rate the largest GPU rung would run about twenty hours. The CPU arm "
+        "exists to pair with the GPU arm for a within-machine ratio, and the smallest rungs "
+        "already sit in the linear regime, so two of them buy the ratio for forty minutes.",
+    )
     ap.add_argument("--threads", type=int, default=os.cpu_count() or 4)
     ap.add_argument("--bucket", default=None, help="corpus bucket; defaults to the staged one")
     ap.add_argument(
@@ -422,7 +437,9 @@ def main(argv: list[str] | None = None) -> int:
 
     bucket = args.bucket or corpora.BUCKET
     ladder = [int(n) for n in args.ladder.split(",") if n.strip()]
+    cpu_ladder = [int(n) for n in args.cpu_ladder.split(",") if n.strip()]
     devices = [d.strip() for d in args.devices.split(",") if d.strip()]
+    ladders = {"cpu": cpu_ladder, "gpu": ladder}
     model = Path(args.prostt5_model).resolve()
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -434,6 +451,7 @@ def main(argv: list[str] | None = None) -> int:
     with repro.run("A2.2", seed=None, outdir=outdir, allow_dirty=args.allow_dirty) as manifest:
         # Every parameter before any output, which `repro` enforces rather than trusts.
         manifest.parameter("ladder", ladder)
+        manifest.parameter("cpu_ladder", cpu_ladder)
         manifest.parameter("devices_requested", devices)
         manifest.parameter("threads", args.threads)
         manifest.parameter("min_protein_length", MIN_PROTEIN_LENGTH)
@@ -484,11 +502,13 @@ def main(argv: list[str] | None = None) -> int:
             "gpu_probe": gpu_probe,
             "devices_measured": devices,
             "ladder": ladder,
+            "cpu_ladder": cpu_ladder,
             "points": {d: [] for d in devices},
         }
         heartbeat(s3, args.s3_uri, "throughput-progress.json", {"stage": "starting", **result})
 
-        need = max(ladder)
+        rungs = sorted({n for d in devices for n in ladders[d]})
+        need = max(rungs)
         print(f"=== calling genes until {need} proteins are in hand", flush=True)
         last_beat = [time.monotonic()]
 
@@ -509,14 +529,17 @@ def main(argv: list[str] | None = None) -> int:
 
         # Nested FASTAs, so rung N is the first N proteins of rung N+1 on every machine.
         fastas: dict[int, tuple[Path, int]] = {}
-        for n in ladder:
+        for n in rungs:
             path = workdir / f"sub{n}.faa"
             fastas[n] = (path, write_fasta(proteins[:n], path))
-        result["residues"] = {str(n): fastas[n][1] for n in ladder}
-        print("=== rungs: " + ", ".join(f"{n}={fastas[n][1]}aa" for n in ladder), flush=True)
+        result["residues"] = {str(n): fastas[n][1] for n in rungs}
+        print("=== rungs: " + ", ".join(f"{n}={fastas[n][1]}aa" for n in rungs), flush=True)
 
+        # CPU first when both are asked for, and bounded: its arm is short and predictable, so
+        # the paired rungs the ratio needs are banked before the GPU's long rungs start. Each
+        # rung is published as it is taken, so a window that runs out still leaves what ran.
         for device in devices:
-            for n in ladder:
+            for n in ladders[device]:
                 faa, residues = fastas[n]
                 print(f"=== {device} rung {n} proteins / {residues} residues", flush=True)
                 point = time_createdb(

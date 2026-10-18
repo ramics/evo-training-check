@@ -159,7 +159,8 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
     --foldseek "$FOLDSEEK" \
     --prostt5-model /opt/amazebio/prostt5 \
     --outdir /opt/amazebio/out --workdir /opt/amazebio/work \
-    --devices {devices} --ladder {ladder} --threads {threads} \
+    --devices {devices} --ladder {ladder} --cpu-ladder {cpu_ladder} \
+    --threads {threads} \
     --s3-uri "$AMAZEBIO_S3_URI" --upload-results \
     --allow-dirty --code-commit {commit} ; echo "=== throughput exited $? ===" )
 
@@ -206,6 +207,13 @@ def parse_args(argv: list[str] | None) -> Any:
     ap.add_argument("--threads", type=int, default=4, help="vCPUs on the chosen type")
     ap.add_argument("--devices", default="cpu,gpu")
     ap.add_argument("--ladder", default="100,500,1725,6000,20000")
+    ap.add_argument(
+        "--cpu-ladder",
+        default="100,500",
+        help="the CPU arm needs its own short ladder: at the measured CPU rate the largest "
+        "GPU rung is about twenty hours, and the CPU arm is only here to pair with the GPU "
+        "on identical input so the ratio is one machine's measurement.",
+    )
     ap.add_argument("--hard-stop-minutes", type=int, default=DEFAULT_HARD_STOP_MINUTES)
     ap.add_argument("--bucket", default=None)
     ap.add_argument("--prefix", default=None, help="result prefix; defaults to a dated one")
@@ -258,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
         commit=commit,
         devices=args.devices,
         ladder=args.ladder,
+        cpu_ladder=args.cpu_ladder,
         threads=args.threads,
         hard_stop_minutes=args.hard_stop_minutes,
         pixi_url=PIXI_URL,
