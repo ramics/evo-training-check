@@ -615,6 +615,49 @@ this arm** — it is already being paid for once.
 **The measured unplaced share is D-152, not the 36% D-140 and D-141 reason from.** That entry
 records why both conclusions stand anyway.
 
+
+## Band 1 is complete — 2026-10-18
+
+D-153. Six cells, nine groups, over shard 0's **1,097,174 records** from **31,381 seeds** (1/100)
+and **7,366 seed families**. 132,473 strata, 129,113 of them unplaced singletons (11.8%, D-152).
+Artefact: `corpora/results/a1-6/band-complete.json`. Two launches and a resume (D-148), about
+$0.75 in total. `i-091497604cc5e805d` terminated.
+
+**Every figure is a lower bound** (D-134): 1% of the seed set can only find fewer records and
+lower identities than the whole set would.
+
+| | any identity | **≥0.70 (charitable)** | ≥0.90 | design effect |
+|---|---|---|---|---|
+| s2 mode 0 | ≥1.5473% | **≥0.6537%** | 0.4996% | 557.0 |
+| s2 mode 1 | ≥1.7609% | **≥0.6836%** | 0.5244% | 515.2 |
+| s2 mode 2 | ≥1.9458% | **≥0.6770%** | 0.5572% | 455.0 |
+| s5.7 mode 0 | ≥2.3624% | **≥0.6544%** | 0.4996% | 388.1 |
+| s5.7 mode 1 | ≥2.9507% | **≥0.6844%** | 0.5244% | 331.0 |
+| s5.7 mode 2 | ≥3.6187% | **≥0.6780%** | 0.5572% | 267.5 |
+| s7.5 mode 0 | ≥2.5536% | **≥0.6544%** | 0.4996% | 361.6 |
+| s7.5 mode 1 | ≥3.2687% | **≥0.6844%** | 0.5244% | 304.9 |
+| s7.5 mode 2 | ≥4.0975% | **≥0.6780%** | 0.5572% | 238.8 |
+
+95% intervals are in the artefact; at `s5.7 cov1` the any-identity bound is 2.3746-3.5267%.
+
+**Read the bold column, not the first one.** The 0.70 figure spans 0.6537-0.6844% across all nine
+cells — a relative spread of 4.7% — while the any-identity figure spans a factor of 2.6. The
+sub-threshold tail is largely a property of our aligner settings; the quantity the charitable
+reading turns on is a property of the filter. That is exactly what D-109 bought the sweep to
+distinguish, and it is why a single number from this band must be the 0.70 one.
+
+**The inferred cut falls in a trough, not through the mass.** At `s5.7 cov1` the identity
+distribution is 24,865 below 0.70, then 255 / 279 / 1,221, then 5,754 at ≥0.90. So of the 7,509
+records at or above the cut, 3.4% sit in the 0.70-0.75 band and 77% are near-identical matches.
+D-105 separated that band because 8.07% of hit *rows* fell in it; per record it is 3.4%, which is
+a measured reassurance rather than an assumption.
+
+**Do not use a binomial interval.** Design effects run 238.8 to 557.0, so honest intervals are
+15-24x binomial. D-109 argued the case expecting ~40.
+
+**What this is not.** 0.3125% of the corpus, UniRef100 only, 1% of the seeds, MGnify90 unscored
+(D-133). Not validated against any published size (D-150). A bound, not a rate.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

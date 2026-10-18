@@ -6306,3 +6306,50 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** the write-up cites 11.8% from band 1 for this quantity and A4.2's 36% only for
   A4.2's own. One general point: both figures are about "things the taxonomy cannot place", which
   is what made the substitution feel safe, and they are not the same denominator.
+
+### D-153 — Band 1 is complete, and the sensitivity sweep it paid for answers the question it was bought for
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-109 bought the three-sensitivity sweep for one reason, stated at the time: `-s` is
+  our parameter rather than the publisher's, so the sweep is what separates a property of the
+  filter from a property of our instrument. Band 1 is now complete — nine groups over shard 0's
+  1,097,174 records, from 31,381 seeds (1/100), published across two launches and a resume
+  (D-148). Every figure is a lower bound (D-134).
+- **The answer, which is the finding.** At the charitable reading's 0.70 identity cut the figure is
+  **almost invariant to our settings**: 0.6537% to 0.6844% across all nine cells, a relative spread
+  of 4.7%. The any-identity figure over the same cells runs 1.5473% to 4.0975% — a factor of 2.6.
+  So the sub-threshold tail is largely a property of our instrument, and **the quantity the
+  charitable reading actually turns on is a property of the filter**. That is the cleanest form
+  the sweep's result could have taken, and it is why the sweep was not optional.
+- **Decision: the headline figure for this band is the banded one at 0.70, not the any-identity
+  rate.** Both are published and both are lower bounds, but a single number quoted from this band
+  is the 0.70 figure, because the any-identity rate is the one that moves with `-s` and would
+  misattribute our aligner's reach to the filter's failure. Writing it up the other way round
+  would be the more alarming presentation and the less defensible one.
+- **The result does not balance on the inferred threshold as much as feared.** D-105 parameter 6
+  separated the 0.70-0.75 band because 8.07% of hit *rows* fell in it. Measured per record at
+  `-s 5.7 cov1`: of the 7,509 records at or above 0.70, only **255 (3.4%)** sit in 0.70-0.75,
+  while **5,754 (77%)** are at 0.90 or above. The identity distribution is bimodal — a large
+  sub-threshold tail, a trough, then a spike of near-identical matches — so the inferred cut falls
+  in the trough rather than through the mass. The banding stays, because that is now a measured
+  reassurance rather than an assumption.
+- **D-109's refusal of a binomial interval is vindicated by a wider margin than it claimed.**
+  It argued a design effect of 40 would make the honest interval six times the binomial one.
+  Measured: **238.8 to 557.0** across the nine cells, so the honest intervals are 15 to 24 times
+  binomial. A binomial interval here would have been wrong by more than an order of magnitude,
+  and the design effect falls as sensitivity rises, which is itself consistent with the extra
+  hits being spread rather than clumped.
+- **What this is not.** Not a corpus-level claim: it is 0.3125% of the corpus, UniRef100 only,
+  from 1% of the seed set, and MGnify90 is unscored (D-133 names that gap as Phase A's, not this
+  task's). Not validated against any published size (D-150). Not a rate — a bound, in the
+  direction §2 requires.
+- **Rejected:** Quoting the any-identity rate as the headline — it is the number that moves 2.6x
+  with a parameter of ours. Dropping the any-identity figures — the literal reading's threshold is
+  undetermined (D-107), so the pass may not assume 0.70 is the floor of interest. Treating the
+  0.70 invariance as grounds to stop sweeping in band 2 — one band at one depth, and the sweep is
+  what made the claim available.
+- **Consequence:** band 2's value is now mainly in the seed axis rather than the sensitivity axis,
+  since the 0.70 figure is already stable across settings; what band 2 buys is how far the bound
+  rises as the seed sample deepens, which is the only evidence available about the gap to a
+  full-seed rate. The write-up leads with the 0.70 bound, reports the bands beneath it, and states
+  the design effect, because a reader who assumes binomial will understate the interval by 15x.
