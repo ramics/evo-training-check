@@ -54,6 +54,14 @@ pyhmmer = ">=0.12.3,<0.13"
 # the caller IMG/VR's own annotation pipeline uses, so the genes are called the way the records'
 # publisher calls them. `pyrodigal` for the same in-process reason as `pyhmmer`.
 pyrodigal = ">=3.7.1,<4"
+# A2.2's reference set is 141 ECOD representative *domains*, and a domain is a residue range
+# inside a chain inside a PDB entry — D-166 rejected whole-chain reference databases precisely
+# because a capsid fold sitting inside a larger protein is the case that matters. So the
+# structures have to be cut to ECOD's ranges before `foldseek createdb` sees them, which needs a
+# real mmCIF parser: ECOD's ranges carry insertion codes (`A:1B-99A`) and author numbering that
+# does not start at 1, and a hand-rolled ATOM-record filter gets both wrong silently. Added by
+# A2.2.
+gemmi = ">=0.6,<0.8"
 # A7.2 joins 15.7 million IMG/VR accessions against two other sets and groups them by vOTU.
 # Those are sorts, set memberships and bincounts over tens of millions of integers: a dict of
 # 15.7 million strings does not fit the container the pass runs in, and the packed-integer
