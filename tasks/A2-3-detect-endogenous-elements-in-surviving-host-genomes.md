@@ -111,6 +111,17 @@ measured rather than asserted — it is not a Done-when criterion and was not qu
 
 **Depth stays at 0.25%**, nested at the project's seed, so buying more re-searches nothing.
 
+**Every artefact is in the results store** under D-188, which landed from `main` while this
+task was finishing and is the defect A2.3 had already walked into from the other side: A1.4's
+manifests were gone when this task went to consume them, so regenerating them was its first
+step. 19 objects, each with its run manifest beside it.
+
+**One figure to read with care.** D-186 cites 4.962e-4 core-seconds per model-residue-megabase
+from the calibration's 256-model point; the shipped artefact, re-run after its projection was
+corrected, measures **4.670e-4** and projects 44,691 core-hours against the entry's 48,040. A 7%
+run-to-run difference on the same measurement, not a changed conclusion — the profile route is
+out of reach either way. The artefact is the citable figure.
+
 **Waiting on the project owner:** nothing.
 
 ## Goal
