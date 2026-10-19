@@ -160,8 +160,14 @@ def synthetic_profiles(proteins: list[Any], count: int) -> list[Any]:
     background = Background(alphabet)
     builder = Builder(alphabet, seed=SEED)
     built = []
-    # Longest first so a small count is not a set of unrepresentative short models.
-    for i, protein in enumerate(sorted(proteins, key=lambda p: -len(p.sequence))[:count]):
+    # **Spread across the length distribution, not the longest first.** `hmmsearch` cost scales
+    # with model length, so taking the longest proteins built models far longer than a curated
+    # set's and put the per-profile rate 26x above D-098's published figure — the approximation
+    # measuring itself rather than the search. An even stride through the length-sorted list
+    # spans the distribution the pass would actually meet.
+    ordered = sorted(proteins, key=lambda p: len(p.sequence))
+    stride = max(1, len(ordered) // count)
+    for i, protein in enumerate(ordered[::stride][:count]):
         named = protein.copy()
         named.name = f"synthetic{i}".encode()
         hmm, _, _ = builder.build(named, background)
@@ -198,6 +204,12 @@ def time_search(proteins: list[Any], counts: tuple[int, ...], threads: int) -> l
                 "core_seconds_per_maa": round(wall * threads / maa, 3) if maa else None,
                 "core_seconds_per_profile_per_maa": (
                     round(wall * threads / maa / count, 6) if maa else None
+                ),
+                # D-186's unit, and the one that survives a different model set: search cost
+                # scales with model length, so a per-profile rate is only comparable between
+                # sets whose models are the same size. Per model-residue is not.
+                "core_seconds_per_model_residue_maa": (
+                    round(wall * threads / maa / sum(m.M for m in models), 8) if maa else None
                 ),
                 "hits": hits,
             }
@@ -269,10 +281,13 @@ def project(gene: dict[str, Any], search: list[dict[str, Any]]) -> dict[str, Any
                 if per_profile_maa
                 else None
             ),
+            "anchor_model_length_mean": anchor["model_length_mean"] if anchor else None,
             "reading": (
                 "The published figure is over curated models and wins where they disagree; a "
                 "ratio far from 1 is the cost of this run's synthetic profiles, not a correction "
-                "to D-098."
+                "to D-098. Compare `anchor_model_length_mean` first: search cost scales with "
+                "model length, so a ratio is only meaningful between sets of similar model size, "
+                "which is why the per-model-residue rate is reported alongside."
             ),
         },
     }
