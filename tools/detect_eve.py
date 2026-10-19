@@ -57,6 +57,7 @@ from amazebio.eve import (  # noqa: E402
     ACCEPT,
     DETECTOR,
     MMSEQS_FORMAT,
+    accept,
     detections_for,
     parse_alignments,
     write_queries,
@@ -138,6 +139,84 @@ def mmseqs(*args: str, env: Path, threads: int) -> None:
             f"{completed.stdout.decode('utf-8', 'replace')[-2000:]}\n"
             f"{completed.stderr.decode('utf-8', 'replace')[-2000:]}"
         )
+
+
+def self_check(query_db: Path, queries: Path, work: Path, *, threads: int, expect: int) -> dict:
+    """Search the query set against itself and require almost every family to find itself.
+
+    **This is the control that stops a false null.** A genome with no accepted alignment is a
+    real and expected result — many of the sampled assemblies are lineages this registry's
+    families do not occur in — so "zero" cannot be distinguished from a broken database, a wrong
+    search type, a mis-parsed column or an acceptance rule that rejects everything. Each of those
+    produces zero everywhere and a table that reads as a filter that worked.
+
+    `AGENTS.md` forbids designing any part of the pipeline so that a null is harder to see. The
+    converse obligation is this one: a null has to be *earned*, and the cheapest proof that the
+    instrument can detect at all is that it detects the things it is made of. A self-hit is exact,
+    full-length and far above the cut, so a pass rate below `expect` is a defect rather than
+    biology.
+    """
+    started = time.time()
+    control_db = work / "controlDB"
+    result_db = work / "controlResultDB"
+    tsv = work / "control.tsv"
+    tmp = work / "controltmp"
+    for stem in (control_db, result_db):
+        for stale in stem.parent.glob(f"{stem.name}*"):
+            stale.unlink() if stale.is_file() else shutil.rmtree(stale, ignore_errors=True)
+    tmp.mkdir(parents=True, exist_ok=True)
+
+    mmseqs("createdb", str(queries), str(control_db), env=work, threads=threads)
+    mmseqs(
+        "search",
+        str(query_db),
+        str(control_db),
+        str(result_db),
+        str(tmp),
+        "--search-type",
+        "3",
+        "-e",
+        str(ACCEPT["max_evalue"]),
+        env=work,
+        threads=threads,
+    )
+    mmseqs(
+        "convertalis",
+        str(query_db),
+        str(control_db),
+        str(result_db),
+        str(tsv),
+        "--format-output",
+        ",".join(MMSEQS_FORMAT),
+        env=work,
+        threads=threads,
+    )
+    with open(tsv) as handle:
+        found = {
+            a.family_id for a in parse_alignments(handle) if a.family_id == a.contig and accept(a)
+        }
+    shutil.rmtree(tmp, ignore_errors=True)
+    tsv.unlink(missing_ok=True)
+
+    rate = len(found) / expect if expect else 0.0
+    result = {
+        "families_expected": expect,
+        "families_self_detected": len(found),
+        "rate": round(rate, 4),
+        "seconds": round(time.time() - started, 1),
+        "why": (
+            "a self-hit is exact and full-length, so this is the cheapest proof the instrument "
+            "can detect at all; without it a zero in every genome is indistinguishable from a "
+            "broken search"
+        ),
+    }
+    if rate < 0.99:
+        raise RuntimeError(
+            f"the positive control failed: {len(found)} of {expect} families found themselves "
+            f"({rate:.1%}). A zero in a real genome could not be read as absence, so the pass "
+            "stops rather than producing tables that look like a null."
+        )
+    return result
 
 
 def load_manifests(manifest_dir: Path) -> list[dict[str, Any]]:
@@ -258,6 +337,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scratch", default=None)
     parser.add_argument("--threads", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--limit", type=int, default=0, help="stop after N assemblies")
+    parser.add_argument(
+        "--skip-self-check",
+        action="store_true",
+        help="skip the positive control; a zero then cannot be read as absence",
+    )
     parser.add_argument("--allow-dirty", action="store_true")
     args = parser.parse_args(argv)
 
@@ -305,6 +389,23 @@ def main(argv: list[str] | None = None) -> int:
             stale.unlink() if stale.is_file() else shutil.rmtree(stale, ignore_errors=True)
         mmseqs("createdb", str(queries), str(query_db), env=scratch, threads=args.threads)
 
+        work = scratch / "work"
+        work.mkdir(parents=True, exist_ok=True)
+        if args.skip_self_check:
+            m.note("positive control skipped; a zero in this run is not evidence of absence")
+            m.parameter("self_check", None)
+        else:
+            control = self_check(
+                query_db, queries, work, threads=args.threads, expect=len(universe)
+            )
+            m.parameter("self_check", control)
+            print(
+                f"  positive control: {control['families_self_detected']}/"
+                f"{control['families_expected']} families found themselves "
+                f"({control['rate']:.1%}) in {control['seconds']:.0f}s",
+                flush=True,
+            )
+
         index = load_index(m.input_file(args.index, role="assembly index"))
         band = sampled_members(index, seed=SEED, hi=args.rate)
         if args.limit:
@@ -318,8 +419,6 @@ def main(argv: list[str] | None = None) -> int:
         # One search per assembly, reused across readings: they differ only in route.
         alignments_by_assembly: dict[str, list[Any]] = {}
         searched: list[dict[str, Any]] = []
-        work = scratch / "work"
-        work.mkdir(parents=True, exist_ok=True)
         for position, member in enumerate(band, start=1):
             fasta = work / f"{member.accession}.fasta"
             provenance = fetch_member(member, read_range, fasta)
