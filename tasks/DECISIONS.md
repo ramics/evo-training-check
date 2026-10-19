@@ -7649,3 +7649,48 @@ decision has a threshold or parameter in it, the number goes in the entry.
   and now A2.4 again in the other direction. Being wrong in *this* direction is the cheaper error,
   but it is still an error: the check was a judgement call made twice, two days running, by
   reading prose.
+
+### D-177 — Correction to D-172: the prefilter did not manufacture a false null, and exhaustive search is a robustness choice rather than a rescue
+- **Date:** 2026-10-19
+- **Task:** A2.2
+- **Context:** D-172 recorded that foldseek's prefilter "silently returns nothing" against the
+  141-structure reference set, citing a smoke run where 77 called proteins produced
+  `76 sequences with 0 size result lists` against 49 hits from the same databases searched
+  exhaustively. It concluded that shipping the prefilter "would have produced a complete set of
+  well-formed shards reporting no surviving folds anywhere in either Evo release — a false null,
+  manufactured". **That conclusion is not supported by the evidence, and this entry withdraws
+  it.** Two measurements, both made after D-172 was written:
+  **1. The 49 hits are noise.** Their bit scores run from **2 to 6**, every one of them against
+  a `class_i_fusion` reference. A2.2 stores hits only at or above 15 bits and declares detections
+  at **500** (D-171), so not one of the 49 would have survived either cut. The prefilter was
+  discarding alignments that this pipeline discards anyway. `hits=0` was the correct answer for
+  those records, and the tool returning it was the tool working.
+  **2. At the declared threshold the two geometries agree.** Re-scoring the full 1,567-query
+  calibration both ways: prefiltered 34,822 rows, exhaustive 37,286 — and at 500 bits the
+  near-fold decoy rate is **3/389 either way** and the true-positive count is **242 against
+  244 of 392**, a difference of two queries, or 0.5%. The declared threshold, its brackets and
+  the chosen alignment mode are identical. There is no false null in that comparison, and D-172's
+  own observation that "the threshold re-derives unchanged" should have been read as evidence
+  against its headline rather than as a robustness footnote to it.
+- **Decision:** **Exhaustive search stays**, and `EXHAUSTIVE_SEARCH` keeps its place as a module
+  constant rather than a flag — but it is recorded as a *robustness and determinism* choice, not
+  as a fix for a result-destroying bug. The reasons that survive scrutiny: the prefilter's
+  behaviour depends on query count, so a threshold measured at one scale and applied at another
+  rests on an assumption nobody is checking; with 141 targets the heuristic buys nothing, because
+  aligning every query against every reference is exact and negligible beside 3Di prediction,
+  which D-163 measured at 173x the profile search it feeds; and D-076 already rejected E-values
+  for drifting with database size, so a prefilter whose behaviour drifts with query count is the
+  same defect one layer down. Those justify the choice on their own.
+- **Rejected:** Leaving D-172 as written. It is an append-only log, so the entry stands, but an
+  overstatement about a result-destroying bug is exactly the kind of claim §7's adversarial
+  reader would check first — and finding it unsupported would cost more credibility than the
+  correction does. `AGENTS.md` asks for the audit to be airtight against a reviewer who wants
+  the result to be wrong; that cuts both ways, and an alarming claim of ours is as much in scope
+  as a convenient one.
+- **Consequence:** the pipeline is unchanged and no number moves — D-171's threshold, brackets and
+  mode were already measured under the exhaustive geometry. What changes is the claim attached to
+  it. Also worth carrying forward: the 2-to-6-bit noise was **entirely** against
+  `class_i_fusion` references, the one fold this project assembled itself (D-166) and already
+  flagged as the weakest of the three. That is a second, independent reason to treat that fold's
+  rows cautiously, and it is a reason the decoy calibration could not have surfaced, since the
+  calibration's queries were ECOD domains rather than full-length corpus proteins.
