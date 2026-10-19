@@ -707,16 +707,44 @@ def main(argv: list[str] | None = None) -> int:
         flush=True,
     )
 
+    observed_end = False
     try:
-        return watch(ec2, s3, iid, bucket, prefix, args, hard_stop)
+        rc = watch(ec2, s3, iid, bucket, prefix, args, hard_stop)
+        observed_end = True
+        return rc
     finally:
         # Also, not instead: a UserData that fails before its own `shutdown` would otherwise
         # leave this running indefinitely.
-        try:
-            ec2.terminate_instances(InstanceIds=[iid])
-            print(f"=== terminated {iid}", flush=True)
-        except Exception as exc:
-            print(f"=== TERMINATE FAILED for {iid}: {type(exc).__name__} — check the console")
+        #
+        # But **not** when the watcher itself died and the instance is healthy. A2.4 learned this
+        # and `ec2_proviruses.py` has carried the guard since; this launcher did not, and on
+        # 2026-10-19 a `timeout` sent SIGTERM to this process 117 minutes into a 3-hour window
+        # while the instance was 112 minutes into a 3Di prediction. The terminate happened not to
+        # fire, which was luck rather than design — it would have destroyed the whole shard,
+        # because there is no checkpoint inside one.
+        #
+        # Leaving a healthy instance alone is safe here precisely because UserData arms
+        # `shutdown -h +N` before anything can fail and the launch sets
+        # InstanceInitiatedShutdownBehavior=terminate: the instance ends itself on time with no
+        # watcher at all. That is what "both, not either" is for.
+        state = instance_state(ec2, iid)
+        if not observed_end and state in ("pending", "running"):
+            print(
+                f"=== watcher exited without seeing {iid} finish, and it is {state}.\n"
+                f"=== LEAVING IT RUNNING: its own shutdown timer ends it within {hard_stop}m of\n"
+                "=== boot, and terminating a healthy instance here would throw away the shard\n"
+                f"=== it is working on. Re-attach with --prefix {prefix}, or terminate by hand.",
+                flush=True,
+            )
+        else:
+            # Nothing in this block returns a value: a `return` inside `finally` swallows
+            # whatever took us out of `watch`, including the SystemExit or KeyboardInterrupt
+            # that is the likeliest reason the watcher stopped early.
+            try:
+                ec2.terminate_instances(InstanceIds=[iid])
+                print(f"=== terminated {iid}", flush=True)
+            except Exception as exc:
+                print(f"=== TERMINATE FAILED for {iid}: {type(exc).__name__} — check the console")
 
 
 def watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any, hard_stop: int) -> int:

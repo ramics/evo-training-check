@@ -613,6 +613,19 @@ def search_shard(
     faa = workdir / "shard-query.faa"
     genes, residues = write_fasta(proteins, faa)
     del proteins
+    # Publish the work size *before* the long step, not after. Residues are what 3Di cost is
+    # proportional to and they are known right here, but the first version only reported elapsed
+    # seconds — so a watcher could see a shard 112 minutes into `createdb` with a 180-minute
+    # window and have no way to tell whether it was nearly done or hopeless. Anyone deciding
+    # whether to let an instance run needs the denominator, not just the clock.
+    if on_tick is not None:
+        on_tick(
+            "sized",
+            round(time.monotonic() - read_started, 1),
+            records=stats["records"],
+            genes=genes,
+            residues=residues,
+        )
 
     search_started = time.monotonic()
     hits: list[dict[str, Any]] = []
@@ -1014,6 +1027,7 @@ def do_search(args: Any) -> int:
     # heartbeat closing over it reports whatever ruff's B023 warns about rather than the live
     # count. The heartbeat is the only channel the instance has, so it has to be right.
     progress = {"done": 0}
+    sizes: dict[str, Any] = {}
     for shard in outstanding:
         print(f"=== {shard['name']}", flush=True)
 
@@ -1038,6 +1052,7 @@ def do_search(args: Any) -> int:
             )
             heartbeat(client, args.s3_uri, "search-progress.json", body)
 
+        sizes.clear()
         tick("starting", 0.0)
         body = search_shard(
             client,
