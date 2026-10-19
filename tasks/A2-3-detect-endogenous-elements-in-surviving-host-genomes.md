@@ -2,18 +2,25 @@
 id: A2.3
 title: Detect endogenous elements in surviving host genomes
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
 design_ref: "§A2"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A2.3 — Detect endogenous elements in surviving host genomes
 
 **Design reference:** DESIGN.md §A2 · **Deliverable 1**
+
+**Branch:** `claude/fervent-hopper-8ht0h3`. Project management on `main` as usual.
+
+**Where it stands:** claimed, nothing searched yet. Next step is pinning the
+element-detection resources and fixing thresholds before any hit is inspected.
+
+**Waiting on the project owner:** nothing yet.
 
 ## Goal
 
