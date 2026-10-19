@@ -69,18 +69,42 @@ def _closure(entry: Path) -> set[str]:
     return seen
 
 
-def test_payload_covers_the_import_closure(folds):
-    needed = _closure(ROOT / "tools" / "fold_throughput.py")
-    shipped = {
+def _shipped_modules(folds) -> set[str]:
+    return {
         Path(rel).stem
         for rel in folds.PAYLOAD
         if rel.startswith("src/amazebio/") and not rel.endswith("__init__.py")
     }
-    missing = needed - shipped
+
+
+@pytest.mark.parametrize("tool", ["fold_throughput.py", "detect_folds.py"])
+def test_payload_covers_the_import_closure(folds, tool):
+    """Every tool the payload ships must have its whole first-party closure shipped with it.
+
+    Parametrised over both tools rather than just the one the launcher currently runs. The
+    closure for `detect_folds.py` is seven modules wider than `fold_throughput.py`'s — detect,
+    folds, profiles, profilesearch, seqstream, survival, uniref — and shipping the tool without
+    them is precisely the ImportError-at-forty-seconds that cost two launches. A test that
+    checks only the tool named in UserData goes green the moment somebody repoints UserData,
+    which is the worst possible time for it to stop looking.
+    """
+    entry = ROOT / "tools" / tool
+    if not entry.exists():  # pragma: no cover — the tool is in the repo
+        pytest.skip(f"{tool} is not present")
+    needed = _closure(entry)
+    missing = needed - _shipped_modules(folds)
     assert not missing, (
-        f"PAYLOAD is short by {sorted(missing)} — the instance would die on an ImportError "
-        "about half a minute in, having read nothing"
+        f"PAYLOAD is short by {sorted(missing)} for {tool} — the instance would die on an "
+        "ImportError about half a minute in, having read nothing"
     )
+
+
+def test_payload_ships_every_tool_it_names(folds):
+    """A module in the payload that no shipped tool imports is dead weight; the reverse is fatal."""
+    tools = [rel for rel in folds.PAYLOAD if rel.startswith("tools/")]
+    assert tools, "the payload must carry at least one tool"
+    for rel in tools:
+        assert (ROOT / rel).exists(), f"{rel} is in PAYLOAD and not in the repo"
 
 
 def test_payload_files_all_exist(folds):

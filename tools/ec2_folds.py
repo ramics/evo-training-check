@@ -116,9 +116,17 @@ PAYLOAD = (
     "src/amazebio/__init__.py",
     "src/amazebio/conformance.py",
     "src/amazebio/corpora.py",
+    "src/amazebio/detect.py",
+    "src/amazebio/folds.py",
     "src/amazebio/objectstore.py",
     "src/amazebio/policyspec.py",
+    "src/amazebio/profiles.py",
+    "src/amazebio/profilesearch.py",
     "src/amazebio/repro.py",
+    "src/amazebio/seqstream.py",
+    "src/amazebio/survival.py",
+    "src/amazebio/uniref.py",
+    "tools/detect_folds.py",
     "tools/fold_throughput.py",
 )
 
