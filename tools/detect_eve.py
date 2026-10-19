@@ -1,0 +1,507 @@
+#!/usr/bin/env python3
+"""Detect endogenous retroelements in the surviving host-genome component — A2.3, D-186.
+
+One table per manifest, in the shape `metrics/detections.md` fixes, so A3.2 can merge this
+detector's output with A2.1's, A2.2's and A2.4's and still take the merge apart again.
+
+The pass is per assembly, and that is the architecture rather than an implementation detail:
+
+- **The record is the genome** (D-136), so one assembly is one unit of work, one row of
+  provenance and one unit of resumption.
+- **Nothing accumulates on disk.** Each assembly is fetched from the publisher by byte range,
+  searched, and deleted before the next one — 20 GB of working disk could not hold the band, and
+  D-103 puts corpus sequence in ephemeral scratch and nowhere else.
+- **Each assembly is searched once, not once per reading.** The three readings differ only in
+  the survival route they imply for this component (`out_of_scope` under literal and charitable,
+  `retained_by_design` under strict), never in what is in it — D-016 withdrew the only rule that
+  could have removed anything here. Searching per reading would triple the cost for an identical
+  set of alignments, which is one of the six faults A2.4 found by watching its own runs.
+
+Evo 1's manifests get a table too, and it reads `not_searched` **by construction**: that release
+exposes no eukaryotic genomes at all (D-018, D-019, D-182). That is a different claim from
+A2.2's `not_searched`, where the component existed and was not bought, and the per-source
+reason strings are where the difference is recorded rather than left in the log.
+
+    python3 tools/detect_eve.py --rate 0.0025
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "src"))
+
+from amazebio import opengenome as og  # noqa: E402
+from amazebio.apply import route_for  # noqa: E402
+from amazebio.detect import (  # noqa: E402
+    DetectionTable,
+    ManifestRef,
+    SampleDesign,
+    build_rows,
+    check_route_coverage,
+    detection_rows,
+)
+from amazebio.eukaryotes import fetch_member, load_index, sampled_members  # noqa: E402
+from amazebio.eve import (  # noqa: E402
+    ACCEPT,
+    DETECTOR,
+    MMSEQS_FORMAT,
+    detections_for,
+    parse_alignments,
+    write_queries,
+)
+from amazebio.policyspec import Outcome  # noqa: E402
+from amazebio.repro import run, sha256_file  # noqa: E402
+
+SEED = 20261015
+REGISTRY = "dfam-curated-ltr"
+
+#: The component this detector covers. Every other component of every manifest is listed with
+#: `searched: false` and a reason, because a table that silently covered part of a release reads
+#: as a verdict on all of it (D-080).
+COVERED = "ncbi_eukaryotic_genomes"
+
+#: Why each other component is not this detector's. Named per component rather than defaulted,
+#: so a component added later arrives without a reason instead of inheriting a wrong one.
+NOT_SEARCHED = {
+    "stage2": "Evo 1's viral component; A2.1 searches it with profiles",
+    "stage1_gtdb": "prokaryotic genomes; A2.4's integrated-element detector covers them",
+    "stage1_imgpr": "plasmid and phage sequence; not a host genome",
+    "imgvr": "viral component; A2.1 searches it with profiles",
+    "imgpr": "plasmid and phage sequence; not a host genome",
+    "gtdb_v220": "prokaryotic genomes; A2.4's integrated-element detector covers them",
+    "metagenomes": "unassigned metagenomic sequence; A4.1 sizes it, and it is not a host genome",
+    "ncrna": "non-coding RNA sequence, not assembled host genomes",
+    "promoters": "promoter windows, not assembled host genomes",
+    "organelles": "organelle sequence; eukaryote-derived but not the nuclear genomes this arm "
+    "searches, and D-182 scoped this task to ncbi_eukaryotic_genomes",
+    "eukaryotic_genic_windows": "windows cut from the genomes this arm searches, so they add no "
+    "independent sequence and are cut around genes; excluded by D-182",
+    "mrna": "transcript sequence, not assembled host genomes",
+}
+
+#: The reason an entire release carries no searchable component. Distinguished from "in scope and
+#: not searched" because collapsing the two would make an absent component look like an
+#: unfinished pass.
+ABSENT = (
+    "this release exposes no eukaryotic genome component at all (D-018, D-019), so there is "
+    "nothing for this detector to search and every count is zero by construction rather than "
+    "by a limit of this pass"
+)
+PROTEIN_PROXY = (
+    "a protein corpus with no assembled genomes; its reader is A1.6's and no host-genome "
+    "component exists in it"
+)
+
+ATTEMPTS = 5
+BACKOFF = 2.0
+
+
+def read_range(path: str, start: int, end: int) -> bytes:
+    url = og.resolve_url(og.OG2, path)
+    last: Exception | None = None
+    for attempt in range(ATTEMPTS):
+        try:
+            request = urllib.request.Request(url, headers={"Range": f"bytes={start}-{end}"})
+            with urllib.request.urlopen(request, timeout=300) as response:
+                return response.read()
+        except (urllib.error.URLError, OSError, TimeoutError) as exc:
+            last = exc
+            if attempt < ATTEMPTS - 1:
+                time.sleep(BACKOFF * (attempt + 1))
+    raise RuntimeError(f"could not read {path} {start}-{end}: {last}")
+
+
+def mmseqs(*args: str, env: Path, threads: int) -> None:
+    """One aligner call, with its output captured and surfaced on failure.
+
+    A2.4's fourth fault was the search tool's output being swallowed so its hours were silent;
+    this keeps stderr and prints it only when the call fails, which is the balance that leaves a
+    long run readable without hiding the one message that matters.
+    """
+    command = ["pixi", "run", "-e", "dev", "mmseqs", *args, "--threads", str(threads)]
+    completed = subprocess.run(command, cwd=REPO, capture_output=True)
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"mmseqs {args[0]} failed ({completed.returncode}):\n"
+            f"{completed.stdout.decode('utf-8', 'replace')[-2000:]}\n"
+            f"{completed.stderr.decode('utf-8', 'replace')[-2000:]}"
+        )
+
+
+def load_manifests(manifest_dir: Path) -> list[dict[str, Any]]:
+    """A1.4's manifests, consumed rather than re-derived (D-059)."""
+    index = manifest_dir / "index.json"
+    if not index.exists():
+        raise SystemExit(
+            f"no A1.4 manifests at {manifest_dir}: run tools/apply_policies.py first. A2.3 "
+            "consumes the manifests rather than re-deriving a surviving set (D-059)."
+        )
+    produced = json.loads(index.read_text())
+    entries = produced.get("manifests", produced if isinstance(produced, list) else [])
+    out = []
+    for entry in entries:
+        name = entry.get("manifest") or entry.get("file")
+        path = manifest_dir / name if name else None
+        if path is None or not path.exists():
+            raise SystemExit(f"manifest listed in index.json is missing: {entry}")
+        out.append({"path": path, "manifest": json.loads(path.read_text())})
+    return out
+
+
+def component_row(manifest: dict[str, Any]) -> dict[str, Any] | None:
+    """The manifest's row for the component this detector covers, or None if absent."""
+    for source in manifest.get("sources", []):
+        if source.get("corpus_component") == COVERED:
+            return source
+    return None
+
+
+def outcome_of(row: dict[str, Any]) -> Outcome:
+    """The component's policy outcome, read from the manifest rather than recomputed.
+
+    This component is uniform and unread — `rules=0`, `read=False` for every reading — so the
+    manifest states one verdict for all of it and there is no per-record evaluation to repeat.
+    A row that is *not* uniform stops the run: it would mean a reading had gained a rule that
+    reaches these genomes, which is the premise D-016 and D-182 both rest on.
+    """
+    if not row.get("uniform"):
+        raise RuntimeError(
+            f"{COVERED} is not uniform in this manifest, so a reading now has a rule that "
+            "reaches it. D-182's route handling and D-016's withdrawal both assume otherwise, "
+            "and the route of every detection here would be wrong."
+        )
+    name = row.get("uniform_outcome")
+    try:
+        return Outcome(name)
+    except ValueError as exc:
+        raise RuntimeError(f"unknown outcome {name!r} for {COVERED}") from exc
+
+
+def search_assembly(
+    accession: str,
+    fasta: Path,
+    query_db: Path,
+    work: Path,
+    *,
+    threads: int,
+) -> list[Any]:
+    """Build a target database for one assembly, search it, and parse the alignments."""
+    target_db = work / "targetDB"
+    result_db = work / "resultDB"
+    tsv = work / "alignments.tsv"
+    tmp = work / "tmp"
+    for path in (target_db.parent / "targetDB", result_db):
+        for stale in path.parent.glob(f"{path.name}*"):
+            stale.unlink() if stale.is_file() else shutil.rmtree(stale, ignore_errors=True)
+    tmp.mkdir(parents=True, exist_ok=True)
+
+    mmseqs("createdb", str(fasta), str(target_db), env=work, threads=threads)
+    # `--search-type 3` is nucleotide-to-nucleotide. Consensus is the query and the genome the
+    # target, which is the direction AGENTS.md records as measured: the small side as query took
+    # 335 s where the corpus as query had not left the prefilter after 45 minutes.
+    mmseqs(
+        "search",
+        str(query_db),
+        str(target_db),
+        str(result_db),
+        str(tmp),
+        "--search-type",
+        "3",
+        "-e",
+        str(ACCEPT["max_evalue"]),
+        env=work,
+        threads=threads,
+    )
+    mmseqs(
+        "convertalis",
+        str(query_db),
+        str(target_db),
+        str(result_db),
+        str(tsv),
+        "--format-output",
+        ",".join(MMSEQS_FORMAT),
+        env=work,
+        threads=threads,
+    )
+    with open(tsv) as handle:
+        alignments = list(parse_alignments(handle))
+    shutil.rmtree(tmp, ignore_errors=True)
+    tsv.unlink(missing_ok=True)
+    return alignments
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--rate", type=float, default=0.0025, help="band rate (D-186: 0.0025)")
+    parser.add_argument("--index", default=str(REPO / "artifacts" / "a2-3" / "assembly-index.json"))
+    parser.add_argument("--manifests", default=str(REPO / "artifacts" / "a1-4"), type=Path)
+    parser.add_argument(
+        "--registry",
+        default=str(REPO / "artifacts" / "a2-3" / "registries" / f"{REGISTRY}.json"),
+    )
+    parser.add_argument(
+        "--library", default=str(REPO / "data" / "dfam" / "4.0" / f"{REGISTRY}.hmm")
+    )
+    parser.add_argument("--outdir", default=str(REPO / "artifacts" / "a2-3"))
+    parser.add_argument("--scratch", default=None)
+    parser.add_argument("--threads", type=int, default=os.cpu_count() or 1)
+    parser.add_argument("--limit", type=int, default=0, help="stop after N assemblies")
+    parser.add_argument("--allow-dirty", action="store_true")
+    args = parser.parse_args(argv)
+
+    out = Path(args.outdir)
+    scratch = Path(args.scratch or os.environ.get("TMPDIR", "/tmp")) / "a2-3-eve"
+    scratch.mkdir(parents=True, exist_ok=True)
+
+    with run(
+        "A2.3",
+        seed=SEED,
+        outdir=out,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        manifest_name="run-detect.json",
+    ) as m:
+        m.parameter("detector", DETECTOR)
+        m.parameter("registry", REGISTRY)
+        m.parameter("sample_seed", SEED)
+        m.parameter("sample_rate", args.rate)
+        m.parameter("acceptance_rule", dict(ACCEPT))
+        m.parameter("covered_component", COVERED)
+        m.parameter("decision_refs", ["D-186", "D-183", "D-182", "D-136", "D-103", "D-059"])
+        m.tool("mmseqs", ["pixi", "run", "-e", "dev", "mmseqs", "version"])
+
+        universe_doc = json.loads(m.input_file(args.registry, role="registry universe").read_text())
+        universe = {
+            f["family_id"]: f["name"]
+            for f in universe_doc["families"]
+            if f["is_erv"] and f["threshold"] is not None
+        }
+        thresholds = {acc: float(ACCEPT["min_identity"]) for acc in universe}
+        m.parameter("families_in_universe", len(universe))
+        if len(universe) != universe_doc["erv_models"]:
+            raise SystemExit(
+                f"selected {len(universe)} families but the registry reports "
+                f"{universe_doc['erv_models']} searchable ERV models; the denominator would "
+                "differ from the one D-185 recorded"
+            )
+
+        queries = scratch / "queries.fasta"
+        query_info = write_queries(args.library, queries, universe)
+        m.parameter("queries", query_info)
+        query_db = scratch / "queryDB"
+        for stale in scratch.glob("queryDB*"):
+            stale.unlink() if stale.is_file() else shutil.rmtree(stale, ignore_errors=True)
+        mmseqs("createdb", str(queries), str(query_db), env=scratch, threads=args.threads)
+
+        index = load_index(m.input_file(args.index, role="assembly index"))
+        band = sampled_members(index, seed=SEED, hi=args.rate)
+        if args.limit:
+            band = band[: args.limit]
+        m.parameter("band_assemblies", len(band))
+        m.parameter("band_compressed_bytes", sum(x.size for x in band))
+
+        manifests = load_manifests(args.manifests)
+        m.parameter("manifests", [e["manifest"]["policy"]["id"] for e in manifests])
+
+        # One search per assembly, reused across readings: they differ only in route.
+        alignments_by_assembly: dict[str, list[Any]] = {}
+        searched: list[dict[str, Any]] = []
+        work = scratch / "work"
+        work.mkdir(parents=True, exist_ok=True)
+        for position, member in enumerate(band, start=1):
+            fasta = work / f"{member.accession}.fasta"
+            provenance = fetch_member(member, read_range, fasta)
+            started = time.time()
+            try:
+                alignments = search_assembly(
+                    member.accession, fasta, query_db, work, threads=args.threads
+                )
+            finally:
+                fasta.unlink(missing_ok=True)  # D-103
+            elapsed = time.time() - started
+            alignments_by_assembly[member.accession] = alignments
+            searched.append(
+                {
+                    "accession": member.accession,
+                    "tar": member.tar,
+                    "compressed_bytes": provenance["compressed_bytes"],
+                    "uncompressed_bytes": provenance["uncompressed_bytes"],
+                    "sha256_compressed": provenance["sha256_compressed"],
+                    "alignments": len(alignments),
+                    "search_seconds": round(elapsed, 1),
+                }
+            )
+            print(
+                f"  [{position}/{len(band)}] {member.accession}: "
+                f"{provenance['uncompressed_bytes'] / 1e6:.1f} Mb, "
+                f"{len(alignments)} alignments, {elapsed:.0f}s",
+                flush=True,
+            )
+
+        residues = sum(s["uncompressed_bytes"] for s in searched)
+        produced: list[dict[str, Any]] = []
+        for entry in manifests:
+            manifest = entry["manifest"]
+            policy_id = manifest["policy"]["id"]
+            release = manifest["release"]
+            row = component_row(manifest)
+
+            sources: list[dict[str, Any]] = []
+            detections: list[Any] = []
+            sample: SampleDesign | None = None
+
+            for source in manifest.get("sources", []):
+                key = source.get("corpus_component")
+                if key == COVERED and row is not None and band:
+                    outcome = outcome_of(row)
+                    route = route_for(outcome)
+                    for accession, alignments in alignments_by_assembly.items():
+                        detections.extend(
+                            detections_for(
+                                alignments,
+                                record_id=accession,
+                                route=route,
+                                registry=REGISTRY,
+                                registry_version=universe_doc["registry_version"],
+                            )
+                        )
+                    sources.append(
+                        {
+                            "component": source.get("component", COVERED),
+                            "corpus_component": COVERED,
+                            "searched": True,
+                            "uniform_outcome": outcome.value,
+                            "route": route.value,
+                            "records_in_source": universe_doc.get("assemblies") or len(index),
+                            "records": len(searched),
+                            "residues": residues,
+                            "assemblies": searched,
+                        }
+                    )
+                    sample = SampleDesign(
+                        seed=SEED,
+                        rate=args.rate,
+                        population=len(index),
+                        method="blake2b(seed, assembly_accession) < rate * 2**64",
+                        decision_ref="D-182",
+                        bands=((0.0, args.rate),),
+                    )
+                else:
+                    why = NOT_SEARCHED.get(key)
+                    if why is None:
+                        why = PROTEIN_PROXY if release == "esm3-proxy" else ABSENT
+                    sources.append(
+                        {
+                            "component": source.get("component", key),
+                            "corpus_component": key,
+                            "searched": False,
+                            "why": why,
+                        }
+                    )
+
+            if row is None:
+                # The release has no such component at all. Recorded as its own row so the
+                # absence is visible rather than inferred from the other rows' silence.
+                sources.append(
+                    {
+                        "component": COVERED,
+                        "corpus_component": COVERED,
+                        "searched": False,
+                        "why": PROTEIN_PROXY if release == "esm3-proxy" else ABSENT,
+                        "present_in_release": False,
+                    }
+                )
+
+            table = DetectionTable(
+                task="A2.3",
+                detector=DETECTOR,
+                registry=REGISTRY,
+                registry_version=universe_doc["registry_version"],
+                manifest=ManifestRef(
+                    policy_id=policy_id,
+                    release=release,
+                    path=str(entry["path"].relative_to(REPO)),
+                    sha256=sha256_file(entry["path"]),
+                    removed_records=manifest.get("removed", {}).get("records", 0),
+                ),
+                sources=sources,
+                sample=sample,
+                rows=build_rows(detections, universe=universe, thresholds=thresholds),
+                thresholds={
+                    "rule": dict(ACCEPT),
+                    "scalar": "sequence identity, the axis the rule is declared on",
+                    "decision_ref": "D-186",
+                    "note": (
+                        "A conjunction: E-value, alignment length and identity. The table's "
+                        "per-family threshold is the identity cut; the per-hit E-value, length "
+                        "and bit score are in the .jsonl so a re-cut on any axis needs no "
+                        "re-search."
+                    ),
+                },
+                notes=[universe_doc["denominator"]["restriction"]],
+            )
+            check_route_coverage(table)
+
+            stem = f"detections-{REGISTRY}-{policy_id}-{release}"
+            table_path = out / f"{stem}.json"
+            table_path.write_text(json.dumps(table.to_dict(), indent=1) + "\n")
+            m.output_file(table_path, role=f"detection table {policy_id}/{release}")
+            if detections:
+                lines = list(
+                    detection_rows(detections, extra={"detector": DETECTOR, "task": "A2.3"})
+                )
+                jsonl = out / f"{stem}.jsonl"
+                jsonl.write_text("\n".join(json.dumps(line) for line in lines) + "\n")
+                m.output_file(jsonl, role=f"detections {policy_id}/{release}")
+            produced.append(
+                {
+                    "policy": policy_id,
+                    "release": release,
+                    "table": table_path.name,
+                    "estimate_kind": table.estimate_kind,
+                    "families_with_a_hit": table.families_with_a_hit(),
+                    "detections": len(detections),
+                }
+            )
+            print(
+                f"  {policy_id}/{release}: {table.estimate_kind}, "
+                f"{table.families_with_a_hit()} families, {len(detections)} detections",
+                flush=True,
+            )
+
+        index_path = out / "detections-index.json"
+        index_path.write_text(
+            json.dumps(
+                {
+                    "task": "A2.3",
+                    "detector": DETECTOR,
+                    "registry": REGISTRY,
+                    "families_in_universe": len(universe),
+                    "band": {"seed": SEED, "rate": args.rate, "assemblies": len(band)},
+                    "searched": searched,
+                    "tables": produced,
+                },
+                indent=1,
+            )
+            + "\n"
+        )
+        m.output_file(index_path, role="detection index")
+        shutil.rmtree(work, ignore_errors=True)
+        print(json.dumps(produced, indent=1))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
