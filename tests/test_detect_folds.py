@@ -339,6 +339,74 @@ def test_shards_with_different_params_refuse_to_merge(tool, tmp_path):
         tool.load_shards(tmp_path, release="opengenome2")
 
 
+def test_a_partial_shard_is_refused_by_the_assembly(tool, tmp_path):
+    """A capped `--max-records` run is a smoke test, and must never reach a citable table.
+
+    The shard it writes is byte-identical in shape to a real one apart from this flag, which is
+    exactly why the flag has to be load-bearing rather than decorative.
+    """
+    body = _shard([])
+    body["partial"] = True
+    body["records_cap"] = 8
+    (tmp_path / "opengenome2--a.json").write_text(json.dumps(body))
+    with pytest.raises(tool.FoldDetectError, match="partial"):
+        tool.load_shards(tmp_path, release="opengenome2")
+
+
+# --------------------------------------------------------------------------------------
+# Parsing foldseek's output
+# --------------------------------------------------------------------------------------
+
+
+def _tsv(tmp_path, *rows: str):
+    p = tmp_path / "hits.tsv"
+    p.write_text("".join(r + "\n" for r in rows))
+    return p
+
+
+def test_parse_hits_recovers_the_record_id_from_the_gene_name(tool, tmp_path):
+    """`write_fasta` names a protein `<record_id>|gene<n>`; the record id is the part before |."""
+    tsv = _tsv(
+        tmp_path,
+        "imgvr:acc_1|gene7\te1hx6A1.cif\t250\t1e-9\t0.21\t150\t300\t230\t0.80",
+    )
+    got = tool.parse_hits(tsv)
+    assert len(got) == 1
+    assert got[0]["record_id"] == "imgvr:acc_1"
+    assert got[0]["gene"] == "imgvr:acc_1|gene7"
+    assert got[0]["target"] == "e1hx6A1", "the .cif suffix is stripped to the ECOD domain id"
+    assert got[0]["bits"] == 250.0
+    assert got[0]["tcov"] == 0.80
+
+
+def test_parse_hits_drops_rows_below_the_floor(tool, tmp_path):
+    """The floor keeps a shard from becoming a dump of every chance alignment."""
+    tsv = _tsv(
+        tmp_path,
+        "r|gene1\te1hx6A1.cif\t250\t1e-9\t0.2\t150\t300\t230\t0.8",
+        "r|gene2\te1hx6A1.cif\t5\t1\t0.1\t20\t300\t230\t0.1",
+    )
+    got = tool.parse_hits(tsv)
+    assert [h["bits"] for h in got] == [250.0]
+
+
+def test_parse_hits_keeps_everything_a_bracket_could_need(tool, tmp_path):
+    """Stored above the floor so the declared cut and both brackets apply without re-searching."""
+    assert tool.FLOOR_BITS < 20, "the calibration grid starts at 20 bits"
+    tsv = _tsv(tmp_path, "r|gene1\te1hx6A1.cif\t401\t1e-9\t0.2\t150\t300\t230\t0.8")
+    assert len(tool.parse_hits(tsv)) == 1
+
+
+def test_parse_hits_ignores_a_malformed_line(tool, tmp_path):
+    tsv = _tsv(tmp_path, "nonsense", "r|gene1\te1hx6A1.cif\t250\t1e-9\t0.2\t150\t300\t230\t0.8")
+    assert len(tool.parse_hits(tsv)) == 1
+
+
+def test_parse_hits_on_a_missing_table_is_empty_not_an_error(tool, tmp_path):
+    """A shard whose search produced no alignments at all is a result, not a failure."""
+    assert tool.parse_hits(tmp_path / "absent.tsv") == []
+
+
 def test_shards_are_found_by_glob_not_exact_key(tool, tmp_path):
     """An exact-key test once fired after a finished 70-minute search in A2.1."""
     (tmp_path / "opengenome2--a.json").write_text(json.dumps(_shard([])))
