@@ -8627,3 +8627,61 @@ decision has a threshold or parameter in it, the number goes in the entry.
   applies to the property and not to the families**, and **LCA-based selection cannot answer a
   satellite question** — which bears on any later task that reaches for RVDB to find satellites,
   A2.1's registries included.
+
+### D-191 — A2.5's segmented arm runs as three nested bands, declared before any hit was inspected
+- **Date:** 2026-10-19
+- **Task:** A2.5
+- **Context:** D-190 fixed the family set (1,285 RVDB-prot families, derived) and the threshold
+  (E ≤ 1e-5 at a pinned `Z`, RVDB's published rule) and deliberately left the **depth** to this
+  entry, as D-183 left A2.3's — because depth is the one parameter that should follow a measured
+  rate rather than a guess, and because the project owner asked that the pass be run "in bits so
+  if the money goes up we still have our results".
+  **The measured rate, on real models.** A 120-record probe (`--limit 120`, declared below) put
+  the search at **109 core-seconds per million residues for 1,285 models**, i.e. 0.085
+  core-seconds per profile per Maa. That sits between the two bounds D-190 recorded: 3x D-098's
+  0.0282 over 13,679 curated models, and about half the 0.157 the synthetic profiles of
+  `marker_throughput.py` suggested. Gene calling measured 1.6 core-seconds per Mbp and is
+  single-threaded in the shared code path, which is what actually bounds a band's wall clock.
+  Projected over the component's 10,494 Maa of called protein, a census is about **320
+  core-hours** of search plus **16** of calling — about $17 at the instance rate A2.4 used, not
+  the $5 first quoted from D-098's rate alone. The read is **not** amortised across bands: hash
+  selection has to scan the whole 16.9 GB object to find a band's members, so each band pays its
+  own read of about $1.50.
+- **Decision:** **Three nested bands, in this order**, on the seed D-078 fixed and every A2.1
+  band has used (20261015), so this arm's samples are the same samples A2.1 drew and a later
+  deepening re-reads nothing:
+  1. `[0, 0.02)` — 2% of the surviving component. **Matches A2.1's own deepened depth for this
+     component**, so the two arms' figures are drawn over the same records and are comparable
+     family by family. About 1.5 wall hours.
+  2. `[0.02, 0.10)` — out to 10%, five times deeper than A2.1 ever searched here.
+  3. `[0.10, 1.0)` — the remainder, which makes the result a census.
+  **Each band is a deliverable on its own.** `estimate_kind` is `lower_bound` for bands 1 and 2
+  and `population` only for the full `[0, 1)` span, so a stopped ladder reports what it measured
+  rather than what it intended. A family detected in band 1 is detected, full stop; a family
+  absent is absent *from the records read*, and the interval says so.
+  **Band 3 is conditional and the condition is stated now, before any result could influence
+  it:** it is bought only if bands 1 and 2 leave the question open *and* the measured rate still
+  puts the census under about $25 all-in. If band 1 or 2 finds segmented families, the question
+  is answered in the direction that matters — material survives — and a census buys precision
+  on a number rather than the answer. If the rate comes in worse than that, the cost becomes the
+  finding, as it did for A2.2 under D-180.
+- **Disclosure, because "before results were inspected" has to mean something.** A 120-record
+  probe was run to smoke-test the tool end to end before this entry was written, and it returned
+  **zero hits**. That is 0.005% of the component, it was run with `--limit` as an explicit probe
+  rather than as a band, and it is recorded here rather than left out: a null over 120 records of
+  a phage-dominated corpus carries no information about the categories, but the honest statement
+  is that the ladder was declared *after* that probe and not in total ignorance. No band figure
+  and no family identity was seen before this entry.
+- **Rejected:** *A census in one pass.* 320 core-hours is 40 wall hours at eight threads and the
+  gene-calling arm is single-threaded, so one run cannot finish inside this environment's window
+  — the same constraint D-099's bands were invented for. Bands are not a compromise here, they
+  are the only shape that fits.
+  *Fewer, wider bands* to save the per-band read. Cheaper in total, but it banks nothing until
+  late, which is the opposite of what was asked for. Three bands is the compromise: one read's
+  worth of overhead buys a quotable result at 2%.
+  *Starting deeper than 2%.* A2.1's depth is the one that makes the two arms comparable, and a
+  first band that cannot be set beside the label-side census is worth less than one that can.
+- **Consequence:** A2.5's weak zero gets a label-independent measurement at a depth matching
+  A2.1's, and the ladder above it is costed. Whatever band the ladder stops at, the artefact
+  states its own depth and interval, so no reader has to know how far it got to read it
+  correctly.
