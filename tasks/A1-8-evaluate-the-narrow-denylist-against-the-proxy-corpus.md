@@ -2,7 +2,7 @@
 id: A1.8
 title: Evaluate the narrow denylist against the ESM3-open proxy corpus
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
@@ -509,3 +509,22 @@ and a realised family count; the per-record manifest and the no-all-clear statem
 place; `run.json` manifests pin every pass. What remains is the comparison with A1.6's band,
 which needs an argument about relative denylist breadth rather than a subtraction, and the
 disclosure-package question of which specific records were in ESM3's denylist.
+
+## At review — 2026-10-19
+
+**PR #24**, branch `ccr-44355df9-hi20t9`. `pixi run -e dev check` green at 1,266 passed.
+
+Everything from the seed set through the scored band with intervals is in it, with the
+decisions it rests on already on `main`: D-137, D-138, D-139, D-146, D-150, D-157, D-159,
+D-162, D-178.
+
+**Not claimed by this task, and left for whoever takes it further.** The comparison against
+A1.6's band needs an argument about relative denylist breadth rather than a subtraction — same
+shard, same six cells, same instrument, different denylists of unquantified relative size. And
+which specific records were in ESM3's denylist is a per-record question for the disclosure
+package (D-125, D-126), not for this arm.
+
+**One piece of shared infrastructure nobody owns.** The shard strata sidecars are still not
+staged, so every band run pays a 52-minute corpus pass to rebuild them. A1.8 paid it four
+times on 2026-10-19. `--stage-sidecars-only` exists for it; A1.8 did not use it because it
+writes into A1.6's sample prefix.
