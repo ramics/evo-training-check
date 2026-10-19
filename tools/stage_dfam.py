@@ -36,6 +36,7 @@ from typing import Any
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
+from amazebio import objectstore  # noqa: E402
 from amazebio.dfam import (  # noqa: E402
     ERV_SUBTYPES,
     FILES,
@@ -204,6 +205,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=out,
         allow_dirty=args.allow_dirty,
         repo=REPO,
+        durable=objectstore.durable_results("a2-3"),
         manifest_name="run-registry.json",
     ) as m:
         m.parameter("registry", "dfam-curated-ltr")

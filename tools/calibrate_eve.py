@@ -41,6 +41,7 @@ from typing import Any
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
+from amazebio import objectstore  # noqa: E402
 from amazebio import opengenome as og  # noqa: E402
 from amazebio.eukaryotes import Member, fetch_member, load_index, sampled_members  # noqa: E402
 from amazebio.repro import run  # noqa: E402
@@ -113,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=out,
         allow_dirty=args.allow_dirty,
         repo=REPO,
+        durable=objectstore.durable_results("a2-3"),
         manifest_name="run-calibration.json",
     ) as m:
         m.parameter("sample_seed", SEED)
