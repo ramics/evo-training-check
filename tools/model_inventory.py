@@ -23,6 +23,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
+from amazebio import objectstore
 from amazebio.models import InventoryError, feasibility, inventory, validate
 from amazebio.repro import run
 
@@ -107,7 +108,13 @@ def main() -> int:
         return 0
 
     envelope = compute_envelope()
-    with run("B1.1", outdir=OUTDIR, allow_dirty=args.allow_dirty, repo=REPO) as m:
+    with run(
+        "B1.1",
+        outdir=OUTDIR,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        durable=objectstore.durable_results("b1-1"),
+    ) as m:
         m.parameter("tiers", [1, 2])
         m.parameter("compute_envelope_measured", envelope["measured"])
         m.input_file(SOURCES, role="source inventory each checkpoint's claims cite")

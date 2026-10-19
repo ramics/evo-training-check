@@ -29,6 +29,22 @@ Two deliberate pieces of strictness:
   constraint is the point: `AGENTS.md` requires thresholds fixed before results
   are inspected, and a manifest that permits the reverse order silently documents
   a violation as if it were compliance.
+* **A run that produces local outputs must say where they persist.** `artifacts/`
+  is git-ignored and the session container is reclaimed, so a result written only
+  there is gone when the session ends. On 2026-10-19 an audit found **nine
+  finished tasks with no surviving result artefact** — A2.1's deepened profile
+  pass and A4.2's taxonomy benchmark among them, between them most of a day of
+  compute — while every task whose tool uploaded was intact (D-188). The figures
+  survived in prose, which is precisely what `AGENTS.md`'s "artefacts before
+  prose" forbids relying on.
+
+  So :func:`run` refuses to complete a run that recorded a local output and named
+  no durable destination. Pass `durable="s3://bucket/prefix"` and the outputs are
+  uploaded and recorded as object URIs on exit; pass `durable_exempt="<reason>"`
+  for a run whose outputs genuinely need no persistence. The exemption is a
+  string rather than a flag so the reason is in the manifest and greppable across
+  the tree, and `tests/test_repro.py` holds the list of exempt call sites so it
+  can shrink but not silently grow.
 """
 
 from __future__ import annotations
@@ -160,6 +176,12 @@ class RunManifest:
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     finished_at: str | None = None
     git: dict[str, Any] = field(default_factory=dict)
+    #: Where the local outputs were copied to, or why they were not. One of the two is
+    #: always set for a run that produced local outputs — :func:`run` refuses otherwise.
+    durable: str | None = None
+    durable_exempt: str | None = None
+    #: `local path -> object URI` for each output copied to durable storage.
+    uploaded: dict[str, str] = field(default_factory=dict)
 
     def parameter(self, name: str, value: Any) -> None:
         """Declare a parameter or threshold.
@@ -265,6 +287,9 @@ class RunManifest:
             "outputs": self.outputs,
             "tools": self.tools,
             "notes": self.notes,
+            "durable": self.durable,
+            "durable_exempt": self.durable_exempt,
+            "uploaded": self.uploaded,
             "environment": {
                 "python": sys.version.split()[0],
                 "platform": platform.platform(),
@@ -284,6 +309,58 @@ class RunManifest:
         return target
 
 
+def _split_s3(uri: str) -> tuple[str, str]:
+    if not uri.startswith("s3://"):
+        raise ReproError(f"durable destination must be an s3:// URI, got {uri!r}")
+    bucket, _, prefix = uri[len("s3://") :].partition("/")
+    if not bucket:
+        raise ReproError(f"durable destination names no bucket: {uri!r}")
+    return bucket, prefix.strip("/")
+
+
+def _client(uploader: Any) -> Any:
+    if uploader is not None:
+        return uploader
+    from amazebio import objectstore
+
+    return objectstore.client()
+
+
+def _upload_one(manifest: RunManifest, durable: str, path: Path, client: Any = None) -> str:
+    """Copy one local file under the durable prefix, keyed by its path relative to outdir."""
+    bucket, prefix = _split_s3(durable)
+    root = Path(manifest.outdir) if manifest.outdir else path.parent
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        rel = Path(path.name)
+    key = f"{prefix}/{rel.as_posix()}" if prefix else rel.as_posix()
+    (client or _client(None)).put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
+    uri = f"s3://{bucket}/{key}"
+    manifest.uploaded[str(path)] = uri
+    return uri
+
+
+def _upload_outputs(manifest: RunManifest, durable: str, client: Any) -> dict[str, str]:
+    """Copy every local output under the durable prefix, recording each as an object URI.
+
+    Recorded with :meth:`RunManifest.output_object` as well as on disk, so a reader of
+    `run.json` can find the durable copy without knowing this function's key scheme.
+    """
+    uploaded: dict[str, str] = {}
+    for entry in list(manifest.outputs):
+        local = entry.get("path")
+        if not local:
+            continue
+        path = Path(local)
+        if not path.exists():
+            continue
+        uri = _upload_one(manifest, durable, path, client)
+        uploaded[str(path)] = uri
+        entry["durable_uri"] = uri
+    return uploaded
+
+
 @contextlib.contextmanager
 def run(
     task: str,
@@ -293,6 +370,9 @@ def run(
     allow_dirty: bool = False,
     repo: Path | None = None,
     manifest_name: str = MANIFEST_NAME,
+    durable: str | None = None,
+    durable_exempt: str | None = None,
+    uploader: Any = None,
 ) -> Iterator[RunManifest]:
     """Wrap a pipeline run: seed RNGs, check the tree is clean, write provenance.
 
@@ -307,10 +387,24 @@ def run(
             where more than one pipeline writes to the same directory — otherwise the
             second run silently overwrites the first one's provenance, which A1.5 hit
             with two staging passes running at once.
+        durable: `s3://bucket/prefix` the local outputs are copied to on a clean exit.
+            Required for any run that records a local output, unless `durable_exempt`
+            is given. See this module's docstring for what it cost not to have this.
+        durable_exempt: why this run's outputs need no durable copy. Mutually exclusive
+            with `durable`. A reason, not a flag — it lands in the manifest.
+        uploader: object-store client. Defaults to `amazebio.objectstore.client()`,
+            imported lazily so a run with no `durable` needs no boto3.
 
     Raises:
-        ReproError: if the git tree is dirty and ``allow_dirty`` is False.
+        ReproError: if the git tree is dirty and ``allow_dirty`` is False; if both
+            `durable` and `durable_exempt` are given; or if the run recorded a local
+            output and named neither.
     """
+    if durable and durable_exempt:
+        raise ReproError(
+            f"{task}: pass either durable= or durable_exempt=, not both. If the outputs "
+            "persist, say where; if they need not, say why."
+        )
     manifest = RunManifest(task=task, seed=seed)
     manifest.git = git_state(repo)
 
@@ -330,9 +424,38 @@ def run(
         manifest.outdir = Path(outdir)
         manifest.outdir.mkdir(parents=True, exist_ok=True)
 
+    manifest.durable = durable
+    manifest.durable_exempt = durable_exempt
+
+    failed = False
     try:
         yield manifest
+    except BaseException:
+        failed = True
+        raise
     finally:
         manifest.finished_at = datetime.now(UTC).isoformat()
+        local = [o for o in manifest.outputs if o.get("path")]
+        # Upload before writing run.json so the manifest records the keys, then upload
+        # run.json itself: a durable copy of the outputs with no provenance beside it is
+        # not citable, which is the whole point of persisting them.
+        persisting = bool(durable) and bool(local) and not failed
+        client = _client(uploader) if persisting else None
+        if persisting:
+            manifest.uploaded = _upload_outputs(manifest, durable, client)
         if manifest.outdir is not None:
-            manifest.write(Path(manifest.outdir) / manifest_name)
+            written = manifest.write(Path(manifest.outdir) / manifest_name)
+            if persisting:
+                _upload_one(manifest, durable, written, client)
+        # Checked last, and skipped when the body raised: a run that failed has no
+        # result to persist, and masking its exception with this one would hide the
+        # real failure.
+        if not failed and local and not durable and not durable_exempt:
+            raise ReproError(
+                f"{task} recorded {len(local)} local output(s) under "
+                f"{manifest.outdir} and named no durable destination. `artifacts/` is "
+                "git-ignored and this container is reclaimed, so these files will not "
+                "survive the session — nine finished tasks lost their results exactly "
+                "this way (D-188). Pass durable='s3://bucket/prefix' to persist them, "
+                "or durable_exempt='<reason>' if they genuinely need no copy."
+            )

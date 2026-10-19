@@ -49,7 +49,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import repro, seeds, shardstore, similarity, uniref
+from amazebio import objectstore, repro, seeds, shardstore, similarity, uniref
 from amazebio.repro import ReproError
 
 S3_REGION = "us-east-1"
@@ -750,6 +750,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
         manifest_name="run-calibration.json",
+        durable=objectstore.durable_results("a1-6"),
     ) as manifest:
         for name, value in (
             ("code_commit", args.code_commit),

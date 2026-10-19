@@ -66,7 +66,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import folds
+from amazebio import folds, objectstore
 from amazebio.repro import run
 
 #: RCSB's per-entry FASTA. One request per PDB entry, text only.
@@ -617,7 +617,13 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         tables[name] = tsv
 
-    with run("A2.2", seed=SEED, outdir=args.out, allow_dirty=args.allow_dirty) as manifest:
+    with run(
+        "A2.2",
+        seed=SEED,
+        outdir=args.out,
+        allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a2-2"),
+    ) as manifest:
         manifest.parameter("target_fpr", TARGET_FPR)
         manifest.parameter("binding_decoy_class", "near_fold_nonviral")
         manifest.parameter("grid_bits", list(GRID))

@@ -718,7 +718,13 @@ def main(argv: list[str] | None = None) -> int:
         ),
     }
 
-    with run("A2.5", seed=SEED, outdir=outdir, allow_dirty=args.allow_dirty) as provenance:
+    with run(
+        "A2.5",
+        seed=SEED,
+        outdir=outdir,
+        allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a2-5"),
+    ) as provenance:
         provenance.parameter("reference", REFERENCE)
         provenance.parameter("reference_sha256", pinned.sha256)
         provenance.parameter("join_release", JOIN_RELEASE)

@@ -31,7 +31,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import corpora
+from amazebio import corpora, objectstore
 from amazebio.apply import (
     PolicyManifest,
     SourceVerdict,
@@ -413,7 +413,13 @@ def main(argv: list[str] | None = None) -> int:
     client = _client()
     checked = check_inventory(client)
     print(f"inventory: {checked} staged objects, all declared", file=sys.stderr)
-    with run("A1.4", seed=SEED, outdir=outdir, allow_dirty=args.allow_dirty) as manifest:
+    with run(
+        "A1.4",
+        seed=SEED,
+        outdir=outdir,
+        allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a1-4"),
+    ) as manifest:
         manifest.parameter("policies", sorted(wanted))
         manifest.parameter("releases", {p: list(RELEASES[p]) for p in sorted(wanted)})
         manifest.parameter("limit", args.limit)

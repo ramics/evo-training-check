@@ -46,7 +46,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import imgvr
+from amazebio import imgvr, objectstore
 from amazebio.repro import run
 
 OUTDIR = Path("artifacts/a1-7")
@@ -261,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=outdir,
         allow_dirty=args.allow_dirty,
         manifest_name="run-composition.json",
+        durable=objectstore.durable_results("a1-7"),
     ) as m:
         m.parameter("releases", releases)
         m.parameter("source", uri)

@@ -40,6 +40,7 @@ from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
+from amazebio import objectstore
 from amazebio.repro import run
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -193,7 +194,13 @@ def main() -> int:
         return 0
 
     outdir = REPO / "artifacts" / "b1-1" / "ec2-capability"
-    with run("B1.1", outdir=outdir, allow_dirty=args.allow_dirty, repo=REPO) as m:
+    with run(
+        "B1.1",
+        outdir=outdir,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        durable=objectstore.durable_results("b1-1"),
+    ) as m:
         m.parameter("region", REGION)
         m.parameter("ami_parameter", AMI_PARAMETER)
         m.parameter("instance_profile", PROFILE)

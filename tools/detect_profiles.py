@@ -49,7 +49,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import corpora, profilesearch
+from amazebio import corpora, objectstore, profilesearch
 from amazebio.apply import resolve, route_for
 from amazebio.detect import (
     DetectionTable,
@@ -545,6 +545,7 @@ def assemble(
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name="run-assemble.json",
+        durable=objectstore.durable_results("a2-1"),
     ) as m:
         m.parameter("assembled_parts", [part["band_multiple"] for part in parts])
         m.parameter("sample_seed", SEED)
@@ -743,6 +744,7 @@ def main(argv: list[str] | None = None) -> int:
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name=f"run-{scope}.json",
+        durable=objectstore.durable_results("a2-1"),
     ) as m:
         m.parameter("registries", [r.key for r in regs])
         m.parameter("sample_seed", SEED)

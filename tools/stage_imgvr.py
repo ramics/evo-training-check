@@ -55,7 +55,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import imgvr
+from amazebio import imgvr, objectstore
 from amazebio.repro import run
 
 SEARCH_URL = "https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR&x=50"
@@ -429,7 +429,13 @@ def main(argv: list[str] | None = None) -> int:
                 "filesystem with room, or free some."
             )
 
-    with run("A1.7", seed=None, outdir=outdir, allow_dirty=args.allow_dirty) as m:
+    with run(
+        "A1.7",
+        seed=None,
+        outdir=outdir,
+        allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a1-7"),
+    ) as m:
         m.parameter("releases", releases)
         m.parameter("spool_dir", str(spool))
         m.parameter("include_sequence", args.include_sequence)

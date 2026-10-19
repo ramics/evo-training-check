@@ -34,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import exclusivity, repro, seeds
+from amazebio import exclusivity, objectstore, repro, seeds
 
 #: `>UniRef100_X` at the start of a FASTA header. `write_fasta` emits a bare cluster id
 #: because MMseqs2 keys on the first whitespace-delimited token, so there is nothing after it.
@@ -198,6 +198,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
         manifest_name=f"run-exposure-q{args.seed_denominator}.json",
+        durable=objectstore.durable_results("a1-6"),
     ) as manifest:
         if args.code_commit:
             manifest.parameter("code_commit", args.code_commit)
