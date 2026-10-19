@@ -119,3 +119,15 @@ def test_a_removed_outcome_cannot_become_a_route():
 
     with pytest.raises(ManifestError):
         route_for(Outcome.REMOVED)
+
+
+def test_tables_only_mode_is_documented_as_refusing_a_covered_release():
+    """The guard is in `main`, so this pins the message a reader will act on.
+
+    A `not_searched` table for a release that *does* carry the component would be the one
+    reading `metrics/detections.md` forbids: a zero that looks like absence when nothing was
+    searched. The refusal text has to say which release and why.
+    """
+    source = (REPO / "tools" / "detect_eve.py").read_text()
+    assert "args.tables_only and row is not None" in source
+    assert "must never be produced without a" in source

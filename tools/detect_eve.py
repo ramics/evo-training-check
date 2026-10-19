@@ -338,6 +338,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--threads", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--limit", type=int, default=0, help="stop after N assemblies")
     parser.add_argument(
+        "--tables-only",
+        action="store_true",
+        help=(
+            "emit tables without searching, for manifests whose release has no such "
+            "component at all; refuses any manifest that does have one"
+        ),
+    )
+    parser.add_argument(
         "--skip-self-check",
         action="store_true",
         help="skip the positive control; a zero then cannot be read as absence",
@@ -381,17 +389,25 @@ def main(argv: list[str] | None = None) -> int:
                 "differ from the one D-185 recorded"
             )
 
-        queries = scratch / "queries.fasta"
-        query_info = write_queries(args.library, queries, universe)
-        m.parameter("queries", query_info)
+        m.parameter("tables_only", args.tables_only)
+        # Nothing below this point runs under --tables-only: no query set, no control, no
+        # band. That mode exists for a release with no such component, where there is nothing
+        # to search and the table's `not_searched` is a statement about the release rather than
+        # about this pass. A manifest that *does* carry the component is refused below.
         query_db = scratch / "queryDB"
-        for stale in scratch.glob("queryDB*"):
-            stale.unlink() if stale.is_file() else shutil.rmtree(stale, ignore_errors=True)
-        mmseqs("createdb", str(queries), str(query_db), env=scratch, threads=args.threads)
+        if not args.tables_only:
+            queries = scratch / "queries.fasta"
+            query_info = write_queries(args.library, queries, universe)
+            m.parameter("queries", query_info)
+            for stale in scratch.glob("queryDB*"):
+                stale.unlink() if stale.is_file() else shutil.rmtree(stale, ignore_errors=True)
+            mmseqs("createdb", str(queries), str(query_db), env=scratch, threads=args.threads)
 
         work = scratch / "work"
         work.mkdir(parents=True, exist_ok=True)
-        if args.skip_self_check:
+        if args.tables_only:
+            m.parameter("self_check", None)
+        elif args.skip_self_check:
             m.note("positive control skipped; a zero in this run is not evidence of absence")
             m.parameter("self_check", None)
         else:
@@ -407,7 +423,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         index = load_index(m.input_file(args.index, role="assembly index"))
-        band = sampled_members(index, seed=SEED, hi=args.rate)
+        band = [] if args.tables_only else sampled_members(index, seed=SEED, hi=args.rate)
         if args.limit:
             band = band[: args.limit]
         m.parameter("band_assemblies", len(band))
@@ -456,6 +472,13 @@ def main(argv: list[str] | None = None) -> int:
             policy_id = manifest["policy"]["id"]
             release = manifest["release"]
             row = component_row(manifest)
+            if args.tables_only and row is not None:
+                raise SystemExit(
+                    f"{policy_id}/{release} carries {COVERED}, so --tables-only would record "
+                    "`not_searched` for a component this detector covers. That is the one "
+                    "reading metrics/detections.md says must never be produced without a "
+                    "search. Run the pass for this release instead."
+                )
 
             sources: list[dict[str, Any]] = []
             detections: list[Any] = []
