@@ -2,7 +2,7 @@
 id: A1.8
 title: Evaluate the narrow denylist against the ESM3-open proxy corpus
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
@@ -480,3 +480,51 @@ restricted to the band is still owed before any figure is quoted.
 
 `FINE_TOP_EDGES` is reported alongside the frozen `IDENTITY_BAND_EDGES` and does not change
 them; `metrics/survival.md` is untouched.
+
+## Intervals — 2026-10-19
+
+The owed interval work is done (**D-178**). Artefact
+`corpora/results/a1-8/band-select-agent-intervals.json`, commit `a9e369a`, six cells, nine
+groups, shard 0, band 1/100. Every earlier figure reproduced exactly for the third time.
+
+| reading | ≥0.70 | 95% CI | deff | exact 1.00 | 95% CI |
+|---|---|---|---|---|---|
+| mode 0 | 0.8362% | 0.2978 – 1.3747% | 999 | 0.01048% | 0 – 0.02486% |
+| mode 1 | 0.9135% | 0.3526 – 1.4745% | 993 | 0.01130% | 0 – 0.02606% |
+| mode 2 | 0.9086% | 0.3488 – 1.4685% | 994 | 0.01167% | 0 – 0.02762% |
+
+**The exact-match interval includes zero**, so D-178 splits the claim: the *count* of 115-128
+records at identity 1.00 is an observation and stands; the *rate* may not be generalised to
+the corpus. The ≥0.70 interval excludes zero but spans a factor of 4.9 and may never be
+quoted as "about 0.9%" without it.
+
+**Do not buy more shards expecting tighter intervals.** The variance is between families and
+shard 0 already holds all 34; more corpus adds records, not families. Only a wider seed band
+adds families, and whether it adds many is unknown — 34 come from 53 named taxa.
+
+**Every Done-when criterion is now met except the two that were never this task's to close.**
+The seed set is pinned, checksummed and reconciled at the release ESM3 names (D-157); the
+sample is scored with the saturation guard checked; the result ships as rates with intervals
+and a realised family count; the per-record manifest and the no-all-clear statement are in
+place; `run.json` manifests pin every pass. What remains is the comparison with A1.6's band,
+which needs an argument about relative denylist breadth rather than a subtraction, and the
+disclosure-package question of which specific records were in ESM3's denylist.
+
+## At review — 2026-10-19
+
+**PR #24**, branch `ccr-44355df9-hi20t9`. `pixi run -e dev check` green at 1,266 passed.
+
+Everything from the seed set through the scored band with intervals is in it, with the
+decisions it rests on already on `main`: D-137, D-138, D-139, D-146, D-150, D-157, D-159,
+D-162, D-178.
+
+**Not claimed by this task, and left for whoever takes it further.** The comparison against
+A1.6's band needs an argument about relative denylist breadth rather than a subtraction — same
+shard, same six cells, same instrument, different denylists of unquantified relative size. And
+which specific records were in ESM3's denylist is a per-record question for the disclosure
+package (D-125, D-126), not for this arm.
+
+**One piece of shared infrastructure nobody owns.** The shard strata sidecars are still not
+staged, so every band run pays a 52-minute corpus pass to rebuild them. A1.8 paid it four
+times on 2026-10-19. `--stage-sidecars-only` exists for it; A1.8 did not use it because it
+writes into A1.6's sample prefix.
