@@ -165,6 +165,14 @@ def main(argv: list[str] | None = None) -> int:
                             "wall_seconds": round(seconds, 1),
                             "core_seconds": round(core_seconds, 1),
                             "core_seconds_per_model_mb": round(unit, 6),
+                            # The unit that actually holds. D-186: cost does not scale with
+                            # model *count* — wall time was identical at 4 and 8 models — so a
+                            # per-model rate is only meaningful at a fixed model-length mix, and
+                            # the mix here is not the registry's. Model residues is the unit any
+                            # projection must use.
+                            "core_seconds_per_model_residue_mb": round(
+                                core_seconds / (model_residues * residues / 1e6), 9
+                            ),
                             "reported_hits": hits,
                         }
                     )
@@ -195,21 +203,40 @@ def main(argv: list[str] | None = None) -> int:
         registry = out / "registries" / "dfam-curated-ltr.json"
         if registry.exists():
             universe = json.loads(registry.read_text())
-            searchable = universe["searchable"]
-            erv = universe["erv_models"]
+            families = [f for f in universe["families"] if f["threshold"] is not None]
+            searchable_residues = sum(f["model_length"] for f in families)
+            erv_residues = sum(f["model_length"] for f in families if f["is_erv"])
             band_bytes = sum(member.size for member in band)
             ratio = statistics.median(
                 row["uncompressed_bytes"] / row["compressed_bytes"] for row in measurements
             )
             band_mb = band_bytes * ratio / 1e6
-            rate = summary["core_seconds_per_model_mb"]["median"]
+            # Projected from the measurement with the **most model residues**, not from the
+            # median of the per-model rates. Two reasons, both D-186's: the per-model rate is
+            # the unit the measurement discredited, and the deepest point's model-length mix is
+            # the closest available to a full-registry pass. Using the median of a quantity that
+            # moves with the model count is how a projection ends up disagreeing with the entry
+            # that cites it.
+            deepest = max(measurements, key=lambda row: row["model_residues"])
+            rate = deepest["core_seconds_per_model_residue_mb"]
             summary["projection"] = {
                 "band_assemblies": len(band),
                 "band_compressed_bytes": band_bytes,
                 "measured_compression_ratio": round(ratio, 3),
                 "band_megabases_estimated": round(band_mb, 1),
-                "core_hours_all_searchable": round(searchable * band_mb * rate / 3600),
-                "core_hours_erv_only": round(erv * band_mb * rate / 3600),
+                "unit": "core seconds per model-residue-megabase",
+                "rate": rate,
+                "rate_from": {
+                    "models": deepest["models"],
+                    "model_residues": deepest["model_residues"],
+                    "why": "the deepest point measured; the per-model rate is not a usable unit",
+                },
+                "registry_model_residues": {
+                    "all_searchable": searchable_residues,
+                    "erv_only": erv_residues,
+                },
+                "core_hours_all_searchable": round(searchable_residues * band_mb * rate / 3600),
+                "core_hours_erv_only": round(erv_residues * band_mb * rate / 3600),
                 "caveat": (
                     "The band's sequence volume is estimated from the compression ratio of the "
                     "assemblies measured here, not from reading the band. It is a projection and "
