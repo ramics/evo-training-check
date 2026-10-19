@@ -7795,3 +7795,55 @@ decision has a threshold or parameter in it, the number goes in the entry.
   infeasibility into a result. Worth weighing alongside the separate observation that §A2's
   three folds are concentrated in virus groups that are a minority of a phage-dominated IMG/VR,
   so the depth being bought may be buying a near-certain null.
+
+### D-180 — A2.2 does not buy the pre-registered depth; the cost is the finding, and the tables ship as `not_searched`
+- **Date:** 2026-10-19
+- **Task:** A2.2
+- **Context:** D-179 established that one real shard at the pre-registered depth did not finish
+  3Di prediction inside a 180-minute GPU window, bounding the true rate at **three times or
+  worse** than D-164's ladder projection and the full depth at **70+ instance-hours, $55-60 on
+  demand** — against a $30 ceiling (D-165) with about $7 already spent. Put to the project owner
+  with four options: measure the exact rate first, buy the depth with a raised budget, reduce the
+  depth to what the budget allows, or record the cost as the finding. **The owner chose to record
+  the cost and not buy the depth.**
+  Two things made that the sensible call rather than a retreat. The arithmetic is not close — the
+  shortfall is a multiple of the whole budget, not a margin, so no amount of tightening reaches
+  it. And the depth would most likely have bought a **null that reflects corpus composition
+  rather than the filter**: IMG/VR is dominated by tailed bacteriophages, which carry the HK97
+  capsid fold rather than a jelly-roll, have no RdRp because they are DNA viruses, and have no
+  class I fusion glycoprotein at all. All three folds §A2 names are concentrated in virus groups
+  that are a minority of the corpora they would be searched against. D-163 set the precedent for
+  this shape of outcome when it turned the CPU route's infeasibility into a result rather than a
+  blocker.
+- **Decision:** **A2.2 ships without a searched corpus**, and the seven per-manifest tables are
+  emitted with `estimate_kind: not_searched`. That is not a placeholder: `metrics/detections.md`
+  defines `not_searched` for precisely this case — "every count is zero *by construction* and
+  none of it is evidence of absence" — and `amazebio.detect` derives it from the absence of any
+  searched source, so A3.2 **cannot** pool these tables with a `population` or `lower_bound` one
+  even by accident. The per-source rows distinguish two reasons that would otherwise collapse
+  into one: components this detector never covers (GTDB's genomes are A2.4's, the ESM3 proxy is
+  A1.6's reader) and components **in scope and not bought**, which is the finding.
+  **What A2.2 does deliver, and it is most of the task.** The fold universe, re-derived at family
+  level, corrected and shipped as an artefact with its exclusions (D-169). The threshold,
+  calibrated against decoys that are real non-viral proteins sharing the folds, with its two
+  bracketing values and its alignment mode fixed before any corpus hit was seen (D-171, D-177).
+  The structural coverage gap §A2's Done-when criterion asks for — the fusion class has no ECOD
+  node and is this project's own construction. A measured sensitivity ceiling: 61.7% of held-out
+  true fold members detected at the declared cut, 6.1% missed at any threshold. The cost of the
+  route itself, measured twice (D-163 on CPU, D-179 on GPU). And a tested, resumable pipeline
+  that would run the pass if the depth were ever bought.
+- **Rejected:** Reducing the depth to fit the budget — a shallower sample is reportable, but it
+  weakens the comparison with A2.1 that parity was chosen for (D-164), and it makes an already
+  near-certain null still less informative; paying for a weaker version of a result that was
+  unlikely to say anything about the filter is the worst of both. Raising the budget — the owner
+  declined, and the composition argument says the instrument is probably wrong for this corpus
+  regardless of price. Leaving the tables unwritten, or writing them with no rows — the schema
+  has a kind for "not searched" exactly so that this situation is expressible rather than
+  silent, and `AGENTS.md` forbids any arrangement that makes a null harder to see; an absent
+  table is the strongest possible version of that.
+- **Consequence:** Phase A's structural route contributes no detections to A3.2, and the reason
+  is recorded in the artefacts rather than only in prose. The open question this leaves is not
+  A2.2's method but **whether §A2 named the right folds**: a phage-dominated corpus argues for
+  HK97 capsid, large terminase and portal folds, which would measure what the audit cares about
+  in the corpora it actually has. That is a `DESIGN.md` question and a new task, not a widening
+  of this one — `AGENTS.md` is explicit that an adjacent problem gets a new file and a new id.
