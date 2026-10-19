@@ -2,7 +2,7 @@
 id: A1.8
 title: Evaluate the narrow denylist against the ESM3-open proxy corpus
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
@@ -558,5 +558,31 @@ viral denylist's described second clause all stand.
 Artefact: `corpora/results/a1-8/select-agent-decomposition.json`, from
 `tools/select_agent_decomposition.py`. Both readings still sum to D-157's figures exactly, and
 a test asserts it.
+
+**Waiting on the project owner:** nothing.
+
+## Done — 2026-10-19
+
+**PR #24 merged** (`11e3eda` into `main`). Every Done-when criterion is met:
+
+- The seed set is pinned, checksummed and reconciled at the release ESM3 names, against a
+  full-tier pass rather than the sample — and against the source's two published halves
+  rather than their sum (D-157 as corrected by **D-181**).
+- The staged 2.5% sample is scored in full with the saturation guard checked at this arm's
+  query scale, under D-133's withdrawal of the exhaustive scope.
+- The result ships as rates with intervals and a realised family count, with the no-all-clear
+  statement enforced in the harness, and the count split from the rate per D-178.
+- The per-record manifest is at D-126's key; the published output is the aggregate only.
+- `run.json` manifests pin every pass.
+
+**Two questions this task did not close, by design, neither blocking.** The comparison with
+A1.6's band needs an argument about relative denylist breadth rather than a subtraction — same
+shard, same cells, same instrument, different denylists of unquantified relative size. And
+which specific records were in ESM3's own denylist is a per-record question for the disclosure
+package (D-125, D-126).
+
+**One piece of shared infrastructure still unowned.** The shard strata sidecars are not staged,
+so every band run pays a 52-minute corpus pass to rebuild them; A1.8 paid it four times.
+`--stage-sidecars-only` exists for it, unused here because it writes into A1.6's sample prefix.
 
 **Waiting on the project owner:** nothing.
