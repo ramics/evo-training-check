@@ -395,6 +395,13 @@ class TargetStream:
     #: Records whose best identity falls in each `FINE_TOP_EDGES` interval, plus a final slot
     #: for an exact 1.0. Diagnostic detail inside the frozen top band, not a change to it.
     fine_top: dict[int, list[int]] = field(default_factory=dict)
+    #: Per-stratum hit counts restricted to a threshold, which is what an interval for a
+    #: *banded* figure needs. `stratum_hits` counts every hit record regardless of identity,
+    #: so the rate it supports is the any-identity one — and that is the rate the artefact
+    #: carried while the headline quoted was the >=0.70 band, leaving the published figure
+    #: without an interval at all. Bounded by the strata of the shard, like `stratum_hits`.
+    stratum_hits_ge70: dict[int, dict[str, int]] = field(default_factory=dict)
+    stratum_hits_exact: dict[int, dict[str, int]] = field(default_factory=dict)
     _target: str | None = None
     _best: list[float] = field(default_factory=list)
 
@@ -408,6 +415,8 @@ class TargetStream:
             self.stratum_hits.setdefault(mode, {})
             # One slot per interval, plus one for exact identity.
             self.fine_top.setdefault(mode, [0] * len(FINE_TOP_EDGES))
+            self.stratum_hits_ge70.setdefault(mode, {})
+            self.stratum_hits_exact.setdefault(mode, {})
 
     @classmethod
     def for_search(
@@ -471,6 +480,12 @@ class TargetStream:
                         )
                     counts = self.stratum_hits[mode]
                     counts[key] = counts.get(key, 0) + 1
+                    if best >= IDENTITY_BAND_EDGES[1]:
+                        at70 = self.stratum_hits_ge70[mode]
+                        at70[key] = at70.get(key, 0) + 1
+                    if best >= 1.0:
+                        exact = self.stratum_hits_exact[mode]
+                        exact[key] = exact.get(key, 0) + 1
         self._target = None
         self._best = []
 
@@ -571,6 +586,10 @@ class CellResult:
     #: Diagnostic detail inside the frozen top band (`FINE_TOP_EDGES`), additive the same way.
     #: Defaulted so a cell written before this existed still loads.
     fine_top: dict[int, list[int]] = field(default_factory=dict)
+    #: Per-stratum hits at a threshold, aligned to `families`' order, for banded intervals.
+    #: Empty on a cell published before these existed — absent, not zero.
+    hits_ge70: dict[int, list[int]] = field(default_factory=dict)
+    hits_exact: dict[int, list[int]] = field(default_factory=dict)
     searched_clusters: int = 0
     searched_residues: int = 0
     #: The realised size of the seed sample, and the number of families it drew from. Both are
@@ -595,6 +614,8 @@ class CellResult:
             "bands": {str(m): self.bands[m] for m in sorted(self.bands)},
             "fine_top": {str(m): self.fine_top[m] for m in sorted(self.fine_top)},
             "fine_top_labels": list(fine_top_labels()),
+            "hits_ge70": {str(m): self.hits_ge70[m] for m in sorted(self.hits_ge70)},
+            "hits_exact": {str(m): self.hits_exact[m] for m in sorted(self.hits_exact)},
             "families": {
                 str(m): [list(p) for p in self.families[m]] for m in sorted(self.families)
             },
@@ -630,6 +651,8 @@ def cell_from_dict(raw: dict[str, Any]) -> CellResult:
         # measured zero" — a cell from an older run must not contribute a silent zero to a
         # total that other cells did measure.
         fine_top={int(m): list(v) for m, v in (raw.get("fine_top") or {}).items()},
+        hits_ge70={int(m): list(v) for m, v in (raw.get("hits_ge70") or {}).items()},
+        hits_exact={int(m): list(v) for m, v in (raw.get("hits_exact") or {}).items()},
         families={int(m): [tuple(p) for p in v] for m, v in raw["families"].items()},
         searched_clusters=int(raw.get("searched_clusters", 0)),
         searched_residues=int(raw.get("searched_residues", 0)),
@@ -678,6 +701,8 @@ def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -
                 {
                     "bands": [0] * (len(IDENTITY_BAND_EDGES) - 1),
                     "fine_top": [0] * len(FINE_TOP_EDGES),
+                    "families_ge70": [],
+                    "families_exact": [],
                     "families": [],
                     "shards": [],
                     "searched_clusters": 0,
@@ -706,6 +731,21 @@ def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -
                     a + b for a, b in zip(slot["fine_top"], cell.fine_top[mode], strict=True)
                 ]
             slot["families"].extend(cell.families.get(mode, []))
+            # Zipped within the cell, where both sides came from the same FamilyIndex and
+            # share its stratum order; extended across cells, exactly as `families` is.
+            records = [b for _, b in cell.families.get(mode, [])]
+            for name, vec in (
+                ("families_ge70", cell.hits_ge70.get(mode)),
+                ("families_exact", cell.hits_exact.get(mode)),
+            ):
+                if vec is None:
+                    continue
+                if len(vec) != len(records):
+                    raise ValueError(
+                        f"cell {cell.key.slug()} has {len(vec)} {name} entries against "
+                        f"{len(records)} strata; the two do not describe the same shard"
+                    )
+                slot[name].extend(zip(vec, records, strict=True))
             slot["shards"].append(cell.key.shard)
             slot["searched_clusters"] += cell.searched_clusters
             slot["searched_residues"] += cell.searched_residues
@@ -720,6 +760,16 @@ def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -
         "groups": [],
     }
     for (sensitivity, mode), slot in sorted(groups.items()):
+
+        def _rate(pairs: list[tuple[int, int]]) -> dict[str, Any] | None:
+            # None rather than a zeroed rate when a cell predates the banded vectors: a
+            # missing measurement and a measured zero must not look alike.
+            if not pairs:
+                return None
+            return rate_with_interval(
+                pairs, lower_bound=denominator > 1, net_direction=net_direction
+            ).to_dict()
+
         rate = rate_with_interval(
             slot["families"], lower_bound=denominator > 1, net_direction=net_direction
         )
@@ -736,6 +786,11 @@ def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -
                 "seeds_searched": slot["seeds_searched"],
                 "seed_families": slot["seed_families"],
                 "rate": rate.to_dict(),
+                #: The any-identity rate above is not the figure this arm quotes. These are:
+                #: the >=0.70 band the charitable reading turns on, and exact identity, which
+                #: needs no threshold argument at all.
+                "rate_ge70": _rate(slot["families_ge70"]),
+                "rate_exact": _rate(slot["families_exact"]),
             }
         )
     return out
@@ -958,6 +1013,17 @@ class FamilyIndex:
             out.append((got, records))
         return out
 
+    def hit_vector(self, hits: dict[str, int]) -> list[int]:
+        """Hits per stratum, in the same order `pairs` emits, and nothing else.
+
+        Emitted instead of a second full `(hits, records)` list because the records side is
+        identical for every threshold: carrying it again would triple an artefact that is
+        already tens of megabytes, in a bucket where every version written is permanent.
+        The caller zips this against `pairs`' records **within one cell**, where both come
+        from this same index and the order is therefore the same.
+        """
+        return [hits.get(key, 0) for key in self.totals]
+
 
 def fine_top_slot(fident: float) -> int:
     """Which `FINE_TOP_EDGES` interval an identity falls in; the last slot is exact 1.0.
@@ -1006,6 +1072,12 @@ def cell_from_stream(
         key=key,
         bands={mode: list(stream.bands[mode]) for mode in stream.derive},
         fine_top={mode: list(stream.fine_top[mode]) for mode in stream.derive},
+        hits_ge70={
+            mode: index.hit_vector(stream.stratum_hits_ge70[mode]) for mode in stream.derive
+        },
+        hits_exact={
+            mode: index.hit_vector(stream.stratum_hits_exact[mode]) for mode in stream.derive
+        },
         families={mode: index.pairs(stream.stratum_hits[mode]) for mode in stream.derive},
         searched_clusters=index.searched_records,
         searched_residues=searched_residues,

@@ -915,3 +915,67 @@ def test_a_cell_published_before_the_fine_cut_contributes_no_silent_zero() -> No
     }
     cell = sim.cell_from_dict(raw)
     assert cell.fine_top == {}, "absent, not zeroed"
+
+
+# --- Intervals for the figures actually quoted --------------------------------------------
+
+
+def _banded_cell(mode: int = 1) -> sim.CellResult:
+    """Two strata: one with a clump of high-identity hits, one with sub-threshold noise."""
+    rows = [
+        sim.HitRow(query="q", target="a1", fident=1.00, qcov=0.9, tcov=0.9),
+        sim.HitRow(query="q", target="a2", fident=1.00, qcov=0.9, tcov=0.9),
+        sim.HitRow(query="q", target="a3", fident=0.80, qcov=0.9, tcov=0.9),
+        sim.HitRow(query="q", target="b1", fident=0.50, qcov=0.9, tcov=0.9),
+    ]
+    # Two families: a1-a4 under one, b1-b2 under another.
+    index = sim.FamilyIndex.build(
+        [("a1", 1), ("a2", 1), ("a3", 1), ("a4", 1), ("b1", 2), ("b2", 2)],
+        _Tax({1: 11157, 2: 11158}),
+    )
+    stream = sim.TargetStream.for_search(mode, index=index).extend(rows).close()
+    return sim.cell_from_stream(
+        sim.CellKey(shard=0, sensitivity=5.7, cov_mode=mode, seed_denominator=100),
+        stream,
+        index,
+        seeds_searched=10,
+        seed_families=2,
+        searched_residues=1000,
+    )
+
+
+def test_the_banded_figures_get_their_own_intervals() -> None:
+    """The artefact's interval was on the any-identity rate while the headline was >=0.70.
+
+    "Uncertainty travels with the estimate" is a non-negotiable, so the figures this arm
+    quotes — the >=0.70 band and exact identity — each carry their own interval rather than
+    borrowing one computed over a different set of records.
+    """
+    out = sim.combine_cells([_banded_cell()])
+    g = out["groups"][0]
+    assert g["rate"]["hits"] == 4, "any identity counts every hit record"
+    assert g["rate_ge70"]["hits"] == 3, ">=0.70 excludes the 0.50 record"
+    assert g["rate_exact"]["hits"] == 2, "exact counts only identity 1.00"
+    for key in ("rate", "rate_ge70", "rate_exact"):
+        assert g[key]["records"] == 6, "the denominator is every searched record"
+        assert g[key]["families"] == 2
+
+
+def test_a_banded_rate_is_absent_not_zero_on_an_older_cell() -> None:
+    """A cell from before these vectors existed must not publish a confident zero."""
+    cell = _banded_cell()
+    stripped = sim.cell_from_dict(
+        {k: v for k, v in cell.to_dict().items() if k not in ("hits_ge70", "hits_exact")}
+    )
+    out = sim.combine_cells([stripped])
+    g = out["groups"][0]
+    assert g["rate"] is not None
+    assert g["rate_ge70"] is None and g["rate_exact"] is None
+
+
+def test_a_hit_vector_that_does_not_match_its_strata_is_refused() -> None:
+    """Zipping a mismatched pair would silently attach hits to the wrong families."""
+    cell = _banded_cell()
+    cell.hits_ge70[1] = cell.hits_ge70[1][:-1]
+    with pytest.raises(ValueError, match="do not describe the same shard"):
+        sim.combine_cells([cell])
