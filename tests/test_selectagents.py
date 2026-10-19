@@ -466,3 +466,87 @@ def test_one_entry_carries_almost_the_whole_expansion(
     total = len(frozenset().union(*by_entry.values()))
     assert "influenza" in largest[0].lower()
     assert len(largest[1]) / total > 0.95
+
+
+def test_a_taxon_the_counting_pass_never_saw_contributes_nothing() -> None:
+    """Absent is zero, not an error.
+
+    The release pass records only taxa it encountered, and most of the denylist's strain
+    nodes have no UniProt entries at all. A lookup that raised would make the common case
+    the failing one.
+    """
+    got = sa.split_halves({10: 5}, [10, 11, 12], viral=frozenset({10}))
+    assert got == sa.Halves(viral=5, non_viral=0)
+
+
+def test_the_two_halves_are_counted_apart_and_sum_to_the_whole() -> None:
+    got = sa.split_halves({1: 7, 2: 11}, [1, 2], viral=frozenset({1}))
+    assert (got.viral, got.non_viral, got.total) == (7, 11, 18)
+
+
+def test_a_repeated_taxon_is_counted_once_because_the_input_is_a_set() -> None:
+    """A taxon offered twice is counted once.
+
+    Entries overlap — several strains sit under more than one listed organism — so a split
+    that summed per occurrence would inflate every figure it produced, and silently.
+    """
+    assert sa.split_halves({1: 7}, [1, 1, 1], viral=frozenset()).non_viral == 7
+
+
+def test_the_ratio_is_reported_per_half_rather_than_only_pooled() -> None:
+    """The whole point of the decomposition: a pooled ratio hides two errors of opposite sign."""
+    got = sa.Halves(viral=80_000, non_viral=73_500).ratio_to(sa.PUBLISHED_HALVES)
+    assert got["viral"] == pytest.approx(2.0)
+    assert got["non_viral"] == pytest.approx(0.5)
+    assert got["total"] == pytest.approx(153_500 / 187_000)
+
+
+@needs_taxonomy
+def test_the_named_only_reading_is_contained_in_the_descended_one(
+    entries: tuple[sa.ListEntry, ...], mapping: dict[str, sa.MappedEntry], taxonomy: Taxonomy
+) -> None:
+    """Descent adds; it never substitutes.
+
+    Asserted per entry rather than pooled, because the pooled check passes even if descent
+    moved a taxon from one entry to another, and the per-entry split is what the
+    decomposition attributes with.
+    """
+    named = sa.named_by_entry(entries, mapping)
+    descended = sa.expand_by_entry(entries, mapping, taxonomy)
+    assert set(named) == set(descended)
+    for key, taxa in named.items():
+        assert taxa <= descended[key]
+
+
+@needs_taxonomy
+def test_the_named_only_reading_honours_an_entry_that_declines_descent(
+    entries: tuple[sa.ListEntry, ...], mapping: dict[str, sa.MappedEntry], taxonomy: Taxonomy
+) -> None:
+    """Where `descend` is off, the two readings must agree exactly — SARS-CoV is the case.
+
+    If they ever diverge there, one of the two functions has grown its own reading, which is
+    the drift `test_the_per_entry_expansion_unions_to_the_pooled_one_exactly` guards pooled.
+    """
+    fixed = [k for k, m in mapping.items() if not m.descend and m.kind is sa.EntryKind.ORGANISM]
+    assert fixed, "the reading no longer has a no-descent entry; this test needs rewriting"
+    named = sa.named_by_entry(entries, mapping)
+    descended = sa.expand_by_entry(entries, mapping, taxonomy)
+    for key in fixed:
+        assert named[key] == descended[key]
+
+
+def test_a_toxin_entry_contributes_nothing_under_the_literal_reading() -> None:
+    """ESM3 says "organisms"; a toxin is not one. The producer reading is opt-in, as elsewhere."""
+    entry = sa.ListEntry(section="73.3", ordinal=1, text="Abrin", tier1=False)
+    mapped = sa.MappedEntry(
+        key=entry.key, kind=sa.EntryKind.TOXIN, taxids=(), note="", producer_taxids=(3505,)
+    )
+    assert sa.named_by_entry([entry], {entry.key: mapped})[entry.key] == frozenset()
+    with_producers = sa.named_by_entry([entry], {entry.key: mapped}, include_toxin_producers=True)
+    assert with_producers[entry.key] == frozenset({3505})
+
+
+def test_an_unmapped_entry_is_an_error_in_the_named_only_reading_too() -> None:
+    entry = sa.ListEntry(section="73.3", ordinal=1, text="Something new", tier1=False)
+    with pytest.raises(KeyError):
+        sa.named_by_entry([entry], {})

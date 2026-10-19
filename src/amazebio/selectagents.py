@@ -63,7 +63,7 @@ import re
 import unicodedata
 import xml.etree.ElementTree as ET
 import zipfile
-from collections.abc import Iterable, Iterator
+from collections.abc import Container, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -540,4 +540,93 @@ def expand_by_entry(
             seen.add(node)
             stack.extend(children.get(node, ()))
         out[entry.key] = frozenset(seen)
+    return out
+
+
+@dataclass(frozen=True)
+class Halves:
+    """A count split the way the source reports its denylist: viral and non-viral apart.
+
+    ESM3's A.6.1 does not give one figure for the select-agent denylist, it gives two —
+    "147K non-viral sequences and 40K additional viral sequences". A1.8 compared only their
+    sum for three readings and concluded from the sum that no reading reproduced it (D-157).
+    The two halves are an independent constraint each, and a reading that lands near both at
+    once is saying something a reading that lands near their total is not, because the total
+    can be hit by two errors of opposite sign.
+    """
+
+    viral: int
+    non_viral: int
+
+    @property
+    def total(self) -> int:
+        return self.viral + self.non_viral
+
+    def ratio_to(self, published: Halves) -> dict[str, float]:
+        """This count as a multiple of the published one, per half and pooled."""
+        return {
+            "viral": self.viral / published.viral,
+            "non_viral": self.non_viral / published.non_viral,
+            "total": self.total / published.total,
+        }
+
+    def to_dict(self) -> dict[str, int]:
+        return {"viral": self.viral, "non_viral": self.non_viral, "total": self.total}
+
+
+#: The source's own split, version of record A.6.1 p47 (D-106). Two numbers, not one.
+PUBLISHED_HALVES = Halves(viral=40_000, non_viral=147_000)
+
+
+def split_halves(by_taxid: Mapping[int, int], taxa: Iterable[int], viral: Container[int]) -> Halves:
+    """Split per-taxon entry counts into the viral and non-viral halves.
+
+    `viral` is the Viruses superkingdom under the pinned taxonomy, which is how the counting
+    pass already classified every entry it read — so this is a regrouping of a measurement
+    rather than a new one, and it needs no second pass over the archive.
+
+    A taxon absent from `by_taxid` contributed nothing, which is why the lookup defaults
+    rather than raising: the counting pass records only taxa it saw.
+    """
+    hit_viral = hit_other = 0
+    # Deduplicated here rather than required of the caller. Listed organisms overlap, so a
+    # repeated taxon is an ordinary input, and double-counting one inflates a half silently.
+    for taxon in set(taxa):
+        seen = by_taxid.get(taxon, 0)
+        if not seen:
+            continue
+        if taxon in viral:
+            hit_viral += seen
+        else:
+            hit_other += seen
+    return Halves(viral=hit_viral, non_viral=hit_other)
+
+
+def named_by_entry(
+    entries: Iterable[ListEntry],
+    mapping: dict[str, MappedEntry],
+    *,
+    include_toxin_producers: bool = False,
+    use_alternatives: bool = False,
+) -> dict[str, frozenset[int]]:
+    """The taxa each entry names, *without* descending to strains.
+
+    The no-descent counterpart to `expand_by_entry`, and the same reading. It exists because
+    descent is the largest single factor between the readings (D-157) and attributing it
+    needs both sides per entry; deriving one from the other is not possible, since descent
+    merges entries whose subtrees overlap.
+    """
+    out: dict[str, frozenset[int]] = {}
+    for entry in entries:
+        mapped = mapping.get(entry.key)
+        if mapped is None:
+            raise KeyError(f"no recorded reading for list entry: {entry.key!r}")
+        if mapped.kind is EntryKind.TOXIN:
+            out[entry.key] = frozenset(mapped.producer_taxids if include_toxin_producers else ())
+            continue
+        out[entry.key] = frozenset(
+            mapped.alternative_taxids
+            if use_alternatives and mapped.alternative_taxids
+            else mapped.taxids
+        )
     return out
