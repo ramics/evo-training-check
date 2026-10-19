@@ -83,13 +83,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import shutil
+import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import corpora, detect, folds
+from amazebio import corpora, detect, folds, objectstore
 from amazebio.survival import Detection, Route
 
 REPO = Path(__file__).resolve().parent.parent
@@ -118,6 +122,16 @@ FLOOR_BITS = 15.0
 #: **unavailable by construction** against a ProstT5 query database and are named as such rather
 #: than written as nulls that look like missing data (D-167).
 UNAVAILABLE_COLUMNS = ("alntmscore", "qtmscore", "ttmscore", "lddt")
+
+#: The columns asked of `convertalis`, in this order.
+FORMAT = "query,target,bits,evalue,fident,alnlen,qlen,tlen,tcov"
+
+#: foldseek's `--alignment-type` value per mode name, as D-171 calibrated them. 3Di+AA is the
+#: declared mode; 3Di-only stays reachable so the bracket can be re-measured without new code.
+ALIGNMENT_FLAGS = {"3di_aa": "2", "3di_only": "0"}
+
+#: How often a running step says it is still alive, in seconds.
+HEARTBEAT_INTERVAL_S = 120
 
 #: Why each unsearched component is unsearched, by corpus component. Carried per manifest rather
 #: than omitted: `metrics/detections.md` is explicit that a table silently covering part of a
@@ -319,6 +333,19 @@ def load_shards(shard_dir: Path, *, release: str) -> list[dict[str, Any]]:
     """
     found = sorted(shard_dir.glob(f"{release}--*.json"))
     out = [json.loads(p.read_text()) for p in found]
+    # A smoke shard must never become part of the audit. `--max-records` exists so the whole
+    # pipeline can be exercised for a fraction of a cent before an instance is launched, and the
+    # shard it writes looks exactly like a real one apart from this flag — so the flag is what
+    # stops it being assembled into a citable table. Refused here rather than filtered out,
+    # because a partial shard sitting beside complete ones means the run that produced them was
+    # not the run somebody thinks it was.
+    partial = [s for s in out if s.get("partial")]
+    if partial:
+        raise FoldDetectError(
+            f"{shard_dir}: {len(partial)} shard(s) for {release} are partial — written by a "
+            "capped --max-records run, which reads a bounded prefix of the object and is a smoke "
+            "test, not a sample. Delete them or point --shards at the real prefix."
+        )
     fingerprints = {s.get("params") for s in out}
     if len(fingerprints) > 1:
         raise FoldDetectError(
@@ -327,6 +354,332 @@ def load_shards(shard_dir: Path, *, release: str) -> list[dict[str, Any]]:
             "sets or geometries and cannot be merged."
         )
     return out
+
+
+# --------------------------------------------------------------------------------------
+# The search
+# --------------------------------------------------------------------------------------
+
+
+def heartbeat(s3: Any, uri: str | None, name: str, body: dict[str, Any]) -> None:
+    """Publish progress as it happens. Never fails the run it reports on.
+
+    AGENTS.md: a step with no heartbeat is a step whose silence means nothing at all. There is no
+    shell on the instance, and the console cannot distinguish a dead process from a quiet one.
+    """
+    if not uri:
+        return
+    bucket, prefix = objectstore.split_uri(uri)
+    payload = dict(body)
+    payload["written_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    try:
+        s3.put_object(
+            Bucket=bucket,
+            Key=f"{prefix}/{name}",
+            Body=json.dumps(payload, indent=2, sort_keys=True).encode(),
+        )
+    # Reporting must never fail the measurement it reports on.
+    except Exception as exc:
+        print(f"    heartbeat failed: {type(exc).__name__}", flush=True)
+
+
+def finished_shards(s3: Any, uri: str | None) -> set[str]:
+    """Shard names already present at the destination.
+
+    A listing, not an exact-key `head_object`: A2.1's exact-key test once fired *after* a
+    finished 70-minute search, so what is already done is established by looking at what is
+    there. The corpus bucket has no `DeleteObject`, so a name that appears is permanent and
+    skipping it is always right.
+    """
+    if not uri:
+        return set()
+    bucket, prefix = objectstore.split_uri(uri)
+    out: set[str] = set()
+    token: str | None = None
+    while True:
+        kw = {"Bucket": bucket, "Prefix": f"{prefix}/"}
+        if token:
+            kw["ContinuationToken"] = token
+        page = s3.list_objects_v2(**kw)
+        for obj in page.get("Contents", []):
+            name = obj["Key"].rsplit("/", 1)[-1]
+            if name.endswith(".json") and "--" in name:
+                out.add(name)
+        if not page.get("IsTruncated"):
+            return out
+        token = page.get("NextContinuationToken")
+
+
+def stream_sampled(client: Any, source: Any, *, lo: float, hi: float):
+    """Sampled records with their sequence, for one staged object.
+
+    Thin by design: `amazebio.seqstream` is the shared reader — "the reader A2.1 needed and A1.4
+    did not" — so A2.2 reads the corpus through exactly the code A2.1 reads it through, at the
+    same seed. Re-implementing the sampling here would be a second definition of which records
+    are in the sample, which is the one thing a cross-tabulation in A3.2 cannot survive.
+    """
+    from amazebio import seqstream
+
+    live = int(client.head_object(Bucket=corpora.BUCKET, Key=source.key)["ContentLength"])
+    if source.bytes and live != source.bytes:
+        raise FoldDetectError(
+            f"{source.key}: staged object is {live} bytes, the pin says {source.bytes}. "
+            "Re-verify before trusting any count from it."
+        )
+    obj = corpora.RangedObject(
+        client,
+        bucket=corpora.BUCKET,
+        key=source.key,
+        size=source.bytes or live,
+        on_retry=lambda attempt, pos, exc: print(
+            f"    reconnect {attempt} at byte {pos:,}: {exc}", file=sys.stderr, flush=True
+        ),
+    )
+    if source.reader == "stage2_parquet":
+        yield from seqstream.iter_stage2_sampled(
+            obj.buffered(),
+            component=source.component,
+            record_prefix=source.corpus_component + ":" + Path(source.key).name,
+            seed=SEED,
+            lo=lo,
+            hi=hi,
+        )
+    elif source.reader == "fasta":
+        reader: Any = obj.buffered()
+        if source.gzipped:
+            from amazebio.uniref import GunzipStream
+
+            reader = GunzipStream(reader)
+        yield from seqstream.iter_fasta_sampled(
+            reader, component=source.component, seed=SEED, lo=lo, hi=hi
+        )
+    else:  # pragma: no cover — guarded by the caller
+        raise FoldDetectError(f"no sequence reader for {source.key}")
+
+
+def write_fasta(proteins: list[Any], path: Path) -> tuple[int, int]:
+    """Write called proteins as FASTA, named `<record_id>|gene<n>`; return (count, residues)."""
+    n = residues = 0
+    with path.open("w") as fh:
+        for p in proteins:
+            seq = str(getattr(p, "sequence", None) or getattr(p, "seq", ""))
+            name = getattr(p, "name", None)
+            name = name.decode() if isinstance(name, bytes) else str(name or f"p{n}")
+            if not seq:
+                continue
+            fh.write(f">{name}\n{seq}\n")
+            n += 1
+            residues += len(seq)
+    return n, residues
+
+
+def run_step(cmd: list[str], *, workdir: Path, label: str, on_tick: Any = None) -> None:
+    """Run one foldseek step, reporting on an interval while it runs.
+
+    `Popen` with output to files, not `subprocess.run(capture_output=True)`. The latter publishes
+    nothing for the duration — on the instance that is indistinguishable from a dead process —
+    and a pipe nobody drains can deadlock a noisy child. Both mistakes were made once already in
+    `tools/fold_throughput.py`, and the 3Di step here runs for hours.
+    """
+    out_p = workdir / f"{label}.out"
+    err_p = workdir / f"{label}.err"
+    started = time.monotonic()
+    with out_p.open("w") as out_fh, err_p.open("w") as err_fh:
+        proc = subprocess.Popen(cmd, stdout=out_fh, stderr=err_fh, text=True)
+        next_tick = started + HEARTBEAT_INTERVAL_S
+        while proc.poll() is None:
+            time.sleep(1.0)
+            now = time.monotonic()
+            if now >= next_tick:
+                if on_tick is not None:
+                    on_tick(label, round(now - started, 1))
+                next_tick = now + HEARTBEAT_INTERVAL_S
+    if proc.returncode != 0:
+        tail = err_p.read_text(errors="replace").strip()[-800:]
+        raise FoldDetectError(f"{label} failed with exit {proc.returncode}: {tail}")
+    blob = (out_p.read_text(errors="replace") + err_p.read_text(errors="replace")).lower()
+    if "no gpu devices found" in blob:
+        raise FoldDetectError(
+            f"{label}: foldseek reported no GPU and fell back to the CPU. A GPU figure measured "
+            "on the CPU looks right, which is what makes it dangerous — refusing rather than "
+            "writing a shard that took 64x longer than its own provenance claims."
+        )
+
+
+def parse_hits(tsv: Path, *, floor: float = FLOOR_BITS) -> list[dict[str, Any]]:
+    """Read `convertalis` output, keeping hits at or above the floor.
+
+    One row per (protein, reference domain). The record id is recovered from the protein name,
+    which `write_fasta` forms as `<record_id>|gene<n>`.
+    """
+    cols = FORMAT.split(",")
+    out: list[dict[str, Any]] = []
+    if not tsv.exists():
+        return out
+    with tsv.open() as fh:
+        for line in fh:
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) != len(cols):
+                continue
+            row = dict(zip(cols, fields, strict=True))
+            bits = float(row["bits"])
+            if bits < floor:
+                continue
+            out.append(
+                {
+                    "record_id": row["query"].split("|", 1)[0],
+                    "gene": row["query"],
+                    "target": row["target"].removesuffix(".cif"),
+                    "bits": bits,
+                    "evalue": float(row["evalue"]),
+                    "fident": float(row["fident"]),
+                    "alnlen": int(row["alnlen"]),
+                    "qlen": int(row["qlen"]),
+                    "tlen": int(row["tlen"]),
+                    "tcov": float(row["tcov"]),
+                }
+            )
+    return out
+
+
+def search_shard(
+    client: Any,
+    shard: dict[str, Any],
+    *,
+    foldseek: str,
+    model: Path,
+    refdb: Path,
+    workdir: Path,
+    threads: int,
+    gpu: bool,
+    params: str,
+    alignment_mode: str,
+    max_records: int = 0,
+    on_tick: Any = None,
+) -> dict[str, Any]:
+    """One shard, end to end: read, call genes, predict 3Di, search, report hits above the floor.
+
+    Returns the shard body defined in this module's docstring. `max_records` bounds how many
+    sampled records are read: 0 is unbounded, and anything else marks the result `partial`,
+    because a bounded read is a prefix of the object rather than a sample of it.
+    """
+    from amazebio import profilesearch
+
+    source = next((s for s in corpora.sources_for(shard["release"]) if s.key == shard["key"]), None)
+    if source is None:
+        raise FoldDetectError(f"{shard['key']} is not a staged source of {shard['release']}")
+
+    workdir.mkdir(parents=True, exist_ok=True)
+    for stale in workdir.glob("shard-*"):
+        stale.unlink() if stale.is_file() else shutil.rmtree(stale)
+
+    lo, hi = shard["band"]
+    read_started = time.monotonic()
+    records: list[Any] = []
+    for rec in stream_sampled(client, source, lo=lo, hi=hi):
+        records.append(rec)
+        if max_records and len(records) >= max_records:
+            break
+        if on_tick is not None and len(records) % 2000 == 0:
+            on_tick("read", round(time.monotonic() - read_started, 1), records=len(records))
+    read_seconds = time.monotonic() - read_started
+
+    proteins, stats = profilesearch.call_genes(records)
+    del records
+    faa = workdir / "shard-query.faa"
+    genes, residues = write_fasta(proteins, faa)
+    del proteins
+
+    search_started = time.monotonic()
+    hits: list[dict[str, Any]] = []
+    if genes:
+        qdb = workdir / "shard-qdb"
+        run_step(
+            [
+                foldseek,
+                "createdb",
+                str(faa),
+                str(qdb),
+                "--prostt5-model",
+                str(model),
+                "--gpu",
+                "1" if gpu else "0",
+                "--threads",
+                str(threads),
+            ],
+            workdir=workdir,
+            label="createdb",
+            on_tick=on_tick,
+        )
+        aln = workdir / "shard-aln"
+        run_step(
+            [
+                foldseek,
+                "search",
+                str(qdb),
+                str(refdb),
+                str(aln),
+                str(workdir / "shard-tmp"),
+                "--alignment-type",
+                ALIGNMENT_FLAGS[alignment_mode],
+                "--cov-mode",
+                "1",
+                "-c",
+                "0.5",
+                "-e",
+                "1000",
+                "--threads",
+                str(threads),
+            ],
+            workdir=workdir,
+            label="search",
+            on_tick=on_tick,
+        )
+        tsv = workdir / "shard-hits.tsv"
+        run_step(
+            [
+                foldseek,
+                "convertalis",
+                str(qdb),
+                str(refdb),
+                str(aln),
+                str(tsv),
+                "--format-output",
+                FORMAT,
+            ],
+            workdir=workdir,
+            label="convertalis",
+            on_tick=on_tick,
+        )
+        hits = parse_hits(tsv)
+    search_seconds = time.monotonic() - search_started
+
+    body = {
+        "release": shard["release"],
+        "key": shard["key"],
+        "component": shard["component"],
+        "corpus_component": shard["corpus_component"],
+        "band": [lo, hi],
+        "params": params,
+        "alignment_mode": alignment_mode,
+        "gpu": gpu,
+        "records": stats["records"],
+        "genes": genes,
+        "residues": residues,
+        "records_without_genes": stats["records_without_genes"],
+        "read_seconds": round(read_seconds, 2),
+        "search_seconds": round(search_seconds, 2),
+        "floor_bits": FLOOR_BITS,
+        "hits": hits,
+    }
+    if max_records:
+        body["partial"] = True
+        body["records_cap"] = max_records
+        body["partial_why"] = (
+            "a capped read: the first "
+            f"{max_records} sampled records of the object, not a sample of it. A smoke test."
+        )
+    return body
 
 
 # --------------------------------------------------------------------------------------
@@ -547,8 +900,32 @@ def parse_args(argv: list[str] | None) -> Any:
     ap = argparse.ArgumentParser(description=__doc__ and __doc__.splitlines()[0])
     stage = ap.add_mutually_exclusive_group(required=True)
     stage.add_argument("--plan", action="store_true", help="list the shards the depth asks for")
+    stage.add_argument("--search", action="store_true", help="run the resumable per-shard search")
     stage.add_argument("--assemble", action="store_true", help="build the tables from shards")
     ap.add_argument("--reference", type=Path, default=Path("artifacts/a2-2/reference"))
+    ap.add_argument("--foldseek", default="foldseek")
+    ap.add_argument("--prostt5-model", type=Path, default=Path("data/prostt5"))
+    # Scratch lives outside the working tree on purpose (D-103): residues may pass through
+    # it, and nothing carrying sequence belongs anywhere a reviewer reads as a result.
+    ap.add_argument("--refdb", type=Path, default=Path("/tmp/amazebio-a2-2/refdb/ref"))
+    ap.add_argument("--workdir", type=Path, default=Path("/tmp/amazebio-a2-2/work"))
+    ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
+    ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--gpu", action="store_true", help="require a GPU and refuse a CPU fallback")
+    ap.add_argument("--max-shards", type=int, default=None, help="stop after this many shards")
+    ap.add_argument(
+        "--max-records",
+        type=int,
+        default=0,
+        help="smoke test: read only this many sampled records per shard. The shard is marked "
+        "partial and the assembly refuses it.",
+    )
+    ap.add_argument(
+        "--band",
+        default=None,
+        help="smoke test: override the band as LO:HI, e.g. 0:1 to read a tiny object in full",
+    )
+    ap.add_argument("--code-commit", default=None, help="provenance where there is no checkout")
     ap.add_argument("--calibration", type=Path, default=Path("artifacts/a2-2/calibration"))
     ap.add_argument("--alignment-mode", default=None, help="defaults to the calibrated choice")
     ap.add_argument("--manifests", type=Path, default=Path("artifacts/a1-4"))
@@ -557,6 +934,103 @@ def parse_args(argv: list[str] | None) -> Any:
     ap.add_argument("--release", action="append", help="release key; repeatable")
     ap.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     return ap.parse_args(argv)
+
+
+def do_search(args: Any) -> int:
+    """Run every outstanding shard, one at a time, skipping what is already written.
+
+    One shard at a time and published as it finishes, because 24.7 instance-hours exceeds any
+    window this account can hold: an instance that dies on shard four must leave shards one to
+    three behind it. That is what makes spot safe here, so resumability protects the budget
+    rather than competing with it.
+    """
+    universe_path = args.reference / "fold-universe.json"
+    universe = load_fold_universe(universe_path)
+    params = params_fingerprint(folds.sha256_of(universe_path))
+    thresholds = load_threshold(args.calibration / "threshold.json", mode=args.alignment_mode)
+    mode = thresholds["alignment_mode"]
+
+    client = objectstore.client()
+    shards = planned_shards(args.release)
+    if args.band:
+        lo_s, _, hi_s = args.band.partition(":")
+        lo, hi = float(lo_s), float(hi_s)
+        shards = [
+            {**s, "band": [lo, hi], "name": shard_name(s["release"], s["key"], lo, hi)}
+            for s in shards
+        ]
+
+    already = finished_shards(client, args.s3_uri)
+    outstanding = [s for s in shards if s["name"] not in already]
+    print(
+        f"{len(shards)} shards planned, {len(already)} already written, "
+        f"{len(outstanding)} to do; params {params}, mode {mode}"
+    )
+    if args.max_shards is not None:
+        outstanding = outstanding[: args.max_shards]
+
+    local = args.shards
+    local.mkdir(parents=True, exist_ok=True)
+    # A dict rather than a counter the closure captures: `done` is rebound every iteration, so a
+    # heartbeat closing over it reports whatever ruff's B023 warns about rather than the live
+    # count. The heartbeat is the only channel the instance has, so it has to be right.
+    progress = {"done": 0}
+    for shard in outstanding:
+        print(f"=== {shard['name']}", flush=True)
+
+        def tick(
+            label: str, elapsed: float, *, records: int | None = None, shard: dict[str, Any] = shard
+        ) -> None:
+            body = {
+                "stage": label,
+                "shard": shard["name"],
+                "elapsed_s": elapsed,
+                "shards_done": progress["done"],
+                "shards_outstanding": len(outstanding),
+                "registry_version": universe["registry_version"],
+                "params": params,
+            }
+            if records is not None:
+                body["records_read"] = records
+            print(
+                f"    {label}: {elapsed}s"
+                + (f", {records} records" if records is not None else ""),
+                flush=True,
+            )
+            heartbeat(client, args.s3_uri, "search-progress.json", body)
+
+        tick("starting", 0.0)
+        body = search_shard(
+            client,
+            shard,
+            foldseek=args.foldseek,
+            model=args.prostt5_model,
+            refdb=args.refdb,
+            workdir=args.workdir,
+            threads=args.threads,
+            gpu=args.gpu,
+            params=params,
+            alignment_mode=mode,
+            max_records=args.max_records,
+            on_tick=tick,
+        )
+        body["code_commit"] = args.code_commit
+        body["registry_version"] = universe["registry_version"]
+        text = json.dumps(body, indent=2, sort_keys=True) + "\n"
+        (local / shard["name"]).write_text(text)
+        if args.s3_uri:
+            bucket, prefix = objectstore.split_uri(args.s3_uri)
+            client.put_object(Bucket=bucket, Key=f"{prefix}/{shard['name']}", Body=text.encode())
+        progress["done"] += 1
+        print(
+            f"    records={body['records']} genes={body['genes']} "
+            f"residues={body['residues']:,} hits={len(body['hits'])} "
+            f"read={body['read_seconds']}s search={body['search_seconds']}s"
+            + (" PARTIAL" if body.get("partial") else ""),
+            flush=True,
+        )
+    print(f"{progress['done']} shard(s) written to {local}")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -574,6 +1048,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {s['name']:62s} {s['corpus_component']:12s} band={s['band']}")
         print(f"{len(shards)} shards at the pre-registered depth; params {fingerprint}")
         return 0
+
+    if args.search:
+        return do_search(args)
 
     from amazebio.repro import run
 
