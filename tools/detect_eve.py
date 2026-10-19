@@ -543,6 +543,18 @@ def main(argv: list[str] | None = None) -> int:
                         bands=((0.0, args.rate),),
                     )
                 else:
+                    # One row per component, not per staged object. Evo 1 publishes its viral
+                    # component as three Parquet splits, so the manifest carries three rows for
+                    # it; emitting all three would show one component three times, against
+                    # `metrics/detections.md`'s "one row per component of the manifest". The
+                    # objects behind the row are counted rather than dropped.
+                    existing = next(
+                        (s for s in sources if s["corpus_component"] == key and not s["searched"]),
+                        None,
+                    )
+                    if existing is not None:
+                        existing["staged_objects"] += 1
+                        continue
                     why = NOT_SEARCHED.get(key)
                     if why is None:
                         why = PROTEIN_PROXY if release == "esm3-proxy" else ABSENT
@@ -551,6 +563,7 @@ def main(argv: list[str] | None = None) -> int:
                             "component": source.get("component", key),
                             "corpus_component": key,
                             "searched": False,
+                            "staged_objects": 1,
                             "why": why,
                         }
                     )

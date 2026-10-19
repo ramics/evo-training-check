@@ -131,3 +131,15 @@ def test_tables_only_mode_is_documented_as_refusing_a_covered_release():
     source = (REPO / "tools" / "detect_eve.py").read_text()
     assert "args.tables_only and row is not None" in source
     assert "must never be produced without a" in source
+
+
+def test_one_row_per_component_even_when_a_component_has_several_objects():
+    """Evo 1 publishes its viral component as three splits; the table must show it once.
+
+    Pinned by reading the tool's source because the loop lives inside `main`. The behaviour is
+    checked end to end by the artefacts, but a regression here is silent: three identical rows
+    for one component read as three components.
+    """
+    source = (REPO / "tools" / "detect_eve.py").read_text()
+    assert 'existing["staged_objects"] += 1' in source
+    assert "One row per component, not per staged object" in source
