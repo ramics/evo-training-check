@@ -35,16 +35,34 @@ labels do not capture.
 
 ## State — 2026-10-18
 
-`review`. **Branch `ccr-a062d0fd-ocvx60`.** Every Done-when criterion is met; the result is
-D-155 and the artefacts are at `corpora/results/a2-4/`.
+`review`. **Branch `ccr-a062d0fd-ocvx60`.** The result is D-155 and the artefacts are at
+`corpora/results/a2-4/`. **Reporting is governed by D-161**, which landed 85 minutes after this
+block first claimed every Done-when criterion was met; see the correction at the end of the file
+for why that claim is not restated here.
 
 **The result, 0.25% of both releases.** Every detection `element_kind: prophage`,
 `estimate_kind: lower_bound`:
 
-| release | genomes | bases | proviruses | Pfam viral | RVDB-prot |
+| release | genomes | bases | proviruses | Pfam viral families | RVDB-prot families |
 |---|---|---|---|---|---|
-| Evo 1 (GTDB v214.1) | 375 | 699 Mb | 128 | 203 / 1,719 = 11.8% (10.4-13.4) | 90 / 13,679 = 0.66% (0.54-0.81) |
-| Evo 2 (v214.1 + 220.0) | 300 | 946 Mb | 178 | 251 / 1,719 = 14.6% (13.0-16.4) | 153 / 13,679 = 1.12% (0.96-1.31) |
+| Evo 1 (GTDB v214.1) | 375 | 699 Mb | 128 | 203 | 90 (177 detections) |
+| Evo 2 (v214.1 + 220.0) | 300 | 946 Mb | 178 | 251 | 153 |
+
+**Absolute counts, deliberately — the two registries' survival fractions are not comparable, and
+D-161 measured why.** The earlier version of this table put Pfam's 11.8% beside RVDB-prot's
+0.66%, which reads as Pfam being eight times more permissive. Both readings are wrong. Pfam's
+1,719 is *this project's derived* viral subset (D-075), weighted toward well-characterised phage
+domains; RVDB-prot's 13,679 is the publisher's clustering of the whole known virosphere,
+overwhelmingly eukaryotic viruses that cannot occur in a bacterial prophage, so its denominator
+carries a large structurally unreachable mass. There is also a real 5.2x sensitivity gap from the
+threshold regime (D-076), not a counting artefact. Per D-161: **Pfam's fraction is never quoted
+as "the fraction of viral families", RVDB's fraction is never quoted as a measure of how much
+survived, and any percentage names its denominator in the same sentence.**
+
+**What carries the finding instead of a percentage: Pfam's composition**, which is a prophage
+parts list — `Phage_integrase` 65, `Terminase_6N` 24, `Phage_capsid` 24, `PhageMin_Tail` 23,
+`Phage_portal` 19 (Evo 1). That is the evidence these are integrated phage rather than scattered
+homology, and it depends on neither denominator.
 
 Viral families inside integrated elements inside bacterial genomes the filter's rules never
 reached — `out_of_scope` under charitable and literal, `retained_by_design` under strict, with
@@ -79,3 +97,37 @@ collector flattening archived runs onto live ones.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Correction — 2026-10-19, repo audit
+
+Found by auditing the three `review` tasks' Done-when criteria the way A1.6's were audited
+(D-170). **Two things, neither a measurement error.** Nothing about the detections, the
+concordance or the cost changes.
+
+**1. The state block above presented the two registries exactly as D-161 forbids, and predated
+it.** It put Pfam's 11.8% beside RVDB-prot's 0.66% as if comparable. D-161 landed in the same
+pull request 85 minutes after the block claimed every Done-when criterion was met, and it rules
+that neither percentage is reportable on its own. The table is now absolute counts plus Pfam's
+composition, which is what D-161 says is reportable. Fixed here rather than escalated, because
+D-161 is a decision the project owner already took — this is implementing it, not revisiting it.
+
+**2. D-161's measurements exist only in `DECISIONS.md`, and that is outstanding work.** The 5,314
+genes, 1,201,328 residues, 173-against-33 detections per 1,000 genes, 1.19 and 1.16 hits per
+family-record pair, the threshold spans and the composition list are all in the entry's prose and
+in no artefact: `tools/detect_proviruses.py` emits no composition and names no denominator, and
+grep finds none of those figures under `src/`, `tools/` or any artefact. **"Artefacts before
+prose" is a non-negotiable** — every number in a write-up traces to a machine-readable artefact —
+so as it stands the Phase A write-up cannot source D-161's numbers from anything but this log.
+That is a gap in this task's deliverable, left here rather than fixed: emitting a composition
+table and denominator-named counts is a change to this task's own tool, and widening an audit
+task to absorb it is what `AGENTS.md` forbids.
+
+**The "every Done-when criterion is met" claim is withdrawn, pending the project owner.** Not
+because a criterion failed, but because criterion 1 — "hit tables exist with route attribution" —
+was written before D-161 changed what may be reported from those tables, and it now reads as met
+while the reporting contract it implies is unsatisfied. This is the same drift D-170 amended for
+A1.6: criteria that stopped describing the deliverable. Amending them is a scope call and
+therefore the owner's, not a judgement made mid-task.
+
+**Still open for the owner, unchanged:** the depth question above (2.5% is about 33 wall hours
+and $7, exceeding one instance's window, so it needs a longer timer or per-object resumability).

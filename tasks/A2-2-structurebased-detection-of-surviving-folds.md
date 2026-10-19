@@ -104,30 +104,51 @@ hit has been looked at.**
   fixed `line[3:]` slice then eats a character. The old test only ever dirtied the tree with an
   untracked file, the one case the slice gets right.
 
+### The search stage is written, and the smoke tier caught a false-null generator
+
+- **`tools/detect_folds.py --search` is complete and resumable.** One shard at a time, published
+  as it finishes, skipping what is already at the destination by listing rather than an exact-key
+  probe. **No refactor was needed**: `amazebio.seqstream` already is the shared sampled-record
+  reader and `profilesearch.call_genes` is already public from D-113, with stats carrying exactly
+  the per-source fields the shard contract wants. The earlier claim in this file that a 250-line
+  factoring was required was wrong.
+- **D-172: foldseek's prefilter silently returned nothing.** 77 real called proteins against the
+  141 reference structures gave `76 sequences with 0 size result lists` and exit 0; the same
+  databases searched exhaustively gave 49 hits. Shipping that would have produced well-formed
+  shards reporting no surviving folds anywhere in either release — a false null, manufactured.
+  Every search now runs `--exhaustive-search 1`. The failure is scale-dependent (about 7% of rows
+  lost at the calibration's 1,567 queries, nearly everything at 77), so the calibration alone
+  could never have found it.
+  **The threshold re-derives unchanged** at 500 bits with brackets [400, 600] and 3Di+AA; only
+  one D-171 figure moves, and it moves favourably: the share of true fold members missed at any
+  threshold is **6.1%**, not 13%. Half of that was the prefilter rather than the method.
+- **The launcher is repointed.** `--stage search|throughput`, with throughput kept reachable
+  because it produced D-164's cited measurement. An inputs bundle (0.25 MB) carries the reference
+  database and the two artefacts the instance cannot rebuild; per-stage result and heartbeat keys;
+  the watcher reports shards as they land, so a reclaim keeps what ran.
+- **The free smoke tier is established and has already paid for itself twice.** `--max-records`
+  bounds egress as well as time — 8 records off a 16.9 GB object in 15.5 seconds — so the whole
+  pipeline rehearses against real corpus data for a fraction of a cent. It also confirmed the
+  heartbeat fires through a 22-minute step, and the container CPU rate is consistent with D-163.
+  A capped shard is marked `partial` and `load_shards` refuses it, so a smoke shard cannot reach
+  a citable table.
+- Payload: `detect_folds.py`'s import closure is seven modules wider than
+  `fold_throughput.py`'s, and none were shipped — the ImportError that cost two launches. Fixed,
+  and the test now parametrises over both tools rather than only the one UserData names.
+
 ### What is left, in order
 
-1. **Factor A2.1's corpus reading into a module, then write the search stage.** This is the only
-   thing between here and a table. The search needs A1.4 manifest reading, sampled streaming,
-   gene calling and the per-object protein cache, all private to `tools/detect_profiles.py`.
-   The precedent is D-113, which factored `amazebio.profilesearch` out of that same tool for
-   A2.4; this is the corpus-reading half of the same move. It touches a finished task's code, so
-   it wants its own decision entry — and A2.1's numbers must not move, which its own tests guard.
-   **Correction to the earlier state note:** the resumability shape to copy is **A2.1's**, not
-   A2.4's. `detect_profiles.py` has the real per-object checkpointing (`cache_stem` keyed on the
-   *object* name, after a component-keyed stem made Evo 1's three splits collide and
-   last-write-win; plus `hits_dump_path` as a second layer). A2.4 has incremental publish and an
-   in-memory cache but no S3 checkpoint and no restart logic — its docstring says the pass "is
-   re-run deliberately or not at all".
-2. **Point `tools/ec2_folds.py` at the search tool.** It currently runs `fold_throughput.py`.
-   Repointing means its `PAYLOAD` tuple, the `--help` smoke test, the run command and `watch()`'s
-   result and heartbeat keys. `PAYLOAD` must carry the new tool's first-party import closure or
-   the instance dies on an ImportError half a minute in; `tests/test_ec2_folds.py` enforces that.
-   Simulate the bootstrap locally first — build the real payload, unpack it, run both precheck
-   steps — which is the habit three lost launches paid for.
-3. **Run the pass and assemble.** 5 shards at the pre-registered depth (`--plan` lists them).
-   24.7 instance-hours, so it exceeds one window and needs the resumability above; the $30
-   ceiling is not the binding constraint but cumulative spend across relaunches is worth tracking,
-   since the launcher enforces the cap per launch.
+1. **The paid smoke launch (~$1).** Only what needs the hardware: the NVIDIA driver, foldseek
+   actually using the GPU (the tool now *refuses* a shard whose log says "no GPU devices found"
+   rather than writing one that took 64x longer than its provenance claims), the instance role
+   reading corpora and writing shards, the ProstT5 download, the inputs fetch, and the
+   `shutdown -c` → `shutdown -h now` die path. Same capped invocation, short hard stop. It also
+   returns the in-region read rate, which is worth having before committing the full spend.
+2. **The full pass (~$19 at the live $0.76/h g6.xlarge spot quote).** 5 shards at the
+   pre-registered depth; 24.7 instance-hours. Resumable, so a reclaim costs one shard.
+   Cumulative spend is worth tracking across relaunches: the launcher enforces the ceiling per
+   launch, and roughly $4 of the $30 has already gone on S3 egress.
+3. **Assemble.** `--assemble` is written and tested (24 tests) and needs only the shards.
 
 ### Still open, unchanged
 

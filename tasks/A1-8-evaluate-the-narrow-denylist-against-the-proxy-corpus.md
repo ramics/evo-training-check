@@ -438,3 +438,45 @@ has to be rebuilt. **Size the scoring pass against `main`.**
 What still holds from them: the band mode was hardwired to the viral seed set, so this arm needs
 it to take a seed FASTA. Check that against `main` before planning the change — it is the one
 substantive claim in those notes, and it is the part worth re-reading the code for.
+
+## Exact matches — 2026-10-19
+
+The 0.90-1.00 band could not distinguish a distant relative of listed material from the
+material itself, so the top band was cut finer and band 1 re-run. Artefact:
+`corpora/results/a1-8/band-select-agent-fine.json`, commit `34e989f`, instance
+`i-0052370935f5d73d4`. Six cells, nine groups, same shard and band as before; every figure
+below reproduced the earlier run exactly, including the ≥0.70 rates to four decimal places.
+
+| identity | records | share of 1,097,174 searched |
+|---|---|---|
+| 0.90-0.95 | 1,122 - 1,179 | 0.1023% - 0.1075% |
+| 0.95-0.98 | 753 - 807 | 0.0686% - 0.0736% |
+| 0.98-0.99 | 150 - 170 | 0.0137% - 0.0155% |
+| 0.99-1.00 | 87 - 112 | 0.0079% - 0.0102% |
+| **1.00 exact** | **115 - 128** | **0.0105% - 0.0117%** |
+
+Ranges are across the three coverage readings. **Sensitivity changes nothing**: the counts are
+identical at `-s 2.0`, `5.7` and `7.5` in every column, so these are not an artefact of how
+hard the aligner was asked to look.
+
+**Why this matters more than the 0.9%.** Every figure in this arm so far has rested on the
+0.70 cut, which is *our* inference — the source does not state its threshold (D-107) — and
+32.9% of the ≥0.70 matches sit in the band immediately above it. **An exact match needs no
+threshold argument.** Whatever value the filter actually used, 1.00 is above it, so these
+records are not sensitive to the one parameter this arm could not pin down.
+
+**What may be said, and what may not.** The supportable statement is: *material identical to
+sequences from organisms named on the Select Agents and Toxins List is present in the sampled
+proxy corpus, in roughly 0.011% of records.* It may **not** be said that the filter missed
+them: D-159's broadening term is unchanged, and this arm's query set exceeds the published
+denylist by a measured 1.7x to 6.8x (D-157), so whether any given record was in ESM3's
+denylist is a per-record question for the disclosure package (D-125, D-126). Nor may these be
+scaled to the corpus: one shard of eight, one seed band of a hundred, and the sampling
+interacts.
+
+**This does not replace the ≥0.70 headline and does not carry an interval either.** It is a
+count in a band, subject to the same gap recorded above — the interval work over families
+restricted to the band is still owed before any figure is quoted.
+
+`FINE_TOP_EDGES` is reported alongside the frozen `IDENTITY_BAND_EDGES` and does not change
+them; `metrics/survival.md` is untouched.
