@@ -115,3 +115,77 @@ def test_split_uri_rejects_anything_that_is_not_an_s3_uri():
     assert objectstore.split_uri("s3://bucket") == ("bucket", "")
     with pytest.raises(ValueError):
         objectstore.split_uri("/local/path")
+
+
+# --- Sequential reads (A1.8's release count) ---------------------------------------------
+
+
+class _FakeBody:
+    def __init__(self, data: bytes, fail_after: int | None = None) -> None:
+        self._data, self._pos, self._fail_after = data, 0, fail_after
+        self._served = 0
+
+    def read(self, n: int = -1) -> bytes:
+        if n is None or n < 0:
+            n = len(self._data) - self._pos
+        if self._fail_after is not None and self._served >= self._fail_after:
+            raise OSError("connection reset")
+        chunk = self._data[self._pos : self._pos + n]
+        self._pos += len(chunk)
+        self._served += len(chunk)
+        return chunk
+
+    def close(self) -> None:
+        pass
+
+
+class _FakeS3:
+    """Counts requests, so a per-read regression is visible rather than merely slow."""
+
+    def __init__(self, data: bytes, fail_after: int | None = None) -> None:
+        self.data, self.fail_after = data, fail_after
+        self.ranges: list[str | None] = []
+
+    def head_object(self, **kw: object) -> dict:
+        return {"ContentLength": len(self.data)}
+
+    def get_object(self, **kw: object) -> dict:
+        rng = kw.get("Range")
+        self.ranges.append(rng)  # type: ignore[arg-type]
+        start = int(str(rng).split("=")[1].split("-")[0]) if rng else 0
+        fail = self.fail_after if len(self.ranges) == 1 else None
+        return {"Body": _FakeBody(self.data[start:], fail_after=fail)}
+
+
+def test_a_sequential_read_opens_the_object_once() -> None:
+    """The regression that cost a launch: one request, not one per block."""
+    from amazebio.objectstore import S3SequentialRead
+
+    data = bytes(range(256)) * 400
+    fake = _FakeS3(data)
+    reader = S3SequentialRead(fake, "b", "k")
+    out = b"".join(iter(lambda: reader.read(1024), b""))
+    assert out == data
+    assert reader.requests == 1, f"{reader.requests} requests for one sequential read"
+
+
+def test_a_broken_stream_resumes_from_the_offset_rather_than_restarting() -> None:
+    """A single GET held for hours will break; the caller must still see one byte sequence."""
+    from amazebio.objectstore import S3SequentialRead
+
+    data = bytes(range(256)) * 400
+    fake = _FakeS3(data, fail_after=5000)
+    reader = S3SequentialRead(fake, "b", "k")
+    reader.BACKOFF = 0  # type: ignore[misc]
+    out = b"".join(iter(lambda: reader.read(1024), b""))
+    assert out == data, "resuming must not duplicate or drop bytes"
+    assert any(r is not None for r in fake.ranges), "the resume should be a ranged request"
+
+
+def test_reading_past_the_end_returns_empty() -> None:
+    from amazebio.objectstore import S3SequentialRead
+
+    fake = _FakeS3(b"abcdef")
+    reader = S3SequentialRead(fake, "b", "k")
+    assert reader.read(6) == b"abcdef"
+    assert reader.read(10) == b""

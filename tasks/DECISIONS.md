@@ -7847,3 +7847,373 @@ decision has a threshold or parameter in it, the number goes in the entry.
   HK97 capsid, large terminase and portal folds, which would measure what the audit cares about
   in the corpora it actually has. That is a `DESIGN.md` question and a new task, not a widening
   of this one — `AGENTS.md` is explicit that an adjacent problem gets a new file and a new id.
+
+### D-181 — Correction to D-157: both halves of the published denylist fall inside the span of readings, and comparing sums hid it
+- **Date:** 2026-10-19
+- **Task:** A1.8
+- **Supersedes in part:** D-157, whose headline — "the published figure sits below every
+  reading we can construct from the regulation" — does not survive the decomposition below.
+- **Context.** Reading PR #24, the project owner asked whether removing the material that
+  aligns to things other than viruses would bring the count closer to the paper's. Nothing
+  A1.8 had produced could answer it, because A1.8 had only ever compared **totals**:
+  1,277,073 / 321,669 / 229,787 against 187,000. ESM3 does not publish 187,000. It publishes
+  *"147K non-viral sequences and 40K additional viral sequences"* (version of record A.6.1
+  p47) — two figures, which D-106 recorded faithfully, D-146 added together, and D-150 and
+  D-157 then compared as a sum without re-reading the sentence they were quoting.
+- **Measured for nothing, from the artefact already in hand.** The 2.64-hour pass over the
+  182.7 GB archive recorded per-taxon counts, and the Viruses superkingdom is in the same
+  pinned taxonomy (2023-04-01) the reading was resolved against. So the split is a
+  regrouping of a measurement already taken, needing no second pass — the same argument
+  D-157 used to measure strain descent. `tools/select_agent_decomposition.py` produces it;
+  both readings still sum to D-157's figures exactly, which a test asserts.
+
+  | reading, UniProtKB at 2023_02 | viral | vs 40K | non-viral | vs 147K |
+  |---|---|---|---|---|
+  | named organisms **and their strains**, all three parts | 828,606 | 20.7x | 448,467 | 3.05x |
+  | …less the avian influenza entry | 62,094 | 1.55x | 448,467 | 3.05x |
+  | **named organisms only**, all three parts | 137,429 | 3.44x | 184,240 | **1.25x** |
+  | …less the avian influenza entry | 45,547 | **1.14x** | 184,240 | **1.25x** |
+  | named organisms only, **42 CFR 73 alone** | 18,327 | **0.46x** | 92,225 | **0.63x** |
+
+- **The hypothesis is inverted by the data, and usefully so.** The published denylist is 79%
+  non-viral, and the non-viral half is the one that nearly reconciles — 184,240 against
+  147,000, 1.25x, on the narrowest full-list reading. The excess is *viral*, and it is one
+  entry: avian influenza, which D-137 deliberately read as Influenza A entire, on the stated
+  grounds that for an audit an over-inclusive denylist overstates what should have been
+  removed rather than understating it. Set that one entry aside and the viral half is 1.14x.
+  Removing non-viral material moves away from the published figures, not toward them.
+- **Both published halves sit inside the bracket, and that is what overturns D-157.** "The
+  Select Agents and Toxins List" is three codified parts, and the source cites the summary
+  page that covers all three — but 42 CFR 73 alone is a reading the same regulation admits,
+  and D-138 recorded the version question without reaching the scope question. Read narrowly
+  it gives 18,327 viral and 92,225 non-viral: **below both published halves**. Read as all
+  three parts without descent it gives 137,429 and 184,240: above both. Each published half
+  is therefore bracketed by readings constructible from the regulation, and the published
+  text does not say which was taken. D-157 reported that the published figure sat below
+  everything; it does not.
+- **Why the sum hid it.** The pooled ratio for the named-only reading is 1.72x, which
+  resembles neither half — 3.44x viral and 1.25x non-viral. A total can be matched, or
+  missed, by two errors of opposite sign, so a sum is the weakest form of this test and the
+  source had already supplied the strong one. Checking a published decomposition against its
+  own sum discards the constraint that makes it evidence.
+- **What may now be claimed, and what may not.** The honest statement is an
+  under-specification finding (§A0): the regulation admits a span of readings whose viral
+  halves run 0.46x–3.44x and whose non-viral halves run 0.63x–3.05x of the published figures,
+  both published halves fall inside that span, and neither the paper nor the regulation says
+  which reading was taken. D-157's stronger conclusion — "either the denylist omitted
+  material the stated procedure would include, or the description is incomplete" — is **not
+  supported** by the counting evidence and is withdrawn. It remains true that no single
+  reading reproduces both halves exactly, and that is unremarkable at this precision.
+- **What D-157 keeps.** Its measurements, all of which stand. Its correction of D-150's
+  "comfortably within release drift", which was the substantive error. And its contrast with
+  the viral denylist, which is untouched: that list's 1.34x gap has a described cause in the
+  paper's second clause, and no comparable step is described for this one. What changes is
+  that the select-agent gap is now attributable to our own reading latitude rather than left
+  as an unexplained discrepancy in the source.
+- **Rejected:** Adopting "named only, 42 CFR 73 alone, avian influenza read narrowly" as the
+  reading, on the grounds that it would land closest on both halves — fitting a reading to a
+  target is what D-150 withdrew a hypothesis for, and two targets instead of one does not
+  make it inference. Promoting the HHS-only reading to primary: D-138 pinned all three parts,
+  the model card cites the page covering all three, and the narrow reading is a sensitivity
+  that is now measured rather than argued about. Withdrawing D-157 entirely — one claim it
+  drew is wrong, the rest is sound, and the log is append-only. Re-running the archive pass:
+  the per-taxid detail answers this exactly and for nothing.
+- **Process point, the fourth of this kind in this task.** D-150 was a quiet caveat in code,
+  D-154 a quiet qualifier in a docstring, D-156 a reading already fixed in `policies/specs/`
+  that nobody re-read — and this is a published figure quoted as a sum for three decision
+  entries while its own decomposition sat in the sentence being quoted. In every case the
+  information was already in the repository. **Re-read the source sentence when you cite the
+  number, not only when you first record it.**
+
+### D-182 — A2.3's corpus is one release's eukaryotic genomes, staged as a hash-sampled set of whole assemblies
+- **Date:** 2026-10-19
+- **Task:** A2.3
+- **Context:** `DESIGN.md` §A2 asks for endogenous elements in "surviving host genomes", and two
+  facts settle what that means before any instrument is chosen.
+  **A2.3 is structurally a one-release task**, where A2.4 was a two-release one. Evo 1's release
+  exposes no eukaryotic genomes at all — `OG1_COMPONENTS` is `stage2`, `stage1_gtdb` and
+  `stage1_imgpr` — which D-019 already recorded as "the scope gap opens with Evo 2's additions
+  rather than with Evo 1".
+  **Evo 2's eukaryotic component is not staged, and staging it was explicitly left to this
+  task.** `opengenome.OG2_COMPONENTS` declares `ncbi_eukaryotic_genomes` (2.17 TB) and
+  `eukaryotic_genic_windows` (129 GB) with `tier1=False`. D-031 costed four staging tiers, chose
+  134.2 GiB, rejected the 2.88 TB tier that would have covered this one, and left the
+  consequence: "A2.3 and A4.1 must each stage their own component before they can run". The
+  corpus bucket has no `s3:DeleteObject`, so every staged byte is permanent and recurring, which
+  is why D-031 escalated the tier rather than deciding it and why D-119 is the precedent for an
+  A2 detector getting its corpus staged.
+  Put to the project owner with three costed options: the full 2.17 TB at about $50/month
+  forever; a hash-sampled set of whole assemblies at about $0.13/month for 0.25% and $0.50/month
+  for 1%; or stage nothing and ship `not_searched` as A2.2 did under D-180. **The owner chose the
+  sampled set.**
+  **The component's layout was measured before the sampling unit was chosen, not assumed.** The
+  pinned tree (`opengenome.fetch_tree(OG2)`, 1,126 files and 5,523,240,795,932 bytes, matching
+  the pin exactly) puts `fasta/ncbi_eukaryotic_genomes` in **90 tar files of 20-44 GB**, and a
+  Range walk of `batch1.tar`'s header chain shows members of the form
+  `batch1/GCA_018245875.1.fasta.gz` — one gzipped FASTA per assembly, named for its NCBI
+  assembly accession, ranging from 4.7 MB to 428 MB compressed. That is the **same shape as Evo
+  2's GTDB component**, which `amazebio.gtdb` already reads: `assembly_of_member` and
+  `iter_og2_genomes` transfer unchanged. The first design this task considered — sampling
+  per-assembly files by name — was not available, and the measurement is what replaced it.
+- **Decision:** A2.3's corpus is Evo 2's `ncbi_eukaryotic_genomes` only, and the sampling unit is
+  the **tar member**, which is one assembly.
+  **Selection** is the project's existing hash rule, `blake2b(key=seed, id)[:8] < rate · 2⁶⁴` at
+  seed **20261015**, keyed on the assembly accession recovered from the member name. The record
+  is the genome (D-136), so the sampling unit is the unit a detection is attributed to; the rate
+  is nested (D-078), so a deeper band is a superset and nothing already staged is re-staged or
+  re-searched; and membership is checkable per accession afterwards without re-running anything.
+  **Rate is 1%**, inside the figure the owner approved, for about 22 GB and $0.50/month.
+  **Acquisition is a two-pass design, and the first pass is cheap enough to be worth having on
+  its own.** Pass one walks all 90 tars' header chains over HTTP Range reads and emits an
+  **assembly index** — accession, tar, byte offset, compressed size — transferring 512 bytes per
+  member rather than the member. Pass two ranged-GETs only the sampled members, verifies, and
+  uploads them to the corpus bucket. Neither pass reads the 2.17 TB, which is what makes a
+  sampled stage of an unstaged component possible at all.
+  **`eukaryotic_genic_windows` is not staged.** Its 129 GB is seven parts of one split gzip
+  stream (`windows_5kb.fasta.gz.aa` … `.ag`), so it is not independently samplable at the
+  assembly level; it is cut from the genomes above, so it adds no independent sequence; and it is
+  cut around genes, which biases against exactly the intergenic, pseudogenized relics the EVE
+  arms look for.
+  **`tier1` stays `False` on both components.** Flipping it would make `tools/stage_opengenome.py
+  --stage` take the whole 2.17 TB on its next run against a bucket that cannot be emptied. A2.3
+  stages its sample through its own path, and `tier1` keeps meaning "what A1.2's staging tier
+  covers".
+- **Rejected:** **The full 2.17 TB** — the owner declined the $50/month, and it is not the
+  binding constraint anyway: detection compute sits on top of it and is uncalibrated, and
+  D-117/D-149 established that assuming that rate is how a design decision gets taken by
+  accident.
+  **Staging nothing and shipping `not_searched`** — defensible, and it is what A2.2 did
+  yesterday, but the two situations differ in the direction that matters. A2.2's null was near
+  certain on composition grounds, because the folds §A2 names are concentrated in virus groups
+  that are a minority of its corpora. Here composition argues the other way: endogenous
+  retroelements are near-universal in eukaryotic genomes, so a sampled pass is expected to detect
+  rather than to report a null, and the route §A2 names first for host genomes would otherwise
+  contribute nothing at all to A3.2.
+  **Sampling contigs, windows or bytes rather than assemblies** — would require reading the
+  component to sample it, and would attribute detections to fragments of a genome rather than to
+  the genome, breaking D-136's record definition and the per-genome denominator the retroelement
+  arm needs.
+  **Substituting an external genome set** (Ensembl, a RefSeq query) for the component — the audit
+  is of a named corpus, and a different set of assemblies is a different corpus. D-116's rule
+  that neither release substitutes for the other applies with more force to a set the release
+  does not contain.
+- **Consequence:** Evo 1's A2.3 tables are `not_searched` **by construction, and for a reason
+  that is not A2.2's**: the component does not exist in that release, where A2.2's existed and
+  was not bought. Those two must not collapse into one row, so the per-source reason strings
+  carry the difference into the artefact rather than leaving it in this log.
+  A2.3's figures are lower bounds (D-115), and the 1% band is nested, so depth can be bought
+  later without re-staging or re-searching. The assembly index is reusable: A4.1 still has its
+  own 252 GB metagenomic component to stage and this decision does not cover it, but the
+  header-walk pass is the same instrument if that component is also tarred.
+  One thing this decision does **not** settle, deliberately: no reading's rules reach this
+  component, because D-016 withdrew the strict reading's endogenous-element rule. So every
+  detection here is `out_of_scope` under the literal and charitable readings and
+  `retained_by_design` under the strict one — structurally the same situation as GTDB, which is
+  why A2.4's route handling transfers. The instruments, their thresholds and the false-positive
+  modes are a separate pre-registration, taken before anything is searched.
+
+### D-183 — A2.3's retroelement arm: registry, selection rule and threshold, fixed before anything is searched
+- **Date:** 2026-10-19
+- **Task:** A2.3
+- **Context:** D-182 settled what A2.3 searches. This settles what it searches *with*, and it is
+  written before a single genome has been read, because `AGENTS.md` requires thresholds and
+  analysis specs to be fixed before results are inspected.
+  §A2 names two instrument classes for host genomes: Dfam/RepeatMasker and LTR finders for the
+  retroelement route, and a separate search for the non-retroviral route. This entry covers the
+  **retroelement arm only**. The other arm needs a different registry with a different authority
+  and a different denominator rule, and bundling an arm whose cost and universe have not been
+  measured into a pre-registration would make this one weaker rather than the other one stronger.
+  It gets its own entry when it is built.
+  Four things were measured first, and each changed the design that preceded it.
+  **The registry does not ship as a profile library.** Dfam is a partitioned HDF5 database, so
+  the profiles have to be exported from it. The reader is `famdb`, and the pairing is the
+  publisher's own: Dfam 4.0's `FamDB/README.txt` states "This new format is compatible with FamDB
+  tool v3.0.0, and RepeatMasker 4.2.4." The previous release's files are format 2.0.0 and
+  `famdb` 3.0.0 refuses them outright — confirmed by trying it — so the tool and the release are
+  one pin, on D-112's principle that an attested pairing is what a pin needs.
+  **RepeatMasker is not needed and was dropped.** Dfam's profiles are nucleotide HMMs, and
+  `pyhmmer.hmmer.nhmmer` — already pinned for A2.1 — searches them directly against genomic DNA.
+  That matters for more than dependency hygiene: it means no gene calling and no six-frame
+  translation, which is the right instrument for a degraded, pseudogenised relic that no gene
+  caller will call. It also avoids a second search engine with its own thresholds and its own
+  cost model. The conda package was checked and ships **no** repeat library — 25 MB of annotation
+  data and no database — so it would not have saved the export step either.
+  **The curated component is 30,621 families and the uncurated one is two orders of magnitude
+  larger.** Measured from the pinned release: curated HMMs are 688 (root) + 29,933 (Bilateria),
+  about 2.1 GB compressed, while the uncurated HMM partitions run to 10-18 GB *each* across more
+  than a hundred partitions.
+  **Dfam's own thresholds do not cover every family, and the gap is measurable.** Of the 8,593
+  curated LTR-class models in the Bilateria partition, **7,831 (91.1%) carry a general GA/TC/NC
+  threshold and 762 (8.9%) do not**. Most families instead carry per-species `TH` lines — 1,448
+  of them across the 688 root families alone — which is a better threshold for one named species
+  and unusable as a fixed universe, because a per-species cut makes the denominator change from
+  genome to genome.
+- **Decision:** **Registry.** Dfam **4.0** (release date 2026-05-22), the **curated HMM**
+  component only: `dfam40.0.h5` (the required root metadata), `dfam40.curated.hmm.0.h5` (root,
+  688 families) and `dfam40.curated.hmm.1.h5` (Bilateria, 29,933 families), each pinned by the
+  md5 the publisher serves beside it and verified on acquisition.
+  **Selection rule.** The registry universe is the curated families whose Dfam Type is `LTR`,
+  and the arm's headline is the **ERV subtypes** within it: `ERV1`, `ERVK`, `ERVL`, `ERVL-MaLR`,
+  `ERV` and `ERV-Foamy` — **5,565 of the 8,593** LTR-class Bilateria models, counted before any
+  search. The remaining LTR subtypes (`Gypsy` 2,041, `Pao` 567, `Copia` 97, `Ngaro` 38, `DIRS`
+  29, and 256 classified `LTR` with no subtype) are **retained in the universe and reported as
+  their own rows**, never merged into the ERV count: they are LTR retrotransposons rather than
+  integrated retroviruses, so a figure that pooled them would overstate the viral-derived
+  fraction. The selection runs in this project's own tested code against the class string the
+  export carries, not through the reader's `--class` flag, for the reason D-075 derived Pfam's
+  viral subset here rather than trusting a label and D-166 re-derived A2.2's fold universe.
+  **Threshold.** Dfam's **own general GA cutoff, per model**, exactly as A2.1 took Pfam's own
+  per-model gathering cutoffs under D-076 rather than an E-value this project picked. A family
+  with no general GA is **excluded from the universe and reported as excluded, by accession**,
+  rather than given a threshold this project invented: 762 models, 8.9% of the LTR class, and
+  that number is this arm's declared sensitivity blind spot in the same way D-083 is A2.1's.
+  **Element kind and route.** Every detection on this arm is `ENDOGENOUS_RETROELEMENT`, assigned
+  from the instrument rather than from the component — which is the one place A2.3 differs from
+  D-079's rule, and legitimately: D-079 says a *profile* hit cannot distinguish element kinds and
+  leaves the stronger claim to "A2.3 (EVEs) and A2.4 (prophage)", so making that claim is this
+  task's deliverable rather than an inference it is forbidden. Route comes from
+  `amazebio.apply.route_for` as for every other detector, and on this component it is
+  `out_of_scope` under the literal and charitable readings and `retained_by_design` under the
+  strict one (D-016, D-182).
+  **Depth is not fixed here, and deliberately.** The cost of one genome against this registry has
+  not been measured, and D-117 and D-149 between them establish that the measured rate came in
+  2.74x off a single-genome extrapolation while D-098 found an *assumed* rate wrong by thirty
+  times. "A cost assumed is a design decision taken by accident." So depth is pre-registered in
+  a separate entry, after calibration on real assemblies and before any hit is inspected.
+- **Rejected:** **The uncurated component.** It is where most of Dfam's families are, and taking
+  it would raise sensitivity. Declined on three grounds: its partitions are 10-18 GB each against
+  a 29 GB working disk; its families are de novo products with no curated thresholds, so the
+  threshold policy above would have nothing to read; and a de novo family is not an independent
+  authority on what a retroelement is, which is what the registry is here to supply. The
+  consequence is a lower bound, which is the direction D-115 requires.
+  **A threshold of this project's own choosing for the 762 models without one.** Any value would
+  be invented, and an invented cut on 8.9% of the universe would be indistinguishable in the
+  output from a curated one. Excluding them and naming them keeps the gap visible and keeps every
+  reported hit attributable to the publisher's own cutoff.
+  **Per-species `TH` thresholds.** More sensitive for a named species, and the export can extract
+  them. Declined because the sample spans thousands of species, so the universe would differ per
+  genome and `metrics/detections.md`'s one-universe-per-registry rule would be broken — the
+  denominator would stop meaning the same thing between two rows of the same table.
+  **RepeatMasker, and LTR finders.** RepeatMasker for the reasons above. Structural LTR finders
+  are the other instrument §A2 names, and they are genuinely independent — they detect by
+  structure rather than by homology — but they return candidate elements with no family identity,
+  so they cannot produce the per-family table `metrics/detections.md` specifies and A3.2 merges.
+  They are the natural second instrument for a concordance check of the kind D-114 fixed for
+  A2.4, which A2.3's Done-when does not require; recorded here as the obvious extension rather
+  than silently dropped.
+- **Consequence:** The retroelement arm's universe, threshold and element kind are fixed and
+  countable before any genome is read, and the two numbers a reader needs to judge its
+  sensitivity — 5,565 ERV-subtype models searched, 762 LTR-class models excluded for want of a
+  curated threshold — are already on the record. The figures this arm produces will be lower
+  bounds for three compounding reasons, all declared in advance: a sampled corpus (D-182), the
+  curated component only, and the excluded 8.9%.
+  What is still open and is this task's next step: the cost of one assembly against this
+  registry, and therefore the depth. Nothing else about the arm moves after calibration — that is
+  what makes the calibration safe to run and look at.
+
+### D-184 — The eukaryotic component holds 15,044 assemblies, which is the third number published for it
+- **Date:** 2026-10-19
+- **Task:** A2.3 (affects A3.2, A4.3, A6.1)
+- **Context:** Every figure A2.3 reports is a fraction of "the assemblies in Evo 2's eukaryotic
+  component", and nothing in this project had counted them. The release states a file count and
+  a byte total, not a genome count, because the component is 90 tars rather than 15,000 files
+  (D-182). The index pass built for the sampling design counts them as a by-product, so the
+  count came for free once the walker existed.
+  Two figures were already on the record and neither is this one. The developers' own words,
+  quoted in `policies/corpora.md` §4, are an **acquisition** figure: "All available eukaryotic
+  reference genomes were downloaded from NCBI on May 31, 2024 … This resulted in **16,704
+  genomes** including an estimated 10.7 trillion nucleotides." D-007 then records **15,148
+  deduplicated** eukaryotic reference genomes as what Evo 2 added, after Mash deduplication at
+  distance < 0.01 and contig filtering. D-019 had already corrected one confusion between these
+  two — 16,704 is the NCBI download, not corpus contents — so the distinction was live before
+  this measurement.
+- **Decision:** The component's measured population is **15,044 assemblies** across 90 tars,
+  totalling **2,174,531,002,595 bytes** compressed, with **no duplicated accession**. Recorded as
+  the denominator every A2.3 figure is a fraction of, in
+  `artifacts/a2-3/component-summary.json` with the per-assembly index beside it.
+  The measurement is complete rather than sampled: all 90 of 90 tars walked, `complete: true`,
+  and the byte total agrees with the component's own size in the pinned tree exactly. So the
+  **104-assembly shortfall against D-007's 15,148 is a real stated-versus-delivered gap, not a
+  staging gap** — nothing is missing from the acquisition, and the released component simply
+  carries 0.69% fewer genomes than the release's stated deduplicated count. It is reported as
+  such and is deliberately *not* reconciled by guesswork: the published text gives no
+  per-assembly accounting between the dedup step and the release, so which 104 and why cannot be
+  recovered from it. This is §A0's "under-specification is data" at the scale of a denominator.
+  Three properties of the size distribution are recorded with the count because the sampling
+  design depends on them: the median assembly is 26.4 MB compressed, the 95th percentile is 636
+  MB, and **the largest single member is 28,857,222,864 bytes** — a compressed member of 28.9 GB.
+  The minimum is **2,030 bytes**, which is a genome file too small to be a genome and is flagged
+  rather than dropped.
+- **Rejected:** Taking 15,148 as the denominator because it is the published figure. It is the
+  publisher's count of what it deduplicated to, and the audit's subject is the corpus as
+  released; using a stated number in place of a measured one is the substitution §A7 exists to
+  detect. Both numbers are reported, and the one in the denominator is the measured one.
+  Reconciling the 104 by re-running a Mash deduplication against the NCBI snapshot. It would be a
+  reconstruction of the publisher's step rather than a reading of the release, it needs an NCBI
+  snapshot from May 2024 that is not pinned here, and A2.3 is not the task for it. If it is worth
+  doing it is a new task with a new id, per `AGENTS.md`.
+  Dropping the 2,030-byte member, or any of the small ones, from the denominator. A near-empty
+  assembly is part of the corpus as released and a detector that found nothing in it found
+  nothing in it. Excluding it would quietly improve every rate A2.3 reports.
+- **Consequence:** A2.3's denominator is fixed and measured, and the 1% band D-182 approved is
+  **167 assemblies totalling 16,782,960,377 bytes** — 0.77% of the component by bytes rather
+  than 1%, because the hash samples assemblies and the size distribution spans 2 KB to 28.9 GB.
+  That is inside the figure the owner approved and is the number the staging pass will write.
+  A4.3 maps filter scope against corpus composition and should use 15,044 rather than 15,148 for
+  this component, with the gap named. The index is reusable for that and for any later deepening:
+  the band is nested at the same seed, so buying depth re-reads nothing.
+  The 28.9 GB member is also the reason the walker reads GNU base-256 size fields at all — four
+  of the 90 tars carry a member above the octal field's 8 GiB ceiling, and an octal-only reader
+  indexed 86 of 90.
+
+### D-185 — Correction to D-183: the ERV headline is 5,420 searched, not 5,565, and both counts now travel
+- **Date:** 2026-10-19
+- **Task:** A2.3
+- **Context:** D-183 fixed the retroelement arm's universe and, in the same entry, two things
+  that interact: the arm's headline is the ERV subtypes, **5,565 of the 8,593** curated LTR-class
+  models; and a family with no curated general threshold is excluded from the universe and named.
+  Both statements are true. Their product was not stated, and it is not 5,565.
+  Running the export is what surfaced it. **145 of the 5,565 ERV-subtype models carry no general
+  GA cutoff**, so the searched ERV universe is **5,420**. D-183 calls 5,565 "the arm's headline"
+  and "counted before any search", which reads as the number of models the arm searches. It is
+  the number the class *holds*. A reader quoting the entry would have overstated the search by
+  2.6%, and — worse than the size of the error — would have been quoting a denominator that no
+  artefact contains.
+  This is the D-074 shape rather than a measurement error: a figure that was correct about one
+  thing and was going to be cited as another, with nothing in the pipeline positioned to notice.
+  The module's own expectation constant was `EXPECTED_ERV_MODELS = 5565` while the function it
+  guarded returned 5,420, and strict mode did not compare them, so the inconsistency sat between
+  a constant and a return value where no test looked.
+- **Decision:** **Both counts are reported, always, and neither is "the" ERV count.**
+  `amazebio.dfam.universe` emits `erv_models` (searched: **5,420**), `erv_models_in_class`
+  (held by the class: **5,565**) and `erv_excluded_no_threshold` (their difference: **145**).
+  Strict mode checks both against `EXPECTED_ERV_SEARCHABLE` and `EXPECTED_ERV_IN_CLASS`, so a
+  re-export cannot move either one silently — which is the half D-183's guard was missing.
+  **D-183's phrasing is superseded on this point only.** Its registry, selection rule, threshold
+  policy, element kind, route handling and its refusal to fix depth all stand unchanged. Where it
+  says the arm's headline is 5,565, read 5,420 searched of 5,565 held.
+  **The reportable figure is the searched count**, with the held count beside it. The 145 belong
+  in the same sentence as the 762: the arm's blind spot is 8.9% of the LTR class overall and
+  **2.6% of the ERV subtypes specifically**, and the second number is the one that matters for
+  this arm because the ERV subtypes are what it is for.
+- **Rejected:** Giving the 145 a threshold so they could be searched, which is the same
+  invention D-183 rejected for the 762 and no more defensible restricted to the families the arm
+  cares about most.
+  Correcting D-183 in place. The log is append-only; D-175 did edit it in place once and said so
+  against the rule, and that was for defects that made entries unresolvable rather than for a
+  figure that is simply superseded. A correction entry leaves both the original claim and its
+  replacement citable, which matters because D-183 was pushed and may already be cited.
+  Reporting only the searched count and dropping 5,565. It is the right denominator for "how
+  much of Dfam's curated ERV content can this arm see at all", which is a sensitivity question a
+  reviewer will ask, and D-183's own blind-spot framing needs it.
+- **Consequence:** A2.3's retroelement arm searches **5,420 ERV-subtype models** of 5,565 held,
+  within a universe of 7,831 searchable models of 8,593 in the LTR class. Those four numbers are
+  in `artifacts/a2-3/registries/dfam-curated-ltr.json` with the 762 excluded accessions listed,
+  so every one of them traces to an artefact rather than to this log — which is the gap D-173
+  found in D-161 and this entry avoids repeating.
+  The pattern generalises past this arm, and is the reason this is an entry rather than a commit
+  message: **a count taken before a filter and a count taken after it are different numbers, and
+  a pre-registration that states one while implying the other will be read as stating both.**
+  A2.1's `families_without_a_hit`, A2.2's excluded fold nodes and A2.4's twelve tables all have
+  the same two-sided shape. Where a later entry gives a universe size, it should say which side
+  of its own exclusions the number falls on.

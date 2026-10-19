@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import collections
 import importlib.util
+import io
 import pathlib
 import sys
 
@@ -242,6 +243,7 @@ def _stage_args(tmp_path, **over):
         sample_from=None,
         measure="caps",
         stage_sidecars_only=False,
+        results_task="a1-6",
     )
     base.update(over)
     return argparse.Namespace(**base)
@@ -267,7 +269,7 @@ def test_staging_refuses_to_overwrite_an_existing_object(tmp_path) -> None:
     seed, shards = _staged_files(tmp_path)
     prefix = "corpora/" + ss.sample_prefix("2023_02", "uniref100", 40)
     client = _StageS3(existing=[f"{prefix}/shard-00.faa"])
-    counts = sd.SeedCounts(clusters=10, viral_seeded=4)
+    counts = sd.SeedCounts(clusters=10, seeded=4)
     with pytest.raises(SystemExit, match="refusing to stage over existing objects"):
         tool._stage_sample(
             _stage_args(tmp_path), client, "buk", "corpora", seed, shards, counts, [1, 1], [8, 8]
@@ -280,7 +282,7 @@ def test_staging_writes_every_object_and_a_manifest(tmp_path) -> None:
 
     seed, shards = _staged_files(tmp_path)
     client = _StageS3()
-    counts = sd.SeedCounts(clusters=10, residues=80, viral_seeded=4, viral_residues=32)
+    counts = sd.SeedCounts(clusters=10, residues=80, seeded=4, seeded_residues=32)
     uri = tool._stage_sample(
         _stage_args(tmp_path), client, "buk", "corpora", seed, shards, counts, [1, 1], [8, 8]
     )
@@ -410,7 +412,7 @@ def test_staging_reports_progress_as_it_goes(tmp_path) -> None:
         "corpora",
         seed,
         shards,
-        sd.SeedCounts(clusters=10, viral_seeded=4),
+        sd.SeedCounts(clusters=10, seeded=4),
         [1, 1],
         [8, 8],
     )
@@ -477,7 +479,7 @@ def test_sidecars_can_be_staged_into_an_existing_sample_without_rewriting_it(tmp
         "corpora",
         seed,
         shards,
-        tool.seeds.SeedCounts(clusters=2, viral_seeded=1),
+        tool.seeds.SeedCounts(clusters=2, seeded=1),
         [1, 1],
         [6, 6],
         sidecars,
@@ -507,3 +509,119 @@ def test_staging_sidecars_only_does_not_need_stage_sample_and_refuses_both(tmp_p
     ]
     with pytest.raises(SystemExit, match="Pick one"):
         tool.main(argv)
+
+
+# --- Scoring a different denylist (D-159) -------------------------------------------------
+
+
+def test_external_seeds_are_fetched_with_their_sidecar(tmp_path: pathlib.Path) -> None:
+    """Both or neither: without a taxid per seed there is no seed-family count (D-142)."""
+
+    class FakeS3:
+        def __init__(self) -> None:
+            self.asked: list[str] = []
+
+        def get_object(self, **kw: object) -> dict:
+            key = str(kw["Key"])
+            self.asked.append(key)
+            body = b">UniRef100_A\nMKV\n" if key.endswith(".faa") else b"UniRef100_A\t632\n"
+            return {"Body": io.BytesIO(body)}
+
+    client = FakeS3()
+    dest = tool._load_external_seeds("s3://b/corpora/results/a1-8/sa-seeds.faa", client, tmp_path)
+    assert dest.exists() and dest.with_suffix(".taxids.tsv").exists()
+    assert client.asked == [
+        "corpora/results/a1-8/sa-seeds.faa",
+        "corpora/results/a1-8/sa-seeds.taxids.tsv",
+    ]
+
+
+def test_a_missing_sidecar_fails_loudly_rather_than_scoring_without_an_interval(
+    tmp_path: pathlib.Path,
+) -> None:
+    class FakeS3:
+        def get_object(self, **kw: object) -> dict:
+            if str(kw["Key"]).endswith(".taxids.tsv"):
+                raise KeyError("NoSuchKey")
+            return {"Body": io.BytesIO(b">UniRef100_A\nMKV\n")}
+
+    with pytest.raises(SystemExit, match="written as a pair"):
+        tool._load_external_seeds("s3://b/x/sa-seeds.faa", FakeS3(), tmp_path)
+
+
+def test_seeds_uri_must_name_a_fasta(tmp_path: pathlib.Path) -> None:
+    """The sidecar name is derived from it, so a wrong extension derives a wrong sidecar."""
+    with pytest.raises(SystemExit, match="should name a .faa"):
+        tool._load_external_seeds("s3://b/x/sa-seeds.tsv", object(), tmp_path)
+
+
+def test_the_swap_happens_after_the_checks_that_digest_the_viral_seed_set() -> None:
+    """Ordering is what makes this correct, and ordering is invisible to a unit test.
+
+    `--verify-sample-against` digests the viral seed FASTA against the staged manifest, and
+    `--stage-sample` writes the seed set under the sample's key. Replacing the query before
+    either would fail the first and corrupt the second, so the swap sits after both — pinned
+    here by source order because nothing else would catch a later edit moving it.
+    """
+    src = _PATH.read_text()
+    swap = src.index("if args.seeds_uri:\n            seed_fasta = _load_external_seeds")
+    assert src.index("shardstore.verify_rebuilt(against, seed_fasta, shard_paths)") < swap
+    assert src.index("if args.stage_sample or args.stage_sidecars_only:") < swap
+    assert swap < src.index('if args.measure == "band":')
+
+
+def test_the_viral_seed_set_is_not_published_when_another_denylist_is_scored() -> None:
+    """A1.8's run must not upload a seed set under A1.6's key, and the two may not be pooled
+    (D-108), so the artefact has to say which denylist produced it."""
+    src = _PATH.read_text()
+    assert 'if not args.seeds_uri:\n            upload(seed_fasta, "viral-seed-set")' in src
+    assert '"scored-seed-set" if args.seeds_uri else "viral-seed-set"' in src
+
+
+def test_every_write_follows_the_results_task_so_two_arms_cannot_collide() -> None:
+    """The near-miss of 2026-10-18, pinned.
+
+    A1.8 launched this pass to score the select-agent denylist and inherited A1.6's
+    hardcoded `results/a1-6/` prefix with the default `band.json` name. The corpus bucket has
+    no `DeleteObject`, so forty minutes later it would have destroyed A1.6's published band 1
+    artefact and put select-agent numbers under the key D-153 and D-154 cite for the viral
+    arm — not loss but silent substitution, and D-108 forbids pooling the two. A1.6 caught it
+    by reading the running instance's UserData.
+
+    So no write may hardcode a task prefix. Asserted over the source because the failure is a
+    key that is wrong, not a call that is missing, and the mistake is easy to reintroduce one
+    `put_object` at a time.
+    """
+    src = _PATH.read_text()
+    assert "results/a1-6/" not in src, "a hardcoded prefix is how the two arms collided"
+    import re
+
+    writes = re.findall(r'f"\{prefix\}/results/\{([^}]+)\}/', src)
+    assert writes, "no results keys found; has the key format changed?"
+    for holder in writes:
+        assert holder in ("results_task", "args.results_task"), holder
+
+
+def test_the_launcher_watches_the_key_it_told_the_instance_to_write() -> None:
+    """Two arms running the same measure would otherwise watch each other's artefact."""
+    launcher = (_PATH.parent / "ec2_similarity.py").read_text()
+    assert "results/a1-6/" not in launcher
+    assert 'getattr(args, "artefact_name", None) or RESULT_NAMES[args.measure]' in launcher
+    assert (
+        'f"amazebio-{args.results_task}-{args.measure}"' in launcher
+    ), "the instance Name tag made the two arms indistinguishable in a console listing"
+
+
+def test_no_renderer_claims_a_bound_from_the_seed_axis_alone() -> None:
+    """Two code paths render this number and only one was fixed the first time.
+
+    `Rate.describe` stopped saying "at least" on `lower_bound` alone (D-154, D-159), but the
+    band printer in this tool formats the same figure by hand and kept the old rule, so the
+    qualifier D-154 bars went on being printed. Asserted over the source across both files,
+    because the next hand-rolled renderer will make the same mistake.
+    """
+    for path in (_PATH, _PATH.parent.parent / "src" / "amazebio" / "similarity.py"):
+        src = path.read_text()
+        for line in src.splitlines():
+            if '"at least "' in line:
+                assert "net_direction" in line, f"{path.name}: {line.strip()}"

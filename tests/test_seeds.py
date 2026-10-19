@@ -127,11 +127,11 @@ def test_common_taxon_id_is_not_counted_as_a_member_taxid() -> None:
     assert 11157 not in entry.member_taxids
 
 
-def test_a_cluster_is_viral_seeded_through_a_member_whose_representative_is_not() -> None:
+def test_a_cluster_is_seeded_through_a_member_whose_representative_is_not() -> None:
     viral = _taxonomy().descendants(VIRAL_ROOT)
     (entry,) = list(iter_entries([ENTRY]))
-    assert entry.is_viral_seeded(viral) is True
-    assert entry.representative_is_viral(viral) is False
+    assert entry.is_seeded(viral) is True
+    assert entry.representative_is_seeded(viral) is False
     assert entry.is_mixed(viral) is True
 
 
@@ -165,17 +165,17 @@ def test_seed_counts_separate_the_representative_gap_from_the_seed_count() -> No
     assert counts.observe(next(iter(iter_entries([cellular]))), viral) is False
     out = counts.to_dict()
     assert out["clusters"] == 2
-    assert out["viral_seeded"] == 1
-    assert out["representative_not_viral"] == 1
+    assert out["seeded"] == 1
+    assert out["representative_not_seeded"] == 1
     assert out["mixed"] == 1
-    assert out["viral_share"] == 0.5
-    assert out["representative_not_viral_share"] == 1.0
+    assert out["seeded_share"] == 0.5
+    assert out["representative_not_seeded_share"] == 1.0
 
 
 def test_seed_counts_report_none_rather_than_dividing_by_zero() -> None:
     out = SeedCounts().to_dict()
-    assert out["viral_share"] is None
-    assert out["representative_not_viral_share"] is None
+    assert out["seeded_share"] is None
+    assert out["representative_not_seeded_share"] is None
     assert out["mixed_share"] is None
 
 
@@ -186,9 +186,9 @@ def test_an_entry_with_no_taxids_at_all_is_not_viral() -> None:
     (entry,) = list(iter_entries([bare]))
     assert entry.member_taxids == ()
     assert entry.representative_taxid is None
-    assert entry.is_viral_seeded(set()) is False
+    assert entry.is_seeded(set()) is False
     assert entry.is_mixed(set()) is False
-    assert UniRefEntry("x", "MKV", None, ()).is_viral_seeded({10239}) is False
+    assert UniRefEntry("x", "MKV", None, ()).is_seeded({10239}) is False
 
 
 # --- the parallel path -------------------------------------------------------------
@@ -211,7 +211,7 @@ MANY = b"".join(ENTRY.replace(b"X1", f"X{i:05d}".encode()) for i in range(400))
 
 def _config() -> ScanConfig:
     return ScanConfig(
-        viral=frozenset(_taxonomy().descendants(VIRAL_ROOT)), sample_rate=3, buckets=4
+        denylist_taxids=frozenset(_taxonomy().descendants(VIRAL_ROOT)), sample_rate=3, buckets=4
     )
 
 
@@ -278,9 +278,113 @@ def test_sampling_and_shard_hashes_agree_across_processes() -> None:
 
 
 def test_counts_merge_is_additive() -> None:
-    a, b = SeedCounts(clusters=3, viral_seeded=1), SeedCounts(clusters=4, viral_seeded=2)
+    a, b = SeedCounts(clusters=3, seeded=1), SeedCounts(clusters=4, seeded=2)
     a.merge(b)
-    assert (a.clusters, a.viral_seeded) == (7, 3)
+    assert (a.clusters, a.seeded) == (7, 3)
+
+
+# --- Per-entry attribution (D-146) -----------------------------------------------------
+#
+# The pooled seed count cannot say where a discrepancy lives, and A1.8's reconstruction came
+# out 5.8x the published figure with no way to decompose it. What these pin is the part that
+# would be plausible and wrong: a cluster claimed by two entries counted once and attributed
+# to whichever happened to be first, and `exclusive` counting an entry's whole contribution
+# rather than only the clusters no other entry would keep.
+
+from amazebio.seeds import Attribution, EntryCounts  # noqa: E402
+
+
+def test_attribution_interns_its_values_so_the_map_pickles_small() -> None:
+    """Shared tuples, not a tuple per taxon: this map is sent to every worker."""
+    attribution = Attribution.from_entry_taxa(
+        {"anthrax": frozenset({1, 2, 3}), "plague": frozenset({4, 5})}
+    )
+    anthrax = [attribution.by_taxid[t] for t in (1, 2, 3)]
+    assert all(v is anthrax[0] for v in anthrax)
+    assert attribution.by_taxid[4] is attribution.by_taxid[5]
+
+
+def test_a_taxon_claimed_by_two_entries_names_both() -> None:
+    attribution = Attribution.from_entry_taxa(
+        {"broad": frozenset({1, 2}), "narrow": frozenset({2})}
+    )
+    assert attribution.claiming([1]) == ("broad",)
+    assert attribution.claiming([2]) == ("broad", "narrow")
+    assert attribution.claiming([99]) == ()
+
+
+def test_claiming_unions_over_members_rather_than_taking_the_first() -> None:
+    """A cluster is seeded if *any* member is on the list, so attribution follows members."""
+    attribution = Attribution.from_entry_taxa({"anthrax": frozenset({1}), "plague": frozenset({2})})
+    assert attribution.claiming([1, 2, 3]) == ("anthrax", "plague")
+
+
+def test_exclusive_counts_only_what_rereading_an_entry_would_remove() -> None:
+    """The distinction the reconciliation rests on.
+
+    `claimed` double-counts a shared cluster on purpose — each entry does contribute it.
+    `exclusive` is what the seed set would lose if that entry were read differently, which
+    is the only one of the two a decision can be made on.
+    """
+    counts = EntryCounts()
+    counts.observe(("flu",))
+    counts.observe(("flu",))
+    counts.observe(("flu", "newcastle"))
+    counts.observe(("anthrax",))
+    assert counts.claimed == {"flu": 3, "newcastle": 1, "anthrax": 1}
+    assert counts.exclusive == {"flu": 2, "anthrax": 1}
+
+
+def test_entry_counts_merge_is_additive() -> None:
+    a, b = EntryCounts(), EntryCounts()
+    a.observe(("flu",))
+    b.observe(("flu",))
+    b.observe(("anthrax", "flu"))
+    a.merge(b)
+    assert a.claimed == {"flu": 3, "anthrax": 1}
+    assert a.exclusive == {"flu": 2}
+
+
+def test_a_scan_without_attribution_carries_no_entry_counts() -> None:
+    """Off by default: the viral arm has one entry and would pay for nothing."""
+    config = ScanConfig(denylist_taxids=frozenset(_taxonomy().descendants(VIRAL_ROOT)))
+    assert config.scan([ENTRY]).entries is None
+
+
+def test_a_mixed_cluster_is_attributed_to_every_entry_its_members_carry() -> None:
+    """`ENTRY` has a viral member and a bacterial one, which is exactly the awkward case.
+
+    The cluster is seeded once, so `claimed` must name both entries while `exclusive` names
+    neither: re-reading either one alone would not remove this cluster from the seed set.
+    """
+    tax = _taxonomy()
+    attribution = Attribution.from_entry_taxa(
+        {"a virus family": frozenset(tax.descendants(11157)), "a bacterium": frozenset({1280})}
+    )
+    config = ScanConfig(
+        denylist_taxids=frozenset(tax.descendants(VIRAL_ROOT)), attribution=attribution
+    )
+    result = config.scan([ENTRY])
+    assert result.entries is not None
+    assert result.counts.seeded == 1
+    assert result.entries.claimed == {"a virus family": 1, "a bacterium": 1}
+    assert result.entries.exclusive == {}
+
+
+def test_attribution_survives_the_parallel_path() -> None:
+    """The map crosses a process boundary; counts must come back the same as serial."""
+    tax = _taxonomy()
+    attribution = Attribution.from_entry_taxa({"a virus family": frozenset(tax.descendants(11157))})
+    config = ScanConfig(
+        denylist_taxids=frozenset(tax.descendants(VIRAL_ROOT)), attribution=attribution
+    )
+    chunks = [MANY[i : i + 777] for i in range(0, len(MANY), 777)]
+    merged = EntryCounts()
+    for batch in scan_parallel(chunks, config, workers=2, batch_bytes=4096):
+        assert batch.entries is not None
+        merged.merge(batch.entries)
+    assert merged.claimed == {"a virus family": 400}
+    assert merged.exclusive == {"a virus family": 400}
 
 
 def test_ranks_are_parsed_alongside_the_parent_relation() -> None:

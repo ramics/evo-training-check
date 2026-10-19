@@ -71,6 +71,8 @@ def _render_user_data(**over: object) -> str:
         "resume_flags": "",
         "artefact_flags": "",
         "sidecar_flags": "",
+        "seeds_flags": "--seeds-uri s3://b/corpora/results/a1-8/sa-seeds.faa",
+        "results_task": "a1-6",
         "threads": 8,
         "workers": 7,
         "budget": 7200.0,
@@ -262,7 +264,7 @@ def test_the_shipped_payload_runs_a_whole_caps_measurement(
     payload = json.loads((tmp_path / "out" / "cap-measurement.json").read_text())
     assert payload["measure"] == "caps"
     assert payload["seed_counts"]["clusters"] == 200
-    assert payload["seed_counts"]["viral_seeded"] > 0
+    assert payload["seed_counts"]["seeded"] > 0
     done = [c for c in payload["searches"] if "search_wall_seconds" in c]
     assert done, "no search cell completed"
     assert any(c.get("saturation") for c in done), "the cap guard produced nothing"
