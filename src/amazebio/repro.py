@@ -182,6 +182,8 @@ class RunManifest:
     durable_exempt: str | None = None
     #: `local path -> object URI` for each output copied to durable storage.
     uploaded: dict[str, str] = field(default_factory=dict)
+    #: Why the upload did not happen although `durable` was set. Present only under test.
+    upload_skipped: str | None = None
 
     def parameter(self, name: str, value: Any) -> None:
         """Declare a parameter or threshold.
@@ -290,6 +292,7 @@ class RunManifest:
             "durable": self.durable,
             "durable_exempt": self.durable_exempt,
             "uploaded": self.uploaded,
+            "upload_skipped": self.upload_skipped,
             "environment": {
                 "python": sys.version.split()[0],
                 "platform": platform.platform(),
@@ -316,6 +319,20 @@ def _split_s3(uri: str) -> tuple[str, str]:
     if not bucket:
         raise ReproError(f"durable destination names no bucket: {uri!r}")
     return bucket, prefix.strip("/")
+
+
+def in_test_run() -> bool:
+    """Whether this process is executing under pytest.
+
+    Load-bearing, and it was paid for. Several tests drive a tool's `main()` end-to-end with no
+    client injected — that is the point of them, since an on-instance path is the one thing a
+    dry run cannot check. Giving those tools `durable=` therefore made them upload their
+    *synthetic fixtures* to the corpus bucket, which has no `s3:DeleteObject`: the junk is
+    permanent, and four real A1.6 objects were overwritten before this existed.
+
+    So an upload is never attempted from a test unless the test supplied the client itself.
+    """
+    return bool(os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("AMAZEBIO_NO_UPLOAD"))
 
 
 def _client(uploader: Any) -> Any:
@@ -405,6 +422,10 @@ def run(
             f"{task}: pass either durable= or durable_exempt=, not both. If the outputs "
             "persist, say where; if they need not, say why."
         )
+    if durable:
+        # Checked here, not at exit: a destination that cannot be parsed should fail before the
+        # compute rather than after it, which is the same reason the dirty-tree check is early.
+        _split_s3(durable)
     manifest = RunManifest(task=task, seed=seed)
     manifest.git = git_state(repo)
 
@@ -440,6 +461,12 @@ def run(
         # run.json itself: a durable copy of the outputs with no provenance beside it is
         # not citable, which is the whole point of persisting them.
         persisting = bool(durable) and bool(local) and not failed
+        if persisting and uploader is None and in_test_run():
+            # Skipped rather than refused: these tests are meant to run the tool, just not to
+            # write to the real bucket. Recorded so a manifest produced under test cannot be
+            # mistaken for one whose outputs were actually persisted.
+            manifest.upload_skipped = "test run: no uploader injected"
+            persisting = False
         client = _client(uploader) if persisting else None
         if persisting:
             manifest.uploaded = _upload_outputs(manifest, durable, client)

@@ -373,12 +373,12 @@ class TestDurability:
     def test_a_non_s3_destination_is_refused(self, tmp_path):
         repo = _git_repo(tmp_path)
         outdir = repo / "artifacts" / "t"
+        # Refused at entry, before any compute — so the body never runs.
         with (
             pytest.raises(ReproError, match="s3:// URI"),
-            run("A9.9", outdir=outdir, repo=repo, durable="/mnt/somewhere") as m,
+            run("A9.9", outdir=outdir, repo=repo, durable="/mnt/somewhere"),
         ):
-            (outdir / "r.txt").write_text("ok\n")
-            m.output_file(outdir / "r.txt")
+            pass
 
 
 #: Every `run(...)` call site in `tools/` that claims `durable_exempt`, with the task that
@@ -453,3 +453,30 @@ def test_every_run_call_site_in_tools_names_a_durable_destination():
         "these run() call sites name no durable destination, so their results would not "
         f"survive the session (D-188): {bare}"
     )
+
+
+def test_a_test_run_never_reaches_the_real_object_store(tmp_path):
+    """The regression that cost four A1.6 objects.
+
+    Several tests drive a tool's `main()` end-to-end with no client injected — deliberately,
+    since the on-instance path is the one thing a dry run cannot check. Giving those tools
+    `durable=` made them upload their synthetic fixtures to the corpus bucket, which has no
+    `s3:DeleteObject`. So under pytest the upload is skipped unless the test supplied the
+    client itself, and the manifest records that it was skipped: a manifest produced under test
+    must not read as one whose outputs were actually persisted.
+    """
+    repo = _git_repo(tmp_path)
+    outdir = repo / "artifacts" / "t"
+    with run(
+        "A9.9", outdir=outdir, repo=repo, durable="s3://real-bucket/corpora/results/a9-9"
+    ) as m:
+        (outdir / "r.txt").write_text("ok\n")
+        m.output_file(outdir / "r.txt")
+
+    assert m.uploaded == {}
+    assert m.upload_skipped == "test run: no uploader injected"
+    manifest = json.loads((outdir / MANIFEST_NAME).read_text())
+    assert manifest["upload_skipped"] == "test run: no uploader injected"
+    assert manifest["uploaded"] == {}
+    # And the output has no durable_uri, so nothing downstream can cite a copy that is not there.
+    assert "durable_uri" not in manifest["outputs"][0]
