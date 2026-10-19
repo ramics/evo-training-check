@@ -79,6 +79,21 @@ dropped its taxa, and a stale cache meeting new code. Each is now covered by a t
 `tests/test_detect_profiles.py`, and a finished search is parked before routing so the two cannot
 share a failure. No wrong number reached an artefact.
 
+## The tables were lost and re-run; the shallow figures reproduced exactly — 2026-10-19 (D-192)
+
+D-188 found this task's artefacts had never left the session container that produced them. X1.6
+re-ran the **pre-registered shallow pass** and it reproduced the first-pass figures to the family:
+Pfam 470 and RVDB 572 on Evo 1, 492 and 1,456 on Evo 2, identical across all three readings. Both
+denominators reproduced from re-staged registries at their pinned digests (Pfam viral 1,719 of
+30,134; RVDB-prot 13,679 counted against 13,679 stated). Artefacts are now in object storage under
+`corpora/results/a2-1/` — 32 objects with run manifests.
+
+**The deepened pass has not been re-run.** The figures in the table above are the ten-fold ones
+(590/1,091 and 811/4,154) and they remain prose-only, about eighteen hours of compute from being
+backed. The shallow sample is a nested subset of the deepened one, so the agreement above is
+evidence for the method rather than for those numbers. A3.2 and A6.1 should know which of the two
+they are citing.
+
 ## Steps
 
 - Select and version-pin the profile resources named in §A2.

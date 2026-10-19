@@ -283,6 +283,13 @@ interval and publishes each measurement as it is taken — `esm3_calibrate.py` i
 example, and it took three attempts to apply that to every stage rather than only to the one that
 had just failed. A step with no heartbeat is a step whose silence means nothing at all.
 
+It is the worked example for the second half of that more than the first, measured 2026-10-19
+(D-192): in `--measure caps` the heartbeat is written once before a reading's slack cell and the
+interval heartbeat covers only the corpus pass, so through a 35-minute cell it does not move —
+`written_at` read 18:46 while the run was demonstrably alive at 19:43. What made that run
+observable was the artefact growing as each cell published. Both halves are the rule; only one of
+them is implemented everywhere, so check which one a mode gives you before reading its silence.
+
 **The boot-armed shutdown timer works, and it also blocks the immediate shutdown — cancel it
 first.** Arm `shutdown -h +N` in `UserData` before anything that can fail; observed 2026-10-16, it
 fires on time, four hours after a watcher had been killed and the launcher could no longer
