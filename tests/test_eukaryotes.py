@@ -8,6 +8,7 @@ fixture that drifted from the format would make these tests agree with the bug.
 from __future__ import annotations
 
 import gzip
+import hashlib
 import io
 import os
 import tarfile
@@ -19,6 +20,7 @@ from amazebio.eukaryotes import (
     BLOCK,
     EukaryoteError,
     Member,
+    fetch_member,
     index_to_rows,
     rows_to_index,
     sampled_members,
@@ -180,6 +182,86 @@ def test_a_short_header_read_raises():
 
     with pytest.raises(EukaryoteError, match="short read"):
         list(walk_index("t.tar", len(blob), short))
+
+
+# --- fetching a member ----------------------------------------------------------------------
+
+
+def test_fetch_member_round_trips_the_genome_and_records_its_provenance(tmp_path):
+    payloads = {f"GCA_{i:09d}.1": genome(f"GCA_{i:09d}.1", contigs=3) for i in range(1, 5)}
+    blob = build_tar(payloads)
+    read = reader_for({"t.tar": blob})
+    members = list(walk_index("t.tar", len(blob), read))
+
+    target = members[2]
+    record = fetch_member(target, read, tmp_path / "g.fasta")
+
+    expected = gzip.decompress(payloads[target.accession])
+    assert (tmp_path / "g.fasta").read_bytes() == expected
+    assert record["uncompressed_bytes"] == len(expected)
+    assert record["compressed_bytes"] == target.size
+    assert record["gzip_crc_verified"] is True
+    assert record["sha256_compressed"] == hashlib.sha256(payloads[target.accession]).hexdigest()
+
+
+def test_fetch_member_spans_many_chunks(tmp_path):
+    """The chunked path is the one that actually runs: members go to 428 MB.
+
+    Incompressible contents on purpose — a repetitive FASTA gzips to a few kilobytes, which fits
+    in one read and would let a single-chunk implementation pass this.
+    """
+    payload = gzip.compress(os.urandom(200_000))
+    blob = build_tar({"GCA_000000001.1": payload}, dirs=False)
+    read = reader_for({"t.tar": blob})
+    (member,) = list(walk_index("t.tar", len(blob), read))
+
+    record = fetch_member(member, read, tmp_path / "g.fasta", chunk=4096)
+
+    assert len(read.transferred) > 10
+    assert record["uncompressed_bytes"] == len(gzip.decompress(payload))
+
+
+def test_a_misaddressed_member_fails_the_gzip_check(tmp_path):
+    """The check that answers 'are these the bytes of the assembly I think they are'."""
+    payloads = {f"GCA_{i:09d}.1": genome(f"GCA_{i:09d}.1", contigs=3) for i in range(1, 5)}
+    blob = build_tar(payloads)
+    read = reader_for({"t.tar": blob})
+    members = list(walk_index("t.tar", len(blob), read))
+
+    # Same size, wrong offset: shifted a block into the member's own compressed data.
+    wrong = Member(
+        accession=members[1].accession,
+        tar=members[1].tar,
+        offset=members[1].offset + BLOCK,
+        size=members[1].size,
+    )
+    with pytest.raises(EukaryoteError):
+        fetch_member(wrong, read, tmp_path / "g.fasta")
+
+
+def test_a_truncated_member_is_not_written_as_a_shorter_genome(tmp_path):
+    payloads = {"GCA_000000001.1": genome("GCA_000000001.1", contigs=5)}
+    blob = build_tar(payloads, dirs=False)
+    read = reader_for({"t.tar": blob})
+    (member,) = list(walk_index("t.tar", len(blob), read))
+
+    short = Member(
+        accession=member.accession, tar=member.tar, offset=member.offset, size=member.size - 20
+    )
+    with pytest.raises(EukaryoteError, match="did not terminate"):
+        fetch_member(short, read, tmp_path / "g.fasta")
+
+
+def test_a_short_read_while_fetching_raises(tmp_path):
+    payloads = {"GCA_000000001.1": genome("GCA_000000001.1", contigs=5)}
+    blob = build_tar(payloads, dirs=False)
+    (member,) = list(walk_index("t.tar", len(blob), reader_for({"t.tar": blob})))
+
+    def truncating(path: str, start: int, end: int) -> bytes:
+        return blob[start : end + 1][:-5]
+
+    with pytest.raises(EukaryoteError, match="short read"):
+        fetch_member(member, truncating, tmp_path / "g.fasta")
 
 
 # --- sampling ------------------------------------------------------------------------------

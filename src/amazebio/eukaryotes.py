@@ -34,7 +34,9 @@ the denominator for every figure A2.3 reports.
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
+import zlib
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import Any
@@ -44,8 +46,10 @@ from amazebio.gtdb import assembly_of_member
 __all__ = [
     "BLOCK",
     "COMPONENT",
+    "FETCH_CHUNK",
     "EukaryoteError",
     "Member",
+    "fetch_member",
     "index_to_rows",
     "rows_to_index",
     "sampled_members",
@@ -217,6 +221,104 @@ def walk_index(
         yield Member(accession=assembly_of_member(full), tar=tar, offset=data, size=size)
         seen += 1
         offset = data + padded
+
+
+#: Bytes per ranged read when pulling a member. Eight megabytes for the reason
+#: `objectstore.CHUNK` is four: large enough that per-request overhead disappears, small enough
+#: that a retry re-reads little. Larger here because members run to 428 MB.
+FETCH_CHUNK = 1 << 23
+
+
+def fetch_member(
+    member: Member,
+    read_range: RangeReader,
+    dest: str | Path,
+    *,
+    chunk: int = FETCH_CHUNK,
+) -> dict[str, Any]:
+    """Pull one assembly out of its tar by byte range, decompressing it to `dest`.
+
+    Returns the provenance a caller has to record: the compressed digest, both sizes, and
+    whether the gzip stream terminated cleanly.
+
+    **The integrity check here is real, and it is the only one available.** The publisher digests
+    whole tars, not members, so a fetched member cannot be checked against a published checksum
+    without reading the 20-44 GB archive it came from. But the member *is* a gzip stream, and a
+    gzip trailer carries a CRC32 and the uncompressed length of its own contents — so a stream
+    that decompresses to its end has been verified against the writer's own checksum of exactly
+    these bytes. `zlib` enforces both at the end of the stream, and `eof` is how that is read
+    back. A truncated range, a torn read or a wrong offset all fail it.
+
+    That matters more than it looks: the index addresses members by arithmetic, so "did I fetch
+    the bytes of the assembly I think I did" has no other answer. A FASTA that parses is not that
+    check — a misaddressed read lands inside another member's compressed data, which almost never
+    decompresses at all, and if it did would parse as perfectly good FASTA from the wrong genome.
+
+    The sha256 of the *compressed* bytes is recorded rather than of the decompressed FASTA. It is
+    what a later staged copy can be compared against without re-decompressing, and it is the
+    digest of what was actually transferred.
+    """
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    decompressor = zlib.decompressobj(wbits=31)  # 31 = gzip wrapper, not raw deflate
+    digest = hashlib.sha256()
+    compressed = 0
+    uncompressed = 0
+
+    with open(dest, "wb") as out:
+        position = member.offset
+        while position <= member.end:
+            upper = min(position + chunk - 1, member.end)
+            payload = read_range(member.tar, position, upper)
+            if len(payload) != upper - position + 1:
+                raise EukaryoteError(
+                    f"{member.accession}: short read of {len(payload)} bytes for "
+                    f"{member.tar} {position}-{upper}; a partial member decompresses to a "
+                    "shorter genome, and a search over that is not a search over the genome"
+                )
+            digest.update(payload)
+            compressed += len(payload)
+            position = upper + 1
+            try:
+                chunk_out = decompressor.decompress(payload)
+            except zlib.error as exc:
+                # The usual cause is a wrong offset: the read landed inside another member's
+                # compressed data, where the gzip header check fails immediately. Raised as this
+                # module's error because the caller's question is about the member, not about zlib.
+                raise EukaryoteError(
+                    f"{member.accession}: {member.tar} bytes {member.offset}-{member.end} are "
+                    f"not a readable gzip stream ({exc}); the index's coordinates do not address "
+                    "this assembly, so nothing read here may be attributed to it"
+                ) from exc
+            if chunk_out:
+                uncompressed += len(chunk_out)
+                out.write(chunk_out)
+        try:
+            tail = decompressor.flush()
+        except zlib.error as exc:
+            raise EukaryoteError(
+                f"{member.accession}: the member's gzip stream failed its own checksum ({exc})"
+            ) from exc
+        if tail:
+            uncompressed += len(tail)
+            out.write(tail)
+
+    if not decompressor.eof:
+        raise EukaryoteError(
+            f"{member.accession}: the gzip stream did not terminate within the member's "
+            f"{member.size} bytes, so its CRC was never checked; the index's coordinates and "
+            "this object disagree, and nothing read from it can be attributed to this assembly"
+        )
+    return {
+        "accession": member.accession,
+        "tar": member.tar,
+        "offset": member.offset,
+        "compressed_bytes": compressed,
+        "uncompressed_bytes": uncompressed,
+        "sha256_compressed": digest.hexdigest(),
+        "gzip_crc_verified": True,
+        "path": str(dest),
+    }
 
 
 def sampled_members(
