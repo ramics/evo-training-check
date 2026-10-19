@@ -607,7 +607,13 @@ def main(argv: list[str] | None = None) -> int:
                         "re-search."
                     ),
                 },
-                notes=[universe_doc["denominator"]["restriction"]],
+                notes=[
+                    universe_doc["denominator"]["restriction"],
+                    "Method and false-positive modes: metrics/eve-detection.md. A detection is "
+                    "similarity to a family consensus above the declared cut; this arm runs no "
+                    "second, structure-based instrument, so no detection here is confirmed by "
+                    "an independent mechanism (D-186).",
+                ],
             )
             check_route_coverage(table)
 
