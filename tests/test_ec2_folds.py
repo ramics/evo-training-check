@@ -348,7 +348,7 @@ def test_a_failing_run_reaches_die_instead_of_dying_silently(folds, stage, tmp_p
 
 @pytest.mark.parametrize("stage", ["search", "throughput"])
 def test_a_successful_run_falls_through_to_the_caller(folds, stage, tmp_path):
-    """Success must not call `die` with a failure code; the caller's own `die ... 0` ends the run."""
+    """Success must not call `die` with a failure code; the caller's `die ... 0` ends it."""
     block = folds._guarded_run(stage, "true")
     script = tmp_path / "run.sh"
     script.write_text(
