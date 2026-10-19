@@ -2,7 +2,7 @@
 id: A2.4
 title: Detect integrated elements in surviving bacterial genomes
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
@@ -131,3 +131,40 @@ therefore the owner's, not a judgement made mid-task.
 
 **Still open for the owner, unchanged:** the depth question above (2.5% is about 33 wall hours
 and $7, exceeding one instance's window, so it needs a longer timer or per-object resumability).
+
+## Done — 2026-10-19 (D-176)
+
+`done`. Branch `ccr-a062d0fd-ocvx60`, merged in PR #21; nothing is on a branch.
+
+**All three Done-when criteria are met**, and criterion 1 was **not** amended — correcting
+yesterday's correction. The audit treated D-161 as having changed what this task must deliver.
+It did not: **D-161's own header reads "A2.4 (governs A3.2 and the Phase A write-up)"** and its
+Consequence names only those two. It is a constraint on the *consumers* of these tables, not on
+the tables. That is the material difference from A1.6 (D-170) and A7.1 (D-174), where the
+deliverable itself had changed and the criteria genuinely no longer described it.
+
+- *Hit tables with route attribution* — twelve tables at `corpora/results/a2-4/`, routes
+  `out_of_scope` under charitable and literal, `retained_by_design` under strict, every detection
+  `element_kind: prophage`, `estimate_kind: lower_bound`.
+- *Two-tool concordance on a documented sample* — D-114, fixed before calls were seen: Evo 1
+  kappa 0.908 (0.731-1.000), Evo 2 kappa 0.652 (0.337-0.968), disagreement reported by direction
+  and never pooled.
+- *Parameters and versions recorded* — through `amazebio.repro.run`, with the pins in D-155 and
+  the instance and time window recorded.
+
+Results regenerate from pinned inputs: 375 genomes and 699,031,198 bases reproduced exactly
+across two separately launched instances.
+
+**Depth stays at 0.25%** and the open question lapses with the task, on this file's own standing
+framing that deepening to 2.5% is an improvement to the strength of the claim rather than a
+missing criterion. It is not a blocker and it was not answered under pressure to tidy a status.
+
+**Two things tracked elsewhere, not held against this task.** D-173 records that D-161's
+cross-registry figures still have no emitter, and that these twelve tables predate the
+`denominator` and `composition` fields the detection contract now carries — both fields derive
+from rows the tables already hold, so a re-run would buy a format change for real spend.
+
+**The one live risk, stated rather than hidden.** The whole of D-161 now rests on **A3.2 and
+A6.1**, and the tables they will read do not carry the restriction in-band. A3.2 is blocked and
+A6.1 sits behind the A3.3 gate, so neither has consumed a table yet — but whoever picks either up
+must read D-161 and D-173 before quoting a fraction from these twelve artefacts.
