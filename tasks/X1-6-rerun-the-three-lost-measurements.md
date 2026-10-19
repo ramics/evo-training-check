@@ -2,13 +2,13 @@
 id: X1.6
 title: Re-run the three lost measurements
 phase: X
-status: ready
+status: in-progress
 gate: false
 depends_on: []
 blocks: [X1.2, X1.3]
 design_ref: "§7"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # X1.6 — Re-run the three lost measurements
@@ -70,5 +70,9 @@ edge that would move their status.
 manifests cite. The copy that was destroyed was a duplicate under `results/`. A1.6's `band.json`
 was the superseded five-cell state and `band-viral-arm-5cells-backup-20261018.json` holds it;
 `band-complete.json` is authoritative and untouched. Do not rebuild either.
+
+**In flight.** Work is on branch `claude/busy-cannon-e6evl8`. All three re-runs are in scope for
+this sitting, with A2.1 at its pre-registered shallow depth only — the ten-fold deepening remains
+a separate decision, per the Steps above. Nothing finished yet; nothing waiting on the owner.
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

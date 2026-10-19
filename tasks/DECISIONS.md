@@ -8548,3 +8548,140 @@ decision has a threshold or parameter in it, the number goes in the entry.
   side effects injected, and adding a side effect to a tool adds it to every test that drives the
   tool.** The durability guard was sound; the blast radius of switching it on was not thought
   through.
+
+### D-190 — A2.5's marker arm: the segmented-family set is derived from three pinned authorities, and the satellite arm cannot be run this way
+- **Date:** 2026-10-19
+- **Task:** A2.5
+- **Context:** The label-side census (D-187) leaves two of A2.5's four categories resting on
+  2.6% of Evo 1's surviving records — only that share carries a family-level label — so "no
+  segmented genomes" and "no satellite nucleic acids" there are statements about labels, not
+  about content. The project owner asked for the label-free arm to be **priced before being
+  committed to**, which is the pattern D-183 and D-186 set for A2.3.
+  **D-187 overstated one thing and this entry corrects it.** D-187 says segmented-genome
+  membership "has no sequence marker at all, so no marker pass can strengthen that category's
+  zero". The *property* has no marker — a single contig cannot show that a genome is split — but
+  the **48 families** do: Orthomyxoviridae, Bunyavirales' families, the reovirus families,
+  Geminiviridae, Cystoviridae and the rest all have ordinary marker proteins. So the category is
+  reachable by the same profile search as any other, and D-187's sentence should be read as
+  applying to the property only.
+  **The cost was measured, and the first figure given to the owner was wrong by about twenty
+  times.** `tools/marker_throughput.py` (artefact `corpora/results/a2-5/marker-throughput.json`)
+  timed a 1,500-record prefix of Evo 1's stage 2: gene calling **1.608 core-seconds per Mbp**, so
+  **16.2 core-hours** over the component's 36,236,025,613 bases, charged once whatever the marker
+  set. Search was timed at 50 and 200 profiles. Two approximations are stated in the tool and
+  stand here: it reads a **prefix, not a sample** (D-046 — valid for throughput, invalid for any
+  count), and it times **synthetic single-sequence profiles**, whose per-profile rate ran 26x,
+  then 10.6x, then 5.56x above D-098's published rate over curated models as the profile count
+  rose — the fixed-overhead amortisation D-186 was corrected for. **At the scale this arm
+  actually runs, D-098's rate is the applicable one** and the synthetic figure is the
+  conservative bound.
+  An estimate of "about a dollar" was given on the assumption of a handful of hand-picked marker
+  genes. A *derived* set is not that: see below.
+- **Decision:** **Membership is derived, never recalled.** Three pinned authorities and one rule:
+  1. the **ICTV VMR MSL37.3** gives the 48 segmented families (D-187's labelled-segment rule);
+  2. the **NCBI taxonomy** `taxdmp_2023-04-01.zip` (`amazebio.seeds.TAXDUMP_2023_04`, sha256
+     `6afaee95…71d07`, verified on retrieval) resolves each family name to a taxid and expands it
+     to its descendants — **48 of 48 resolved, no misses**, giving 145,376 taxids;
+  3. **RVDB-prot 32.0**'s annotation database (md5 `4179c579…ace7`, verified) gives each of its
+     13,679 families an `LCAtaxid`, and a family is selected when that taxid falls inside the
+     expanded set.
+  **1,285 families** are selected. The set is an artefact, not a list in this entry, for the
+  reason D-075 gives for Pfam's universe: a denominator a reviewer cannot check is not a
+  denominator.
+  **Threshold: RVDB's published rule, unchanged.** E ≤ `PINNED_E_VALUE` (1e-5) against
+  `PINNED_Z` = 1,000,000 (D-076). RVDB-prot ships no curated per-model cutoffs, and pinning `Z`
+  is what makes the E-value a fixed per-model bit score — so the same hit means the same thing at
+  every depth, which is the property this arm needs since its depth is not yet fixed.
+  **Depth is deliberately left to a follow-up entry**, exactly as D-183 left A2.3's: it is fixed
+  from a measured in-container throughput, declared before any hit is inspected. What is fixed
+  *now* is the family set and the threshold, which are the things that could otherwise be tuned
+  to a result.
+  **Scope: the segmented arm only.** The owner's call, on these grounds:
+  - *Segmented* is the weak zero and the one worth buying: ~106 core-hours, about **$5** at
+    D-098's rate (about $30 at the conservative one).
+  - *NCLDV* is **not run.** Its label-side zero is already *established* rather than merely
+    unobserved — 2,652,952 records refuted at phylum against 95 unlabelled, 99.996% of the
+    component — so a 3,690-family pass at about $15 would confirm what is already solid. The
+    cost is recorded here so a later task can buy it without re-measuring.
+  **The satellite arm cannot be run on this selection, and that is a method finding rather than
+  a scope cut.** Both satellite categories select **zero** RVDB families. That is not evidence of
+  anything: RVDB labels a family with the **lowest common ancestor** of its sequences, so a
+  family holding satellite sequences beside their helper viruses carries an LCA *above* the
+  satellite taxon and drops out. A zero from this rule would be zero **by construction** — the
+  manufactured null `AGENTS.md` forbids designing for. The satellite question therefore needs a
+  different instrument and is not attempted; it stays an open limitation of A2.5.
+- **Rejected:** *Hand-picking marker accessions* — the NCLDV core gene set, alphasatellite Rep,
+  and so on. It would have been the actual dollar, and it is not defensible: the accessions would
+  come from memory rather than from a pinned source, and §A2's whole concern is a selection
+  nobody can check. Pfam cannot supply the selection either: its families carry no ICTV taxon
+  annotation, and D-083 already records that selecting Pfam families *by taxon* is precisely that
+  registry's blind spot.
+  *Running the satellite arm anyway and reporting its zero* with a caveat. A zero that the
+  selection rule guarantees is worse than no measurement, because it reads as a result.
+  *Using the synthetic per-profile rate for the budget.* It is the conservative bound and is
+  reported, but D-098's measurement over real models at 13,679 profiles is the applicable one at
+  this scale, and quoting the higher figure would have made an affordable pass look unaffordable.
+- **Consequence:** A2.5 gains a label-independent arm for the one category where its census is
+  weak, at a cost measured rather than guessed, with membership a reviewer can check family by
+  family. Two things are now on the record that were not: **D-187's "no sequence marker" sentence
+  applies to the property and not to the families**, and **LCA-based selection cannot answer a
+  satellite question** — which bears on any later task that reaches for RVDB to find satellites,
+  A2.1's registries included.
+
+### D-191 — A2.5's segmented arm runs as three nested bands, declared before any hit was inspected
+- **Date:** 2026-10-19
+- **Task:** A2.5
+- **Context:** D-190 fixed the family set (1,285 RVDB-prot families, derived) and the threshold
+  (E ≤ 1e-5 at a pinned `Z`, RVDB's published rule) and deliberately left the **depth** to this
+  entry, as D-183 left A2.3's — because depth is the one parameter that should follow a measured
+  rate rather than a guess, and because the project owner asked that the pass be run "in bits so
+  if the money goes up we still have our results".
+  **The measured rate, on real models.** A 120-record probe (`--limit 120`, declared below) put
+  the search at **109 core-seconds per million residues for 1,285 models**, i.e. 0.085
+  core-seconds per profile per Maa. That sits between the two bounds D-190 recorded: 3x D-098's
+  0.0282 over 13,679 curated models, and about half the 0.157 the synthetic profiles of
+  `marker_throughput.py` suggested. Gene calling measured 1.6 core-seconds per Mbp and is
+  single-threaded in the shared code path, which is what actually bounds a band's wall clock.
+  Projected over the component's 10,494 Maa of called protein, a census is about **320
+  core-hours** of search plus **16** of calling — about $17 at the instance rate A2.4 used, not
+  the $5 first quoted from D-098's rate alone. The read is **not** amortised across bands: hash
+  selection has to scan the whole 16.9 GB object to find a band's members, so each band pays its
+  own read of about $1.50.
+- **Decision:** **Three nested bands, in this order**, on the seed D-078 fixed and every A2.1
+  band has used (20261015), so this arm's samples are the same samples A2.1 drew and a later
+  deepening re-reads nothing:
+  1. `[0, 0.02)` — 2% of the surviving component. **Matches A2.1's own deepened depth for this
+     component**, so the two arms' figures are drawn over the same records and are comparable
+     family by family. About 1.5 wall hours.
+  2. `[0.02, 0.10)` — out to 10%, five times deeper than A2.1 ever searched here.
+  3. `[0.10, 1.0)` — the remainder, which makes the result a census.
+  **Each band is a deliverable on its own.** `estimate_kind` is `lower_bound` for bands 1 and 2
+  and `population` only for the full `[0, 1)` span, so a stopped ladder reports what it measured
+  rather than what it intended. A family detected in band 1 is detected, full stop; a family
+  absent is absent *from the records read*, and the interval says so.
+  **Band 3 is conditional and the condition is stated now, before any result could influence
+  it:** it is bought only if bands 1 and 2 leave the question open *and* the measured rate still
+  puts the census under about $25 all-in. If band 1 or 2 finds segmented families, the question
+  is answered in the direction that matters — material survives — and a census buys precision
+  on a number rather than the answer. If the rate comes in worse than that, the cost becomes the
+  finding, as it did for A2.2 under D-180.
+- **Disclosure, because "before results were inspected" has to mean something.** A 120-record
+  probe was run to smoke-test the tool end to end before this entry was written, and it returned
+  **zero hits**. That is 0.005% of the component, it was run with `--limit` as an explicit probe
+  rather than as a band, and it is recorded here rather than left out: a null over 120 records of
+  a phage-dominated corpus carries no information about the categories, but the honest statement
+  is that the ladder was declared *after* that probe and not in total ignorance. No band figure
+  and no family identity was seen before this entry.
+- **Rejected:** *A census in one pass.* 320 core-hours is 40 wall hours at eight threads and the
+  gene-calling arm is single-threaded, so one run cannot finish inside this environment's window
+  — the same constraint D-099's bands were invented for. Bands are not a compromise here, they
+  are the only shape that fits.
+  *Fewer, wider bands* to save the per-band read. Cheaper in total, but it banks nothing until
+  late, which is the opposite of what was asked for. Three bands is the compromise: one read's
+  worth of overhead buys a quotable result at 2%.
+  *Starting deeper than 2%.* A2.1's depth is the one that makes the two arms comparable, and a
+  first band that cannot be set beside the label-side census is worth less than one that can.
+- **Consequence:** A2.5's weak zero gets a label-independent measurement at a depth matching
+  A2.1's, and the ladder above it is costed. Whatever band the ladder stops at, the artefact
+  states its own depth and interval, so no reader has to know how far it got to read it
+  correctly.
