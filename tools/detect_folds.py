@@ -165,6 +165,19 @@ _ESM3 = (
     "structures, which makes its cost a different question from the Evo corpora's and leaves it "
     "unanswered (D-033)"
 )
+#: Why the components A2.2 *would* search are nonetheless unsearched (D-180). Distinct from
+#: :data:`NOT_SEARCHED`, which covers components this detector never claims to cover at all: the
+#: difference between "out of this detector's scope" and "in scope and not bought" is exactly
+#: what a reader needs, and collapsing them would read as the former.
+UNSEARCHED_ON_COST = (
+    "in scope for this detector and deliberately not searched: 3Di prediction over the "
+    "pre-registered depth costs upwards of 70 GPU instance-hours, which is multiples of this "
+    "project's compute budget. One real shard established the rate after D-164's ladder "
+    "projection was falsified (D-179), and the project owner's call was to record the cost as "
+    "the finding rather than buy the depth (D-180). Every count here is zero by construction "
+    "and none of it is evidence that the fold is absent from the corpus."
+)
+
 NOT_SEARCHED = {
     "gtdb_v220": _PROPHAGE,
     "stage1_gtdb": _PROPHAGE,
@@ -823,7 +836,10 @@ def source_rows(manifest: dict[str, Any], shards: list[dict[str, Any]]) -> list[
                     "corpus_component": component,
                     "searched": False,
                     "why": NOT_SEARCHED.get(
-                        component, "no shard was produced for this staged object"
+                        component,
+                        UNSEARCHED_ON_COST
+                        if component in SAMPLE_RATES
+                        else "this detector does not cover this component, and no shard exists",
                     ),
                     "records_in_source": src.get("records"),
                 }
