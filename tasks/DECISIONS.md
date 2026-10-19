@@ -7743,3 +7743,55 @@ decision has a threshold or parameter in it, the number goes in the entry.
   exactly the kind D-104 warned of. Dropping the exact-match result because its rate is not
   significant — the count is an observation and remains the sharpest thing this arm has, since
   it needs no threshold argument (D-107's unpublished threshold does not touch identity 1.00).
+
+### D-179 — D-164's GPU throughput does not survive a real shard: A2.2 at pre-registered depth costs multiples of the project's compute budget
+- **Date:** 2026-10-19
+- **Task:** A2.2
+- **Context:** D-164 measured a 64x GPU speedup from a ladder of called proteins and projected
+  **24.7 instance-hours** for A2.2's pre-registered depth (363 Maa), which is the figure the $30
+  ceiling in D-165 was judged affordable against. The first real shard contradicts it.
+  **What was run.** One shard at the pre-registered depth — Evo 2's viral component at rate
+  0.001, no caps — on a `g6.xlarge`, 180-minute window, GPU proved present and in use
+  (`prostt5-f16.gguf` digest-verified, 57x this container on identical input, so no CPU
+  fallback). 3Di prediction ran for **more than 175 minutes and did not finish**. The hard-stop
+  timer fired, the instance terminated as designed, and **no shard was written** — there is no
+  checkpoint inside a shard, so the compute is simply lost. Cost: about $2.41.
+  **How far off that is.** The shard's residue count is not measured — the heartbeat only gained
+  its size fields after this launch, which is its own lesson — but it can be bounded from the
+  object: 11.2 GB gzipped over 2,957,495 records, so at ordinary nucleotide compression and
+  viral coding density the 0.001 sample is roughly **12 to 15 Maa**. D-164's rate predicts
+  **41 to 61 minutes** for that. It took over 175 and was unfinished, so the real rate is worse
+  by **at least a factor of three**, and the factor cannot be pinned from this run.
+  **What that does to the bill.** At three times D-164's rate the pre-registered depth is
+  upwards of **70 instance-hours**, or **$55-60** on demand — against a $30 ceiling of which
+  about $7 is already spent. A2.2 at A2.1 parity is not short of budget by a margin; it is over
+  by a multiple.
+- **Decision:** **D-164's projection is withdrawn as a basis for planning, and no further A2.2
+  compute is committed until the rate is measured on a real shard rather than a ladder.** The
+  specific thing to measure, and it is cheap: relaunch the same shard with a short window so it
+  reads, calls genes, publishes `records`, `genes` and `residues` from the now-fixed heartbeat,
+  and dies — about $0.40 for the exact denominator plus a partial rate. Only then is a price
+  quotable.
+  Recorded as the reason the ladder misled, for whoever sizes the next one: D-098 warned that a
+  benchmark which never leaves the fixed-cost regime is wrong by orders of magnitude, and the
+  response was a ladder up to 20,000 proteins. That escaped *fixed* cost and still did not
+  resemble the job — a real shard is hundreds of thousands of proteins of corpus-realistic
+  length, and whatever degrades between the two (batching, memory pressure, length
+  distribution) is exactly what the projection needed to capture. **The lesson D-098 taught was
+  applied one notch short: the benchmark has to resemble the job in size as well as in regime.**
+- **Rejected:** Quoting a revised figure from this run alone — the residue count is estimated
+  from a compressed file size, so the factor is a bound and not a measurement, and this task has
+  already produced one overstated claim (D-177) from reasoning past the available evidence.
+  Scaling the container's CPU rate by the measured 57x — that 57x came from a 61,297-residue
+  input where model load dominates, which is the same fixed-cost error one level down.
+  Pressing on with the remaining four shards on the strength of D-164 — that is $55-60 of
+  compute authorised against a projection a real shard has already falsified.
+- **Consequence:** A2.2's affordability is now the open question, not its method. The fold
+  universe, the threshold, the shard contract and the assembly are all finished and tested; what
+  is unproven is that the pre-registered depth can be bought. Three ways forward exist and the
+  choice is the project owner's: a shallower sample, which is reportable but weakens the
+  comparison with A2.1 that parity was chosen for; more budget; or recording the cost itself as
+  the finding, which D-163 already set the precedent for when it turned the CPU route's
+  infeasibility into a result. Worth weighing alongside the separate observation that §A2's
+  three folds are concentrated in virus groups that are a minority of a phage-dominated IMG/VR,
+  so the depth being bought may be buying a near-certain null.
