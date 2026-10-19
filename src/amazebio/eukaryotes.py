@@ -115,13 +115,27 @@ class Member:
             raise EukaryoteError(f"index row is not a member: {row!r} ({exc})") from exc
 
 
-def _octal(field: bytes, *, what: str) -> int:
-    """A tar numeric field, which is octal ASCII padded with NULs and spaces.
+def _numeric(field: bytes, *, what: str) -> int:
+    """A tar numeric field: octal ASCII, or GNU base-256 for a value the octal field cannot hold.
 
-    Tolerates an empty field as zero, because the format allows it for a directory's size, and
-    refuses anything else rather than guessing — a misparsed size walks the chain off a header
-    boundary, and every member after it would be garbage.
+    The size field is eleven octal digits plus a terminator, so it tops out at 8 GiB - 1. GNU tar
+    encodes anything larger as base-256: the high bit of the first byte is set as a marker and the
+    rest of the field is a big-endian integer.
+
+    **This component uses it.** Four of the 90 tars carry a member above the octal limit — the
+    largest is 10.8 GB compressed — so an octal-only reader fails on those four and indexes 86.
+    That is how this was found: the strict parse raised on `b'\\x80\\x00\\x00...'` rather than
+    mis-reading it, which would have walked the chain off a block boundary and produced a
+    confidently wrong index for the rest of the archive.
+
+    An empty field is zero, which the format allows for a directory.
     """
+    if field and field[0] & 0x80:
+        # Base-256. The marker lives in the top bit of the first byte; mask it and read the whole
+        # field big-endian. 0xFF would mark a negative value, which no size or offset can be.
+        if field[0] == 0xFF:
+            raise EukaryoteError(f"tar {what} field is a negative base-256 value: {field!r}")
+        return int.from_bytes(bytes([field[0] & 0x7F]) + field[1:], "big")
     text = field.rstrip(b"\0 ").lstrip(b" ")
     if not text:
         return 0
@@ -142,7 +156,7 @@ def _checksum_ok(header: bytes) -> bool:
     Both the unsigned and the signed sum are accepted, because historical writers differed over
     whether the bytes were signed and readers are expected to take either.
     """
-    recorded = _octal(header[148:156], what="checksum")
+    recorded = _numeric(header[148:156], what="checksum")
     blanked = header[:148] + b" " * 8 + header[156:]
     unsigned = sum(blanked)
     signed = sum(b - 256 if b > 127 else b for b in blanked)
@@ -196,7 +210,7 @@ def walk_index(
         prefix = header[345:500].rstrip(b"\0").decode("utf-8", "replace")
         full = f"{prefix}/{name}" if prefix else name
         kind = header[156:157]
-        size = _octal(header[124:136], what=f"size of {full!r}")
+        size = _numeric(header[124:136], what=f"size of {full!r}")
         data = offset + BLOCK
         padded = ((size + BLOCK - 1) // BLOCK) * BLOCK
 

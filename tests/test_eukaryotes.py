@@ -122,6 +122,72 @@ def test_directory_entries_are_skipped_not_counted():
     assert [m.accession for m in members] == ["GCA_000000001.1"]
 
 
+def test_a_base256_size_field_is_read_not_refused():
+    """A member above 8 GiB cannot state its size in octal, and four of the 90 tars have one.
+
+    The field below is the one the first full run actually raised on, from
+    `batch64/GCA_016271365.2.fasta.gz`: GNU base-256, decoding to 10,808,659,176 bytes.
+    An octal-only reader indexed 86 of 90 tars because of it.
+    """
+    from amazebio.eukaryotes import _numeric
+
+    field = b"\x80\x00\x00\x00\x00\x00\x00\x02\x84?\x0c\xe8"
+    assert _numeric(field, what="size") == 10_808_659_176
+
+
+def base256_header(name: str, size: int) -> bytes:
+    """A tar header whose size field is GNU base-256, with a correct checksum.
+
+    Hand-built because `tarfile` emits base-256 only above the octal limit, and a test archive
+    with an 8 GiB member is not a test. Base-256 is legal for any value, so a small member with
+    one exercises the same parse the real component forces.
+    """
+    header = bytearray(b"\0" * BLOCK)
+    header[0 : len(name)] = name.encode()
+    header[100:108] = b"0000644\0"
+    header[108:116] = b"0000000\0"
+    header[116:124] = b"0000000\0"
+    header[124:136] = bytes([0x80]) + size.to_bytes(11, "big")
+    header[136:148] = b"00000000000\0"
+    header[156:157] = b"0"
+    header[257:263] = b"ustar\0"
+    header[263:265] = b"00"
+    header[148:156] = b" " * 8
+    checksum = sum(header)
+    header[148:156] = f"{checksum:06o}\0 ".encode()
+    return bytes(header)
+
+
+def test_a_base256_header_walks_to_the_right_next_member():
+    """End to end: a base-256 size must advance the chain exactly as an octal one does."""
+    first, second = os.urandom(600), os.urandom(400)
+    archive = (
+        base256_header("batch1/GCA_000000001.1.fasta.gz", len(first))
+        + first
+        + b"\0" * (BLOCK - len(first) % BLOCK)
+        + base256_header("batch1/GCA_000000002.1.fasta.gz", len(second))
+        + second
+        + b"\0" * (BLOCK - len(second) % BLOCK)
+        + b"\0" * (2 * BLOCK)
+    )
+
+    members = list(walk_index("t.tar", len(archive), reader_for({"t.tar": archive})))
+
+    assert [(m.accession, m.size) for m in members] == [
+        ("GCA_000000001.1", 600),
+        ("GCA_000000002.1", 400),
+    ]
+    read = reader_for({"t.tar": archive})
+    assert read("t.tar", members[1].offset, members[1].end) == second
+
+
+def test_a_negative_base256_field_raises():
+    from amazebio.eukaryotes import _numeric
+
+    with pytest.raises(EukaryoteError, match="negative base-256"):
+        _numeric(b"\xff" + b"\x00" * 11, what="size")
+
+
 # --- the failure modes, each of which must fire -----------------------------------------------
 
 
