@@ -338,6 +338,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--threads", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--limit", type=int, default=0, help="stop after N assemblies")
     parser.add_argument(
+        "--release",
+        action="append",
+        help="limit to this release key; repeatable. Omit for every manifest in the dir",
+    )
+    parser.add_argument(
         "--tables-only",
         action="store_true",
         help=(
@@ -430,7 +435,16 @@ def main(argv: list[str] | None = None) -> int:
         m.parameter("band_compressed_bytes", sum(x.size for x in band))
 
         manifests = load_manifests(args.manifests)
-        m.parameter("manifests", [e["manifest"]["policy"]["id"] for e in manifests])
+        if args.release:
+            wanted = set(args.release)
+            manifests = [e for e in manifests if e["manifest"]["release"] in wanted]
+            if not manifests:
+                raise SystemExit(f"no manifest in {args.manifests} for release(s) {sorted(wanted)}")
+        m.parameter("releases", sorted({e["manifest"]["release"] for e in manifests}))
+        m.parameter(
+            "manifests",
+            [f"{e['manifest']['policy']['id']}/{e['manifest']['release']}" for e in manifests],
+        )
 
         # One search per assembly, reused across readings: they differ only in route.
         alignments_by_assembly: dict[str, list[Any]] = {}
