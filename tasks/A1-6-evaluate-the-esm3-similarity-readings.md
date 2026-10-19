@@ -1117,3 +1117,43 @@ A6.1 owns and the A3.3 gate holds. There is no write-up file in the repo, so the
 instructions to "strike it from the write-up" have nowhere to land and are carried here instead:
 **A6.1 must take the reading labels above verbatim, and must not offer the ~4M as
 corroboration.**
+
+## From A1.8 — 2026-10-19: three things that bear on this arm
+
+Sent to the A1.6 session and bounced — it had ended — so it is recorded here, which is where
+it belonged anyway.
+
+**1. Your D-153 headline has the same interval gap A1.8's did, and it is fixed in code.**
+The band artefact's `rate` is computed over *any-identity* hits, while the figure D-153 quotes
+is the ≥0.70 band. Those are different sets of records, so the quoted figure has no interval
+of its own — which the non-negotiable on uncertainty forbids. `a9e369a` on
+`ccr-44355df9-hi20t9` adds `stratum_hits_ge70` / `stratum_hits_exact` to `TargetStream` and
+`FamilyIndex.hit_vector`, producing `rate_ge70` and `rate_exact` in `combine_cells`. Additive;
+defaults unchanged. **It needs a re-run to populate** — the per-family counts restricted to a
+threshold were never recorded, so nothing can be recomputed from the existing artefact.
+
+**2. The design effect is ~1,000, which should change how this arm prices widening.**
+A1.8's band 1 over 1,097,174 records and 34 seed families: ≥0.70 at 0.9135%, 95% CI
+0.3526%-1.4745%, design effect 993. The honest interval is about 31x the binomial one.
+**More shards do not narrow it** — the variance is between families, and shard 0 already
+contains every family the seed set has. Only a wider seed band adds families. A1.6's family
+count is far larger, so this arm may behave quite differently, but the same arithmetic applies
+and is worth checking before buying shards for precision they may not deliver (D-178).
+
+**3. The top band was cut finer, and this arm may want the same.** 0.90-1.00 lumps "a distant
+relative survived" with "the sequence survived intact". `FINE_TOP_EDGES` cuts
+0.90/0.95/0.98/0.99/1.00 with exact identity in its own slot, in constant memory, leaving the
+frozen `IDENTITY_BAND_EDGES` untouched. A1.8 found 115-128 records at exactly 1.00. The value
+of it is that identity 1.00 needs no threshold argument at all — D-107's unpublished threshold
+cannot touch it, where every other figure in both arms depends on an inferred cut.
+
+**Also fixed, from this arm's corrections:** `net_direction`, so `"at least"` renders only when
+a caller asserts a direction (D-154 said the phrasing was unsupportable; the code kept emitting
+it). A **second** renderer in `esm3_calibrate` formatted the same number by hand and kept the
+old rule, so band output still printed "at least" after the first fix — both now guarded by a
+test across both files.
+
+**One piece of shared infrastructure worth doing.** The shard strata sidecars are still not
+staged, so every band run pays the 52-minute corpus pass to rebuild them. A1.8 paid it four
+times on 2026-10-19. `--stage-sidecars-only` exists for this; A1.8 did not use it because it
+writes into this task's sample prefix and that was not its call to make.
