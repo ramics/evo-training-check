@@ -362,13 +362,21 @@ def main(argv: list[str] | None = None) -> int:
     scratch = Path(args.scratch or os.environ.get("TMPDIR", "/tmp")) / "a2-3-eve"
     scratch.mkdir(parents=True, exist_ok=True)
 
+    # One provenance file per invocation, named for what it covered. `repro.run`'s own docstring
+    # warns that a shared name means the second run silently overwrites the first one's
+    # provenance — A1.5 hit it with two staging passes, and this tool hit it the first time the
+    # searching pass and the tables-only pass both wrote `run-detect.json`.
+    scope = "-".join(sorted(args.release)) if args.release else "all"
+    if args.tables_only:
+        scope = f"{scope}-tables-only"
+
     with run(
         "A2.3",
         seed=SEED,
         outdir=out,
         allow_dirty=args.allow_dirty,
         repo=REPO,
-        manifest_name="run-detect.json",
+        manifest_name=f"run-detect-{scope}.json",
     ) as m:
         m.parameter("detector", DETECTOR)
         m.parameter("registry", REGISTRY)
@@ -617,22 +625,43 @@ def main(argv: list[str] | None = None) -> int:
                 flush=True,
             )
 
+        # The index is **merged**, not overwritten. A release with no searchable component is
+        # emitted by a separate --tables-only invocation, and a plain write would drop the
+        # searching run's tables and its per-assembly provenance — leaving an index that says
+        # nothing was searched beside tables that say it was. A2.4 reported the same shape as one
+        # of its six faults: a collector flattening archived runs onto live ones.
         index_path = out / "detections-index.json"
-        index_path.write_text(
-            json.dumps(
-                {
-                    "task": "A2.3",
-                    "detector": DETECTOR,
-                    "registry": REGISTRY,
-                    "families_in_universe": len(universe),
-                    "band": {"seed": SEED, "rate": args.rate, "assemblies": len(band)},
-                    "searched": searched,
-                    "tables": produced,
-                },
-                indent=1,
-            )
-            + "\n"
-        )
+        merged: dict[str, Any] = {
+            "task": "A2.3",
+            "detector": DETECTOR,
+            "registry": REGISTRY,
+            "families_in_universe": len(universe),
+            "band": {"seed": SEED, "rate": args.rate, "assemblies": len(band)},
+            "searched": [],
+            "tables": [],
+        }
+        if index_path.exists():
+            previous = json.loads(index_path.read_text())
+            if previous.get("registry") != REGISTRY:
+                raise SystemExit(
+                    f"{index_path} indexes registry {previous.get('registry')!r}, not "
+                    f"{REGISTRY!r}; merging would pool two universes"
+                )
+            merged["searched"] = list(previous.get("searched", []))
+            merged["tables"] = list(previous.get("tables", []))
+            # Keep the searching run's band rather than an empty one from a tables-only pass.
+            if not band and previous.get("band", {}).get("assemblies"):
+                merged["band"] = previous["band"]
+
+        by_assembly = {row["accession"]: row for row in merged["searched"]}
+        by_assembly.update({row["accession"]: row for row in searched})
+        merged["searched"] = sorted(by_assembly.values(), key=lambda r: r["accession"])
+
+        by_table = {(row["policy"], row["release"]): row for row in merged["tables"]}
+        by_table.update({(row["policy"], row["release"]): row for row in produced})
+        merged["tables"] = sorted(by_table.values(), key=lambda r: (r["release"], r["policy"]))
+
+        index_path.write_text(json.dumps(merged, indent=1) + "\n")
         m.output_file(index_path, role="detection index")
         shutil.rmtree(work, ignore_errors=True)
         print(json.dumps(produced, indent=1))
