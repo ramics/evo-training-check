@@ -4743,7 +4743,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-120 — Spot is unavailable in this account, so every spot-priced figure in A1.6 is a price we cannot pay
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-110 and renumbered to D-120 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-110 and renumbered to D-120 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-104 priced the exhaustive charitable pass at $240-450 and D-109 priced the broad
   arm's three-sensitivity sweep at $26 against a $30 ceiling. Both are **spot** figures, and the
   launcher gained spot support on the strength of them. The first spot launch was refused.
@@ -4786,7 +4786,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-121 — The spot service-linked role is to be created, so A1.6's passes run at the prices they were designed against
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-111 and renumbered to D-121 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-111 and renumbered to D-121 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-120 established that spot is refused in this account and put three options to the
   project owner: create the service-linked role, raise the ceiling to about $100 for the same
   design on demand, or shrink the sample to fit $30 on demand.
@@ -4815,7 +4815,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-122 — D-109's $26 is a search price, not a run price: the pass is dozens of launches and each one currently re-reads the corpus
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-112 and renumbered to D-122 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-112 and renumbered to D-122 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 priced the broad arm's sweep at 1,296 core-hours, $26 of a $30 ceiling, from
   D-104's fitted model. That model prices **searches**. Neither entry converted the figure into
   launches, and the conversion is where the money is.
@@ -4862,7 +4862,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-123 — Correction to D-122: the corpus pass is not sample-write-bound, and the overrun is ~10% rather than 2.5x
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-113 and renumbered to D-123 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-113 and renumbered to D-123 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-122 explained a corpus pass running long by claiming it was sample-write-bound —
   that keeping 40x more records at rate 50 than at rate 2000 moved the cost, because every sampled
   record crosses from a worker to a single parent that writes it. That claim was reasoning from the
@@ -4906,7 +4906,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-124 — The three coverage readings come from two aligner-filtered searches, exactly; D-109's relaxed search is withdrawn
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-114 and renumbered to D-124 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-114 and renumbered to D-124 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 bought the three `--cov-mode` readings of D-107 for the price of one search by
   relaxing coverage filtering and re-imposing it on the emitted `qcov`/`tcov` columns. It flagged
   one risk honestly — relaxing admits more rows, so it costs more and may make the hit cap bind —
@@ -4955,7 +4955,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-125 — The narrow arm's handling and reporting rules, fixed before the result exists
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-115 and renumbered to D-125 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-115 and renumbered to D-125 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-108 settled the narrow arm's scope — exhaustive against every corpus record — and
   explicitly left its handling open, because it is the output §4's reporting limits and the X3.1
   gate are written for. The arm was not to be built until this existed. The question had to be
@@ -5004,7 +5004,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-126 — The narrow arm's exact result is retained, staged and permanent; D-125's storage call is reversed
 - **Date:** 2026-10-17
 - **Task:** A1.6
-- **Numbering:** appended as D-116 and renumbered to D-126 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-116 and renumbered to D-126 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-125 fixed the narrow arm's reporting rule — counts by survival route and homology
   class, never by organism or taxon — and then drew a storage conclusion from it that went further
   than the rule required: that the per-record manifest lives only under the git-ignored artefacts
@@ -5051,7 +5051,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-127 — The lost runs were a short payload and a shutdown that never fired, not the reader or the instance type; D-123's hypotheses are both refuted
 - **Date:** 2026-10-17
 - **Task:** A1.6
-- **Numbering:** appended as D-117 and renumbered to D-127 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-117 and renumbered to D-127 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-123 recorded two candidate causes for an instance that spent four hours on a
   52-minute corpus pass and published nothing: a degrading S3 read retried without a global bound,
   or the instance type, since the three passes that completed all ran on `r6i.2xlarge` and that was
@@ -5098,7 +5098,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-128 — The broad arm runs on one staged shard at 0.3125% with the cap unbound; D-109's 2.5% is superseded
 - **Date:** 2026-10-17
 - **Task:** A1.6
-- **Numbering:** appended as D-118 and renumbered to D-128 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-118 and renumbered to D-128 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 sized the broad arm at 2.5% for $26, from D-104's cost model. The cap
   measurement priced the real thing and the model under-predicts by about 6x, because it was fitted
   with the charitable parameter set's `--min-seq-id 0.70` and the pass cannot use an identity floor
@@ -5137,7 +5137,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-129 — The narrow arm becomes A1.8; A1.6 keeps the broad arm only
 - **Date:** 2026-10-17
 - **Task:** A1.6 / A1.8
-- **Numbering:** appended as D-119 and renumbered to D-129 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-119 and renumbered to D-129 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-108 split the pass by denylist and both arms stayed inside A1.6. They have since
   diverged in every respect that matters: method (exhaustive against sampled), budget (roughly a
   seventeenth of the compute), what may be published (D-125's aggregation rules apply to one arm
@@ -5379,7 +5379,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Task:** A1.6
 - **Numbering:** appended as D-133 and renumbered to D-134 on 2026-10-17. A1.8 took D-133 for
   its own sampled-proof-of-concept entry and that one is already on `main`, so this is the
-  cheaper side to move. Nothing published cites this entry as D-133.
+  cheaper side to move. Nothing published cites this entry as D-133. **This number was also A1.8's D-137 before that entry was renumbered**, so a bare "D-134" in anything published before 2026-10-17 may mean D-137 rather than this entry. Cross-link added in place 2026-10-19, D-175.
 - **Context:** D-128 fixed the broad arm as all 3,159,223 viral seeds against one staged shard —
   0.3125% of the corpus, six cells, about 413 instance-hours. Two things make that the wrong *next*
   step rather than the wrong destination. A full cell is about 40 hours, so it does not fit one
@@ -5559,7 +5559,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-137 — The select-agent list's names map to taxonomy ids by curation, validated against the pinned taxonomy, never by name matching
 - **Date:** 2026-10-17
 - **Task:** A1.8
-- **Numbering:** appended as D-134 and renumbered to D-137 on 2026-10-17. A1.6's broad-arm banding entry took D-134 first and is already merged on `main`, while this entry's citations sit in `src/amazebio/selectagents.py`, `policies/specs/` and this task's files, which the same commit can remap — so this side is the cheaper one to move. The commit "A1.8: reconstruct the select-agent list as taxa" on `ccr-51fc983f-tyojje` cites the old number; this line is how it resolves.
+- **Numbering:** appended as D-134 and renumbered to D-137 on 2026-10-17. A1.6's broad-arm banding entry took D-134 first and is already merged on `main`, while this entry's citations sit in `src/amazebio/selectagents.py`, `policies/specs/` and this task's files, which the same commit can remap — so this side is the cheaper one to move. The commit "A1.8: reconstruct the select-agent list as taxa" on `ccr-51fc983f-tyojje` cites the old number; this line is how it resolves. **D-134 is now A1.6's banding entry** — so a bare "D-134" in anything published before 2026-10-17 may mean this entry, and after it means A1.6's. Cross-link added in place 2026-10-19, D-175.
 - **Context:** ESM3-open's narrow denylist is "all sequences in UniProt belonging to organisms on
   the Select Agents and Toxins List" (D-106, version of record). The list does not carry taxonomy
   ids, so the mapping is A1.8's to decide and record — the first of the task's two open readings.
@@ -7501,3 +7501,107 @@ decision has a threshold or parameter in it, the number goes in the entry.
   found nothing.** The free smoke tier — the real tool over real corpus records, bounded by
   `--max-records` so a 16.9 GB object costs 15 seconds — is what turned this up for a fraction of
   a cent, before $19 of GPU time and before a number reached a write-up.
+
+### D-173 — The detection contract carries each registry's denominator rule and its composition, so D-161 lives in the artefact rather than in this log
+- **Date:** 2026-10-19
+- **Task:** A2.4 (changes `metrics/detections.md`, so A2.1–A2.5 and A3.2 all see it)
+- **Context:** D-161 ruled that the two registries' survival fractions are not comparable and
+  neither is reportable on its own, and that what *is* reportable is the absolute counts plus
+  Pfam's composition — the prophage parts list. It changed no code and produced no artefact. A
+  repo audit found its measured quantities (5,314 genes, 1,201,328 residues, 173 against 33
+  detections per 1,000 genes, the threshold spans, the composition list) existing **only in this
+  log**: `tools/detect_proviruses.py` emitted no composition and named no denominator, and none
+  of those figures appeared under `src/`, `tools/` or any artefact. "Artefacts before prose" is a
+  non-negotiable — every number in a write-up traces to a machine-readable artefact — so as it
+  stood the Phase A write-up could source D-161's numbers from nothing but a decisions entry.
+  A2.4's state block was meanwhile presenting the two fractions side by side, which is exactly
+  the reading D-161 forbids.
+- **Decision:** Every detection table gains two fields, in `metrics/detections.md` and therefore
+  for all five A2 detectors. **`denominator`** names the universe's authority and the restriction
+  on quoting its fraction: Pfam's is never quoted as "the fraction of viral families", RVDB's is
+  never quoted as a measure of how much survived, and a registry the rule does not name still
+  gets a restriction plus `comparable_across_registries: false` — a new registry must not arrive
+  with none, which is how D-074's defect happened. **`composition`** is the families carrying the
+  detections, most first, ties broken by accession so a quoted parts list reproduces from pinned
+  inputs. The per-registry restriction also travels in `notes`, and `reading_this_table` sends a
+  quoter to `denominator` before `survival.fraction`.
+- **Rejected:** Leaving it in prose and relying on the write-up to carry D-161 — that is the
+  arrangement the audit found, and it had already failed once: A2.4's own state block published
+  the forbidden presentation 85 minutes after D-161 landed in the same pull request. Putting the
+  fields only in `detect_proviruses.py` — the rule is about registries, not about prophage, so
+  A2.1's tables need it identically and a second copy would drift. Emitting D-161's
+  cross-registry comparison itself (detections per 1,000 genes, hits per family-record pair,
+  median best scores) — those are a *comparison between two tables* and a per-registry table
+  structurally cannot hold them; that belongs in its own emitter and is not built here.
+  Computing a "phage-relevant subset" of RVDB to fix its denominator — D-161 already declined
+  it as a new reading of someone else's curation needing its own task and pre-registration.
+- **Consequence:** Additive to the contract: both fields derive from `families[]` and `registry`,
+  so A3.3's independent reimplementation gains no measurement to reproduce, and no existing
+  figure changes. A3.2 still must not pool or average the two registries' fractions (D-022,
+  D-161). **A2.4's existing twelve tables predate this and do not carry the fields** — they would
+  need a re-run to gain them, which is not worth the spend for a field derivable from rows the
+  tables already hold; the task file records the gap instead. What this does not resolve: D-161's
+  cross-registry figures are still prose, and a write-up quoting them still has no artefact to
+  cite.
+
+### D-174 — A7.1's criterion 1 is amended to the one-model, coverage-stated deliverable D-047 and D-049 left it
+- **Date:** 2026-10-19
+- **Task:** A7.1
+- **Context:** Auditing the three `review` tasks' criteria the way A1.6's were audited (D-170)
+  found A7.1 carrying "conformance diff computed per model × reading". The deliverable is one
+  model at 3/6 coverage with the readings identical by construction. That is not a shortfall:
+  D-047 established that every rule the three readings differ over reads an input the release
+  withholds, so `readings_agree_by_construction` asserts identity from the specs rather than
+  reporting three columns as agreement; D-049 put the converse direction and Evo 2's arm outside
+  this task; and ESM3-open has neither corpus nor threshold published, so it has no arm at all.
+  The restriction is derived mechanically from the specs, not hand-picked. The criterion was
+  written before those entries narrowed the deliverable and was never amended.
+- **Decision:** Criterion 1 is replaced by three that describe what the task produces — the diff
+  for every model whose release carries the inputs its own rules read, with coverage stated per
+  count; the readings reported as identical by construction rather than as agreement, naming the
+  withheld input; and the models with no arm named with their reason. The original is struck in
+  place. A7.1 **stays at `review`**: its remaining open criterion is the A3.3 gate, which is
+  blocked behind A3.2 and cannot be discharged from this task.
+- **Rejected:** Leaving it stale because A7.1 cannot move past A3.3 anyway — the gate will open,
+  and at that point the criterion would be read as met against a result it does not describe,
+  which is how A1.6 sat for days. Amending it to "one model" without the coverage and
+  by-construction clauses — the 3/6 coverage and the withheld input *are* the finding, and a
+  criterion that omits them invites a later reader to treat identical readings as evidence the
+  readings do not matter. Widening A7.1 to cover the missing models — D-049 placed them
+  elsewhere deliberately and A7.2 closed them.
+- **Consequence:** No number changes and no artefact is touched. Phase A's conformance claim is
+  unaffected: it was always one model with its coverage stated, and the write-up's wording was
+  already bounded by A1.1's verdict and by the A3.3 and X3.1 holds. The audit's general finding
+  stands and is not fixed by this entry: nothing checks a task's Done-when against the decisions
+  that supersede it, so `board.py --check` passes on criteria that have stopped describing their
+  task. This is the third instance found in two days — A1.6, A2.4, A7.1.
+
+### D-175 — Two documentary defects in this log are corrected in place, against its append-only rule
+- **Date:** 2026-10-19
+- **Task:** X1.1 (repo audit)
+- **Context:** An audit of this log found the ID space clean — no duplicates, no gaps, no
+  dangling citations, no missing or future dates — and two factual defects in its renumbering
+  notes. The ten `Numbering:` lines on D-120 to D-129 each state that "A2.4 took the whole
+  D-110..D-119 range first"; D-110 and D-111 are **A2.1's** entries, and only D-112 to D-119 are
+  A2.4's. And "D-134" resolves two ways: it is a live A1.6 entry *and* the number A1.8's D-137
+  was renumbered away from, with no cross-link between them, so a reader meeting the number in a
+  published commit message cannot tell which is meant without finding D-137's note.
+- **Decision:** Both are corrected **in place** — the misattribution in the ten notes, and a
+  reciprocal cross-link added at D-134 and D-137 — rather than only by appending this entry. The
+  project owner decided this explicitly when the alternatives were put. The append-only rule
+  exists so that a *decision* cannot be quietly rewritten after it was acted on; a wrong task
+  attribution inside a renumbering note is not a decision and nothing was ever acted on because
+  of it. A correction fifty entries later does not reach the reader who is standing at D-120,
+  which is the only reader it was for.
+- **Rejected:** Appending this entry alone and leaving the notes untouched — strictly
+  append-only, and useless to the reader it exists to serve. Rewriting the `Numbering:` lines
+  without recording that they were changed — that *would* be the thing the rule forbids, so each
+  correction is marked and points here. Deleting the D-134/D-137 ambiguity by renumbering one of
+  them now — both are cited from several places and from published commit messages, and moving
+  either would strand those citations to fix a readability problem a cross-link solves.
+- **Consequence:** No decision's substance changes and no citation resolves differently. The
+  precedent is narrow and worth stating so it is not stretched: **a factual error in an entry's
+  metadata may be corrected in place, marked; an entry's Context, Decision, Rejected or
+  Consequence may not** — those are corrected by a new entry, as D-154, D-156 and D-162 were.
+  `tools/decisions.py` now fails CI on a duplicate ID, so the collision these notes record is
+  caught deterministically rather than by git happening to notice.
