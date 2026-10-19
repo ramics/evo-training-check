@@ -7438,3 +7438,66 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the real search share one geometry, but it means the reported `bits` is the plain alignment bit
   score and not a structure-weighted one, which a reviewer comparing to published foldseek
   figures needs to know.
+
+### D-172 — A2.2's searches run exhaustively, because foldseek's prefilter silently returns nothing against a 141-structure target
+- **Date:** 2026-10-19
+- **Task:** A2.2
+- **Context:** A smoke run of the finished search tool over real corpus records — six IMG/VR
+  records, 77 called proteins, searched against the pinned 141-structure reference database —
+  returned **no hits at all**. Investigated rather than accepted, because the calibration (D-171)
+  had just measured ~50% of *unrelated* ECOD domains hitting something at 20 bits, so zero from
+  77 viral proteins was not a plausible result.
+  The cause is in foldseek's own log: `Index table k-mer threshold: 78 at k-mer size 6`,
+  `0 median result list length`, **`76 sequences with 0 size result lists`** — and exit status 0.
+  The prefilter is mis-tuned against a target database this small and discards essentially every
+  candidate without failing. The identical query and target databases, searched with
+  `--exhaustive-search 1`, produced **49 hits**. Zero against 49.
+  **What shipping that would have produced.** A complete set of well-formed shards, correct
+  provenance, a `run.json`, and a headline of *no surviving folds anywhere in either Evo release*
+  — a clean, publishable-looking null manufactured entirely by a heuristic. `AGENTS.md` forbids
+  designing any part of the pipeline so that a null is harder to see; a prefilter that deletes
+  every candidate is the strongest possible version of that, and it is the one result this audit
+  must never reach by accident.
+  **Why neither the calibration nor a dry run could have caught it.** The failure is
+  **scale-dependent**. At the calibration's 1,567 queries the prefilter dropped about 7% of rows
+  (3Di+AA 34,822 against 37,286 exhaustive; 3Di-only 71,689 against 83,310) and the threshold
+  still came out right; at 77 queries it dropped nearly everything. So a threshold calibrated at
+  one query count and applied at another hides it completely, and a real shard is around 30,000
+  proteins while a smoke shard is 77 — the pass would have straddled both regimes. Only running
+  the real tool over real corpus records at a realistic small scale exposed it.
+- **Decision:** **Every A2.2 search runs `--exhaustive-search 1`, in the calibration and in the
+  pass alike.** This removes the heuristic rather than retuning it: with 141 targets, every query
+  is aligned against every reference, which is exact, free of any scale dependence, and
+  negligible beside 3Di prediction — the step D-163 measured at 173x the profile search it feeds
+  and which dominates the cost completely. `EXHAUSTIVE_SEARCH` is a module constant in
+  `tools/detect_folds.py` with this reasoning attached, not a command-line knob, because a
+  geometry a run can opt out of is a geometry some run will.
+  The search geometry now enters the shard's `params` fingerprint, so shards produced under the
+  old geometry cannot merge with new ones (`load_shards` refuses a mixed set).
+- **The threshold is re-derived and does not move.** D-171's declared 500 bits, its brackets
+  [400, 600] and its 3Di+AA mode all stand: near-fold false-positive rate 3/389 either way, and
+  sensitivity 0.617 to **0.622**. The prefilter's lost rows were weak alignments concentrated far
+  below the cut, which is visible at the low end of the sweep (at 20 bits the positive rate moves
+  0.867 to 0.939, unrelated 0.513 to 0.602). **This is not a threshold re-picked after seeing
+  results:** D-171's rule and its 1% target were pre-registered and are unchanged, the instrument
+  was broken, and re-applying an unchanged rule to a corrected measurement is the only defensible
+  response. That the answer is identical is a robustness result, not the justification.
+- **One D-171 figure is corrected.** D-171 recorded that 13% of held-out true fold members never
+  hit their own fold at any threshold. Exhaustively that is **6.1%** (positive rate 0.939 at 20
+  bits). The missing half was the prefilter, not the method, so A2.2's sensitivity ceiling is
+  better than D-171 states and the write-up should quote 6.1%.
+- **Rejected:** Raising `--max-seqs` or lowering `--k-score` to make the prefilter behave — that
+  tunes a heuristic until it stops hiding results on the inputs tested, and leaves it free to
+  hide them on inputs not tested; the failure mode is silence, so there is no signal that the
+  tuning was insufficient. Accepting the zero as a finding — it contradicted the calibration's own
+  measured decoy rates, which is what prompted the investigation. Keeping the prefilter for the
+  pass and exhaustive search for the calibration, or the reverse — a threshold must be measured
+  under the geometry it is applied under, which is the whole reason this entry re-derives it.
+- **Consequence:** the instrument is now deterministic with respect to how much corpus a run
+  happens to read, which is a property the audit needs anyway: D-076 rejected E-values for
+  drifting with database size, and a prefilter whose behaviour depends on query count is the same
+  defect one layer down. The lasting lesson is the one `AGENTS.md` already draws for instances and
+  which applies just as well in the container: **a step that reports nothing has not told you it
+  found nothing.** The free smoke tier — the real tool over real corpus records, bounded by
+  `--max-records` so a 16.9 GB object costs 15 seconds — is what turned this up for a fraction of
+  a cent, before $19 of GPU time and before a number reached a write-up.
