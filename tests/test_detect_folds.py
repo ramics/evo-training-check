@@ -455,3 +455,56 @@ def test_an_uncalibrated_mode_is_refused(tool, tmp_path):
     assert got["declared"] == 100.0
     assert got["brackets"] == [90.0, 120.0]
     assert got["decision_ref"] == "D-171"
+
+
+# --------------------------------------------------------------------------------------
+# Resumption, and what must never be uploaded
+# --------------------------------------------------------------------------------------
+
+
+class _FakeS3:
+    """Records what was listed and what was put, with a one-page listing."""
+
+    def __init__(self, keys=()):
+        self.keys = list(keys)
+        self.listed = []
+        self.put = []
+
+    def list_objects_v2(self, **kw):
+        self.listed.append(kw)
+        prefix = kw["Prefix"]
+        delim = kw.get("Delimiter")
+        out = []
+        for k in self.keys:
+            if not k.startswith(prefix):
+                continue
+            if delim and delim in k[len(prefix) :]:
+                continue  # below this prefix, so a delimited listing hides it
+            out.append({"Key": k, "Size": 1})
+        return {"Contents": out, "IsTruncated": False}
+
+    def put_object(self, **kw):
+        self.put.append(kw)
+
+
+def test_resumption_does_not_sweep_objects_below_the_prefix(tool):
+    """A prefix pointing at a parent must not report unrelated runs' shards as finished.
+
+    This happened: `--s3-uri` defaults to AMAZEBIO_S3_URI, which in the session container points
+    at the bucket root, so a recursive listing matched a smoke run's shard and treated it as a
+    completed real shard. In the real pass that silently skips work.
+    """
+    s3 = _FakeS3(
+        [
+            "corpora/results/a2-2/shards/abc/opengenome2--imgvr.fasta.gz--0-0.001.json",
+            "corpora/results/a2-2/search/20261019T0721Z/opengenome--train_stage2.parquet--0-1.json",
+            "corpora/opengenome2--imgvr.fasta.gz--0-1.json",
+        ]
+    )
+    found = tool.finished_shards(s3, "s3://bucket/corpora/results/a2-2/shards/abc")
+    assert found == {"opengenome2--imgvr.fasta.gz--0-0.001.json"}
+    assert all(kw.get("Delimiter") == "/" for kw in s3.listed), "the listing must be delimited"
+
+
+def test_resumption_is_empty_without_a_destination(tool):
+    assert tool.finished_shards(_FakeS3(["corpora/x--y--0-1.json"]), None) == set()

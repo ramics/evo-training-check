@@ -419,7 +419,12 @@ def finished_shards(s3: Any, uri: str | None) -> set[str]:
         kw = {"Bucket": bucket, "Prefix": f"{prefix}/"}
         if token:
             kw["ContinuationToken"] = token
-        page = s3.list_objects_v2(**kw)
+        # Delimiter, so the listing stops at this prefix instead of sweeping everything beneath
+        # it. Without it, a `--shards-uri` pointing at a parent — the env default points at the
+        # bucket root — matched shard-shaped objects from unrelated runs and reported finished
+        # work that was not this geometry's. That is how a smoke run's shard came to be treated
+        # as a completed real shard, and it would silently skip work in the real pass.
+        page = s3.list_objects_v2(Delimiter="/", **kw)
         for obj in page.get("Contents", []):
             name = obj["Key"].rsplit("/", 1)[-1]
             if name.endswith(".json") and "--" in name:
@@ -1052,7 +1057,15 @@ def do_search(args: Any) -> int:
         body["registry_version"] = universe["registry_version"]
         text = json.dumps(body, indent=2, sort_keys=True) + "\n"
         (local / shard["name"]).write_text(text)
-        if shards_uri:
+        # A capped run is a smoke test, and its shard never leaves local disk. The bucket has no
+        # DeleteObject, so anything uploaded is permanent — and `--s3-uri` defaults to
+        # AMAZEBIO_S3_URI, which in the session container points at the bucket *root*. Three
+        # partial shards from local smoke runs are sitting at `corpora/` for good because of
+        # exactly that. They are harmless, since `load_shards` refuses a partial shard, but a
+        # permanent object nobody meant to write is still a mess somebody has to explain.
+        if body.get("partial"):
+            print("    partial: kept local, not uploaded", flush=True)
+        elif shards_uri:
             bucket, prefix = objectstore.split_uri(shards_uri)
             client.put_object(Bucket=bucket, Key=f"{prefix}/{shard['name']}", Body=text.encode())
         progress["done"] += 1

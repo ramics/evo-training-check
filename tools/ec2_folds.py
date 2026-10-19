@@ -413,6 +413,8 @@ def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any
             caps += f" --band {kw['band']}"
         if kw.get("max_shards") is not None:
             caps += f" --max-shards {kw['max_shards']}"
+        for release in kw.get("releases") or ():
+            caps += f" --release {release}"
         return {
             "stage": "fold search",
             "smoke_tool": "tools/detect_folds.py",
@@ -452,6 +454,12 @@ def parse_args(argv: list[str] | None) -> Any:
     ap.add_argument("--max-records", type=int, default=0, help="smoke test: cap per shard")
     ap.add_argument("--band", default=None, help="smoke test: override the band as LO:HI")
     ap.add_argument("--max-shards", type=int, default=None, help="stop after this many shards")
+    ap.add_argument(
+        "--release",
+        action="append",
+        help="restrict the search to these release keys; repeatable. Without it every release "
+        "the pre-registered depth names is searched.",
+    )
     ap.add_argument(
         "--refdb-dir",
         type=Path,
@@ -602,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
         max_records=args.max_records,
         band=args.band,
         max_shards=args.max_shards,
+        releases=args.release,
         shards_uri=shards_uri,
     )
 
