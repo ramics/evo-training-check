@@ -2,7 +2,7 @@
 id: A2.2
 title: Structure-based detection of surviving folds
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
@@ -35,7 +35,7 @@ that sequence search misses.
 
 ## State — 2026-10-19
 
-`review`. **Branch `ccr-7a87e8bd-9ow1h1`.** Decisions: D-163, D-164 (withdrawn as a planning
+`done`. **Branch `ccr-7a87e8bd-9ow1h1`.** Decisions: D-163, D-164 (withdrawn as a planning
 basis by D-179), D-165, D-166, D-167, D-169, D-171, D-172 (withdrawn by D-177), D-177, D-179,
 D-180.
 
@@ -105,8 +105,23 @@ would most likely have bought a null about composition rather than about the fil
   `--s3-uri` to the bucket root. Harmless — the assembly refuses partial shards and their band
   naming cannot collide — but they cannot be removed.
 
-**Waiting on the project owner:** whether `not_searched` tables satisfy the first Done-when
-criterion, and whether to open a new task for the fold-choice question.
+**Done-when, settled.** The owner's call was that the seven `not_searched` tables satisfy the
+first criterion: the kind is what `metrics/detections.md` defines for an unsearched manifest,
+`amazebio.detect` derives it structurally so A3.2 cannot pool these with a `population` or
+`lower_bound` table, and D-180 records why the corpus was not searched. The other two criteria
+were met outright. Merged as PR #25; `main` green at 1,395 tests.
+
+**A3.2 proceeds with four detectors, not five.** The structural route contributes no detections,
+and the reason is in the artefacts rather than only in prose.
+
+**Two things left for other tasks, deliberately not widened into this one:**
+
+- **Whether §A2 named the right folds.** All three are concentrated in eukaryotic and RNA
+  viruses while the corpora are dominated by tailed bacteriophages — HK97 capsid rather than
+  jelly-roll, no RdRp, no class I fusion glycoprotein. A `DESIGN.md` question and a new task.
+- **The ESM3 proxy manifest, still the unmeasured cheap case** (D-033). Its records are UniRef
+  entries, so many may already carry predicted structures and need no prediction at all — which
+  would make it the one affordable manifest here. Nobody has measured it.
 
 ## Notes
 
