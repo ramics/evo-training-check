@@ -8303,3 +8303,101 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Done-when does not require it, and the profile route is now priced well enough that a small
   paired comparison is affordable if the owner ever wants the sensitivity gap measured rather
   than asserted.
+
+### D-187 — A2.5's three problem categories are ICTV-anchored taxon predicates, fixed before any survival was counted
+- **Date:** 2026-10-19
+- **Task:** A2.5
+- **Context:** `DESIGN.md` §A2's last detection bullet names "giant viruses and NCLDV, segmented
+  genomes, satellite viruses" and nothing in the repository defines any of the three. A2.5's
+  first step is to "enumerate the problem categories from §A2 into an explicit checklist", and
+  `AGENTS.md` requires the specification fixed before results are inspected. Three categories
+  named in prose are exactly the under-specification §A0 turns into a result, so they are
+  resolved here against an external authority rather than by this project's judgement of what
+  counts as a giant virus.
+  The authority is the **pinned ICTV VMR, MSL37.3** (`VMR_20-190822_MSL37.3.xlsx`, sha256
+  `66791e9b…bf32`, 1,563,522 bytes, verified against `amazebio.ictv`'s pin on retrieval). It is
+  already the benchmark ground truth for A4.2 and it is the taxonomy in force when IMG/VR v4 was
+  built, so using it here adds no pin and introduces no taxonomic revision that A9.1 measures
+  separately.
+  **Retrieval note, because it will recur:** `ictv.global` returns **HTTP 403** to `urllib`'s
+  default user-agent and **HTTP 200** to a browser one. The file is free and public; this is a
+  user-agent block, not a paywall, and it is recorded so the next task does not escalate it as
+  one.
+- **Decision:** Three predicates over a record's taxonomic lineage, disjoint on this release
+  (the NCLDV and segmented sets do not intersect), each naming its rank so a lineage truncated
+  above that rank is **unlabelled for the category rather than negative** for it:
+
+  **1. Giant viruses and NCLDV** — lineage phylum is `Nucleocytoviricota`, which at MSL37.3 is
+  **7 families** over 149 exemplar species: Ascoviridae, Asfarviridae, Iridoviridae,
+  Marseilleviridae, Mimiviridae, Phycodnaviridae, Poxviridae. Matched at **phylum**, so a record
+  labelled only to a higher rank cannot answer the category either way.
+  **Plus a second, label-independent handle specific to this corpus.** IMG/VR names its
+  giant-virus metagenome-assembled genomes in the accession itself — `IMGVR_UViG_GVMAG-M-…` —
+  and A7.2 counted 2,055 of them in the input release while recording them only as an
+  accession-shape anomaly. `GVMAG` membership is therefore tested as its own signal, and it does
+  not depend on the lineage column being populated.
+
+  **2. Segmented genomes** — the family of a VMR exemplar species whose accession cell carries
+  **more than one accession with at least one segment label**. **48 families** over 1,058
+  exemplar species. Matched at **family**.
+  **The label is the discriminator and it is load-bearing.** Multi-accession alone is wrong:
+  Adenoviridae (`Y09598`, `AC_000004`), Poxviridae (four partial records) and Phycodnaviridae
+  (`M96366`, `X06618`) all list several accessions for a **monopartite** genome and would enter a
+  naive set, while Cystoviridae (`L`/`M`/`S`), Orthomyxoviridae (`RNA1`…`RNA8`) and Geminiviridae
+  (`DNA-A`/`DNA-B`) carry labels and are genuinely segmented. Requiring one label admits 48
+  families and excludes those three. `amazebio.ictv`'s own docstring warns that the VMR labels
+  segments inconsistently, so the rule is "**at least one** labelled exemplar in the family",
+  which is robust to a family whose other rows are unlabelled — 22 families have unlabelled
+  multi-accession rows as well and are kept or dropped on their labelled ones.
+  One labelled multi-segment species carries **no family** and so contributes to no family set;
+  it is counted here rather than dropped silently.
+
+  **3. Satellite viruses** — two sets, reported separately and never summed, because §A2 says
+  satellite *viruses* and ICTV's satellites are mostly not viruses:
+  *Satellite viruses* (encode their own capsid): genera `Albetovirus`, `Aumaivirus`,
+  `Papanivirus`, `Virtovirus` — family-unassigned within Riboviria — plus family
+  `Sarthroviridae`. **7 exemplar species.** Matched at **genus**, except Sarthroviridae at family.
+  *Satellite nucleic acids* (no capsid, helper-dependent): families `Alphasatellitidae` and
+  `Tolecusatellitidae`. **216 exemplar species.** Matched at **family**. These carry no realm,
+  kingdom, phylum, class or order in the VMR at all, which is why a realm-level sweep cannot see
+  them and why they are named explicitly.
+  **`Ribozyviria` / `Kolmioviridae` (15 species) is deliberately excluded**, with the boundary
+  stated rather than left to a reader: deltavirus-like agents are satellite-*like* and
+  helper-dependent, but ICTV ratifies them as a realm in their own right and does not classify
+  them as satellites. Excluding them keeps the category ICTV's rather than ours; the count is
+  recorded so a later task can include them without re-deriving anything.
+- **Disclosure, because it bears on what "fixed before results were inspected" means here.**
+  The category definitions were fixed **after** two census artefacts had already been opened and
+  **before** any per-category count was taken. What had been seen: A7.1's `stage2` census — that
+  Evo 1's surviving component is 2,628,513 Duplodnaviria of 2,653,047 records, that its only
+  Riboviria are 6,105 Leviviricetes, and that no `Nucleocytoviricota` appears among its 181
+  lineage tags; and, in A7.2's input scan, that `f__Alphasatellitidae` and `g__Dinodnavirus`
+  occur in IMG/VR's input classifications and in its `released_by_classification` block. So it
+  was known that satellites survive somewhere in Evo 2 and that Evo 1's component is
+  overwhelmingly phage before these predicates were written. What the predicates cannot have
+  been tuned to is any category's count, which is computed only after this entry is pushed.
+  The honest summary is that the **sets are an external authority's and the ranks follow from
+  them**, not that this was a blind pre-registration. Stating which it was is cheaper than
+  implying the stronger one.
+- **Rejected:** *Defining giant viruses by genome size* (the common informal rule, >300 kb or
+  >500 kb). It would make the category a property of the contig rather than of the taxon, so a
+  fragmentary giant-virus contig would fall out of it while a long phage genome fell in, and the
+  threshold would be this project's invention at exactly the point §A2 is asking about taxa.
+  *Treating `>1 accession` as segmented* — wrong on Adenoviridae, Poxviridae and Phycodnaviridae,
+  as above; the error is in the admitting direction and would have inflated every segmented count.
+  *Folding satellite nucleic acids in with satellite viruses* — they differ in whether a capsid
+  is encoded, which is the whole reason a filter might reach one and not the other, and §A2 names
+  only the viruses. They are both measured and kept apart.
+  *Pfam or RVDB family sets as the category definition.* The registries' families are protein
+  clusterings with no rank, so `Nucleocytoviricota` is not expressible in them; and a registry
+  universe is a denominator whose membership rule is a finding about the registry (D-157's rule,
+  carried from D-075). The categories are taxon sets; where the registries enter is the
+  sequence-side arm, and that is a separate entry.
+- **Consequence:** A2.5 has an explicit checklist, so "every §A2 category has a recorded result
+  per manifest" is now a criterion that can be met rather than interpreted. Every category match
+  is at a named rank, which makes **unlabelled** a third outcome beside present and absent — and
+  that is the result that matters most for Evo 1, where 2,543,536 of 2,653,047 surviving records
+  carry no label below class. A zero from this arm is a zero **about labels**, and the artefact
+  must say so in the same field that reports it. The label-independent arm is the owner's
+  standing decision of 2026-10-19: ship the label census first, then measure a small slice of the
+  marker pass before committing to any of it.
