@@ -4,7 +4,7 @@ title: Produce results notebooks and figures
 phase: X
 status: blocked
 gate: false
-depends_on: [X1.5, A3.2, B5.4, C6.1]
+depends_on: [X1.6, A3.2, B5.4, C6.1]
 blocks: []
 design_ref: "§5 deliverable 5"
 deliverable: 5
