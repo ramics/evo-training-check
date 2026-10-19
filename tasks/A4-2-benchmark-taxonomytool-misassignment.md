@@ -34,6 +34,20 @@ class that matters for this audit.
 - Evaluation-set provenance and bias documented.
 - Propagation into leakage stated quantitatively where possible.
 
+## The artefacts were lost and re-run; everything reproduced — 2026-10-19 (D-192)
+
+D-188 found this task's artefacts had never left the container that produced them. X1.6 re-ran
+the whole pipeline — evaluation-set build, NCBI fetch, geNomad 1.1.0 annotate, score, and the
+dependency pass — and every figure below reproduced identically, intervals and cause split
+included: escape 546/1,507 = 36.23% (33.80–38.72%), spurious removal 50/1,642 = 3.05%
+(2.27–4.00%), 38.5573% geNomad-assigned, 39,767 (35,736–44,218) escaping. The pinned VMR and
+marker database each matched their pinned digests. Artefacts are in `corpora/results/a4-2/` with
+one run manifest per step.
+
+One thing worth knowing for anyone re-running this: `misassignment.json` carries
+`propagation: null` unless `dependency.json` is present, so the scoring step needs the dependency
+pass beside it or the headline leakage figure is silently absent rather than wrong.
+
 ## Outcome — 2026-10-15 — done
 
 **Merged** from `ccr-bcc7b994-9ycpzn` in two pull requests: #15 (the dependency pass, the error

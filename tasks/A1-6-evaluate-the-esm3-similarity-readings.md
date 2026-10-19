@@ -810,6 +810,24 @@ way to tell that by inspection, which is why it is written here.
 
 The re-measurement, if wanted, is tracked in X1.6 with A2.1's and A4.2's re-runs.
 
+**Done, 2026-10-19 (D-192).** The caps measurement was re-run under
+`cap-measurement-rerun-20261019.json`, six cells against an identical query and target (31,381
+seeds, 417 M residues, one shard). Every published cell reproduced: record-loss fractions to two
+decimals, wall clocks within 0.5–3.5%, and the hit counts identical — 5,078 and 1,444 max
+hits/seed against the 100,000 cap, and 32,644 post-filtered against 32,374 from the aligner with
+270 found only by the post-filter. Relaxed costs 1.476x filtered against the published 1.47x. All
+four findings stand, and this run wrote the `cap_summary` the published one ended too early to
+produce. **So this task's caps result traces to an artefact again** — under a new key, with the
+published measurement's loss stated above it. X1.6's file carries the full comparison.
+
+Two corrections to the accounting above, both narrowing it. `viral-seeds.faa` at the results key
+no longer holds test fixtures: the re-run re-published it at 1,249,029,570 bytes from a staged
+sample verified against its digests on load, so that key is a genuine duplicate again and the
+canonical copy was never touched. `run-calibration.json` now holds the re-run's provenance rather
+than junk — honest content under a name that does not say which run it describes, which is why
+`--artefact-name` now moves the manifest with the result. `band.json` and `cap-measurement.json`
+still hold fixtures; do not read them.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._

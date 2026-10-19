@@ -8627,3 +8627,143 @@ decision has a threshold or parameter in it, the number goes in the entry.
   applies to the property and not to the families**, and **LCA-based selection cannot answer a
   satellite question** — which bears on any later task that reaches for RVDB to find satellites,
   A2.1's registries included.
+
+### D-191 — A2.5's segmented arm runs as three nested bands, declared before any hit was inspected
+- **Date:** 2026-10-19
+- **Task:** A2.5
+- **Context:** D-190 fixed the family set (1,285 RVDB-prot families, derived) and the threshold
+  (E ≤ 1e-5 at a pinned `Z`, RVDB's published rule) and deliberately left the **depth** to this
+  entry, as D-183 left A2.3's — because depth is the one parameter that should follow a measured
+  rate rather than a guess, and because the project owner asked that the pass be run "in bits so
+  if the money goes up we still have our results".
+  **The measured rate, on real models.** A 120-record probe (`--limit 120`, declared below) put
+  the search at **109 core-seconds per million residues for 1,285 models**, i.e. 0.085
+  core-seconds per profile per Maa. That sits between the two bounds D-190 recorded: 3x D-098's
+  0.0282 over 13,679 curated models, and about half the 0.157 the synthetic profiles of
+  `marker_throughput.py` suggested. Gene calling measured 1.6 core-seconds per Mbp and is
+  single-threaded in the shared code path, which is what actually bounds a band's wall clock.
+  Projected over the component's 10,494 Maa of called protein, a census is about **320
+  core-hours** of search plus **16** of calling — about $17 at the instance rate A2.4 used, not
+  the $5 first quoted from D-098's rate alone. The read is **not** amortised across bands: hash
+  selection has to scan the whole 16.9 GB object to find a band's members, so each band pays its
+  own read of about $1.50.
+- **Decision:** **Three nested bands, in this order**, on the seed D-078 fixed and every A2.1
+  band has used (20261015), so this arm's samples are the same samples A2.1 drew and a later
+  deepening re-reads nothing:
+  1. `[0, 0.02)` — 2% of the surviving component. **Matches A2.1's own deepened depth for this
+     component**, so the two arms' figures are drawn over the same records and are comparable
+     family by family. About 1.5 wall hours.
+  2. `[0.02, 0.10)` — out to 10%, five times deeper than A2.1 ever searched here.
+  3. `[0.10, 1.0)` — the remainder, which makes the result a census.
+  **Each band is a deliverable on its own.** `estimate_kind` is `lower_bound` for bands 1 and 2
+  and `population` only for the full `[0, 1)` span, so a stopped ladder reports what it measured
+  rather than what it intended. A family detected in band 1 is detected, full stop; a family
+  absent is absent *from the records read*, and the interval says so.
+  **Band 3 is conditional and the condition is stated now, before any result could influence
+  it:** it is bought only if bands 1 and 2 leave the question open *and* the measured rate still
+  puts the census under about $25 all-in. If band 1 or 2 finds segmented families, the question
+  is answered in the direction that matters — material survives — and a census buys precision
+  on a number rather than the answer. If the rate comes in worse than that, the cost becomes the
+  finding, as it did for A2.2 under D-180.
+- **Disclosure, because "before results were inspected" has to mean something.** A 120-record
+  probe was run to smoke-test the tool end to end before this entry was written, and it returned
+  **zero hits**. That is 0.005% of the component, it was run with `--limit` as an explicit probe
+  rather than as a band, and it is recorded here rather than left out: a null over 120 records of
+  a phage-dominated corpus carries no information about the categories, but the honest statement
+  is that the ladder was declared *after* that probe and not in total ignorance. No band figure
+  and no family identity was seen before this entry.
+- **Rejected:** *A census in one pass.* 320 core-hours is 40 wall hours at eight threads and the
+  gene-calling arm is single-threaded, so one run cannot finish inside this environment's window
+  — the same constraint D-099's bands were invented for. Bands are not a compromise here, they
+  are the only shape that fits.
+  *Fewer, wider bands* to save the per-band read. Cheaper in total, but it banks nothing until
+  late, which is the opposite of what was asked for. Three bands is the compromise: one read's
+  worth of overhead buys a quotable result at 2%.
+  *Starting deeper than 2%.* A2.1's depth is the one that makes the two arms comparable, and a
+  first band that cannot be set beside the label-side census is worth less than one that can.
+- **Consequence:** A2.5's weak zero gets a label-independent measurement at a depth matching
+  A2.1's, and the ladder above it is costed. Whatever band the ladder stops at, the artefact
+  states its own depth and interval, so no reader has to know how far it got to read it
+  correctly.
+
+### D-192 — The three lost measurements re-ran and every published figure reproduced; two defects in the tools that produce them did not
+- **Date:** 2026-10-19
+- **Task:** X1.6
+- **Context:** D-188 and D-189 left three measurements with no machine-readable artefact: A2.1's
+  profile detection tables, A4.2's misassignment benchmark, and A1.6's caps measurement. Their
+  figures survived only as prose in the task files, which under `AGENTS.md`'s "artefacts before
+  prose" is a gap in three deliverables rather than a cosmetic one. This entry records what the
+  re-runs found, because it is the first occasion on which any of these numbers could be checked
+  against the committed code at all.
+  **Every figure reproduced, and most of them exactly.** Nothing was adjusted to match; the
+  comparison is in X1.6's own file in full.
+  *A2.1, at the pre-registered shallow depth.* Pfam 470 and RVDB 572 on Evo 1, 492 and 1,456 on
+  Evo 2 — all four identical to the published first pass, across all three readings, with
+  `esm3-proxy` correctly `not_searched`. The registries re-staged to their pinned digests and
+  both denominators reproduced: Pfam viral 1,719 of 30,134, RVDB-prot 13,679 counted against
+  13,679 stated. 32 objects, 40 MB, with run manifests.
+  *A4.2.* The evaluation set rebuilt from the pinned VMR to exactly 3,149 sequences, 1,507 in
+  scope across 44 families, 1,642 controls across 189. Escape 546/1,507 = 36.23% (33.80-38.72%)
+  and spurious removal 50/1,642 = 3.05% (2.27-4.00%), identical to the digit including intervals,
+  with the cause split unchanged at 344 unclassified, 119 shallower than the rule, 52 misassigned
+  order, 28 absent at the rule's ranks, 3 misassigned family. The dependency pass reproduced
+  15,677,623 records, 181,530 denylist hits and 38.5573% geNomad-assigned, so the propagation
+  recomputed to 109,760 in scope and 39,767 (35,736-44,218) escaping.
+  *A1.6's caps measurement, under the new key `cap-measurement-rerun-20261019.json`.* All six
+  cells, against a query and target identical to the published run's (31,381 seeds, 417 M
+  residues). Record-loss fractions agree to two decimals — 0.88/2.28% relaxed and 3.31/9.72%
+  filtered, against the published 0.9/2.3% and 3.3/9.7% — and wall clocks within 0.5-3.5%. The
+  hit-count figures are identical: max 5,078 hits/seed relaxed and 1,444 filtered against a
+  100,000 cap, and the reading-1 agreement check at 32,644 post-filtered against 32,374 from the
+  aligner, 270 found only by the post-filter and none only by the aligner. Relaxed coverage costs
+  1.476x filtered, against the 1.47x published. So all four of A1.6's findings stand, and this
+  run also wrote the `cap_summary` the published one ended too early to produce.
+- **Decision:** Two defects found while using the tools are fixed here rather than noted, because
+  both are in the path a re-measurement takes and one of them is the hazard X1.6 was written to
+  avoid.
+  **`detect_profiles.py --plan` was broken on `main`.** It passed one argument to a two-argument
+  `searched_sources` and indexed the result as a mapping, so the flag raised `TypeError`. The
+  search paths were never affected, which is why nothing caught it: a reporting path runs only
+  when somebody asks what a run *would* read, which is exactly the cheap pre-flight check before
+  a multi-hour search. The branch body moves into a tested `plan_lines`.
+  **`esm3_calibrate.py --artefact-name` moved the result and not its manifest.** The flag exists
+  so a re-measurement does not write a key whose figures are cited, and the caps re-run duly
+  wrote its measurement to a new name — then wrote its provenance to `run-calibration.json`, the
+  manifest key of the run it was replacing, in a bucket with no `DeleteObject`. Nothing citable
+  was lost, because D-189 records that object as already destroyed by the 15:18 test-fixture
+  writes, but the next use of the flag would have destroyed a live manifest. The manifest name
+  now follows the artefact name.
+  **Two corrections to D-189's accounting, both narrowing it.** `corpora/results/a1-6/viral-seeds.faa`
+  no longer holds test fixtures: the caps re-run re-published it at 1,249,029,570 bytes, the same
+  length as the canonical copy under `corpora/samples/`, derived from a staged sample the tool
+  verified against its manifest digests on load ("verified 9 objects"). It was not re-derived by
+  a corpus pass, so A1.6's "do not rebuild it" was not violated, but the upload was a write this
+  session did not predict from reading the tool and should have. And `run-calibration.json` now
+  holds the re-run's provenance rather than test junk — honest content under a name that does not
+  say which run it describes, which is what the fix above prevents repeating. Of D-189's four
+  damaged keys, two now hold genuine content and `band.json` and `cap-measurement.json` still
+  hold fixtures.
+- **Rejected:** *Deepening A2.1 to D-099's ten-fold depth in the same sitting.* The shallow pass
+  is a superset relationship and a backed artefact in two hours; the deepening is about eighteen
+  more and a separate decision, which is how X1.6 framed it and how the project owner chose it.
+  *Re-measuring A1.6's caps at two target sizes.* `--cap-shard-points 1` reproduces exactly the
+  six cells the published run completed, and the published run "ended before the second target
+  size" so there was never a linearity check to compare against. Paying for a second size would
+  have measured something new under cover of restoring something old.
+  *Writing the caps result to `cap-measurement.json`.* A1.6 and D-189 both rejected this twice
+  already; the new key is the whole point.
+  *Patching the caps heartbeat.* In caps mode `_progress` is written once before a reading's
+  slack cell and the interval heartbeat covers only the corpus-pass reader, so during a
+  35-minute cell the heartbeat does not move — `written_at` stood at 18:46 while the run was
+  plainly alive at 19:43. `AGENTS.md` cites this tool as the worked example for writing "a
+  heartbeat to object storage on an interval", and for this mode that is not what it does. It
+  cost nothing here because the artefact itself grows as each cell publishes, which is the other
+  half of the same instruction and does work. Recorded rather than fixed, so it is a named gap
+  for whoever needs a long caps cell to be observable rather than a change made in passing to a
+  tool this task was only using.
+- **Consequence:** A2.1, A4.2 and A1.6's caps measurement each have an artefact in object storage
+  with a run manifest, so the Phase A write-up can cite them. X1.2 and X1.3 are unblocked. The
+  wider result is the reassuring one: nine tasks lost their tables and the three expensive ones
+  came back identical, so the loss was a durability failure and not a reproducibility failure.
+  A1.6's caps figures now trace to an artefact again, which is the gap its review was left
+  holding — under a new key, with the published measurement's loss stated beside it.
