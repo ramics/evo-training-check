@@ -7605,3 +7605,47 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Consequence may not** — those are corrected by a new entry, as D-154, D-156 and D-162 were.
   `tools/decisions.py` now fails CI on a duplicate ID, so the collision these notes record is
   caught deterministically rather than by git happening to notice.
+
+### D-176 — A2.4 is done: D-161 binds A3.2 and the write-up, not A2.4's tables, so yesterday's withdrawal of its completion claim is itself withdrawn
+- **Date:** 2026-10-19
+- **Task:** A2.4
+- **Context:** Yesterday's repo audit withdrew A2.4's "every Done-when criterion is met" claim, on
+  the grounds that D-161 had changed what may be reported from its tables after that claim was
+  written, and recommended amending criterion 1 the way A1.6's (D-170) and A7.1's (D-174) were.
+  Re-read against D-161 itself, that was over-cautious. **D-161's own header reads "A2.4 (governs
+  A3.2 and the Phase A write-up)" and its Consequence names only those two**: A3.2 must not pool
+  the registries' fractions, and the write-up carries the composition and absolute counts with
+  any percentage naming its denominator. It places no requirement on A2.4's tables. A2.4's three
+  criteria — hit tables with route attribution, two-tool concordance on a documented sample,
+  parameters and versions recorded — are met as written, and D-161 is a constraint on the
+  consumers of those tables rather than a change to the deliverable. That is the material
+  difference from A1.6 and A7.1, where the deliverable itself had changed.
+- **Decision:** A2.4 moves to `done`. Criterion 1 is **not** amended. The two gaps the audit found
+  are real and are tracked where they belong rather than held against this task: D-173 records
+  that D-161's cross-registry figures still have no emitter and that A2.4's twelve published
+  tables predate the `denominator` and `composition` fields, and A3.2 and A6.1 are the tasks the
+  rule binds. Depth stays at 0.25% as the shipped result, on this task's own standing framing that
+  deepening to 2.5% "is an improvement to the strength of the claim rather than a missing
+  criterion" — so the open depth question is not a completion blocker either, and it lapses with
+  the task rather than carrying forward as an owner decision.
+- **Rejected:** Amending criterion 1 to require denominator-named reporting, as the audit
+  proposed — it would import a downstream constraint into an upstream task's criteria, and the
+  consequence would be that A2.4 could not close until a write-up that does not yet exist had
+  consumed its tables correctly. Leaving A2.4 at `review` until D-161's cross-registry emitter is
+  built — that work is tracked in D-173, it is not in A2.4's criteria, and parking a finished
+  measurement behind it keeps a fourth task showing as in-flight when nothing is. Re-running the
+  twelve tables so they carry the new fields — both fields derive from rows the tables already
+  hold, so the re-run buys a format change for real spend, and D-173 already declined it.
+  Deciding depth now in order to close — the depth question was never a criterion, and answering
+  it under time pressure to tidy a status is the wrong reason to spend $7 and 33 wall hours.
+- **Consequence:** Phase A's prophage result is final at 0.25% of both releases, as a lower bound
+  on two registries whose fractions are not comparable. **The whole of D-161 now rests on A3.2 and
+  A6.1**, and neither has yet consumed an A2.4 table: A3.2 is blocked, A6.1 is behind the A3.3
+  gate, and the tables they will read do not carry the restriction in-band. That is the live risk
+  this entry creates and it is stated rather than hidden — D-173's fields will be present only on
+  tables produced after that code merges. The audit's general finding also stands uncorrected by
+  this entry: nothing checks a task's Done-when against the decisions that supersede it, and this
+  is the fourth task in two days where that question had to be asked by hand — A1.6, A2.4, A7.1,
+  and now A2.4 again in the other direction. Being wrong in *this* direction is the cheaper error,
+  but it is still an error: the check was a judgement call made twice, two days running, by
+  reading prose.
