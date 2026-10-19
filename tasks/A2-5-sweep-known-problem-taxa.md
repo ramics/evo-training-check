@@ -34,7 +34,7 @@ Check the specific categories §A2 names as known to defeat taxonomic filters.
 
 ## Result — 2026-10-19
 
-`review`. Branch `claude/admiring-darwin-6r47lw`; artefacts at `corpora/results/a2-5/` (and
+`review`. Merged in PR #26; **nothing is on a branch.** Artefacts at `corpora/results/a2-5/` (and
 `artifacts/a2-5/`). Pre-registered as **D-187** before any count was taken.
 
 **This is the label-side arm, and that bound is in every table.** The categories are taxa, so the
