@@ -7847,3 +7847,80 @@ decision has a threshold or parameter in it, the number goes in the entry.
   HK97 capsid, large terminase and portal folds, which would measure what the audit cares about
   in the corpora it actually has. That is a `DESIGN.md` question and a new task, not a widening
   of this one — `AGENTS.md` is explicit that an adjacent problem gets a new file and a new id.
+
+### D-181 — Correction to D-157: both halves of the published denylist fall inside the span of readings, and comparing sums hid it
+- **Date:** 2026-10-19
+- **Task:** A1.8
+- **Supersedes in part:** D-157, whose headline — "the published figure sits below every
+  reading we can construct from the regulation" — does not survive the decomposition below.
+- **Context.** Reading PR #24, the project owner asked whether removing the material that
+  aligns to things other than viruses would bring the count closer to the paper's. Nothing
+  A1.8 had produced could answer it, because A1.8 had only ever compared **totals**:
+  1,277,073 / 321,669 / 229,787 against 187,000. ESM3 does not publish 187,000. It publishes
+  *"147K non-viral sequences and 40K additional viral sequences"* (version of record A.6.1
+  p47) — two figures, which D-106 recorded faithfully, D-146 added together, and D-150 and
+  D-157 then compared as a sum without re-reading the sentence they were quoting.
+- **Measured for nothing, from the artefact already in hand.** The 2.64-hour pass over the
+  182.7 GB archive recorded per-taxon counts, and the Viruses superkingdom is in the same
+  pinned taxonomy (2023-04-01) the reading was resolved against. So the split is a
+  regrouping of a measurement already taken, needing no second pass — the same argument
+  D-157 used to measure strain descent. `tools/select_agent_decomposition.py` produces it;
+  both readings still sum to D-157's figures exactly, which a test asserts.
+
+  | reading, UniProtKB at 2023_02 | viral | vs 40K | non-viral | vs 147K |
+  |---|---|---|---|---|
+  | named organisms **and their strains**, all three parts | 828,606 | 20.7x | 448,467 | 3.05x |
+  | …less the avian influenza entry | 62,094 | 1.55x | 448,467 | 3.05x |
+  | **named organisms only**, all three parts | 137,429 | 3.44x | 184,240 | **1.25x** |
+  | …less the avian influenza entry | 45,547 | **1.14x** | 184,240 | **1.25x** |
+  | named organisms only, **42 CFR 73 alone** | 18,327 | **0.46x** | 92,225 | **0.63x** |
+
+- **The hypothesis is inverted by the data, and usefully so.** The published denylist is 79%
+  non-viral, and the non-viral half is the one that nearly reconciles — 184,240 against
+  147,000, 1.25x, on the narrowest full-list reading. The excess is *viral*, and it is one
+  entry: avian influenza, which D-137 deliberately read as Influenza A entire, on the stated
+  grounds that for an audit an over-inclusive denylist overstates what should have been
+  removed rather than understating it. Set that one entry aside and the viral half is 1.14x.
+  Removing non-viral material moves away from the published figures, not toward them.
+- **Both published halves sit inside the bracket, and that is what overturns D-157.** "The
+  Select Agents and Toxins List" is three codified parts, and the source cites the summary
+  page that covers all three — but 42 CFR 73 alone is a reading the same regulation admits,
+  and D-138 recorded the version question without reaching the scope question. Read narrowly
+  it gives 18,327 viral and 92,225 non-viral: **below both published halves**. Read as all
+  three parts without descent it gives 137,429 and 184,240: above both. Each published half
+  is therefore bracketed by readings constructible from the regulation, and the published
+  text does not say which was taken. D-157 reported that the published figure sat below
+  everything; it does not.
+- **Why the sum hid it.** The pooled ratio for the named-only reading is 1.72x, which
+  resembles neither half — 3.44x viral and 1.25x non-viral. A total can be matched, or
+  missed, by two errors of opposite sign, so a sum is the weakest form of this test and the
+  source had already supplied the strong one. Checking a published decomposition against its
+  own sum discards the constraint that makes it evidence.
+- **What may now be claimed, and what may not.** The honest statement is an
+  under-specification finding (§A0): the regulation admits a span of readings whose viral
+  halves run 0.46x–3.44x and whose non-viral halves run 0.63x–3.05x of the published figures,
+  both published halves fall inside that span, and neither the paper nor the regulation says
+  which reading was taken. D-157's stronger conclusion — "either the denylist omitted
+  material the stated procedure would include, or the description is incomplete" — is **not
+  supported** by the counting evidence and is withdrawn. It remains true that no single
+  reading reproduces both halves exactly, and that is unremarkable at this precision.
+- **What D-157 keeps.** Its measurements, all of which stand. Its correction of D-150's
+  "comfortably within release drift", which was the substantive error. And its contrast with
+  the viral denylist, which is untouched: that list's 1.34x gap has a described cause in the
+  paper's second clause, and no comparable step is described for this one. What changes is
+  that the select-agent gap is now attributable to our own reading latitude rather than left
+  as an unexplained discrepancy in the source.
+- **Rejected:** Adopting "named only, 42 CFR 73 alone, avian influenza read narrowly" as the
+  reading, on the grounds that it would land closest on both halves — fitting a reading to a
+  target is what D-150 withdrew a hypothesis for, and two targets instead of one does not
+  make it inference. Promoting the HHS-only reading to primary: D-138 pinned all three parts,
+  the model card cites the page covering all three, and the narrow reading is a sensitivity
+  that is now measured rather than argued about. Withdrawing D-157 entirely — one claim it
+  drew is wrong, the rest is sound, and the log is append-only. Re-running the archive pass:
+  the per-taxid detail answers this exactly and for nothing.
+- **Process point, the fourth of this kind in this task.** D-150 was a quiet caveat in code,
+  D-154 a quiet qualifier in a docstring, D-156 a reading already fixed in `policies/specs/`
+  that nobody re-read — and this is a published figure quoted as a sum for three decision
+  entries while its own decomposition sat in the sentence being quoted. In every case the
+  information was already in the repository. **Re-read the source sentence when you cite the
+  number, not only when you first record it.**

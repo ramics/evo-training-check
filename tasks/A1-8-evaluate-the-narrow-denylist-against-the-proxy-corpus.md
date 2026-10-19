@@ -528,3 +528,35 @@ package (D-125, D-126), not for this arm.
 staged, so every band run pays a 52-minute corpus pass to rebuild them. A1.8 paid it four
 times on 2026-10-19. `--stage-sidecars-only` exists for it; A1.8 did not use it because it
 writes into A1.6's sample prefix.
+
+## Correction to the reconciliation — 2026-10-19, second
+
+**Still `review`; still PR #24, branch `ccr-44355df9-hi20t9`.** `pixi run -e dev check` green
+at 1,281 passed, 3 skipped. One decision added: **D-181**.
+
+**The headline above is overstated and is corrected there.** ESM3 does not publish one
+denylist size, it publishes two — "147K non-viral sequences and 40K additional viral
+sequences" (A.6.1 p47). This task compared their sum. Split the same measurement into the same
+two halves, which costs nothing because the release pass already recorded per-taxon counts:
+
+| reading, UniProtKB at 2023_02 | viral | vs 40K | non-viral | vs 147K |
+|---|---|---|---|---|
+| named organisms and their strains, all three CFR parts | 828,606 | 20.7x | 448,467 | 3.05x |
+| named organisms only, all three parts | 137,429 | 3.44x | 184,240 | 1.25x |
+| …less the avian influenza entry | 45,547 | 1.14x | 184,240 | 1.25x |
+| named organisms only, 42 CFR 73 alone | 18,327 | **0.46x** | 92,225 | **0.63x** |
+
+**Both published halves fall inside that span rather than below all of it.** The narrow reading
+of list scope — the HHS part alone, which the regulation admits and D-138 did not reach — sits
+under each published half; the full list without descent sits over each. So the finding is
+under-specification (§A0): the source does not say which reading it took, and several
+constructible ones bracket what it reports. D-157's stronger conclusion, that the denylist
+omitted material its stated procedure would include or that the description is incomplete, is
+withdrawn in D-181. D-157's measurements, its correction of D-150, and the contrast with the
+viral denylist's described second clause all stand.
+
+Artefact: `corpora/results/a1-8/select-agent-decomposition.json`, from
+`tools/select_agent_decomposition.py`. Both readings still sum to D-157's figures exactly, and
+a test asserts it.
+
+**Waiting on the project owner:** nothing.
