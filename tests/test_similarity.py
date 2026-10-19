@@ -903,6 +903,70 @@ def test_the_fine_histogram_sums_to_the_top_band() -> None:
     assert stream.fine_top[mode][-1] == 2, "two exact matches"
 
 
+# --- D-158's second denominator, which band 1 could not supply (D-160) ------------------
+
+
+def test_seed_membership_follows_the_reading_not_the_row() -> None:
+    """A seed counts under a reading only if one of its rows passes *that* reading's coverage.
+
+    `qcov` high and `tcov` low passes reading 2 and fails readings 0 and 1, so a seed whose
+    only row looks like that must appear under 2 alone. Collapsing the readings into one set
+    is the error that would make the exposure share read against the wrong denominator.
+    """
+    stream = sim.TargetStream(track_seeds=True)
+    stream.extend(_rows_sorted([sim.HitRow("seedA", "recA", 0.95, 0.9, 0.2)])).close()
+    ids = stream.seeds_hit_ids()
+    assert ids[2] == ["seedA"]
+    assert ids[0] == []
+    assert ids[1] == []
+
+
+def test_a_seed_is_counted_once_however_many_records_it_hits() -> None:
+    """Membership, not hit count — weighting by hits folds the corpus sample in (D-158)."""
+    rows = [sim.HitRow("seedA", f"rec{i}", 0.95, 0.9, 0.9) for i in range(5)]
+    stream = sim.TargetStream(track_seeds=True).extend(_rows_sorted(rows))
+    stream.close()
+    assert stream.seeds_hit_ids()[1] == ["seedA"]
+    assert stream.to_dict()["seeds_with_hits"]["1"] == 1
+    # The record count is the other axis and must still see all five.
+    assert stream.records[1] == 5
+
+
+def test_a_seed_whose_every_row_fails_coverage_is_not_counted() -> None:
+    stream = sim.TargetStream(track_seeds=True)
+    stream.extend(_rows_sorted([sim.HitRow("seedA", "recA", 0.99, 0.1, 0.1)])).close()
+    assert all(v == [] for v in stream.seeds_hit_ids().values())
+
+
+def test_published_counts_carry_no_identifier() -> None:
+    """D-125: the published aggregate is counts by route and class, never ids. A count is not
+    an identifier, so it may travel; the ids go to the staged disclosure package instead."""
+    stream = sim.TargetStream(track_seeds=True)
+    stream.extend(_rows_sorted([sim.HitRow("seedA", "recA", 0.95, 0.9, 0.9)])).close()
+    blob = repr(stream.to_dict())
+    assert "seedA" not in blob
+    assert "seeds_with_hits" in blob
+
+
+def test_ids_are_sorted_so_the_sidecar_is_reproducible() -> None:
+    """Set iteration order is not stable across processes; an artefact that differs run to run
+    cannot be checksummed or compared."""
+    rows = [sim.HitRow(f"seed{i}", "recA", 0.95, 0.9, 0.9) for i in (3, 1, 2)]
+    stream = sim.TargetStream(track_seeds=True).extend(_rows_sorted(rows))
+    stream.close()
+    assert stream.seeds_hit_ids()[1] == ["seed1", "seed2", "seed3"]
+
+
+def test_asking_for_ids_without_tracking_is_refused_rather_than_empty() -> None:
+    """Returning an empty set here would read as 'no seed hit anything', which is the one
+    answer that looks like a result rather than a mistake."""
+    stream = sim.TargetStream()
+    stream.extend(_rows_sorted([sim.HitRow("seedA", "recA", 0.95, 0.9, 0.9)])).close()
+    with pytest.raises(ValueError, match="track_seeds=True"):
+        stream.seeds_hit_ids()
+    assert "seeds_with_hits" not in stream.to_dict()
+
+
 def test_a_cell_published_before_the_fine_cut_contributes_no_silent_zero() -> None:
     """An old cell did not measure this; it must not look like it measured zero."""
     raw = {
@@ -979,3 +1043,62 @@ def test_a_hit_vector_that_does_not_match_its_strata_is_refused() -> None:
     cell.hits_ge70[1] = cell.hits_ge70[1][:-1]
     with pytest.raises(ValueError, match="do not describe the same shard"):
         sim.combine_cells([cell])
+
+
+def test_a_cell_published_before_this_field_existed_still_rehydrates() -> None:
+    """Every band-1 cell predates D-160. A resumed band has to reuse them, not rebuy them."""
+    raw = {
+        "shard": 0,
+        "sensitivity": 5.7,
+        "cov_mode": 1,
+        "seed_denominator": 100,
+        "bands": {"1": [0, 0, 1, 2]},
+        "families": {"1": [[1, 2]]},
+        "searched_clusters": 10,
+        "seeds_searched": 31381,
+        "seed_families": 7366,
+    }
+    raw["slug"] = sim.CellKey(shard=0, sensitivity=5.7, cov_mode=1, seed_denominator=100).slug()
+    cell = sim.cell_from_dict(raw)
+    assert cell.seeds_with_hits == {}
+    assert cell.seeds_searched == 31381
+
+
+def test_seeds_with_hits_round_trips_through_the_artefact() -> None:
+    raw = sim.CellResult(
+        key=sim.CellKey(shard=0, sensitivity=5.7, cov_mode=1, seed_denominator=100),
+        bands={1: [0, 0, 1]},
+        families={1: [(1, 1)]},
+        seeds_with_hits={1: 42},
+    ).to_dict()
+    assert raw["seeds_with_hits"] == {"1": 42}
+    assert sim.cell_from_dict(raw).seeds_with_hits == {1: 42}
+
+
+def test_the_union_across_shards_is_not_derivable_from_the_counts() -> None:
+    """Why `combine_cells` does not carry this field: a seed can hit in one shard and not
+    another, so the cross-shard figure is a union of id sets. Two cells each reporting 10 may
+    mean anywhere from 10 to 20 distinct seeds, and nothing in the counts says which."""
+    cells = [
+        sim.CellResult(
+            key=sim.CellKey(shard=sh, sensitivity=5.7, cov_mode=1, seed_denominator=100),
+            bands={1: [0, 0, 1, 0, 0]},
+            families={1: [(1, 1)]},
+            seeds_searched=31381,
+            seed_families=7366,
+            seeds_with_hits={1: 10},
+        )
+        for sh in (0, 1)
+    ]
+    combined = sim.combine_cells(cells)
+    for group in combined.values() if isinstance(combined, dict) else []:
+        if isinstance(group, dict):
+            assert "seeds_with_hits" not in group
+
+
+def test_for_search_propagates_seed_tracking() -> None:
+    """The band turns this on per cell (D-160); the cap measurement leaves it off."""
+    tracked = sim.TargetStream.for_search(1, track_seeds=True)
+    assert tracked.track_seeds and set(tracked.seeds_hit) == set(tracked.derive)
+    plain = sim.TargetStream.for_search(1)
+    assert not plain.track_seeds and plain.seeds_hit == {}

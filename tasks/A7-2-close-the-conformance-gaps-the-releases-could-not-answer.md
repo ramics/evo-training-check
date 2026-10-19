@@ -184,10 +184,16 @@ enumeration instead. A0.4 should read D-072 before reporting the Evo spread.
 - *Headline numbers independently reproduced via A3.3* — **outstanding.** This is the only open
   criterion and it is the A3.3 gate, not work inside this task.
 
-**What is waiting on the project owner:** nothing to unblock this task. Two things worth a
+**What is waiting on the project owner:** nothing to unblock this task. ~~Two things worth a
 decision elsewhere: whether D-071's identification of v4.1 should be carried back into
 `policies/corpora.md`, which still records the release as ambiguous; and whether Evo 2's 264,570
-figure is a Phase A headline in its own right or belongs inside A6.1's write-up.
+figure is a Phase A headline in its own right or belongs inside A6.1's write-up.~~
+
+**Both were decided — D-073.** The Evo 2 result became its own task, **A7.3**
+(`tasks/A7-3-audit-evo-2s-released-viral-component-against-the-procedure-it-adopts.md`, `blocked`
+on this one), rather than a section of A6.1's write-up; and the v4.1 identification was carried
+into `policies/corpora.md` with its "identified from Evo 1's output, not from Evo 1's words"
+caveat. Struck above rather than deleted, because this block was the record of them being open.
 
 **Reproducing it** (about 20 minutes end to end, all in the session container — the EC2 test was
 applied and declined, D-070):
@@ -213,3 +219,22 @@ classification string. Neither would have raised.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Correction — 2026-10-19, repo audit
+
+Two staleness items from auditing the `review` tasks' Done-when criteria. **The criteria
+themselves still describe the deliverable** — unlike A1.6's (D-170) and A2.4's — and the only
+open one remains the A3.3 gate. Nothing here changes a number.
+
+**The owner questions above were answered by D-073 and the block had not caught up**, which is
+the thing that makes a `review` block misleading: it reads as waiting on someone when it is not.
+Struck and corrected in place.
+
+**A defect in this task's own code was found after it claimed its criteria met, and the block
+never recorded it — D-074.** A7.2 extended `conformance.RELEASE_INPUTS` with `imgvr-v4` and
+`imgvr-v4.1` but not `corpora.SOURCES`, and nothing failed: the cross-check test named two
+releases by hand and was structurally blind to a third, so both this task's CI and A1.4's stayed
+green over a real inconsistency. It was remediated under A1.4 and `INPUT_RELEASES` is on `main`.
+Recorded here because "every Done-when criterion is met except the last" was written before it
+was found, and a reader checking this task's history should see that the sentence did not hold at
+the time it was written.

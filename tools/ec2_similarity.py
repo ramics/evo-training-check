@@ -683,88 +683,35 @@ def _sample_flags(args: Any) -> str:
     return "--stage-sample" if args.stage_sample else ""
 
 
+# These four moved into `amazebio.ec2` when a second launcher needed the same answers
+# (D-158). Each encodes a lesson that cost a launch or a day, and a second copy of such a
+# lesson is a copy that drifts from the first. They stay callable under these names because
+# this module's tests address them, and because a launcher reads better naming what it asks
+# for. The import is deferred into each call for the same reason the rest of this module
+# defers it: `sys.path` gains `src/` inside `main`, so there is nothing to import from at
+# module scope when the file is loaded directly.
+
+
+def _ec2mod() -> Any:
+    from amazebio import ec2 as mod
+
+    return mod
+
+
 def spot_refusal(text: str) -> str | None:
-    """Why a spot launch was refused, in terms the next person can act on. `None` if unclear.
-
-    Both refusals this distinguishes mean nothing launched and nothing was billed, and they
-    need opposite responses — which is why they are not one message.
-
-    *The service-linked role.* Measured 2026-10-16, and no dry run finds it: a spot request
-    needs `AWSServiceRoleForEC2Spot`, which EC2 creates on the caller's behalf on first use
-    via `iam:CreateServiceLinkedRole`. AGENTS.md records that `iam:*` is denied in this
-    account, so spot is not a flag that can be turned on from here. It needs one IAM action
-    from someone who has that permission, and until then every spot-priced figure in this
-    task is a price we cannot pay.
-
-    *Capacity.* The ordinary spot refusal: the same request may succeed later, or on another
-    permitted instance type.
-    """
-    if "ServiceLinkedRoleCreationNotPermitted" in text:
-        return (
-            f"spot is unavailable in this account: {text[:160]}\n"
-            "  the EC2 Spot service-linked role does not exist and iam:* is denied, so it "
-            "cannot be created from here.\n"
-            "  nothing launched, nothing billed. Either someone with IAM permissions creates "
-            "AWSServiceRoleForEC2Spot once, or the run goes on demand without --spot at "
-            "roughly 3-4x the price.\n"
-            "  that price difference is not a detail: D-104's $240-450 and D-109's $26 are "
-            "spot figures."
-        )
-    if "Capacity" in text or "capacity" in text:
-        return (
-            f"spot capacity refused: {text[:200]}\n"
-            "  nothing launched and nothing billed. Retry, try another permitted instance "
-            "type, or run on demand without --spot at the higher price."
-        )
-    return None
+    return _ec2mod().spot_refusal(text)
 
 
 def market_options(spot: bool) -> dict[str, Any] | None:
-    """What to ask EC2 for, market-wise. `None` means say nothing and get on demand.
-
-    Three choices, each of which has a cheaper-looking alternative that is wrong here:
-
-    *One-time, not persistent.* A reclaim on a persistent request re-launches the instance,
-    which restarts a multi-hour pass with nobody watching and bills for it. The pass is
-    re-run deliberately or not at all.
-
-    *Interruption behaviour terminate, not stop or hibernate.* Stop keeps billing the
-    volume, which is the same trap `InstanceInitiatedShutdownBehavior` exists to avoid, and
-    it leaves a resource to forget. That flag stays set independently: it governs the
-    instance's own shutdown, this one governs EC2's reclaim, and both have to say terminate.
-
-    *No maximum price.* Omitting it caps the bid at the on-demand price. The saving this
-    task wants comes from spot being cheaper than on demand, not from bidding under the
-    going rate — a bid below it converts a run that would have cost money into a launch that
-    silently never happens, and nobody is watching to notice.
-    """
-    if not spot:
-        return None
-    return {
-        "MarketType": "spot",
-        "SpotOptions": {
-            "SpotInstanceType": "one-time",
-            "InstanceInterruptionBehavior": "terminate",
-        },
-    }
+    return _ec2mod().market_options(spot)
 
 
 def _transition_reason(ec2: Any, iid: str) -> str:
-    """Why EC2 says the instance changed state. Empty when it does not say."""
-    try:
-        inst = ec2.describe_instances(InstanceIds=[iid])["Reservations"][0]["Instances"][0]
-        return str(inst.get("StateTransitionReason", ""))
-    except Exception:
-        return ""
+    return _ec2mod().transition_reason(ec2, iid)
 
 
 def _state(ec2: Any, iid: str) -> str:
-    try:
-        return ec2.describe_instances(InstanceIds=[iid])["Reservations"][0]["Instances"][0][
-            "State"
-        ]["Name"]
-    except Exception:
-        return "unknown"
+    return _ec2mod().state_of(ec2, iid)
 
 
 if __name__ == "__main__":

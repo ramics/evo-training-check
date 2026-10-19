@@ -59,7 +59,11 @@ from collections.abc import Iterable, Iterator, Mapping
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import IO
+from typing import IO, Any, Protocol, TypeVar
+
+#: What one batch of entry blocks reduces to. `scan_parallel` is generic over it so the
+#: ordering and back-pressure guarantees below hold for every reduction over these tiers.
+_R = TypeVar("_R")
 
 #: NCBI taxonomy id of the Viruses superkingdom. Everything beneath it is viral, phages
 #: included — they are viruses, and nothing in ESM3's description carves them out.
@@ -500,27 +504,39 @@ def iter_entry_blocks(chunks: Iterable[bytes], batch_bytes: int = 8 << 20) -> It
         yield batch
 
 
-_WORKER_CONFIG: ScanConfig | None = None
+class BatchScanner(Protocol[_R]):
+    """What `scan_parallel` needs of a config: reduce raw entry blocks to one result.
+
+    A protocol rather than `ScanConfig` because the same pass drives more than one
+    reduction over the same tiers — `exclusivity.ExclusivityConfig` is the other — and two
+    copies of the ordering and back-pressure logic below would be two chances to get them
+    differently wrong. The config must be picklable: it crosses to the workers once.
+    """
+
+    def scan(self, blocks: Iterable[bytes]) -> _R: ...
 
 
-def _init_worker(config: ScanConfig) -> None:
+_WORKER_CONFIG: BatchScanner[Any] | None = None
+
+
+def _init_worker(config: BatchScanner[Any]) -> None:
     global _WORKER_CONFIG
     _WORKER_CONFIG = config
 
 
-def _scan_batch(blocks: list[bytes]) -> BatchResult:
+def _scan_batch(blocks: list[bytes]) -> Any:
     assert _WORKER_CONFIG is not None, "worker started without a config"
     return _WORKER_CONFIG.scan(blocks)
 
 
 def scan_parallel(
     chunks: Iterable[bytes],
-    config: ScanConfig,
+    config: BatchScanner[_R],
     *,
     workers: int,
     batch_bytes: int = 8 << 20,
     max_in_flight: int | None = None,
-) -> Iterator[BatchResult]:
+) -> Iterator[_R]:
     """Parse entries across worker processes, yielding batch reductions **in order**.
 
     Decompression stays in the calling process because a gzip stream cannot be split;

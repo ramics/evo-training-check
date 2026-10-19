@@ -2,7 +2,7 @@
 id: A2.4
 title: Detect integrated elements in surviving bacterial genomes
 phase: A
-status: in-progress
+status: done
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
@@ -33,126 +33,138 @@ labels do not capture.
 - Two-tool concordance measured on a documented sample.
 - Parameters and versions recorded.
 
-## State — 2026-10-17
+## State — 2026-10-18
 
-`in-progress`. **Branch `ccr-a062d0fd-ocvx60`** carries the work; `main` has this file, the
-board and D-112 to D-117.
+`review`. **Branch `ccr-a062d0fd-ocvx60`.** The result is D-155 and the artefacts are at
+`corpora/results/a2-4/`. **Reporting is governed by D-161**, which landed 85 minutes after this
+block first claimed every Done-when criterion was met; see the correction at the end of the file
+for why that claim is not restated here.
 
-**Why this task.** Of the four ready A2 detectors it is the one whose inputs are already staged
-— OpenGenome2's GTDB v220 component was staged with "A2.4 searches these genomes for integrated
-elements" as its stated reason — and whose tool was already pinned. A2.3's eukaryotic inputs are
-2.17 TB and deliberately unstaged; A2.2 needs a structure search tool the environment does not
-carry.
+**The result, 0.25% of both releases.** Every detection `element_kind: prophage`,
+`estimate_kind: lower_bound`:
 
-**Pre-registered, before any output existed (D-112..D-116).** The instrument pin is separate
-from A4.2's object of study — A4.2 benchmarks geNomad 1.1.0 because that is the version IMG/VR's
-labels came out of, and detecting with the same 2022 build against the same 2022 markers would
-make the audit's blind spot and the filter's the same one. A2.4 runs geNomad 1.12.0 against
-marker database v1.9, the newest pairing the publisher attests. Localisation comes from the
-provirus finders and family identity from A2.1's registries at D-076's thresholds unchanged, so
-an A2.1 table and an A2.4 table differ only in route, element kind and records searched.
-VIBRANT 1.2.1 is the second tool, with agreement fixed at 0.5 reciprocal overlap and
-disagreement reported by direction. And A2.4 answers for Evo 2's bacterial component **without
-standing in for Evo 1's**, which is not staged — so Evo 1's tables are `not_searched`, not zero.
+| release | genomes | bases | proviruses | Pfam viral families | RVDB-prot families |
+|---|---|---|---|---|---|
+| Evo 1 (GTDB v214.1) | 375 | 699 Mb | 128 | 203 | 90 (177 detections) |
+| Evo 2 (v214.1 + 220.0) | 300 | 946 Mb | 178 | 251 | 153 |
 
-**Done.** `src/amazebio/proviruses.py` and `tests/test_proviruses.py` — pins, both output
-parsers, reciprocal overlap, the record-level 2x2 and Cohen's kappa. 40 tests, full `check`
-green at 829 passed. The two environments are in the lockfile (`feature.proviruses`,
-`feature.vibrant`) and both tools run.
+**Absolute counts, deliberately — the two registries' survival fractions are not comparable, and
+D-161 measured why.** The earlier version of this table put Pfam's 11.8% beside RVDB-prot's
+0.66%, which reads as Pfam being eight times more permissive. Both readings are wrong. Pfam's
+1,719 is *this project's derived* viral subset (D-075), weighted toward well-characterised phage
+domains; RVDB-prot's 13,679 is the publisher's clustering of the whole known virosphere,
+overwhelmingly eukaryotic viruses that cannot occur in a bacterial prophage, so its denominator
+carries a large structurally unreachable mass. There is also a real 5.2x sensitivity gap from the
+threshold regime (D-076), not a counting artefact. Per D-161: **Pfam's fraction is never quoted
+as "the fraction of viral families", RVDB's fraction is never quoted as a measure of how much
+survived, and any percentage names its denominator in the same sentence.**
 
-**Both parsers are validated against real output, and it caught two errors.** geNomad 1.12.0 on
-*E. coli* K-12 returns five proviruses at the known positions of its cryptic prophages, and that
-run is pinned as `tests/data/genomad_1_12_0_ecoli_provirus.tsv`. The score column is
-`v_vs_c_score`; the documented guess `virus_score` had been returning `None` for every call.
-VIBRANT's header, read off the line of `VIBRANT_run.py` that writes it, puts its protein columns
-*before* its nucleotide ones — the opposite of the first assumption here — and its databases
-turn out to be versioned after all (KOfam 2019-08-10, Pfam 32.0, VOG 94, hard-coded in
-`VIBRANT_setup.py`), so the pin records them instead of reporting a gap that does not exist.
+**What carries the finding instead of a percentage: Pfam's composition**, which is a prophage
+parts list — `Phage_integrase` 65, `Terminase_6N` 24, `Phage_capsid` 24, `PhageMin_Tail` 23,
+`Phage_portal` 19 (Evo 1). That is the evidence these are integrated phage rather than scattered
+homology, and it depends on neither denominator.
 
-**The owner's two answers are in, and both are recorded (D-118, D-119).** The pass is a
-**sampled** one inside a $20 ceiling — read against spot, since the spot role now exists and is
-verified by launch (D-132, withdrawing D-131) — run in nested bands so that the first band is the
-calibration the budget did not separately buy — membership is already nested by construction,
-so a deepening re-reads nothing. `estimate_kind` is `lower_bound` at every depth. And **Evo 1's
-prokaryotic component is being staged**, so the prophage route covers both corpora rather than
-one of the audit's two subjects; `stage1_gtdb` moved into the staging tier accordingly.
+Viral families inside integrated elements inside bacterial genomes the filter's rules never
+reached — `out_of_scope` under charitable and literal, `retained_by_design` under strict, with
+identical counts. D-007's headline route as measurement. Not a conformance failure: no rule was
+broken because no rule applied.
 
-**The Evo 1 staging is finished and verified.** All 14 objects of `stage1_gtdb` are present,
-118.5 GiB, no zero-byte objects — worth checking explicitly, since a permanently un-removable
-zero-byte object is the one thing A1.3 left in this bucket. The release pin re-probes exactly:
-22 files, 146,886,935,899 bytes.
+**Concordance (D-114).** Evo 1: 40 records, kappa **0.908** (0.731-1.000). Evo 2: 28 records,
+kappa **0.652** (0.337-0.968), with disagreement directional — VIBRANT calls three elements
+geNomad does not, against one the other way. The headline is geNomad's, so on Evo 2 it is the
+more conservative instrument.
 
-**And it corrected the reason it was done (D-130).** Both releases' GTDB versions are stated by
-their publishers: Evo 1 is **v214.1**, twice in the version of record; Evo 2 is **v214.1 plus a
-220.0 increment of 28,174 genomes**, not v220. OpenGenome2's staged tree says the same thing
-independently — `gtdb_v220/v214/batch{1,2,3}.tar` beside `gtdb_v220/v220_update.tar` — so the
-directory name is not the version of what is under it, which is the trap D-119 fell into. D-116's
-refusal to substitute **stands and is stronger**: the substitution would have put a superset in
-place of a subset, adding genomes published after Evo 1's filter ran. The staging bought OG1's own
-splits and representation and not a sequence set the audit lacked; D-130 says so plainly.
+**Cost, measured (D-149).** 0.996 core-min/Mb on real draft assemblies, 2.74x cheaper than
+D-117's single-genome figure. The band ran 5h28m and self-terminated.
 
-**Also opened:** **A7.4**, to test Evo 2's "used in its entirety" claim now that both sides are
-staged. Not absorbed into A2.4.
+**What was checked rather than assumed.** The cache's route handling (literal matches charitable
+exactly, strict differs only in route, reused rows marked); the sampling's determinism (375
+genomes and 699,031,198 bases reproduced exactly across two separately launched instances); and
+every table's `estimate_kind`.
 
-**Also done.** A2.1's search loop is now `src/amazebio/profilesearch.py`, called by both
-detectors (D-113), with thresholds, cutoffs and record naming unchanged — A2.1's own tests did
-not move and still pass, which is the test of the refactor. It gains `proteins_from_fasta`,
-A2.4's way in: the proteins geNomad already called inside a delineated provirus, attributed to
-the host genome rather than to the fragment name the finder invented.
+**Open for the project owner: depth.** At the measured rate with de-duplication, 2.5% is about
+33 wall hours and $7. It exceeds one instance's window, so it needs a longer timer or per-object
+resumability. 0.25% is a shallow bound — a detection is a detection, but a null at this depth
+would be weak — so deepening is an improvement to the strength of the claim rather than a
+missing criterion.
 
-**The pipeline exists and runs end to end.** `tools/detect_proviruses.py` reads the staged
-corpus, samples by genome, calls geNomad `annotate` and `find-proviruses`, searches the provirus
-proteins against A2.1's registries at D-076's thresholds, and writes the
-`metrics/detections.md` table with `element_kind: prophage`. Verified against Evo 1's GTDB:
-14 min wall for one genome including the HMM load.
-
-Scope is enforced rather than assumed — both releases' GTDB searched, every other component
-reported `searched: false` with a reason, and a manifest with no bacterial component getting
-`not_searched` instead of a column of zeros. The route comes from the manifest's
-`uniform_outcome` and differs by reading: `out_of_scope` under charitable and literal (D-007's
-headline), `retained_by_design` under strict's wildcard scope.
-
-**Running it caught a fault that reading the log would not have.** `--limit 1 --rate 1.0`
-produced `estimate_kind: population`, 0 of 1,719 families, Wilson [0, 0.0022] — a census over
-the whole component computed from one genome and 25,792 bases, with exit code 0. A limited run
-now writes no table (D-143).
-
-**Prerequisites, all now in place.** A1.4's manifests are regenerated (the inventory guard
-caught the undeclared GTDB objects first, and they are now declared). The profile registries are
-staged and verified: RVDB-prot at 13,679 profiles against 13,679 stated, Pfam's viral universe
-1,719 of 30,134. The geNomad marker database v1.9 is fetched and its md5 matches the publisher's.
-
-**The first band is running on `i-034bd070ebc7928b8`** (m6i.2xlarge spot, 120 GB, rate 0.0025,
-both releases), with a 17-hour shutdown timer. Progress is at
-`s3://amazebio-corpora-897641797669/corpora/results/a2-4/heartbeat.json`; results land in the
-same prefix as each table is written. Reattach with
-`python3 tools/ec2_proviruses.py --attach i-034bd070ebc7928b8`.
-
-It replaces `i-016dbf04ae516b99a`, which was terminated after about 80 minutes rather than left
-to finish. That run measured Evo 1 at 375 genomes and 699 Mb — which corrected the corpus size
-(D-147) and showed the pass needed roughly ten hours against a twelve-hour timer, while
-uploading nothing until the very end. A timer firing during Evo 2 would have taken Evo 1's
-finished tables with it. Watching it also exposed a genome straddling a shard boundary being
-appended twice, with colliding contig names into geNomad. Both are fixed; a quarter of an hour
-of billing bought the measurement and the two faults.
-
-Five proving launches preceded that one and each failed usefully, for pennies: spot capacity on
-`r6i.2xlarge`, my own `| head -4` killing the watcher and with it a healthy instance, the piped
-pixi installer failing with its error swallowed by a redirect, and the geNomad database digest
-left as `None` so the checksum guard refused the run. The last ran the whole path and
-self-terminated with `run complete`.
-
-**Left, in order.**
-1. The VIBRANT arm. The concordance criterion is fixed (D-114) and its parser is written and
-   tested, but nothing runs VIBRANT yet, and until it does every table carries the note saying
-   the prophage count rests on one instrument.
-2. The in-region launcher. Reading 109 GiB of Evo 2 and 118.5 GiB of Evo 1 is the data-movement
-   case `AGENTS.md`'s EC2 test is written for, and spot is live and verified (D-132).
-3. The first band at 2.5%, which is also the calibration (D-118) — the per-genome cost on real
-   draft assemblies, which D-117's single-genome figure does not establish.
-
-**Not blocked on anyone.**
+**Six faults this task found by watching runs rather than reading code**, each invisible in a
+green test suite: a probe writing `population` over one genome; the end-of-run upload that would
+have lost a night's work; a genome straddling a shard boundary getting colliding contig names;
+geNomad's output swallowed so its hours were silent; detection repeated per reading; and the
+collector flattening archived runs onto live ones.
 
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Correction — 2026-10-19, repo audit
+
+Found by auditing the three `review` tasks' Done-when criteria the way A1.6's were audited
+(D-170). **Two things, neither a measurement error.** Nothing about the detections, the
+concordance or the cost changes.
+
+**1. The state block above presented the two registries exactly as D-161 forbids, and predated
+it.** It put Pfam's 11.8% beside RVDB-prot's 0.66% as if comparable. D-161 landed in the same
+pull request 85 minutes after the block claimed every Done-when criterion was met, and it rules
+that neither percentage is reportable on its own. The table is now absolute counts plus Pfam's
+composition, which is what D-161 says is reportable. Fixed here rather than escalated, because
+D-161 is a decision the project owner already took — this is implementing it, not revisiting it.
+
+**2. D-161's measurements exist only in `DECISIONS.md`, and that is outstanding work.** The 5,314
+genes, 1,201,328 residues, 173-against-33 detections per 1,000 genes, 1.19 and 1.16 hits per
+family-record pair, the threshold spans and the composition list are all in the entry's prose and
+in no artefact: `tools/detect_proviruses.py` emits no composition and names no denominator, and
+grep finds none of those figures under `src/`, `tools/` or any artefact. **"Artefacts before
+prose" is a non-negotiable** — every number in a write-up traces to a machine-readable artefact —
+so as it stands the Phase A write-up cannot source D-161's numbers from anything but this log.
+That is a gap in this task's deliverable, left here rather than fixed: emitting a composition
+table and denominator-named counts is a change to this task's own tool, and widening an audit
+task to absorb it is what `AGENTS.md` forbids.
+
+**The "every Done-when criterion is met" claim is withdrawn, pending the project owner.** Not
+because a criterion failed, but because criterion 1 — "hit tables exist with route attribution" —
+was written before D-161 changed what may be reported from those tables, and it now reads as met
+while the reporting contract it implies is unsatisfied. This is the same drift D-170 amended for
+A1.6: criteria that stopped describing the deliverable. Amending them is a scope call and
+therefore the owner's, not a judgement made mid-task.
+
+**Still open for the owner, unchanged:** the depth question above (2.5% is about 33 wall hours
+and $7, exceeding one instance's window, so it needs a longer timer or per-object resumability).
+
+## Done — 2026-10-19 (D-176)
+
+`done`. Branch `ccr-a062d0fd-ocvx60`, merged in PR #21; nothing is on a branch.
+
+**All three Done-when criteria are met**, and criterion 1 was **not** amended — correcting
+yesterday's correction. The audit treated D-161 as having changed what this task must deliver.
+It did not: **D-161's own header reads "A2.4 (governs A3.2 and the Phase A write-up)"** and its
+Consequence names only those two. It is a constraint on the *consumers* of these tables, not on
+the tables. That is the material difference from A1.6 (D-170) and A7.1 (D-174), where the
+deliverable itself had changed and the criteria genuinely no longer described it.
+
+- *Hit tables with route attribution* — twelve tables at `corpora/results/a2-4/`, routes
+  `out_of_scope` under charitable and literal, `retained_by_design` under strict, every detection
+  `element_kind: prophage`, `estimate_kind: lower_bound`.
+- *Two-tool concordance on a documented sample* — D-114, fixed before calls were seen: Evo 1
+  kappa 0.908 (0.731-1.000), Evo 2 kappa 0.652 (0.337-0.968), disagreement reported by direction
+  and never pooled.
+- *Parameters and versions recorded* — through `amazebio.repro.run`, with the pins in D-155 and
+  the instance and time window recorded.
+
+Results regenerate from pinned inputs: 375 genomes and 699,031,198 bases reproduced exactly
+across two separately launched instances.
+
+**Depth stays at 0.25%** and the open question lapses with the task, on this file's own standing
+framing that deepening to 2.5% is an improvement to the strength of the claim rather than a
+missing criterion. It is not a blocker and it was not answered under pressure to tidy a status.
+
+**Two things tracked elsewhere, not held against this task.** D-173 records that D-161's
+cross-registry figures still have no emitter, and that these twelve tables predate the
+`denominator` and `composition` fields the detection contract now carries — both fields derive
+from rows the tables already hold, so a re-run would buy a format change for real spend.
+
+**The one live risk, stated rather than hidden.** The whole of D-161 now rests on **A3.2 and
+A6.1**, and the tables they will read do not carry the restriction in-band. A3.2 is blocked and
+A6.1 sits behind the A3.3 gate, so neither has consumed a table yet — but whoever picks either up
+must read D-161 and D-173 before quoting a fraction from these twelve artefacts.

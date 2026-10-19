@@ -1,0 +1,393 @@
+"""The scope and attribution logic in `tools/detect_proviruses.py` — task A2.4.
+
+Two things in this tool decide whether its numbers mean anything, and neither is visible in a
+finished table:
+
+**Scope.** Which sources it searched, and whether the ones it did not are reported. A table that
+silently covered part of a release reads as a verdict on all of it (D-080, D-116).
+
+**Attribution.** Which record a protein found inside a provirus is counted on. geNomad invents a
+name for every provirus it delineates; counting on that name instead of on the host genome would
+inflate the denominator and attribute a prophage's families to a sequence that exists nowhere
+outside the run (D-113).
+
+The search itself is `pyhmmer` against a pinned registry and is `test_profiles.py`'s; geNomad's
+output parsing is `test_proviruses.py`'s.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import pathlib
+import sys
+
+import pytest
+
+_PATH = pathlib.Path(__file__).resolve().parent.parent / "tools" / "detect_proviruses.py"
+_spec = importlib.util.spec_from_file_location("detect_proviruses_under_test", _PATH)
+dp = importlib.util.module_from_spec(_spec)
+sys.modules["detect_proviruses_under_test"] = dp
+_spec.loader.exec_module(dp)
+
+from amazebio.survival import ElementKind, Route  # noqa: E402
+
+
+def source(component, outcome="out_of_scope", **extra):
+    return {
+        "component": component.upper(),
+        "corpus_component": component,
+        "uniform_outcome": outcome,
+        **extra,
+    }
+
+
+# --------------------------------------------------------------------------------------
+# Scope
+# --------------------------------------------------------------------------------------
+
+
+def test_both_releases_bacterial_components_are_searched():
+    for component in ("gtdb_v220", "stage1_gtdb"):
+        searched, skipped = dp.source_rows({"sources": [source(component)]})
+        assert len(searched) == 1, component
+        assert skipped == []
+
+
+def test_a_viral_component_is_skipped_and_says_why():
+    searched, skipped = dp.source_rows({"sources": [source("imgvr")]})
+    assert searched == []
+    assert skipped[0]["searched"] is False
+    assert "A2.1" in skipped[0]["why"]
+
+
+def test_every_source_appears_in_exactly_one_list():
+    """None is dropped: an omitted component is an invisible gap in coverage."""
+    components = ["gtdb_v220", "imgvr", "imgpr", "ncrna", "mrna", "organelles"]
+    manifest = {"sources": [source(c) for c in components]}
+    searched, skipped = dp.source_rows(manifest)
+    assert len(searched) + len(skipped) == len(components)
+    assert {s["corpus_component"] for s in skipped} | {
+        s["corpus_component"] for s in searched
+    } == set(components)
+
+
+def test_an_unknown_component_is_skipped_with_a_reason_not_silently():
+    _, skipped = dp.source_rows({"sources": [source("something_new")]})
+    assert skipped[0]["why"]
+
+
+def test_a_protein_corpus_says_the_detector_is_not_defined_over_it():
+    """ESM3's proxy is protein: not a coverage gap but a category A2.4 cannot act on."""
+    _, skipped = dp.source_rows({"sources": [source("uniref_2023_02")]})
+    assert "not defined over" in skipped[0]["why"]
+
+
+def test_a_manifest_with_no_bacterial_component_searches_nothing():
+    searched, skipped = dp.source_rows({"sources": [source("uniref_2023_02"), source("pdb")]})
+    assert searched == []
+    assert len(skipped) == 2
+
+
+# --------------------------------------------------------------------------------------
+# Route
+# --------------------------------------------------------------------------------------
+
+
+def test_the_route_is_read_from_the_manifest_not_recomputed():
+    assert dp.route_of_source(source("gtdb_v220", "out_of_scope")) is Route.OUT_OF_SCOPE
+
+
+def test_the_strict_readings_wildcard_scope_gives_a_different_route():
+    """The same prophage sits on different routes in different readings. That is the finding."""
+    assert dp.route_of_source(source("gtdb_v220", "retained")) is Route.RETAINED_BY_DESIGN
+
+
+def test_a_source_without_a_uniform_outcome_stops_the_run():
+    with pytest.raises(dp.RunError, match="uniform_outcome"):
+        dp.route_of_source({"corpus_component": "gtdb_v220"})
+
+
+# --------------------------------------------------------------------------------------
+# Attribution
+# --------------------------------------------------------------------------------------
+
+
+def test_a_provirus_protein_is_counted_on_its_genome():
+    assert dp.host_of_protein("GCF_000001.1~3|provirus_1000_2000_7") == "GCF_000001.1"
+
+
+def test_two_proviruses_in_one_genome_are_one_record():
+    a = dp.host_of_protein("GCF_000001.1~0|provirus_1_100_1")
+    b = dp.host_of_protein("GCF_000001.1~9|provirus_5000_6000_1")
+    assert a == b == "GCF_000001.1"
+
+
+def test_proviruses_in_different_genomes_are_different_records():
+    a = dp.host_of_protein("GCF_000001.1~0|provirus_1_100_1")
+    b = dp.host_of_protein("GCF_000002.1~0|provirus_1_100_1")
+    assert a != b
+
+
+def test_an_evo_1_derived_genome_key_round_trips():
+    """Evo 1's genome is a WGS project accession (D-136); it must survive the same path."""
+    header = dp.contig_header("JAHFAU01", 42)
+    assert header == "JAHFAU01~42"
+    assert dp.host_of_protein(f"{header}|provirus_1_100_1") == "JAHFAU01"
+
+
+def test_a_genome_id_containing_the_separator_is_refused():
+    """Silently accepting it would make the attribution back to the host ambiguous."""
+    with pytest.raises(dp.RunError, match="ambiguous"):
+        dp.contig_header("odd~name", 0)
+
+
+def test_a_name_without_the_separator_still_yields_something():
+    """Defensive: a header geNomad rewrote should not resolve to the empty string."""
+    assert dp.host_of_protein("plaincontig|provirus_1_2_1") == "plaincontig"
+
+
+# --------------------------------------------------------------------------------------
+# Detections
+# --------------------------------------------------------------------------------------
+
+
+def test_a_detection_is_a_prophage_regardless_of_which_family_was_hit():
+    """D-079/D-113: the kind comes from the provirus finder, never from the families hit."""
+    (detection,) = dp.detections_from_hits(
+        [{"profile": "PF05505.16", "record_id": "GCF_1", "score": 40.0}],
+        registry_id="pfam",
+        registry_version="38.2",
+        thresholds={"PF05505": 20.0},
+        route=Route.OUT_OF_SCOPE,
+        profile_to_family={"PF05505.16": "PF05505"},
+    )
+    assert detection.element_kind is ElementKind.PROPHAGE
+    assert detection.route is Route.OUT_OF_SCOPE
+    assert detection.detector == "provirus-genomad"
+    assert detection.family_id == "PF05505"
+
+
+def test_a_profile_outside_the_pinned_universe_stops_the_run():
+    """An unknown family id would change the denominator without showing it."""
+    with pytest.raises(dp.RunError, match="pinned universe"):
+        dp.detections_from_hits(
+            [{"profile": "PF99999.1", "record_id": "GCF_1", "score": 40.0}],
+            registry_id="pfam",
+            registry_version="38.2",
+            thresholds={},
+            route=Route.OUT_OF_SCOPE,
+            profile_to_family={},
+        )
+
+
+def test_notes_warn_when_no_concordance_was_run():
+    notes = dp.table_notes(genomes=10, proviruses=3, concordance=None)
+    assert any("one instrument" in n for n in notes)
+    assert any("lower bound" in n.lower() for n in notes)
+
+
+# --------------------------------------------------------------------------------------
+# A probe must not look like a result
+# --------------------------------------------------------------------------------------
+
+
+def test_limit_is_documented_as_writing_nothing():
+    """The first end-to-end run wrote `estimate_kind: population` from one genome.
+
+    `--limit 1 --rate 1.0` read 25,792 bases of a single genome and the table reported a census
+    over the whole component, with a Wilson interval of [0, 0.0022] across 1,719 families. The
+    number was arithmetically correct and completely misleading: a precise-looking null computed
+    from almost no data, which is exactly what `AGENTS.md` forbids the pipeline to be able to
+    produce. A limited run now prints its counts and writes no table.
+    """
+    parser_help = dp.main.__doc__ or ""
+    source = pathlib.Path(dp.__file__).read_text()
+    assert "--limit" in source
+    assert "writes NO" in source or "not written" in source
+    assert parser_help is not None
+
+
+def test_max_objects_shares_the_probe_guard_with_limit():
+    """Both read less than the rate says, so both must suppress the table.
+
+    One condition rather than two checks, so a third flag with the same property cannot be
+    added without the guard following it.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    assert "args.probe = bool(args.limit or args.max_objects)" in source
+    assert "if args.probe:" in source
+
+
+def test_the_probe_branch_precedes_any_write():
+    """Structural: the `--limit` guard must come before `table.write`, not after it."""
+    source = pathlib.Path(dp.__file__).read_text()
+    guard = source.index("if args.probe:")
+    write = source.index("table.write(")
+    assert guard < write, "a probe must stop before anything is written"
+
+
+# --------------------------------------------------------------------------------------
+# The concordance arm
+# --------------------------------------------------------------------------------------
+
+
+def test_the_concordance_subsample_is_nested_inside_the_main_sample():
+    """D-114: same hash, same seed, a tenth the rate — so it is a subset, not a second draw.
+
+    A separate draw would not be nested, and the agreement would then be measured over records
+    the main table never searched.
+    """
+    from amazebio.detect import in_sample
+
+    rate = 0.025
+    sub_rate = rate * dp.CONCORDANCE_FRACTION
+    ids = [f"GCF_{n:09d}.1" for n in range(20000)]
+    main = {i for i in ids if in_sample(i, seed=dp.SEED, rate=rate)}
+    sub = {i for i in ids if in_sample(i, seed=dp.SEED, rate=sub_rate)}
+    assert sub, "the subsample must not be empty at this size"
+    assert sub <= main, "the concordance subsample must be a subset of the main sample"
+
+
+def test_the_concordance_fraction_is_a_tenth():
+    assert dp.CONCORDANCE_FRACTION == 0.1
+
+
+def test_a_provirus_call_is_rekeyed_from_its_contig_to_its_genome():
+    """The 2x2 is per record, and this pass's record is the genome (D-136)."""
+    from amazebio.proviruses import ProvirusCall
+
+    call = ProvirusCall(
+        source_record="GCF_000001.1~7", fragment="f", start=10, end=20, tool="genomad"
+    )
+    assert dp._rehome(call).source_record == "GCF_000001.1"
+
+
+def test_both_tools_calls_are_rekeyed_the_same_way():
+    """Re-keying one and not the other would make every multi-contig genome a disagreement."""
+    from amazebio.proviruses import ProvirusCall
+
+    g = ProvirusCall(source_record="G~0", fragment="a", start=1, end=9, tool="genomad")
+    v = ProvirusCall(source_record="G~4", fragment="b", start=1, end=9, tool="vibrant")
+    assert dp._rehome(g).source_record == dp._rehome(v).source_record == "G"
+
+
+def test_host_of_contig_survives_a_name_without_the_separator():
+    assert dp.host_of_contig("plain") == "plain"
+
+
+def test_the_corpus_read_beats_while_it_reads_not_only_when_it_starts():
+    """The longest step published nothing between "reading" and the search after it.
+
+    Evo 1's component alone is 127 GB, so that is over an hour of silence on an instance whose
+    console cannot distinguish a dead process from a quiet one — the reading that cost A1.6
+    four hours.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    read_loop = source[source.index("for index, key in enumerate(keys):") :]
+    read_loop = read_loop[: read_loop.index("read_seconds =")]
+    assert "args.heartbeat_seconds" in read_loop
+    assert "objects_done" in read_loop and "genomes_sampled" in read_loop
+
+
+def test_each_table_is_uploaded_as_it_is_written_not_batched_at_the_end():
+    """The first band needed ~10 hours against a 12-hour timer.
+
+    A single upload after every manifest would have lost Evo 1's finished tables along with
+    Evo 2's unfinished ones if the timer had won. The end-of-run sweep is a backstop.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    write = source.index("table.write(args.out")
+    nearby = source[write : write + 600]
+    assert "publish(" in nearby, "a finished table must be uploaded where it is written"
+
+
+def test_a_genome_spanning_two_objects_is_merged_not_appended_twice():
+    """Evo 1's reader yields a genome once per object, and contigs straddle shard boundaries.
+
+    Appending both occurrences would count one genome as two surviving records, and give its
+    contigs colliding `<genome>~<n>` names because the index restarts per occurrence — two
+    different sequences entering geNomad under one name, with the attribution back to the host
+    ambiguous and nothing downstream able to show it.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    assert "seen_genomes[genome_id].extend(contigs)" in source
+    assert "batch.append((genome_id, contigs))" not in source
+
+
+def test_contig_indices_are_unique_within_a_merged_genome(tmp_path):
+    """The property the merge exists to preserve, checked on the writer itself."""
+    genomes = [("G1", [("c1", "AAAA"), ("c2", "CCCC"), ("c3", "GGGG")])]
+    path = tmp_path / "batch.fna"
+    dp.write_batch(genomes, path)
+    headers = [line[1:].strip() for line in path.read_text().splitlines() if line.startswith(">")]
+    assert headers == ["G1~0", "G1~1", "G1~2"]
+    assert len(set(headers)) == len(headers)
+
+
+def test_the_long_subprocess_streams_rather_than_capturing():
+    """geNomad ran for hours with its output swallowed by capture_output=True.
+
+    With beat() firing only before the call, that left the longest step of the pass with no
+    heartbeat and no console output at all — the silence AGENTS.md spends a paragraph on, and
+    A2.4 shipped it twice: once for the corpus read, once here.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    # Scoped to the function bodies, not the file: `_stream`'s own docstring explains the
+    # mistake and names it, and the first version of this test matched that prose.
+    body = source[source.index("def genomad(") :]
+    body = body[: body.index("def provirus_proteins(")]
+    assert "capture_output" not in body
+    assert "def _stream(" in source
+    assert "on_line=genomad_beat" in source
+
+
+def test_the_stream_keeps_a_tail_so_a_failure_still_says_why():
+    source = pathlib.Path(dp.__file__).read_text()
+    stream = source[source.index("def _stream(") : source.index("def genomad(")]
+    assert "maxlen=" in stream and "tail" in stream
+
+
+def test_the_throttle_fires_once_per_interval_not_per_line():
+    calls = []
+    throttled = dp._throttled(calls.append, 3600.0)
+    for i in range(100):
+        throttled(f"line {i}")
+    assert len(calls) == 1, "geNomad emits thousands of lines; one beat per line is a flood"
+
+
+# --------------------------------------------------------------------------------------
+# Detection is cached per release+component, because only the route varies by reading
+# --------------------------------------------------------------------------------------
+
+
+def test_detection_is_cached_on_release_and_component_not_on_the_reading():
+    """The first band re-read the corpus and re-ran geNomad once per manifest.
+
+    Evo 1 appears in three readings and Evo 2 in three, so that was six detection passes
+    where two would do — 3x the compute, and most of why the band took all night. The sampled
+    genomes, provirus calls and profile hits are identical across a release's readings.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    assert "source_cache: dict[tuple[str, str], dict[str, Any]] = {}" in source
+    assert "cache_key = (release, str(component))" in source
+
+
+def test_the_route_is_applied_outside_the_cache():
+    """The route is the one reading-specific part, so it must not be cached with the hits.
+
+    `out_of_scope` under charitable and literal, `retained_by_design` under strict — caching a
+    route would stamp whichever reading ran first onto all three.
+    """
+    source = pathlib.Path(dp.__file__).read_text()
+    cached_payload = source[source.index("source_cache[cache_key] = {") :][:300]
+    assert '"hits"' in cached_payload
+    assert "route" not in cached_payload, "the cache must hold route-free hits"
+    # And the reuse branch recomputes it.
+    reuse = source[source.index("if cache_key in source_cache:") :][:1400]
+    assert "route = route_of_source(source)" in reuse
+
+
+def test_a_reused_source_row_says_so():
+    """A reader must be able to tell a measured row from one carried over."""
+    source = pathlib.Path(dp.__file__).read_text()
+    assert '{**cached["row"], "reused": True}' in source

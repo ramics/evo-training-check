@@ -37,6 +37,7 @@ aligner. This measures what running them costs.
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import os
 import shutil
@@ -957,6 +958,25 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
             print(f"  uploaded s3://{bucket}/{key}", flush=True)
 
+        def stage_ids(path: Path, role: str) -> None:
+            """Stage an identifier-bearing artefact, which is not the same act as publishing.
+
+            D-125 fixes that the published figure is counts by survival route and homology
+            class, never by organism or taxon, with per-record detail in the disclosure
+            package only; D-126 fixes that the detail is nonetheless *staged* rather than
+            held nowhere, because A3.3's reimplementation and the downstream consumers need
+            it. So this goes to its own prefix rather than beside the aggregates, and the
+            commit is in the key because this bucket has no DeleteObject and an overwrite
+            destroys the earlier object irreversibly.
+            """
+            if not (args.upload_results and client is not None):
+                return
+            tag = args.code_commit or "nocommit"
+            key = f"{prefix}/results/{args.results_task}/disclosure/seed-hits/{tag}/{path.name}"
+            client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
+            manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
+            print(f"  staged s3://{bucket}/{key}", flush=True)
+
         def publish() -> None:
             """Write the timing artefact, and upload it if asked.
 
@@ -1025,6 +1045,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                     payload,
                     publish,
                     prior,
+                    stage_ids,
                 )
             elif args.measure == "caps":
                 _measure_caps(
@@ -1709,7 +1730,9 @@ def _band_cell(
     )
     sorted_tsv = _sort_by_target(tsv, work)
     tsv.unlink(missing_ok=True)
-    stream = similarity.TargetStream.for_search(key.cov_mode, index=index)
+    # D-160: the band emits which seeds produced a counted record, per cell. Band 1's
+    # artefact kept no identifier at all, so D-158's second denominator had no input.
+    stream = similarity.TargetStream.for_search(key.cov_mode, index=index, track_seeds=True)
     guard = similarity.Saturation(cap=similarity.HIT_CAP)
     with sorted_tsv.open() as handle:
         for row in similarity.parse_hits(handle):
@@ -1767,6 +1790,7 @@ def _run_band(
     payload: dict[str, Any],
     publish: Any,
     prior: list[dict[str, Any]] | None = None,
+    stage_ids: Any = None,
 ) -> None:
     """One seed band: six cells over the target shard, each published as it finishes.
 
@@ -1866,6 +1890,22 @@ def _run_band(
             )
             cells.append(cell)
             payload["band"]["cells"].append(cell.to_dict())
+            # D-158's second denominator, staged per cell (D-160). Written before `publish`
+            # for the same reason the seed set is: it exists now, and a run cut short after
+            # the aggregate but before this would leave the denominator unrecoverable
+            # without re-running the search that produced it.
+            # Guarded on the stream rather than only on the caller: `seeds_hit_ids`
+            # refuses when tracking was off, and raising here would discard a search
+            # already paid for. A cell that cannot emit the denominator still reports
+            # its bands.
+            if stage_ids is not None and stream.track_seeds:
+                ids_path = work / f"seed-hits-{key.slug()}.tsv.gz"
+                with gzip.open(ids_path, "wb") as fh:
+                    for mode, idents in sorted(stream.seeds_hit_ids().items()):
+                        for ident in idents:
+                            fh.write(f"{mode}\t{ident}\n".encode())
+                stage_ids(ids_path, "seed-hits")
+                ids_path.unlink(missing_ok=True)
             # Published per cell, not at the end. A run that dies on cell five has still paid
             # for four and must not lose them — the lesson AGENTS.md records from the runs
             # that published nothing in four hours.

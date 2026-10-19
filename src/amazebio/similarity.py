@@ -402,6 +402,14 @@ class TargetStream:
     #: without an interval at all. Bounded by the strata of the shard, like `stratum_hits`.
     stratum_hits_ge70: dict[int, dict[str, int]] = field(default_factory=dict)
     stratum_hits_exact: dict[int, dict[str, int]] = field(default_factory=dict)
+    #: Collect the *queries* that produced a counted hit, per reading — D-158's second
+    #: denominator, which band 1 could not supply because nothing identifier-bearing survived
+    #: into its artefact (D-160). Opt-in because the bound is the query set rather than the
+    #: number of strata: 31,381 seeds at band 1 is a few megabytes, and the full-seed band 3
+    #: would be nearer 240 MB across three readings. Known before the run either way, which is
+    #: the property that matters — unlike the hit rate, it cannot surprise the run.
+    track_seeds: bool = False
+    seeds_hit: dict[int, set[str]] = field(default_factory=dict)
     _target: str | None = None
     _best: list[float] = field(default_factory=list)
 
@@ -417,6 +425,8 @@ class TargetStream:
             self.fine_top.setdefault(mode, [0] * len(FINE_TOP_EDGES))
             self.stratum_hits_ge70.setdefault(mode, {})
             self.stratum_hits_exact.setdefault(mode, {})
+            if self.track_seeds:
+                self.seeds_hit.setdefault(mode, set())
 
     @classmethod
     def for_search(
@@ -424,18 +434,26 @@ class TargetStream:
         cov_mode: int,
         coverage: float = COVERAGE,
         index: FamilyIndex | None = None,
+        track_seeds: bool = False,
     ) -> TargetStream:
         """The readings one coverage-filtered search may speak for (D-124).
 
         With `index`, the stream also counts hit records per stratum, which is what the band
-        needs and the cap measurement does not.
+        needs and the cap measurement does not. With `track_seeds`, it also collects which
+        queries produced a counted record — D-158's second denominator, which band 1 could
+        not supply (D-160).
         """
         if cov_mode not in SEARCH_READINGS:
             raise ValueError(
                 f"--cov-mode {cov_mode!r} is not one of the searches the pass runs "
                 f"({sorted(SEARCH_READINGS)})"
             )
-        return cls(coverage=coverage, derive=SEARCH_READINGS[cov_mode], index=index)
+        return cls(
+            coverage=coverage,
+            derive=SEARCH_READINGS[cov_mode],
+            index=index,
+            track_seeds=track_seeds,
+        )
 
     def observe(self, row: HitRow) -> None:
         if self._target is not None and row.target != self._target:
@@ -451,11 +469,17 @@ class TargetStream:
             self._best = [-1.0] * len(self.derive)
         self.rows += 1
         for i, mode in enumerate(self.derive):
-            if (
-                coverage_passes(mode, row.qcov, row.tcov, self.coverage)
-                and row.fident > self._best[i]
-            ):
+            if not coverage_passes(mode, row.qcov, row.tcov, self.coverage):
+                continue
+            if row.fident > self._best[i]:
                 self._best[i] = row.fident
+            if self.track_seeds:
+                # Row-local on purpose, and it does not wait for `_flush`: a row that passes
+                # coverage necessarily gives its target a non-negative best, so that target
+                # is counted under this reading, so this query contributed a counted record.
+                # Membership only — a seed's hit *count* is a property of the corpus sample,
+                # and weighting by it would fold two samples into one number (D-158).
+                self.seeds_hit[mode].add(row.query)
 
     def extend(self, rows: Iterable[HitRow]) -> TargetStream:
         for row in rows:
@@ -513,7 +537,7 @@ class TargetStream:
         return sum(self.bands[mode][start:])
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        out: dict[str, object] = {
             "rows": self.rows,
             "bands": {str(m): self.bands[m] for m in self.derive},
             "fine_top": {str(m): self.fine_top[m] for m in self.derive},
@@ -521,6 +545,26 @@ class TargetStream:
             "band_labels": list(band_labels()),
             "fine_top_labels": list(fine_top_labels()),
         }
+        if self.track_seeds:
+            # Counts, never the ids. A count is not an identifier, so it may travel in the
+            # published aggregate; the ids are identifier-bearing and go to the staged
+            # disclosure package instead (D-125 as amended by D-126, D-160).
+            out["seeds_with_hits"] = {str(m): len(self.seeds_hit[m]) for m in self.derive}
+        return out
+
+    def seeds_hit_ids(self) -> dict[int, list[str]]:
+        """The queries that produced a counted record, per reading, sorted.
+
+        Sorted so the sidecar is byte-identical across runs that read the same rows: a set's
+        iteration order is not stable across processes, and an artefact that differs run to
+        run cannot be checksummed or compared.
+        """
+        if not self.track_seeds:
+            raise ValueError(
+                "seeds_hit_ids() needs track_seeds=True set before the rows were observed; "
+                "it cannot be recovered afterwards without re-reading the hit table"
+            )
+        return {mode: sorted(self.seeds_hit[mode]) for mode in self.derive}
 
 
 @dataclass(frozen=True)
@@ -600,6 +644,14 @@ class CellResult:
     #: limits anything said at family level.
     seeds_searched: int = 0
     seed_families: int = 0
+    #: Per reading, how many of the searched seeds produced a counted record (D-158's second
+    #: denominator; D-160 for why band 1 had to be re-run to get it). Deliberately **not**
+    #: carried into `combine_cells`: unlike `bands`, which sum over shards, and unlike
+    #: `seeds_searched`, which must agree across them, this is neither. A seed can hit in one
+    #: shard and not another, so the cross-shard figure is a *union* of the id sets and cannot
+    #: be recovered from per-shard counts. The union is taken from the staged sidecar, which is
+    #: where the ids live.
+    seeds_with_hits: dict[int, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -621,6 +673,9 @@ class CellResult:
             },
             "searched_clusters": self.searched_clusters,
             "searched_residues": self.searched_residues,
+            "seeds_with_hits": {
+                str(m): self.seeds_with_hits[m] for m in sorted(self.seeds_with_hits)
+            },
         }
 
 
@@ -658,6 +713,9 @@ def cell_from_dict(raw: dict[str, Any]) -> CellResult:
         searched_residues=int(raw.get("searched_residues", 0)),
         seeds_searched=int(raw.get("seeds_searched", 0)),
         seed_families=int(raw.get("seed_families", 0)),
+        # Absent from every cell published before D-160, which is the point of the default:
+        # a resumed band must be able to reuse those cells rather than rebuy them.
+        seeds_with_hits={int(m): int(v) for m, v in raw.get("seeds_with_hits", {}).items()},
     )
 
 
@@ -1083,6 +1141,11 @@ def cell_from_stream(
         searched_residues=searched_residues,
         seeds_searched=seeds_searched,
         seed_families=seed_families,
+        seeds_with_hits=(
+            {mode: len(stream.seeds_hit[mode]) for mode in stream.derive}
+            if stream.track_seeds
+            else {}
+        ),
     )
 
 

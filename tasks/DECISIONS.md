@@ -4743,7 +4743,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-120 — Spot is unavailable in this account, so every spot-priced figure in A1.6 is a price we cannot pay
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-110 and renumbered to D-120 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-110 and renumbered to D-120 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-104 priced the exhaustive charitable pass at $240-450 and D-109 priced the broad
   arm's three-sensitivity sweep at $26 against a $30 ceiling. Both are **spot** figures, and the
   launcher gained spot support on the strength of them. The first spot launch was refused.
@@ -4786,7 +4786,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-121 — The spot service-linked role is to be created, so A1.6's passes run at the prices they were designed against
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-111 and renumbered to D-121 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-111 and renumbered to D-121 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-120 established that spot is refused in this account and put three options to the
   project owner: create the service-linked role, raise the ceiling to about $100 for the same
   design on demand, or shrink the sample to fit $30 on demand.
@@ -4815,7 +4815,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-122 — D-109's $26 is a search price, not a run price: the pass is dozens of launches and each one currently re-reads the corpus
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-112 and renumbered to D-122 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-112 and renumbered to D-122 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 priced the broad arm's sweep at 1,296 core-hours, $26 of a $30 ceiling, from
   D-104's fitted model. That model prices **searches**. Neither entry converted the figure into
   launches, and the conversion is where the money is.
@@ -4862,7 +4862,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-123 — Correction to D-122: the corpus pass is not sample-write-bound, and the overrun is ~10% rather than 2.5x
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-113 and renumbered to D-123 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-113 and renumbered to D-123 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-122 explained a corpus pass running long by claiming it was sample-write-bound —
   that keeping 40x more records at rate 50 than at rate 2000 moved the cost, because every sampled
   record crosses from a worker to a single parent that writes it. That claim was reasoning from the
@@ -4906,7 +4906,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-124 — The three coverage readings come from two aligner-filtered searches, exactly; D-109's relaxed search is withdrawn
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-114 and renumbered to D-124 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-114 and renumbered to D-124 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 bought the three `--cov-mode` readings of D-107 for the price of one search by
   relaxing coverage filtering and re-imposing it on the emitted `qcov`/`tcov` columns. It flagged
   one risk honestly — relaxing admits more rows, so it costs more and may make the hit cap bind —
@@ -4955,7 +4955,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-125 — The narrow arm's handling and reporting rules, fixed before the result exists
 - **Date:** 2026-10-16
 - **Task:** A1.6
-- **Numbering:** appended as D-115 and renumbered to D-125 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-115 and renumbered to D-125 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-108 settled the narrow arm's scope — exhaustive against every corpus record — and
   explicitly left its handling open, because it is the output §4's reporting limits and the X3.1
   gate are written for. The arm was not to be built until this existed. The question had to be
@@ -5004,7 +5004,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-126 — The narrow arm's exact result is retained, staged and permanent; D-125's storage call is reversed
 - **Date:** 2026-10-17
 - **Task:** A1.6
-- **Numbering:** appended as D-116 and renumbered to D-126 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-116 and renumbered to D-126 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-125 fixed the narrow arm's reporting rule — counts by survival route and homology
   class, never by organism or taxon — and then drew a storage conclusion from it that went further
   than the rule required: that the per-record manifest lives only under the git-ignored artefacts
@@ -5051,7 +5051,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-127 — The lost runs were a short payload and a shutdown that never fired, not the reader or the instance type; D-123's hypotheses are both refuted
 - **Date:** 2026-10-17
 - **Task:** A1.6
-- **Numbering:** appended as D-117 and renumbered to D-127 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-117 and renumbered to D-127 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-123 recorded two candidate causes for an instance that spent four hours on a
   52-minute corpus pass and published nothing: a degrading S3 read retried without a global bound,
   or the instance type, since the three passes that completed all ran on `r6i.2xlarge` and that was
@@ -5098,7 +5098,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-128 — The broad arm runs on one staged shard at 0.3125% with the cap unbound; D-109's 2.5% is superseded
 - **Date:** 2026-10-17
 - **Task:** A1.6
-- **Numbering:** appended as D-118 and renumbered to D-128 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-118 and renumbered to D-128 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-109 sized the broad arm at 2.5% for $26, from D-104's cost model. The cap
   measurement priced the real thing and the model under-predicts by about 6x, because it was fitted
   with the charitable parameter set's `--min-seq-id 0.70` and the pass cannot use an identity floor
@@ -5137,7 +5137,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-129 — The narrow arm becomes A1.8; A1.6 keeps the broad arm only
 - **Date:** 2026-10-17
 - **Task:** A1.6 / A1.8
-- **Numbering:** appended as D-119 and renumbered to D-129 on 2026-10-17. A2.4 took the whole D-110..D-119 range first and these ten entries collided with it: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
+- **Numbering:** appended as D-119 and renumbered to D-129 on 2026-10-17. A2.1 and A2.4 held D-110..D-119 between them — D-110 and D-111 are A2.1's, D-112 to D-119 A2.4's — and these ten entries collided with that range [task attribution corrected in place 2026-10-19, D-175; the line originally said A2.4 held the whole range]: both tracks chose numbers at append time and the two appends merged cleanly while clashing semantically. A2.4's are already merged on `main`, and merged commit messages cannot be corrected, while this track's citations sit in `src/`, `tools/` and task files it could remap in the same commit — so this side is the cheaper one to move. PR #20 and the commits on `claude/fervent-hopper-8ht0h3` cite the old numbers; this line is how they resolve.
 - **Context:** D-108 split the pass by denylist and both arms stayed inside A1.6. They have since
   diverged in every respect that matters: method (exhaustive against sampled), budget (roughly a
   seventeenth of the compute), what may be published (D-125's aggregation rules apply to one arm
@@ -5379,7 +5379,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Task:** A1.6
 - **Numbering:** appended as D-133 and renumbered to D-134 on 2026-10-17. A1.8 took D-133 for
   its own sampled-proof-of-concept entry and that one is already on `main`, so this is the
-  cheaper side to move. Nothing published cites this entry as D-133.
+  cheaper side to move. Nothing published cites this entry as D-133. **This number was also A1.8's D-137 before that entry was renumbered**, so a bare "D-134" in anything published before 2026-10-17 may mean D-137 rather than this entry. Cross-link added in place 2026-10-19, D-175.
 - **Context:** D-128 fixed the broad arm as all 3,159,223 viral seeds against one staged shard —
   0.3125% of the corpus, six cells, about 413 instance-hours. Two things make that the wrong *next*
   step rather than the wrong destination. A full cell is about 40 hours, so it does not fit one
@@ -5559,7 +5559,7 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-137 — The select-agent list's names map to taxonomy ids by curation, validated against the pinned taxonomy, never by name matching
 - **Date:** 2026-10-17
 - **Task:** A1.8
-- **Numbering:** appended as D-134 and renumbered to D-137 on 2026-10-17. A1.6's broad-arm banding entry took D-134 first and is already merged on `main`, while this entry's citations sit in `src/amazebio/selectagents.py`, `policies/specs/` and this task's files, which the same commit can remap — so this side is the cheaper one to move. The commit "A1.8: reconstruct the select-agent list as taxa" on `ccr-51fc983f-tyojje` cites the old number; this line is how it resolves.
+- **Numbering:** appended as D-134 and renumbered to D-137 on 2026-10-17. A1.6's broad-arm banding entry took D-134 first and is already merged on `main`, while this entry's citations sit in `src/amazebio/selectagents.py`, `policies/specs/` and this task's files, which the same commit can remap — so this side is the cheaper one to move. The commit "A1.8: reconstruct the select-agent list as taxa" on `ccr-51fc983f-tyojje` cites the old number; this line is how it resolves. **D-134 is now A1.6's banding entry** — so a bare "D-134" in anything published before 2026-10-17 may mean this entry, and after it means A1.6's. Cross-link added in place 2026-10-19, D-175.
 - **Context:** ESM3-open's narrow denylist is "all sequences in UniProt belonging to organisms on
   the Select Agents and Toxins List" (D-106, version of record). The list does not carry taxonomy
   ids, so the mapping is A1.8's to decide and record — the first of the task's two open readings.
@@ -6237,3 +6237,1509 @@ decision has a threshold or parameter in it, the number goes in the entry.
   confirming a withdrawn guess is an hour not spent on the scoring pass. Leaving D-146 standing
   with a correction appended inline — it is append-only, and D-146's headline claim is wrong
   rather than incomplete.
+
+### D-151 — Detection is cached per release and component, because only the route varies by reading
+- **Date:** 2026-10-18
+- **Task:** A2.4
+- **Numbering:** appended as D-150 and renumbered to D-151 on 2026-10-18. A1.8's D-150 was already on `main`; this entry was cited from nothing, so it is the cheaper to move. This is the second time A2.4 has done this — the number was written into the heredoc before the headings were re-read, which is the one thing `AGENTS.md`'s rule exists to prevent.
+- **Context:** The first band at 0.25% ran overnight and produced, in eight hours, the charitable
+  reading for both releases and nothing else. Watching it showed why: `tools/detect_proviruses.py`
+  looped over A1.4's manifests and did the whole detection inside that loop — read the corpus,
+  sample, run geNomad, search the registries — once per manifest. Evo 1 appears in three readings
+  and Evo 2 in three, so that is **six detection passes where two would do**.
+  The duplication is pure. The sampled genomes, the provirus calls and the profile hits are
+  properties of the release and the component; **the only reading-specific part is the route** —
+  `out_of_scope` under charitable and literal, where no rule reaches GTDB, and
+  `retained_by_design` under strict's wildcard scope.
+- **Decision:** Cache the detection on `(release, component)` and apply the route per manifest.
+  The cache holds route-free hits, so a route can never be stamped onto a reading it did not come
+  from; a reused source row carries `reused: true`, so a reader can tell a measured row from a
+  carried-over one; and the concordance travels with the cache for the same reason the hits do.
+  The reuse branch was **exercised before launch** rather than trusted: a local probe over Evo 1's
+  three readings ran geNomad once and reused it twice, which is the behaviour and not just the
+  code path.
+- **Rejected:** Deriving the literal and strict tables from the charitable ones by hand. For GTDB
+  the charitable and literal routes are identical, so literal's tables would be a copy — but
+  `AGENTS.md` requires every number to trace to an artefact a pipeline produced, and a table
+  assembled by editing another table is exactly what that forbids.
+  Keeping the duplication and buying a bigger budget. The four remaining manifests of the first
+  band would have cost about eleven hours and produced no measurement that the first two had not
+  already made.
+  Letting the running band finish. It had roughly eleven hours of work left against eleven and a
+  half hours of its own shutdown timer, with the VIBRANT arm uncounted, so it would have been cut
+  mid-manifest having spent the night on relabelling.
+- **Consequence:** A 0.25% band over both releases is about seven hours including setup rather
+  than about nineteen, and a 2.5% band is about 33 wall hours rather than a hundred. The
+  arithmetic that made 2.5% look unaffordable in D-144 and D-145 was measuring a pipeline doing
+  three times the work it needed to; with D-149's measured rate and this fix, the depth question
+  is open again on much better terms.
+  The first band's charitable results are preserved at
+  `corpora/results/a2-4/band1-run1-20261018/` rather than being overwritten, because D-149 cites
+  their numbers and the corpus bucket has no delete.
+
+### D-152 — The taxonomy-unplaced share is 11.8% measured, not A4.2's 36%; D-141's conclusion stands on the measured figure
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-140 and D-141 both reason about what to do with corpus records the pinned
+  taxonomy cannot place at family rank, and both took the magnitude of that set from A4.2 —
+  "given A4.2's 36%, the unplaced set is expected to be large". A4.2 measured a different thing:
+  the fraction of *genomes the denylist targets* that its taxonomy tool fails to place. Band 1
+  has now measured the quantity those entries actually depend on, over shard 0's 1,097,174
+  records: **129,113 unplaced, 11.8%**.
+- **Decision:** the figure is replaced wherever those entries reason from it, and **both
+  conclusions stand unchanged**. D-140's singleton treatment and D-141's refutation of the
+  pooling argument do not depend on the share being large — D-141's point is that a pooled
+  stratum contributes `(A - r*B)^2`, which is unstable in either direction whatever its size, and
+  that singletons contribute the binomial term, which is the honest statement that those records
+  carry no family information. A smaller unplaced set makes the choice matter less, not
+  differently.
+- **What it does change.** The design effect is diluted by exactly the unplaced fraction, so at
+  11.8% rather than 36% the realised design effect is *higher* than those entries implied and the
+  intervals correspondingly wider relative to binomial. Band 1's published cells report the
+  realised figures directly, so nothing is inferred from this entry; it exists so a reader
+  checking D-141's arithmetic is not working from a borrowed number.
+- **Rejected:** Leaving the 36% in place as "the order of magnitude" — it is not this
+  measurement, it is a different quantity from a different task, and §7's adversarial reader
+  checks the provenance of a number before its plausibility. Re-deriving D-141's comparison at
+  11.8% before band 1 completes — the entries' conclusions are insensitive to the share, and the
+  measured intervals ship with every cell.
+- **Consequence:** the write-up cites 11.8% from band 1 for this quantity and A4.2's 36% only for
+  A4.2's own. One general point: both figures are about "things the taxonomy cannot place", which
+  is what made the substitution feel safe, and they are not the same denominator.
+
+### D-153 — Band 1 is complete, and the sensitivity sweep it paid for answers the question it was bought for
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-109 bought the three-sensitivity sweep for one reason, stated at the time: `-s` is
+  our parameter rather than the publisher's, so the sweep is what separates a property of the
+  filter from a property of our instrument. Band 1 is now complete — nine groups over shard 0's
+  1,097,174 records, from 31,381 seeds (1/100), published across two launches and a resume
+  (D-148). Every figure is a lower bound (D-134).
+- **The answer, which is the finding.** At the charitable reading's 0.70 identity cut the figure is
+  **almost invariant to our settings**: 0.6537% to 0.6844% across all nine cells, a relative spread
+  of 4.7%. The any-identity figure over the same cells runs 1.5473% to 4.0975% — a factor of 2.6.
+  So the sub-threshold tail is largely a property of our instrument, and **the quantity the
+  charitable reading actually turns on is a property of the filter**. That is the cleanest form
+  the sweep's result could have taken, and it is why the sweep was not optional.
+- **Decision: the headline figure for this band is the banded one at 0.70, not the any-identity
+  rate.** Both are published and both are lower bounds, but a single number quoted from this band
+  is the 0.70 figure, because the any-identity rate is the one that moves with `-s` and would
+  misattribute our aligner's reach to the filter's failure. Writing it up the other way round
+  would be the more alarming presentation and the less defensible one.
+- **The result does not balance on the inferred threshold as much as feared.** D-105 parameter 6
+  separated the 0.70-0.75 band because 8.07% of hit *rows* fell in it. Measured per record at
+  `-s 5.7 cov1`: of the 7,509 records at or above 0.70, only **255 (3.4%)** sit in 0.70-0.75,
+  while **5,754 (77%)** are at 0.90 or above. The identity distribution is bimodal — a large
+  sub-threshold tail, a trough, then a spike of near-identical matches — so the inferred cut falls
+  in the trough rather than through the mass. The banding stays, because that is now a measured
+  reassurance rather than an assumption.
+- **D-109's refusal of a binomial interval is vindicated by a wider margin than it claimed.**
+  It argued a design effect of 40 would make the honest interval six times the binomial one.
+  Measured: **238.8 to 557.0** across the nine cells, so the honest intervals are 15 to 24 times
+  binomial. A binomial interval here would have been wrong by more than an order of magnitude,
+  and the design effect falls as sensitivity rises, which is itself consistent with the extra
+  hits being spread rather than clumped.
+- **What this is not.** Not a corpus-level claim: it is 0.3125% of the corpus, UniRef100 only,
+  from 1% of the seed set, and MGnify90 is unscored (D-133 names that gap as Phase A's, not this
+  task's). Not validated against any published size (D-150). Not a rate — a bound, in the
+  direction §2 requires.
+- **Rejected:** Quoting the any-identity rate as the headline — it is the number that moves 2.6x
+  with a parameter of ours. Dropping the any-identity figures — the literal reading's threshold is
+  undetermined (D-107), so the pass may not assume 0.70 is the floor of interest. Treating the
+  0.70 invariance as grounds to stop sweeping in band 2 — one band at one depth, and the sweep is
+  what made the claim available.
+- **Consequence:** band 2's value is now mainly in the seed axis rather than the sensitivity axis,
+  since the 0.70 figure is already stable across settings; what band 2 buys is how far the bound
+  rises as the seed sample deepens, which is the only evidence available about the gap to a
+  full-seed rate. The write-up leads with the 0.70 bound, reports the bands beneath it, and states
+  the design effect, because a reader who assumes binomial will understate the interval by 15x.
+
+### D-154 — Correction to D-153: band 1's figure is not a clean lower bound, because the seed set implements only the first clause of the rule
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** Raised by the project owner asking whether the matching material might simply be
+  the parts of viruses that are not distinctive — shared with hosts, ubiquitous, uninformative.
+  Checking rather than reasoning: `src/amazebio/seeds.py` says so in its own module docstring,
+  and D-153 failed to carry it into the result.
+
+  ESM3's viral denylist has **two** clauses: a sequence qualifies if it is (a) annotated as viral
+  in UniProt **and** (b) "align[s] almost exclusively to other viral sequences in UniProt". Clause
+  (b) is what excludes viral sequence that also resembles host protein. The seed set implements
+  **clause (a) only** — clause (b) needs its own alignment pass and its own reading of
+  "almost exclusively", which the source does not quantify. The seed set is therefore a
+  **superset** of the denylist the source describes.
+- **The error in D-153.** It states "every figure is a lower bound (D-134)" without qualification.
+  That holds for the seed-*sampling* axis and not for the seed-*construction* axis. Two errors run
+  in opposite directions:
+  - **1/100 of the seeds → understates.** A record matched by an unsampled seed is not counted.
+  - **Annotation-only seeds → overstates.** A record matching a viral sequence that clause (b)
+    would have excluded is counted as surviving material the filter should have removed, when the
+    filter never undertook to remove it.
+
+  So band 1's figure is a floor in one respect and a ceiling in another, and **the net direction
+  is not known**. "At least 0.6844%" is not a supportable phrasing and must not appear in the
+  write-up. The honest form states both axes and claims neither direction.
+- **Decision:** D-153's headline stands as a *measurement of the annotation-only reading*, not as
+  a bound on the filter's failure rate. Every figure from this band is labelled with the reading
+  it implements. The `lower_bound` flag in the artefact remains correct for what it was built to
+  mark — the seed sample — and the write-up may not read it as a claim about the whole result;
+  a flag that means one axis and is read as meaning the result is the D-150 failure again, one
+  level down.
+- **What would settle it, and it is not expensive.** Clause (b) is a restriction *on the seed
+  set*, applied before the corpus pass: for each candidate seed, align it against UniProt and keep
+  it only if its matches are almost exclusively viral. That is a seeds-against-UniProt pass, not a
+  seeds-against-corpus pass, and A1.8 is staging UniProtKB 2023_02 permanently at
+  `corpora/uniprotkb/2023_02/`, so it becomes an in-region job. The reading of "almost
+  exclusively" needs its own entry and must be fixed before the result is inspected, per §2.
+- **The owner's other question is not answered by this band at all.** Whether the matched records
+  are genuinely viral material or host protein that merely resembles it is a question about what
+  the records *are*, and this band only measures that they align. The 77%-at-≥0.90 figure in D-153
+  rules out distant family resemblance; it does not distinguish a captured host gene from a viral
+  one. That is the survival-route and homology-class work (A2.*, B3.*), and D-153 should not be
+  read as bearing on it.
+- **Rejected:** Reporting band 1 with the "at least" phrasing and a caveat further down — D-150
+  established in this same task that a caveat which does not change the number it qualifies is not
+  a safeguard. Narrowing the seed set now and rerunning — clause (b) is worth implementing, but
+  band 1's measurement of the annotation-only reading is still the measurement of a reading, and
+  §A0 treats the spread between readings as the result. Dropping the annotation-only arm once
+  clause (b) exists — the spread between the two is exactly what §A0 asks for.
+- **Consequence:** the write-up reports band 1 as the annotation-only reading and reports the
+  clause-(b) reading beside it once it exists; the difference between them is a §A0 finding about
+  how much of the apparent leakage rests on an unquantified phrase in the methods appendix. Band 2
+  is not the next priority — clause (b) is, because it changes what the existing numbers mean
+  rather than making them more precise.
+
+### D-155 — A2.4's first band, complete: viral families survive as prophage in genomes the filter never examined
+- **Date:** 2026-10-18
+- **Task:** A2.4
+- **Context:** The 0.25% band (D-145) over both releases, on the de-duplicated build (D-151),
+  `i-0bbdd4b09995095ed`, 05:10Z to 10:38Z — **5 hours 28 minutes**, self-terminated with
+  `run complete`. Twelve detection tables and six concordance artefacts, at
+  `corpora/results/a2-4/`.
+- **The result.** Every detection carries `element_kind: prophage`, `estimate_kind: lower_bound`,
+  and a route that follows the reading rather than the biology:
+
+  | release | genomes | bases | proviruses | Pfam viral | RVDB-prot |
+  |---|---|---|---|---|---|
+  | Evo 1 (v214.1) | 375 | 699 Mb | 128 | 203 / 1,719 = 11.8% (10.4-13.4) | 90 / 13,679 = 0.66% (0.54-0.81) |
+  | Evo 2 (v214.1 + 220.0) | 300 | 946 Mb | 178 | 251 / 1,719 = 14.6% (13.0-16.4) | 153 / 13,679 = 1.12% (0.96-1.31) |
+
+  **What this is.** Viral protein families, inside integrated elements, inside bacterial genomes
+  that the filter's own rules never reached — `rules=0, uniform=True` for GTDB in every reading
+  (A1.4). It is `out_of_scope` under the charitable and literal readings and
+  `retained_by_design` under strict's wildcard scope, **with identical counts**, because the
+  detection is the same and only the reading's scope differs. That is D-007's first-class route
+  arriving as measurement rather than as an argument from published methods.
+  **What this is not.** Not a conformance failure: no rule was broken, because no rule applied.
+  Not an estimate of the population: a lower bound twice over (D-113, D-115), so the true figures
+  are at least these.
+- **The concordance (D-114), per release:** Evo 1, 40 records, both 6, geNomad-only 0,
+  VIBRANT-only 1, neither 33, **kappa 0.908 (0.731-1.000)**. Evo 2, 28 records, both 6,
+  geNomad-only 1, VIBRANT-only 3, neither 18, **kappa 0.652 (0.337-0.968)**.
+  The two instruments agree strongly on Evo 1 and only moderately on Evo 2, and the disagreement
+  is **directional**: VIBRANT calls elements geNomad does not, three times to one. Reported as
+  direction rather than resolved, per D-114. A2.4's headline comes from geNomad, so on Evo 2 it
+  is the more conservative of the two instruments — the bound is if anything safer there, not
+  weaker.
+- **Decision:** This is A2.4's reportable result at 0.25%. Every Done-when criterion is met: hit
+  tables with route attribution, two-tool concordance on a documented nested subsample, and
+  parameters and versions in the `run.json` and the pins. The cache's correctness was checked
+  rather than assumed — literal matches charitable exactly on the shared route, strict carries
+  `retained_by_design` with the same counts, and the four reused source rows say `reused: true`.
+- **Rejected:** Reporting the Pfam and RVDB fractions together. Their membership criteria come
+  from different authorities and D-022 forbids pooling the denominators; the 11.8% and the 0.66%
+  are answers to different questions about the same detections.
+  Calling the Evo 1 / Evo 2 difference a finding about the filters. Evo 2's component is a
+  superset of Evo 1's (D-130) and its sampled genomes are larger on average, so more families is
+  the expected direction and this band does not separate that from any difference in filtering.
+- **Consequence:** Phase A has a measured prophage route for both releases, which A3.2 can
+  cross-tabulate against A2.1's profile hits — same registries, same thresholds, different
+  detector and kind, so the merge is a join. The depth question goes to the project owner: at
+  D-149's measured rate with D-151's de-duplication, 2.5% is about 33 wall hours and $7, which
+  exceeds one instance's window and so needs a longer timer or per-object resumability.
+
+### D-156 — Correction to D-154: the annotation-only seed set is the strict reading's, by design; band 1 mixed two readings
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-154 treated the seed set's omission of clause (b) — "align almost exclusively to
+  other viral sequences in UniProt" — as a gap to be closed, and named closing it the next
+  priority. Reading `policies/specs/` before implementing it shows that is wrong, and that the
+  readings were fixed on this exact point by D-015.
+  - **`esm3-open-strict.yaml` deliberately drops the clause**, in its own words: "Drop the
+    'almost exclusively' narrowing: everything annotated as viral in UniProt seeds the denylist,
+    which is what 'data related to viruses' says." So the annotation-only seed set **is** the
+    strict reading's seed set. It is not a defective charitable seed set.
+  - **`esm3-open-charitable.yaml` keeps the clause and leaves it unquantified**, also explicitly:
+    "'Almost exclusively' stays unquantified and is not reinterpreted here — the charitable
+    reading supplies the one number it can argue for from the text, and leaves the other gap
+    visible."
+- **So the real defect in band 1 is a labelling error, not a missing computation.** It ran the
+  **strict reading's seed set** against the **charitable reading's 0.70 threshold**, and D-153
+  reported the 0.70 column as "the charitable reading". That combination is **not one of the three
+  readings D-015 fixed**. The arithmetic is sound and the artefact is fine; what was wrong is the
+  name attached to the column.
+- **Decision — three parts.**
+  1. **Band 1 is relabelled, not rerun.** Its nine groups are the strict seed set at three
+     identity cuts, three coverage readings and three sensitivities. The 0.70 column is "the
+     strict seed set at the charitable reading's threshold" and the any-identity column is the
+     **strict reading proper**, since strict removes on any detected hit. On that reading band 1
+     already reports a reading as fixed: ≥1.5473% to ≥4.0975% depending on our settings.
+  2. **"At least" is restored for the strict reading, and only there.** Against the strict seed
+     set the only sampling error is the 1/100 seed sample, which understates. D-154 was right that
+     the figures are not clean bounds *for the charitable reading* and wrong to generalise it:
+     for the strict reading they are clean lower bounds.
+  3. **Clause (b) is not implemented.** Quantifying "almost exclusively" would add a number D-015
+     deliberately declined to invent, and §A0 treats the unquantifiable gap as the finding. The
+     charitable reading's seed set is **not executable**, and that is a result to report rather
+     than a problem to solve. If the project owner later wants it quantified it is a **fourth**
+     reading with its own entry, not a correction to the charitable one.
+- **The owner's question is answered by the source, not by a pass.** Asked whether the matching
+  material is simply the undistinctive parts of viruses, the charitable spec already records the
+  authors' own consequence: because clause (b) requires near-exclusive viral alignment, "sequence
+  with cellular homologs never entered the seed set, so virus-associated protein families with
+  cellular relatives are outside this filter by construction, at any threshold." So under their
+  own rule the answer is the reverse of the worry — the shared-with-hosts material was never
+  targeted, which is why the strict reading exists and why §B is where that question is settled.
+- **Rejected:** Implementing clause (b) as D-154 proposed — it invents the number D-015 declined,
+  and it would have been spent before anyone noticed the readings already covered this. Rerunning
+  band 1 — the computation is right. Leaving D-154 standing with this appended inline — the log is
+  append-only and D-154's headline recommendation is wrong rather than incomplete.
+- **Consequence:** A1.6's deliverable is the strict reading's surviving-record figures plus the
+  finding that the charitable reading's seed set cannot be executed from the published text. One
+  process point, the third of its kind in this task: D-150 was a quiet caveat in code, D-154 was a
+  quiet qualifier in a docstring, and this was a decision already recorded in `policies/specs/`
+  that nobody re-read. **Before treating a gap as work, check whether a fixed reading already
+  governs it.**
+
+### D-157 — The select-agent denylist cannot be reproduced from the regulation at ESM3's own release; the viral one can
+- **Date:** 2026-10-18
+- **Task:** A1.8 (the viral half is A1.6's to use)
+- **Supersedes in part:** D-150, whose residual was called "unremarkable" and was not.
+- **What was measured.** UniProtKB at release **2023_02** — the release ESM3 names, since UniProt
+  numbers UniProtKB and UniRef together — read end to end from the staged archive, 249,877,975
+  entries, both members matching the publisher's own release statistics exactly
+  (569,516 and 249,308,459). 2.64 hours. The reading is D-137's, unchanged.
+
+  | reading, at 2023_02 | UniProtKB sequences | vs published 187,000 |
+  |---|---|---|
+  | named organisms **and their strains** | 1,277,073 | 6.8x |
+  | named organisms only | 321,669 | 1.7x |
+  | named only, excluding avian influenza | 229,787 | 1.2x |
+
+  **The published figure sits below every reading we can construct from the regulation.** The
+  most conservative — exact listed taxa, no descent — is still 1.7x it.
+- **Why the release mattered so much, and why the earlier check was misleading.** D-150 ran the
+  same procedure against the current release and got 140,591, which is 25% *under* 187,000.
+  UniProtKB has since lost 40% of its entries to redundant-proteome removal, and that loss falls
+  hardest on the over-sequenced bacteria this list is largely made of — so the current-release
+  count understates by far more than 40% for exactly these taxa. Measured at the release in
+  force, the same reading overshoots sixfold. **A current-release count cannot distinguish a
+  correct reading from a wrong one here, and D-150's "comfortably within release drift" was an
+  assertion where a measurement was available.**
+- **Strain descent is the largest single factor and still does not explain the gap.** Descending
+  named organisms to their strains multiplies the count 4.0x. D-150 withdrew that hypothesis on
+  the grounds that the methods appendix names the database; that was right about the database
+  and wrong to treat descent as settled with it, and the dismissal rested on a current-release
+  comparison that had already had the strain proteomes deleted out of it — correcting for the
+  drift twice. Descent is now measured rather than hypothesised, from the per-taxid detail in
+  the artefact, with no second pass.
+- **The contrast with the viral denylist is what makes this a finding rather than a loose end.**
+  The same pass counted the Viruses superkingdom at the same release: **5,379,748** against
+  ESM3's stated ~4M, a 1.34x gap. For *that* list the paper describes a second step — sequences
+  must also "align almost exclusively to other viral sequences in UniProt" — and a 26% reduction
+  from a specificity filter is an ordinary consequence of it. "Almost exclusively" is
+  unquantified, which §A0 already records as an open question.
+
+  **No comparable step is described for the select-agent list.** Its stated procedure is "all
+  sequences in UniProt belonging to organisms on the Select Agents and Toxins List", with
+  nothing between the list and the count. So the viral figure is consistent with the stated
+  method and the select-agent figure is not, at minimum by 1.7x and on the literal reading by
+  6.8x.
+- **What may be concluded, and what may not.** This is a gap between a stated method and a
+  reported result, both now measured in the same units — UniProtKB sequences at the release the
+  paper names — so it is not the apples-to-oranges artefact D-150 corrected. Either the denylist
+  omitted material the stated procedure would include, or the description is incomplete; the
+  published text does not let us choose, and A1.8 will not guess. It is **not** evidence about
+  how much denylisted material survived into the corpus: that is the scoring pass, and this
+  figure bounds the denylist's size rather than the filter's reach.
+- **This validates the reading, not the seed set.** A1.8's UniRef100 query set counts a
+  different object and nothing published can validate it (D-150 stands on that point). What is
+  checked here is whether the regulation's 70 entries were resolved to the organisms the lab
+  resolved them to, and the answer is that no resolution we can construct reproduces their
+  total.
+- **Consequence for A1.6.** Its "roughly 4M validates the viral seed set" claim is still wrong
+  for the reason D-150 gave — 4M counts UniProt sequences, its 3,159,223 counts UniRef100
+  clusters. But it now has the comparison it actually wanted: 5,379,748 taxonomically viral
+  UniProtKB sequences at 2023_02, against a stated ~4M after a specificity filter. That checks
+  A1.6's *reading*, and it passes in the sense that the difference has a described cause.
+- **Rejected:** Re-running the pass with descent disabled to measure the no-descent reading —
+  the per-taxid counts in the artefact answer it exactly and for nothing, and a 2.6-hour pass to
+  re-derive a number already in hand is not a measurement, it is a habit. Reporting 1,277,073 as
+  "the denylist at the correct release" without the decomposition — it is the literal reading's
+  figure and 60% of it is one entry (avian influenza, 766,512), which an aggregate hides.
+  Choosing the 229,787 reading because it is closest to 187,000 — fitting a reading to a target
+  is what D-150 had to withdraw a hypothesis for, and the bracket is the honest output.
+
+### D-158 — The clause-(b) exposure is measured descriptively from the staged UniRef90 and UniRef50 tiers, with no threshold invented
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Numbering:** appended as D-157 and renumbered to D-158 on 2026-10-18. A1.8's D-157 was
+  already on `main` when this was written, so every track that pulls sees that number as
+  A1.8's; and renumbering an entry another track is actively working from would create the
+  ambiguity the rule exists to prevent. Note that the stated tie-breaker points the other
+  way — this entry is cited from `src/`, A1.8's only from task files — but those citations
+  are all in unmerged files on one branch and moved in a single pass. The commits
+  "A1.6: D-157 — measure the clause-(b) exposure, inventing no threshold" and
+  "A1.6: the exposure measurement, and one pass implementation rather than two" refer to
+  this entry.
+- **Context:** The project owner asked whether band 1's hits are unique to viruses. D-156 settled
+  the half of that question the source answers: clause (b) — "align almost exclusively to other
+  viral sequences in UniProt" — is deliberately dropped by the strict reading, so the
+  annotation-only seed set is the strict reading's own seed set and not a defective one, and
+  quantifying the clause would invent the number D-015 declined to invent.
+
+  What D-156 leaves unmeasured is **how much of band 1's figure rests on seeds that clause (b)
+  would have excluded.** That is answerable descriptively, from bytes already staged, without
+  choosing a cut — so it is neither the fourth reading D-156 declined nor a correction to the
+  charitable one.
+- **The measurement.** UniRef90 and UniRef50 are the publisher's own homology groupings at 90%
+  and 50% identity, both staged for 2023_02 beside the UniRef100 tier the seed set came from.
+  For each seed — a UniRef100 cluster in the strict seed set — ask whether the UniRef90 cluster
+  containing it has any non-viral member, and separately whether its UniRef50 cluster does. A
+  seed whose homologues at 50% identity include cellular sequence is one clause (b) would
+  plausibly have dropped.
+- **Fixed now, before any result exists, per §2 and the non-negotiables.**
+  1. **Two tiers, reported separately, as a two-point curve.** No single blended number, no
+     interpolation between them, no chosen cut. A seed is *described* at two fixed identities,
+     never classified as inside or outside the denylist.
+  2. **Viral means a descendant of taxid 10239**, over the representative and every member,
+     identical to `UniRefEntry.is_viral_seeded`, under the already-pinned
+     `taxdmp_2023-04-01.zip`. The exclusivity test reuses the seed set's own test so the two
+     cannot disagree.
+  3. **Two denominators, both reported.** Over all realised band-1 sample seeds, and over those
+     band-1 sample seeds that actually produced a hit record. The second is what bears on the
+     headline; the first is what says whether the hit-producing seeds are unusual among the
+     sampled ones.
+  4. **A seed with no placed taxid is a third outcome**, counted and reported as its own share
+     rather than folded into either — D-152's lesson, one level down.
+  5. **Reported by survival route and homology class only, never by organism or taxon** (D-125),
+     with per-seed detail in the disclosure package only.
+- **Why these bytes rather than an alignment pass.** The tiers are publisher-computed,
+  contemporaneous with the release the seed set was built from, already pinned and already
+  staged, and they introduce **no parameter of ours** — which is the whole reason this is a
+  descriptive measurement and not a reading. An alignment of seeds against UniProt would need a
+  cut on "almost exclusively", which is exactly what D-015 and D-156 refuse.
+- **Three schema facts, verified against the staged bytes rather than assumed.** This task has
+  now been bitten three times by a field whose meaning was taken on trust, so these were read
+  before the design rested on them:
+  - Every `<member>` and `<representativeMember>` in **both** tiers carries a
+    `UniRef100 ID` property and an `NCBI taxonomy` property, so each tier joins to the seed set
+    directly by UniRef100 id and needs no separate mapping and no reconstruction from the other
+    tier.
+  - The `member count` property **includes the representative** — a cluster reporting 3,252 has
+    3,251 `<member>` elements — so a count taken from the elements alone is short by one per
+    cluster, and the taxid scan must cover the representative block as well.
+  - `uniref.xsd` is staged but cannot answer either question: properties are generic
+    `type`/`value` pairs in the schema, so only the entries themselves settle what is present.
+- **What this does not do, and must never be labelled as.** It is not clause (b): clause (b) is
+  a condition on alignment against the whole of UniProt, and UniRef membership is a proxy for it
+  at two fixed identities. It does not make the charitable seed set executable — D-156 stands,
+  and that inexecutability remains the §A0 finding. It bounds the *exposure* of band 1's figure
+  to the dropped clause; it does not correct the figure, and no corrected figure is to be
+  derived from it. And it says nothing about whether a matched *corpus record* is viral material
+  or host protein that resembles it — that is about what the records are rather than that they
+  align, and D-154 assigns it to A2.\* and B3.\*.
+- **Cost, and why it is in-region.** 62.73 GB plus 30.39 GB of compressed stream. Scaling D-100's
+  measured full-tier pass — UniRef100 2023_02, 118.68 GB in 3,202.5 s on 8 vCPU with 7 parsing
+  workers — gives about 28 minutes for the 90 tier and 14 for the 50, so roughly 45 minutes
+  sequentially on one instance, about **$0.10 on spot**. Read from the session container instead
+  it is 93 GB of metered egress at the 42.5 MB/s this project has measured, which is both slower
+  and two orders of magnitude dearer. This is the data-movement test in `AGENTS.md`, and it
+  passes it.
+- **Rejected:** Implementing clause (b) — D-156, and it remains rejected; this measurement exists
+  *because* clause (b) is not to be implemented. A single share across both tiers, or a share at
+  one tier only — either is a threshold by the back door, which is the thing being avoided.
+  Reconstructing the 50 tier from the 90 pass, which is possible since every member carries its
+  `UniRef50 ID` — reading the 50 tier directly is 30 GB and no join, against a 60M-key
+  aggregation held in memory for no gain. Weighting by hit records rather than counting seeds —
+  a seed's hit count is a property of the corpus sample, so weighting by it would fold two
+  samples into one number.
+- **Consequence:** band 1's figures ship with the two-tier exposure share beside them, and the
+  write-up states the exposure rather than adjusting the figure. If the share at 50% is large,
+  the §A0 finding about the unquantified phrase gets quantitative support; if it is small, band
+  1's strict-reading figures stand with less of a caveat attached. Both outcomes are reportable
+  and the direction is not known before the pass, which is why this entry exists before it.
+
+### D-159 — What A1.8's scoring pass measures, and how it may be reported, fixed before any result is seen
+- **Date:** 2026-10-18
+- **Task:** A1.8
+- **Why this is written now.** §2 and AGENTS.md require thresholds, parameters and analysis
+  specs fixed before results are inspected. This arm has a sharper reason than the general one:
+  D-154 found A1.6 reporting a figure as a lower bound when its seed set implemented only the
+  first clause of the rule, and the phrasing had to be withdrawn after the number existed.
+  A1.8's seed set has a larger version of the same problem (D-157), and the honest framing is
+  much easier to agree to before anyone has seen a rate.
+- **What the pass does.** The reconstructed select-agent seed set — 1,079,124 UniRef100 2023_02
+  clusters, `corpora/results/a1-8/select-agent-seeds-2023_02-uniref100.faa` — is scored against
+  the staged 2.5% hash sample of UniRef100 2023_02 (D-122), at the fixed parameters of D-105
+  and D-107: `-c 0.8`, `--max-seqs 100000` behind the saturation guard, three sensitivities
+  (2.0, 5.7, 7.5) against two coverage-filtered searches recovering all three coverage
+  readings — the same six cells per shard A1.6's band 1 ran, so the two arms' instruments are
+  identical and only the query set differs.
+- **What the resulting rate is a rate *of*, stated precisely.** The share of sampled corpus
+  records that align, at or above a given identity, to a sequence **belonging to an organism
+  named on the Select Agents and Toxins List as this project reads it (D-137)**. It is **not**
+  the share of records the filter undertook to remove and did not.
+
+  The gap between those two is measured, not hypothetical. At ESM3's own release the reading
+  yields 1,277,073 UniProtKB sequences where they report 187,000 — 6.8x, and still 1.7x on the
+  narrowest reading the regulation permits (D-157). Our query set is broader again, being
+  UniRef100 clusters rather than UniProt sequences. So a matched record may be material the
+  filter never undertook to remove.
+- **Two errors, running in opposite directions, and neither may be dropped.** This is D-154's
+  structure and it applies here with the larger term:
+  - **Sampling understates.** A 2.5% corpus sample and a 1/100 seed band both miss material: a
+    record matched only by an unsampled seed, or sitting outside the sampled shards, is not
+    counted.
+  - **A query set broader than the denylist overstates.** A record matching select-agent
+    material that ESM3's denylist did not contain is counted as survival of something the
+    filter should have removed, when it undertook no such thing.
+
+  **The net direction is not known, and no figure from this arm may be phrased as a bound in
+  either direction.** "At least X%" and "no more than X%" are both unsupportable. The
+  supportable form names the reading, the sample and both axes.
+- **What may be published, carried forward unchanged.** Counts by survival route and homology
+  class, never by organism or taxon (D-125). The per-record manifest to the disclosure package
+  only, at the key D-126 fixes. Not pooled with A1.6's broad-arm rate (D-108). No all-clear:
+  the pass is sampled and Phase A does not state that nothing on the narrow denylist survived
+  (D-133). Every figure carries the proxy qualifier A1.1 requires on ESM3 results.
+- **The sizing, fixed here so the result is not quietly rescoped to fit a budget.** On D-153's
+  measurement — 31,381 seeds against shard 0 at six cells, 14,852 s wall on eight vCPU — this
+  arm's 1,079,124 seeds give: band 1 (1/100 of seeds) on one shard **≈1.4 h and about $0.25**;
+  band 1 across all eight shards ≈11.3 h; the whole seed set on one shard ≈142 h; the whole
+  seed set on the whole sample ≈1,135 h. **Band 1 on shard 0 runs first**, both as the smoke
+  test and because it is the cell-for-cell comparison with A1.6's band 1 — same shard, same
+  six cells, different denylist. Widening is a separate decision taken with that result in
+  hand, not an assumption built into this one.
+- **Rejected:** Reporting a single survival percentage for "the select-agent denylist" — it
+  names a denylist this arm does not implement, and D-157 measured how far off it is. Calling
+  the figure a lower bound because the sampling axis is a floor — exactly the error D-154 had
+  to correct one level up, and repeating it with a larger broadening term would be worse.
+  Waiting for a clause-(b)-equivalent restriction before scoring — no such clause exists in the
+  select-agent procedure to implement; the gap there is unexplained rather than unapplied
+  (D-157), so there is nothing to wait for.
+
+### D-160 — Band 1's artefact keeps no identifier, so D-158's hit-producing denominator needs a re-run that emits one
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** D-158 fixed two denominators for the clause-(b) exposure share: over all realised
+  band-1 sample seeds, and over those sample seeds that actually produced a band-1 hit record. It
+  named the second as the one that bears on the headline, with the first as the context that says
+  whether the hit-producing seeds are unusual.
+
+  The second has no input. Both published band artefacts were probed directly:
+  `band-complete.json` carries six cells and `band.json` five — so the task file's rule of counting
+  `band.cells` rather than trusting the name picks the right one, and it does — and **neither
+  contains an identifier of any kind.** No `UniRef100_`, no `UniRef90_`, no `MGYP`, not even a
+  `query` key: 9.5 MB of per-cell, per-stratum and per-family counts. That is exactly what D-108
+  and D-134 designed the broad arm to publish, a rate rather than a manifest, so the hit table and
+  its `query` column never left the instance.
+- **The cause, named rather than absorbed.** D-158 asserted a denominator over an artefact whose
+  contents it had assumed instead of read. That is the fifth time in this task a quantity has
+  rested on a field taken on trust — D-117, D-144, D-150 and D-154 were the others — and the first
+  four were inherited, where this one was written here, two hours after the entry for it said to
+  check the staged bytes rather than assume them. The schema facts in D-158 were checked precisely
+  this way; the artefact its own denominators would read was not.
+- **Decision — the re-run, authorised by the project owner at about $0.50 and four hours on spot.**
+  Band 1 re-runs on the same shard with query-side emission added. To a new key: the corpus bucket
+  has no `DeleteObject`, so an overwrite destroys the earlier object irreversibly, and band 1's
+  existing counts stay citable as they are.
+- **The emission's design, fixed before the re-run rather than after it, per §2.**
+  1. **Per cell, not per band.** Coverage mode and sensitivity change which seeds produce a hit at
+     all, so one band-level set would silently adopt whichever reading happened to be read last.
+     Each of the six cells emits its own set.
+  2. **Membership only** — the set of seeds with at least one hit record under that cell's
+     reading. Not hit counts: a seed's hit count is a property of the corpus sample, and weighting
+     by it would fold two samples into one number (D-158 rejected that already).
+  3. **Memory stays bounded by the query set**, which is known before the run at 31,381 seeds —
+     the same argument `TargetStream` already makes for `stratum_hits`. This does not reintroduce
+     the unbounded per-target structure that class exists to avoid, because the bound is the band's
+     seed count rather than the corpus.
+  4. **The emitted ids are identifier-bearing**, so they are staged in the disclosure package
+     under D-125 as amended by D-126 and never committed or published. The published figure stays
+     a share by survival route and homology class.
+- **What this does not touch.** The exclusivity pass in flight is unaffected: its tier-level
+  non-exclusive share is over every viral-covering cluster in each tier and needs no join at all,
+  which also makes it the figure comparable to A1.8's residual. And D-158's first denominator was
+  never at risk, because band 1's sample is the hash rule `bucket_of(id, 100) == 0` over the staged
+  seed FASTA rather than a stored list — `band-complete.json` confirms 31,381 seeds realised at a
+  denominator of 100, so that set regenerates from pinned inputs without any artefact.
+- **Rejected:** Amending D-158 to require only the computable denominator. It would edit a fixed
+  analysis spec after seeing what the data can support, which is the thing §2 exists to forbid, and
+  the tidiness of the result is exactly what should make it suspect.
+  Reporting the second denominator as not executable and shipping the rest — defensible, cheap, and
+  with D-156's handling of the charitable seed set as precedent, but the precedent does not
+  transfer: the charitable seed set is inexecutable because quantifying "almost exclusively" would
+  invent a number, where this input is recoverable for four hours and $0.50. "Cannot" would have
+  been "would rather not", and §A0's standing is built on the difference.
+  Deriving the second denominator from the published per-family counts. `seed_families` is a count
+  and the family arrays are a corpus-side stratum; no mapping from either to a seed survives, so
+  any such derivation would be an inference dressed as a measurement.
+- **Consequence:** the exposure share ships with both denominators as D-158 specified, and band 1
+  gains a per-cell seed-hit set that A3.3's independent reimplementation and any later clause-(b)
+  work can both read. The process point is the one worth carrying: checking the inputs a spec names
+  belongs in writing the spec, not in executing it, and an entry that checks one of its inputs
+  carefully is not thereby an entry that checked them all.
+
+### D-161 — The two registries' survival fractions are not comparable, and the difference is measured
+- **Date:** 2026-10-18
+- **Task:** A2.4 (governs A3.2 and the Phase A write-up)
+- **Context:** A2.4's first band reports **11.8% of Pfam's viral families** and **0.66% of
+  RVDB-prot's** surviving as prophage in Evo 1, from the same proteins. Read side by side that
+  looks like Pfam being eight times more permissive, and a reader will reach for one number as
+  the headline. Both readings are wrong, and the reasons are separable and measurable.
+- **What was measured**, on identical input — 5,314 genes, 1,201,328 residues, 128 proviruses:
+  **The denominators answer different questions.** Pfam's 1,719 is *this project's derived*
+  viral subset (D-075), weighted toward well-characterised phage domains, with the blind spot
+  D-083 measured. RVDB-prot's 13,679 is the publisher's clustering of the whole known
+  virosphere, overwhelmingly eukaryotic viruses that **cannot** occur in a bacterial prophage.
+  RVDB's denominator therefore carries a large, structurally unreachable mass.
+  **There is also a real sensitivity gap, and it is not a counting artefact.** Pfam returns
+  **173 detections per 1,000 genes against RVDB's 33**, a 5.2x difference. Multi-domain
+  inflation is ruled out: hits per family-record pair are 1.19 and 1.16.
+  **The cause is the threshold regime (D-076).** Pfam is searched at its curators' per-model
+  gathering cutoffs — median 26.2, ranging 20.3 to 39.1, so a diverged family can carry a lower
+  bar. RVDB's thresholds derive from one pinned E-value against a pinned Z and are therefore
+  **near-constant across all 13,679 models, spanning 29.4 to 31.5**. A uniform bar cannot be
+  lenient where leniency is warranted, and it sits higher on average. Median best scores, 100.5
+  against 70.8, say the same from the other side: Pfam's phage domain models fit these proteins
+  better because that is what they were built to recognise.
+- **Decision:** The two registries are **not interchangeable instruments**, and neither
+  percentage is reportable on its own.
+  **Pfam's fraction is never quoted as "the fraction of viral families".** Its denominator is
+  this project's reading of "viral" in Pfam, not a published universe, and any use of it says so.
+  **RVDB's fraction is never quoted as a measure of how much survived.** Its denominator
+  includes families no prophage could contain, so the fraction understates by an amount this
+  band does not quantify.
+  What is reportable: **RVDB's absolute counts** — 90 families, 177 detections — and **Pfam's
+  composition**, which is a prophage parts list (`Phage_integrase` 65, `Terminase_6N` 24,
+  `Phage_capsid` 24, `PhageMin_Tail` 23, `Phage_portal` 19). The composition is the evidence
+  that these are integrated phage rather than scattered homology, and it does not depend on
+  either denominator.
+- **Rejected:** Harmonising the thresholds so the registries compare. D-076 fixed them before
+  results existed and A2.1's tables were produced under them; changing them now to make two
+  numbers line up is choosing a threshold for its output, which is the thing the pre-registration
+  discipline exists to prevent.
+  Dropping one registry. They fail in opposite directions — Pfam's universe is ours and narrow,
+  RVDB's is the publisher's and far too broad — and reporting both with this entry attached is
+  more honest than picking the flattering one.
+  Deriving a "phage-relevant subset" of RVDB to fix its denominator. That is a real improvement
+  and it is a new reading of someone else's curation, so it belongs in its own task with its own
+  pre-registration, not in a footnote to this band.
+- **Consequence:** A3.2 must not pool or average the two registries' fractions (already required
+  by D-022, and this entry says why in measured terms). The Phase A write-up carries the
+  composition and the absolute counts; any percentage it quotes names its denominator in the
+  same sentence.
+
+### D-162 — Correction to D-157: the viral residual is not clause (b)'s effect, and two independent measurements now bracket it
+- **Date:** 2026-10-18
+- **Task:** A1.8 (the measurement is A1.6's, from D-158)
+- **What D-157 said and should not have.** It reported 5,379,748 taxonomically viral UniProtKB
+  sequences at release 2023_02 against ESM3's stated ~4M, and described the 1.34x gap as "a
+  1.34x gap with a described cause", with the A1.6 task note going further: the difference "is
+  accounted for by a step they describe". **That is an attribution, not a measurement**, and it
+  was raised by A1.6 rather than caught here.
+
+  The residual assumes the whole gap is clause (b) — "align[s] almost exclusively to other
+  viral sequences in UniProt" — and that nothing else contributes. At least two other things
+  plausibly do: annotation drift between 2023_02 and whatever snapshot the lab actually read,
+  and the reading of "annotated as viral" itself. A residual is what is left over, and naming
+  it after one of several possible causes is the same move D-154 had to correct one level up,
+  and the same move D-150 corrected when a caveat under a number failed to stop the number
+  being built on.
+- **The count itself is confirmed, independently.** A1.6's exposure pass counted viral members
+  carrying a UniRef100 id out of the UniRef90 and UniRef50 tiers — a different file, a
+  different method, neither calibrated against the other — and got **5,405,462**, which is
+  **0.48%** from this arm's 5,379,748. Both tiers emitted identically that figure, which is
+  also an internal check since every member sits in exactly one cluster at each level, and
+  both matched their release notes on cluster count (170,669,877 and 60,479,070). So the
+  archive read is sound; it is only the interpretation of the gap that was overstated.
+- **What the exposure measurement does and does not bound.** Over band 1's realised 31,381-seed
+  sample, the share of seeds whose cluster holds at least one non-viral member is **13.61% at
+  UniRef90 and 31.48% at UniRef50**. The 26% residual falls inside that range, near the 50%
+  end. This is worth less than it looks, for two reasons A1.6 states and this entry adopts:
+  the criterion is "the cluster holds at least one non-viral member", which fails seeds that
+  clause (b) would keep — one cellular cluster-mate among hundreds is still "almost
+  exclusively" viral — so it is an **upper bound rather than an estimate**; and it is cluster
+  co-membership over UniRef100 seeds at two fixed identities, not a residual over UniProtKB
+  sequences, so the two are different objects landing in the same region rather than one
+  confirming the other.
+- **Decision: the supportable wording, which replaces D-157's.** Two unrelated proxies falling
+  in the same region is evidence that the underlying quantity is of that order, and nothing
+  more. The line A1.8 and A1.6 both use is: *an independent exposure measurement at 50%
+  identity puts an upper bound of 31.5% on the share of viral seeds with cellular homologues,
+  consistent with but not confirming this residual.* **"Clause (b) removes 26%" may not appear
+  anywhere**, in either task's write-up.
+- **What survives of D-157's finding, which is the part that matters.** The asymmetry is
+  untouched. The viral denylist has a second clause that could account for a gap of roughly
+  this size, and the select-agent denylist has no such clause — its stated procedure runs
+  straight from the list to the count — yet no reading of the regulation reproduces its
+  published total, by 1.7x at the narrowest and 6.8x literal. That contrast does not depend on
+  attributing the viral residual to anything in particular, and it is the finding.
+- **Rejected:** Leaving D-157 as written with this entry as a footnote — its A1.6 task note
+  says the difference "is accounted for", which a reader will carry forward as settled; the
+  note is corrected in place and points here. Treating the 13.61%-31.48% range as a
+  measurement of clause (b) and quoting a midpoint — it is an upper bound by construction, and
+  a midpoint of a bound is not an estimate of anything.
+
+### D-163 — A2.2's 3Di prediction is 173x the cost of a profile search, so it runs on a GPU instance
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** §A2 names Foldseek for three virus-characteristic folds, but neither side of that
+  search exists yet, and the query side is the problem: the surviving corpora are nucleotide
+  (Evo) and sequence-only (the ESM3 proxy), so there are no structures to search. Foldseek needs
+  3Di, which for sequence input means predicting it with ProstT5. D-098 warned this task by name
+  that "any later task costing a pass over the corpora — A2.2's structural search above all,
+  which has the same shape — should take its throughput from a run of realistic size or not quote
+  one", so the figure below was measured before anything was planned around it.
+  **Measured, on real corpus input.** 50 records of Evo 1's viral component
+  (`stage2/test_stage2.parquet`), genes called with the same `pyrodigal` metagenomic mode D-077
+  pins, giving 1,725 proteins of 375,687 residues, median length 141 aa. `foldseek createdb
+  --prostt5-model`, foldseek 10.941cd33 from bioconda, 4 threads, no GPU:
+
+  | proteins | residues | wall | s/residue |
+  |---|---|---|---|
+  | 100 | 26,430 | 7m 49.9s | 0.017779 |
+  | 500 | 113,549 | 31m 38.4s | 0.016719 |
+
+  The two agree within 6% across a 4.3x size step, so this is the linear regime and not D-098's
+  fixed-cost trap. Taking the larger run: **0.0669 core-s per residue = 18.58 core-hours per
+  million residues.** A2.1's RVDB-prot profile search cost 386 core-s/Maa (D-098), so **3Di
+  prediction is 173x more expensive per residue than the search it is meant to feed**.
+  What that buys at the depths this project already works at: a full census of both releases
+  (24,691 Maa across `stage2`, `imgvr` and `imgpr`) is **458,800 core-hours**; merely matching
+  A2.1's existing sample depth (363 Maa searched) is **6,745 core-hours**, which on this
+  container's 4 cores is 1,686 wall-hours, about 70 days, against a two-hour ceiling per run.
+  CPU is therefore not a slow route to this result, it is not a route to it.
+- **Decision:** A2.2's 3Di prediction runs on a **GPU instance**, which the project owner
+  authorized on 2026-10-18 after being shown the figures above. Four things were verified rather
+  than assumed, because each would have cost a launch:
+  **The instance types.** `RunInstances` with `DryRun=True` returns `DryRunOperation` for
+  **`g5.xlarge`** and **`g6.xlarge`** and `UnauthorizedOperation` for `g5.2xlarge` and
+  `g6.2xlarge`. So the GPU allowance landed on the 4-vCPU types only — the owner's "up to 8
+  cores" holds for CPU (`c6i.2xlarge` still authorizes) but not for GPU, and a tool that assumes
+  a GPU 2xlarge will be refused with the bare `UnauthorizedOperation` that AGENTS.md records as
+  reading like having no permission at all.
+  **The driver.** The base AL2023 AMI every existing `tools/ec2_*.py` uses carries no NVIDIA
+  driver, and `ssm:GetParameter` reaches the Deep Learning base AMI that does:
+  `/aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-amazon-linux-2023/latest/ami-id`.
+  That is the AMI A2.2 launches, not the one the other tools launch.
+  **The build.** bioconda ships one `linux-64` build of foldseek 10.941cd33 with no CUDA variant,
+  so whether the packaged binary can use a GPU at all was open. `--gpu 1` on a machine with no
+  GPU answers it: it reports **"No GPU devices found"**, not "compiled without CUDA", so the
+  packaged build is CUDA-capable and the pin stays a lockfile entry rather than a side-channel
+  binary — which is what AGENTS.md requires of a tool that produces a result.
+  **The weights.** `foldseek databases ProstT5` retrieves a 2.3 GB f16 GGUF from
+  `huggingface.co/Rostlab/ProstT5`, unauthenticated, so this is not one of the blocked
+  acquisitions that need a human.
+- **Rejected:** CPU at census depth (458,800 core-hours) and CPU at A2.1 parity (6,745
+  core-hours, ~70 days of this container) — both arithmetically out of reach, which is the
+  reason, not a preference. A deliberately tiny CPU band inside the two-hour limit — about 0.02%
+  of the census, roughly 100x shallower than A2.1's sample, and A2.1's own bounds were still
+  rising steeply at 10x more depth (+18% Pfam, +45% RVDB on Evo 2 at the last doubling), so a
+  null at that depth would carry no weight and a count would not be comparable with the other
+  A2 tables A3.2 has to merge. Deferring A2.2 and recording the infeasibility as the finding —
+  defensible before the GPU existed, and it was one of the four options put to the owner, but it
+  gives up a route §A2 calls part of the methodological core while the obstacle turned out to be
+  an instance type.
+- **Consequence:** A2.2's cost model is now 3Di prediction on one GPU, and the GPU speedup over
+  these 4 cores is the next thing to measure rather than to assume — it is the number that sets
+  what depth A2.2 can pre-register, and it must be measured on the instance, since nothing here
+  has a GPU to measure it on. The depth target is A2.1 parity, because A3.2 merges these tables
+  and a structural table far shallower than the profile table is not comparable with it.
+  Two constraints follow from the verification above and belong in whatever tool launches this:
+  the instance type is a GPU **xlarge** or the launch is refused, and the AMI is the Deep
+  Learning base one or the GPU is invisible to a binary that can otherwise use it.
+  This entry records a **probe, not a result**: the throughput above came from a scratch
+  measurement outside `amazebio.repro.run`, with no `run.json`, and no number from it may appear
+  in a write-up. What it is for is sizing, which is exactly what D-098 said to measure first.
+
+### D-164 — The GPU speedup is 64x measured, so A2.2 pre-registers A2.1's depth and not a census
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** D-163 established that 3Di prediction, not the search, is A2.2's entire cost, and
+  that on CPU it is out of reach at any depth this project works at. The project owner then
+  authorized a GPU instance. What that buys had to be measured rather than assumed, because the
+  depth A2.2 pre-registers follows from it, and because D-098's throughput estimate was wrong by
+  a factor of a thousand for never leaving the fixed-cost regime.
+  **Measured on one `g6.xlarge`** (NVIDIA L4, driver 595.91.07, 23,034 MiB, 4 vCPU), both devices
+  on the same machine over the identical protein set — Evo 1 viral records from the pinned staged
+  object, genes called by the Prodigal metagenomic mode D-077 pins. Artefacts and `run.json` at
+  `corpora/results/a2-2/throughput/20261018T170641Z-9303d375d237/`, commit passed in by the
+  launcher because the instance has no checkout.
+
+  | rung | residues | CPU | GPU | GPU s/residue |
+  |---|---|---|---|---|
+  | 100 | 26,430 | 461.9 s | 8.1 s | 0.000306 |
+  | 500 | 113,549 | 1,896.1 s | 29.4 s | 0.000259 |
+  | 1,725 | 375,687 | — | 96.7 s | 0.000257 |
+  | 6,000 | 1,241,827 | — | 316.1 s | 0.000255 |
+  | 20,000 | 3,765,328 | — | 923.6 s | **0.000245** |
+
+  **The headline is 64.48x**, at rung 500 — the largest rung both devices ran, so the ratio is
+  one machine's measurement and not an instance figure divided by a container figure. Both arms
+  are linear with no outliers at a 25% tolerance; the GPU's own rate still improves slightly with
+  size (0.000259 at 500 against 0.000245 at 20,000), so against the CPU reference the asymptotic
+  ratio is 68x. The conservative paired figure is the one to quote.
+  **The container's figure reproduced on the instance.** CPU rung 100 took 461.9 s here against
+  D-163's 469.9 s in the session container — 1.7% apart on 4 cores each. That is the cheapest
+  available evidence that the two environments measure the same thing, and it is what licenses
+  reading D-163's CPU projections and this entry's GPU ones off the same scale.
+  **The GPU was proved present before anything was timed on it.** `nvidia-smi` reported the L4
+  and a one-sequence foldseek probe returned `usable: true`. This is not ceremony: with no usable
+  GPU, foldseek falls back to the CPU and returns a believable number, so an unproved GPU arm
+  could have been CPU timings wearing a label, and the error would have been invisible in the
+  artefact and in any test.
+- **Decision:** **A2.2's pre-registered depth is A2.1 parity — 363 Maa, the depth A2.1 actually
+  searched — and explicitly not a census.** At the measured 0.000245 s/residue that is **24.7 GPU
+  instance-hours** (wall clock on one instance, not core-hours). A census of both releases is
+  24,691 Maa, which is **1,682 GPU instance-hours**, about seventy days on the one GPU type the
+  policy permits; a 64x speedup moves the census from impossible to merely unaffordable, and
+  pretending otherwise would be the same error D-163 made about CPU one rung down.
+  Parity is the right target for a reason that is not budget: A3.2 merges A2.2's table with
+  A2.1's, A2.4's and A2.5's, and `metrics/detections.md` forbids pooling a `lower_bound` table
+  with a `population` one. A structural table far shallower than the profile table would not be
+  comparable with it, and one far deeper would not buy comparability either.
+- **Rejected:** A census on GPU — 1,682 instance-hours, and the cost question would have to go
+  back to the owner for something A2.1 itself did not do. A depth set by what fits one run window
+  — that is letting the instrument choose the measurement, and it is how A2.1's first pass ended
+  up at a rate it later had to deepen tenfold. A single number from the 500-rung GPU rate — it is
+  6% pessimistic against the 20,000-rung rate, and quoting the warm-up is the specific mistake
+  D-098 recorded.
+- **Consequence:** 24.7 instance-hours **exceeds one instance's window**, so A2.2's detection pass
+  needs either a longer timer or per-object resumability before it can run — the same conclusion
+  A2.4 reached about deepening, and it should reuse that shape rather than reinvent it. The
+  measurement also leaves one weakness in `tools/fold_throughput.py` worth fixing before the real
+  pass: the heartbeat publishes between rungs, not on an interval, so the 32-minute CPU rung was
+  32 minutes of silence. AGENTS.md requires a heartbeat on an interval precisely because silence
+  cannot distinguish a dead process from a slow one, and this run only half-honoured that.
+  Three launches were spent getting here and none of them to the measurement itself: a pixi URL
+  re-derived by eye, then a payload guard that failed on a complete payload, then success. Both
+  failures died in about forty seconds through their own `die` path with their logs in object
+  storage, rather than idling away a 150-minute window, which is the behaviour AGENTS.md's
+  shutdown rules exist to produce. The lasting fix was not either patch but simulating the
+  instance's bootstrap locally — build the real payload, unpack it, run both precheck steps
+  against it — which would have caught both for nothing.
+
+### D-165 — A2.2's spending ceiling is $30, enforced as the shutdown timer
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** Shown D-164's figures — 24.7 GPU instance-hours for the pre-registered depth,
+  against 1,682 for a census — the project owner authorized the pass with a ceiling of **$30**.
+  Measured prices, read from the account the same day: `g6.xlarge` spot quoted $0.503-$0.760/h
+  across availability zones, `g5.xlarge` spot $0.434-$0.532/h. On-demand could not be verified
+  from here at all: `pricing:GetProducts` is denied, so the only on-demand figure available is a
+  remembered one, which is not a figure.
+- **Decision:** The ceiling lives in `tools/ec2_folds.py` as `DEFAULT_MAX_SPEND_USD`, and the
+  launcher derives the instance's shutdown timer from it and the live price. The reason it is
+  code and not a note: the timer baked into `UserData` at launch is the *only* spend control
+  that survives the launch, because `ec2:ModifyInstanceAttribute` is denied and there is no
+  shell on the instance. An instance that outlives its budget cannot be reined in, only killed —
+  and only by a launcher that is still alive to do it. A ceiling that cannot buy a window long
+  enough to clear setup (about three minutes of boot, environment build and weights) refuses to
+  launch rather than burning it.
+  **The price is read, never remembered.** Spot comes from `describe_spot_price_history` and
+  takes the *worst* recent quote on purpose: the launch does not pin an availability zone, so
+  budgeting from the cheapest under-reserves precisely when it lands in the dear one. With
+  `--no-spot` the tool demands an explicit `--price-per-hour`, because budgeting against a rate
+  it cannot look up is how a ceiling silently becomes a guess.
+  **Spot is the default**, one-time and terminate-on-interruption, matching the other launchers.
+- **Rejected:** Treating $30 as guidance and launching with the previous fixed 150-minute
+  timer — it happens to be well inside budget, but it is inside by luck rather than by
+  construction, and the next person to raise the timer would not know what they were spending.
+  Budgeting against a remembered on-demand price — unverifiable here, and the direction of a
+  wrong guess is unknowable. Reserving the whole ceiling as one window — at $0.76/h it is
+  39 hours, longer than the pass needs and long enough that a spot reclaim late in it would
+  waste most of the budget; resumability, not a longer timer, is what protects the money.
+- **Consequence:** The ceiling is not the binding constraint — at the quoted price it buys about
+  39 instance-hours against a pass that needs 25. **What blocks the pass is method, not money**,
+  and three things have to exist first: the fold reference set and its stated membership rule,
+  the thresholds declared before any hit is looked at, and A1.4's manifests regenerated, since
+  `artifacts/` is empty in a fresh container and nothing in object storage holds them.
+  Resumability is the fourth, and it is what makes spot safe to rely on for a 25-hour pass.
+
+### D-166 — A2.2's fold universe is selected at ECOD's family level, and one of the three folds has no node to borrow
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** §A2 names three folds in prose — jelly-roll capsid, viral RdRp, class I fusion
+  glycoprotein — and names no identifier for any of them. D-083 says this membership rule is "a
+  finding about the registry, not a detail of the pipeline" and named A2.2 as facing the
+  question; D-097 adds that the id-to-label mapping is an artefact with a stated rule. A2.1's
+  precedent is to borrow somebody else's curation wherever one exists and to say so where it
+  does not.
+  **Registry:** ECOD **v295.2** (generated 2026-08-27), 2,943,253 classified domains, retrieved
+  unauthenticated from the publisher. Chosen over SCOPe 2.08 (last released 2021, so five years
+  of structures missing) and CATH 4.4 because ECOD's family level is keyed to Pfam names, which
+  makes the selection auditable against the registry A2.1 already pinned.
+  **Three things were measured in it, and each changes the rule.**
+  **1. The architecture level is useless here.** `jelly-roll` holds 16,690 domains of
+  `Nucleoplasmin-like/VP (viral coat and capsid proteins)` — the fold §A2 means — beside 15,544
+  Concanavalin A-like lectins, 9,881 galactose-binding domains, 1,801 CUB domains and a calcium
+  ATPase transduction domain. Selecting "jelly-roll" would make lectins count as viral capsids.
+  **2. The topology level is useless for RdRp.** Viral RdRp sits under T-groups named
+  `Adenylyl and guanylyl cyclase catalytic domain-like` and
+  `helical bundle domain in reverse transcriptase-like polymerases`, so selecting at that level
+  imports adenylyl cyclases and reverse transcriptases. Worse, searching the literal phrase
+  "RNA-dependent RNA polymerase" in ECOD's names returns **81 domains**, all birnavirus
+  subdomains — the canonical RdRp families are named for Pfam (`RdRP_1`, `RdRP_3`, `RdRP`) and
+  would have been missed entirely. The same family name also recurs under different topologies,
+  because RdRp is multidomain and its palm and helical bundle are classified apart.
+  **3. "Class I fusion glycoprotein" is a virology category, not a structural group.** Its
+  members are in unrelated branches: `Hemagglutinin HA2 chain` (influenza), `MPER trimer` with
+  family `GP41` (HIV), `S2 subunit of coronavirus spike glycoprotein`, and two paramyxovirus F
+  groups. **No single ECOD node means it.** Name matching is also actively unsafe here: the
+  family name `GP41` matches HIV's envelope *and* a phage tail protein (`E217_GP41`) *and* a
+  Wiskott-Aldrich protein, while `Hemagglutinin` spans both the jelly-roll receptor-binding head
+  and the HA2 fusion stalk, which are different folds doing different jobs.
+- **Decision:** **Select at ECOD's F-group (family) level, by an enumerated list of group
+  identifiers rather than by regex over names**, and ship that list as an artefact with the
+  table, as D-097 requires. Names are evidence for building the list and must not be the
+  mechanism that applies it — finding 3 is the proof.
+  Per fold:
+  **Jelly-roll capsid** — the `Nucleoplasmin-like/VP (viral coat and capsid proteins)` group
+  under `jelly-roll`. Borrowed curation, 16,690 domains, **119 manually curated representatives**.
+  **Viral RdRp** — the enumerated RdRp families (`RdRP_1`, `RdRP_3`, `RdRP`, `Birna_RdRp_palm`,
+  `Birna_RdRp_C`, `CoV_RPol_N`), 1,907 domains, **31 representatives**, explicitly **excluding
+  the host RNAi polymerase families** that share the fold. A eukaryotic RNAi polymerase is not
+  viral-derived content, and counting one as a surviving viral homolog would be a false positive
+  of exactly the kind this audit exists to avoid — the same call A2.1 made excluding integrase
+  and transposase from its viral family set.
+  **Class I fusion glycoprotein** — enumerated by this project, because there is nothing to
+  borrow: 9,606 domains, **16 representatives**. This is the one fold whose membership rule is
+  ours rather than a curator's, and it ships labelled that way. It is also the weakest of the
+  three and is the structural coverage gap A2.2's Done-when criterion asks to be documented.
+  **The reference set is the representatives, not every domain** — 166 structures in total,
+  fetched from RCSB by accession and cut to ECOD's residue ranges. Fold search is the point, so
+  representatives are the right reference; and it keeps the reference side the small side, which
+  AGENTS.md requires to be worked out before anything is sized.
+- **Rejected:** Selecting by architecture or topology — findings 1 and 2 measure what that
+  costs. Selecting by regex over family names — finding 3 shows it imports phage tail proteins
+  under the HIV envelope's name. SCOPe 2.08 — five years stale, and this audit's corpora are
+  current. Foldseek's prebuilt PDB or CATH50 databases as the reference — they are whole chains
+  and whole-chain classifications, and a capsid fold inside a larger protein is the case that
+  matters. BFVD, the predicted viral structure database — it is predictions over sequences that
+  may themselves descend from the corpora under audit, and a reference set has to be independent
+  of the thing it measures. Every domain rather than representatives — 28,203 structures to
+  gain fold-level sensitivity that representatives already provide.
+- **Consequence:** The fold universe is a denominator of **three folds and 166 reference
+  structures**, with its membership rule stated per fold and one of the three marked as this
+  project's own construction. That asymmetry is itself reportable: the audit can borrow a
+  curator's definition of a viral capsid, can assemble a defensible one for RdRp from Pfam-keyed
+  families, and cannot borrow one at all for the fusion class §A2 names. Thresholds come next and
+  are not set here; nothing in this entry looks at a hit.
+
+### D-167 — A2.2 searches corpus-as-query against the pinned reference set, and cannot report a TM-score at all
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Context:** The threshold had to be fixed before any hit was inspected, and the plan going in
+  was the obvious one: TM-score, the field's standard fold-similarity measure, cut at the
+  literature's same-fold convention, with the small reference side as the query per AGENTS.md's
+  rule about which side of a search to make the query. Testing that plan against foldseek
+  10.941cd33 rather than declaring it found three things, each of which changed it.
+  **1. `--tmscore-threshold` can be silently disabled.** With TM alignment foldseek prints
+  `Cannot use --tmscore-threshold with --sort-by-structure-bits 0` followed by
+  `Disabling --tmscore-threshold`, and continues. A declared threshold the tool discards is
+  worse than none, because the run still produces a plausible table.
+  **2. A ProstT5 database holds 3Di strings and no coordinates.** There is no `_ca` file, so
+  `--alignment-type 1` dies outright, and `convertalis` refuses to report at all — not merely
+  for coordinate-derived columns. That was checked: requesting only `query,target,bits,evalue,
+  prob,fident,alnlen,qlen,tlen` still fails on the missing `_ca`, in both directions. The
+  publisher states the same thing: such a database "supports monomer search and clustering, but
+  does not enable features requiring Ca information, such as `--alignment-type 1`, TM-score or
+  LDDT output".
+  **3. The supported direction is the inverse of the one AGENTS.md's rule would pick.** The
+  documented path is `easy-search QUERY.fasta <structureDB> res tmp --prostt5-model weights`:
+  sequence as **query**, structures as **target**. Verified end to end here — 18 rows, exit 0 —
+  and the C-alpha message is then a warning, not an error. The usual "query the small side"
+  reasoning does not apply because the tool decides it: only the structure side has
+  coordinates, so only it can be the target.
+- **Decision:** **The corpus is the query and the 166-structure reference set (D-166) is the
+  target.** Coverage floor on the **target**, `--cov-mode 1`, because the reference domain is
+  now the target and the requirement is that at least half of the reference *fold* is matched —
+  A2.1's `MIN_MODEL_COVERAGE` of 0.5 carried over to this geometry. Getting this backwards
+  would let a sliver of a capsid fold inside a large corpus protein count as a detection, and
+  `--cov-mode 2` was the intended setting until the direction inverted.
+  **The score is the bit score, not the E-value.** Both are available and coordinate-free; the
+  bit score is chosen because it does not depend on database size at all, which satisfies
+  D-076's rule directly rather than by argument. Worth recording that the rule would be
+  satisfied either way here: D-076 rejected E-values because they scale with the number of
+  targets searched, so a headline would drift with how much corpus a run happened to read — but
+  under this inversion the target database is the *fixed* reference set and the varying quantity,
+  corpus size, is the query count, which the E-value does not depend on. The bit score needs no
+  such reasoning to be safe, so it is what the detection records.
+  **Reported, so a reviewer can re-cut without re-searching:** bit score, E-value, target
+  coverage, alignment length, query and target length, and fraction identical. `alntmscore`,
+  `qtmscore`, `ttmscore` and `lddt` are structurally unavailable and are recorded as such rather
+  than as nulls that look like missing data.
+- **Rejected:** TM-score at the literature same-fold cut — impossible here, on the publisher's
+  own statement, not merely unmeasured. Predicting full 3D structures for the corpus so that
+  TM-score becomes available — the publisher puts ProstT5 at 400-4000x faster than ColabFold
+  structure prediction, and D-163 already measured the 3Di step alone at 173x the cost of a
+  profile search; full structures are orders of magnitude beyond any budget this project has.
+  `--alignment-type 0` (3Di only) over the default 3Di+AA, which was tempting for independence
+  from sequence — deferred to the threshold calibration rather than chosen here, since it
+  changes the score distribution and therefore the cut.
+- **Consequence:** **A2.2 can never state a TM-score or an LDDT for a hit in the Evo corpora.**
+  That is a limit on how strongly the fold claim may be worded — the evidence is a structural
+  alphabet alignment against a reference fold, not a superposition — and it belongs in the
+  write-up as a stated limitation rather than being discovered by a reviewer. It also partly
+  undercuts the independence §A2 wants from the structural route: the 3Di string is predicted
+  from sequence, so this detector is not as independent of sequence as a search over real
+  structures would be, and the default alignment mode scores amino acids alongside 3Di.
+  **The threshold's value is still open and is the next step**, deliberately: it needs a decoy
+  calibration — the reference set searched against shuffled or unrelated queries — to pick a
+  bit score at a stated false-discovery rate, with its two bracketing values fixed in the same
+  breath, as `metrics/survival.md` requires. Nothing in this entry has looked at a corpus hit.
+
+### D-168 — A deferred gate keeps `gate: true` with empty `blocks`, and the second lockfile goes
+- **Date:** 2026-10-18
+- **Task:** X1.1 (repo audit)
+- **Context:** A quality audit of the repo turned up two things needing a recorded call rather
+  than a silent fix. First, `AGENTS.md`'s gate table said "Five tasks carry `gate: true`" and
+  listed C2.2 as a live gate holding leakage-score results, while omitting C6.3 entirely. Six
+  tasks carry the flag. C2.2 was deferred in DESIGN v0.4 and superseded by C5.1–C7.1 (D-009),
+  and it carries `blocks: []` with nothing depending on it — so the gate the operating manual
+  described as structurally impossible to walk past held nothing, while C6.3, which actually
+  holds C7.1 and X4.1, was undocumented. Second, the repo root carries both `pixi.lock` and a
+  129-byte `uv.lock` containing one editable root entry and no dependencies, referenced by
+  nothing and git-ignored nowhere. It arrived on `main` in `2ffeab5`, whose message reads
+  "Project management only."
+- **Decision:** A gate that `DESIGN.md` has declined keeps `gate: true` and carries `blocks: []`
+  deliberately, and the gate table says so in its own row. The flag is what keeps a declined
+  commitment visible as deliberately not run — the same reason `deferred` exists — so removing
+  it would erase the commitment rather than record its supersession. The table now lists all
+  six, names C6.3 as the live gate on Phase C results, and states that `tasks/BOARD.md`'s
+  generated Gates section is authoritative where the two disagree. `uv.lock` is deleted and
+  `uv` artefacts are git-ignored.
+- **Rejected:** Dropping `gate: true` from C2.2 — it passes `board.py --check` either way, and
+  the flag is the only thing marking C2.2 as a commitment that was made and then declined
+  rather than a task that was never a gate; the paper names it as future work and needs that
+  distinction. Adding a `board.py --check` rule that a gate must carry non-empty `blocks` —
+  it would fail on exactly this legitimate case, and the owner declined it when offered.
+  Keeping `uv.lock` on the grounds that it is harmless — it pins nothing and cannot reproduce
+  the environment (the conda-side toolchain has no PyPI path this project pins), so a second
+  lockfile in the root invites a contributor to resolve from the one that pins nothing, against
+  the pin-everything non-negotiable.
+- **Consequence:** Neither is a finding; both are repo hygiene. The gate table change is
+  documentation catching up with D-009 and does not move any gate: A3.3, B5.1, C6.3 and X3.1
+  all stay `HOLDING`, A1.1 stays `PASSED`, and C2.2 stays `deferred`. One thing the audit
+  surfaced is *not* resolved here and is left to the owner: `AGENTS.md`'s gate table is
+  hand-maintained against generated frontmatter with nothing checking the two agree, so it can
+  drift again. The new line pointing at `BOARD.md` as authoritative is a mitigation, not a
+  mechanism.
+
+### D-169 — A2.2's fold universe is re-derived at family level, because D-166's list was never shipped and its capsid set contradicted its own rule
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Numbering:** appended as D-168 and renumbered to D-169 before pushing — the repo audit's
+  D-168 landed on `main` in between and is already cited from `AGENTS.md`. Commit messages on
+  branch `ccr-7a87e8bd-9ow1h1` citing D-168 for the fold universe mean this entry.
+- **Context:** D-166 fixed the three folds §A2 names at **166 ECOD representatives** and required
+  the enumerated identifier list to ship as an artefact with the table. **That artefact was never
+  written.** The list existed only in the session that derived it, so the universe had to be
+  re-derived from the pinned release before anything could be searched — and re-deriving it
+  turned up two things.
+  The pin itself re-verifies exactly. ECOD **v295.2**, generated 2026-08-27, retrieved
+  unauthenticated. One correction of record: the publisher keeps **no per-version filename** for
+  the current release — the distribution listing stops at `develop292` while `ecod.latest.domains.txt`
+  *is* v295.2 — so the pin cannot be a URL and is now the version string plus a sha256
+  (`cd3abc43…afe8`). The file holds **2,943,252** classified domain rows; D-166's 2,943,253 is
+  that count plus the header line.
+  **1. The capsid fold was selected one level up, and that contradicts D-166's own finding.**
+  D-166 established that ECOD's `jelly-roll` X-group mixes Concanavalin A lectins and
+  galactose-binding domains with viral capsids, and concluded that selection must be at **family**
+  level by enumerated identifier. It then selected the capsid fold at the **H-group**
+  `Nucleoplasmin-like/VP (viral coat and capsid proteins)` — 16,690 domains, 119 curated
+  representatives, both of which reproduce exactly. But that group is nucleoplasmin-*like*: it
+  carries **867 plainly cellular domains** — nucleoplasmin itself (132), peptide-N-glycanase and
+  PNGaseA (64), Cu(2+) monooxygenase (162), TGF-beta propeptide (201), NPL (141) and others — and
+  **12 of the 119 representatives are cellular**. A further 665 domains and 10 representatives sit
+  in ECOD's two *unnamed* families of the group, and `10.2.1.0` holds peptide-N-glycanase outright
+  (`e1pgsA1`, PDB 1pgs). Admitting any of those as a reference structure manufactures the exact
+  false positive the family-level rule was adopted to prevent: a corpus protein matching the
+  nucleoplasmin or N-glycanase jelly-roll would be reported as a surviving viral capsid fold.
+  **2. D-166's RdRp list was illustrative, not exhaustive.** Its prose names six families
+  (`RdRP_1`, `RdRP_3`, `RdRP`, `Birna_RdRp_palm`, `Birna_RdRp_C`, `CoV_RPol_N`). Applied literally,
+  with the host set excluded, those six select **1,441 domains and 18 representatives** — not the
+  1,907 and 31 recorded — and they miss influenza PB1, flavivirus NS5, the mononegavirus and
+  bunyavirus L polymerases, the coronavirus nsp12 thumb, `RdRP_4`, `RdRP_5` and the permutotetra
+  and cypovirus polymerases. Every one of those is a canonical viral RdRp. Two mechanical traps
+  explain part of the gap: ECOD's family names are **comma-joined Pfam lists**, so `CoV_RPol_N`
+  appears only as `RdRP_1,CoV_RPol_N` and an exact-string match never finds it; and RdRp's palm
+  and thumb are filed under two different topologies, so a list drawn from one topology silently
+  covers half the fold.
+- **Decision:** **Apply D-166's family-level rule consistently to all three folds, and ship the
+  enumerated lists as code and as an artefact.** `src/amazebio/folds.py` holds them; the artefact
+  is `fold-universe.json`, and it carries the **excluded** identifiers beside the included ones,
+  because what a denominator leaves out is as much a part of its membership rule as what it admits.
+  **Jelly-roll capsid** — the 64 demonstrably viral families of the H-group: **15,158 domains, 97
+  representatives**. The 25 cellular families and 2 unnamed families are listed by identifier and
+  excluded. Put to the project owner as a three-way choice between this strict set (97), keeping
+  the unnamed family (107), and holding D-166's whole H-group as recorded (119); **the owner chose
+  the strict set.**
+  **Viral RdRp** — the complete enumeration across both topologies: **27 families, 2,583 domains,
+  30 representatives**, against D-166's recorded 31. Host RNAi polymerase families stay excluded
+  exactly as D-166 decided, and they are listed by identifier too (269 domains), since they are
+  this fold's sharpest decoys and D-170 uses them as such.
+  **Class I fusion glycoprotein** — **15 families, 7,361 domains, 14 representatives**, against
+  D-166's recorded 9,606 and 16. **The gap is deliberately not padded.** Reaching 9,606 needs
+  either the coronavirus S1 beta domain, which is receptor binding and not fusion, or ECOD's
+  unnamed families in the `MPER trimer` topology — a topology that carries HIV gp41 beside
+  bZIP transcription factors, GATA domains, syntaxin, fungal rhodopsin, mitochondrial carriers
+  and a phage fibritin trimerisation domain. Guessing which of those D-166 counted would be
+  inventing a denominator.
+  **The reference set is therefore 141 structures, not 166**, all 141 fetched from RCSB and cut to
+  ECOD's ranges without a single drop.
+- **Rejected:** Holding the recorded 166 — the capsid component of it demonstrably admits cellular
+  reference structures, and a false positive in the largest of the three folds is the costliest
+  error this detector can make. Re-deriving by regex over family names — D-166's finding 3 already
+  measured what that costs, and the comma-joined names found here are a second, independent reason.
+  Reconstructing D-166's exact lists by searching for combinations that reproduce 1,907 and 9,606 —
+  that fits a number rather than stating a rule, and the rule is the thing a reviewer checks.
+- **Consequence:** The three folds' membership rules are now in code, in an artefact, and
+  checkable against the registry by identifier, with the asymmetry D-166 identified preserved and
+  sharpened: the capsid fold borrows a curator's grouping **minus a correction of ours**, RdRp
+  borrows families and assembles them across topologies, and the fusion class is ours outright.
+  That last one remains the structural coverage gap A2.2's Done-when criterion asks to be
+  documented, and it is now also the fold whose denominator differs most from what D-166 recorded.
+  **Nothing in this entry looks at a corpus hit.** The threshold is D-170.
+### D-170 — A1.6's Done-when criteria are amended to the deliverable D-134 and D-150 left it, and the task goes to review
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** A1.6's code is entirely on `main` and no instance is running, but the task was
+  still `in-progress` and the project owner's reading was that it was finished. Checked against
+  its own Done-when, it was not, and the reason was not unfinished work: two of its four criteria
+  had stopped describing the task. "Both manifests exist in A1.4's format" was written when the
+  arm was a corpus-wide pass; D-134 replaced that with nested seed-sample bands reporting a rate
+  with an interval, and D-156 established that the charitable reading's seed set is not executable
+  from the published text at all, so there is no charitable manifest to produce and never will
+  be. "The comparison against the paper's reported 10.6M is written up" was overtaken by D-150:
+  no published denylist size can validate a corpus-level reconstruction, because every published
+  size counts a different object. Its "written up" also has nowhere to land — there is no Phase A
+  write-up in the repo; A6.1 owns it and the A3.3 gate holds it. So the criteria could neither be
+  met nor honestly waived, which is the state in which a task gets marked `done` with its own
+  conditions unmet.
+- **Decision:** The criteria are amended, in place, with the originals kept and struck beside
+  them. The deliverable is now stated as: the strict reading's rate on at least one band with its
+  interval, realised family count and design effect; every figure naming which reading it belongs
+  to per D-156; the charitable reading's non-executability recorded as a §A0 finding; the seed-set
+  construction pinned and checksummed; the absence of any valid published-size comparison recorded
+  as a §A0 finding; and a `run.json`. Against those, A1.6 is met and goes to `review`. Band 1's
+  reading labels are restated as the task's settled position in a closing block rather than left
+  in a mid-file note: the any-identity column is the strict reading proper (≥1.5473% to ≥4.0975%),
+  the 0.70 column is the strict seed set at the charitable threshold (0.6537% to 0.6844%) and is
+  a hybrid of none of D-015's three readings, and D-153's "charitable" label on that column is
+  withdrawn. The withdrawn ~4M validation sentence is struck in place rather than deleted, because
+  it was acted on and the correction is only legible against it. Bands 2 and 3 and the strata
+  sidecars stay unauthorised and are named as owner decisions, not as outstanding work.
+- **Rejected:** Moving A1.6 to `done` — `review` is the honest state, because the amendment is
+  itself a change a reviewer should see, and because the arm's reporting into the write-up is real
+  work that A6.1 owns rather than work that has happened. Leaving the criteria as written and
+  closing against them anyway — that is marking a task done with unmet conditions, and the
+  Definition of done exists to prevent exactly that. Leaving the criteria as written and the task
+  `in-progress` indefinitely — it reads as a fourth in-flight task on the board when nothing is
+  in flight, and it hides a finished measurement behind a stale specification. Deleting the
+  superseded criteria instead of striking them — the original specification is the record of what
+  this task was bought to produce, and the gap between that and what it produced is itself part of
+  the §A0 story. Rewriting the earlier state blocks to remove the withdrawn 4M claim, which an
+  earlier block instructed — it was acted on for days, and a file that shows no trace of a
+  withdrawn claim cannot explain why the correction exists.
+- **Consequence:** Phase A's ESM3 broad arm now has a reportable result with its interval, and two
+  §A0 findings that are results in their own right. **A6.1 inherits two hard constraints:** it must
+  take the reading labels verbatim and must not offer the ~4M as corroboration, in any hedged form.
+  The amendment is not a precedent for loosening criteria to fit an outcome: it is admissible here
+  only because D-134, D-150 and D-156 each changed the deliverable *before* this entry, for
+  recorded reasons, and each is cited. A criterion amended after results are seen and *without* such
+  a prior entry would be the thing the non-negotiables forbid. One thing this does not resolve: the
+  task reached `review` with its original criteria unmeetable for three days before anyone noticed,
+  because nothing checks Done-when against the decisions that supersede it — `board.py` validates
+  the graph, not the criteria.
+
+### D-171 — A2.2's threshold is 500 bits with brackets [400, 600] and 3Di+AA scoring, and the near-fold decoys are a finding in their own right
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Numbering:** appended as D-170 and renumbered to D-171 before pushing — A1.6's D-170 landed
+  on `main` while this branch was running the calibration. Commit messages on branch
+  `ccr-7a87e8bd-9ow1h1` citing D-170 for A2.2's threshold mean this entry.
+- **Context:** D-167 fixed everything about A2.2's score except its value — corpus as query, the
+  141 pinned reference structures as target, coverage floor on the target at `--cov-mode 1 -c
+  0.5`, bit score rather than E-value — and deferred one option, `--alignment-type 0` (3Di only)
+  against foldseek's default 3Di+amino-acid scoring, "to the threshold calibration". Both are
+  settled here, from decoys, before any corpus hit was seen; `amazebio.repro` enforces the order.
+  **The decoy design, declared before the run.** A shuffled sequence is not a test here: three
+  shuffled reference domains returned no hit at all at `-e 1000` in the probe. The decoys that
+  matter are real proteins that *share the fold and are not viral* — and D-166 and D-169
+  enumerated precisely those while deciding what to exclude. Four classes, 400 queries each:
+  `near_fold_nonviral` (the excluded cellular capsid families and the host RNAi polymerases),
+  `unrelated_fold` (ECOD X-groups disjoint from the universe's), `shuffled` (the positives'
+  sequences shuffled at a pinned seed), and `positive` (held-out non-representative domains of
+  the fold families). A positive sharing a PDB entry with any reference structure was dropped —
+  393 of them — because the same deposition re-scored against itself measures nothing.
+  Every query took the corpus's own path: amino acids through ProstT5, then the search, so the
+  prediction error sits inside the threshold rather than outside it. 1,567 queries, 385,185
+  residues; 3Di predicted once in 1h39m on four cores and both modes searched against the same
+  query database. Target false-positive rate **1% on `near_fold_nonviral`**, declared in advance.
+- **Decision:** **Declared threshold 500 bits; brackets 400 and 600; alignment mode 3Di+AA.**
+  Realised at the declared cut: `near_fold_nonviral` 3/389 (0.8%), `unrelated_fold` 0/394,
+  `shuffled` 0/392, `positive` 242/392 (61.7%).
+  **The grid was extended upward once and the declared value did not move.** The rule — the
+  lowest grid value holding the target on the binding class — and the target were both fixed
+  beforehand. The first grid stopped at 500, which is where the rule's answer fell, so the value
+  had no upper neighbour and `metrics/survival.md` requires *two* bracketing values. Nothing was
+  inserted below 500, so the selection provably could not change: 400 gives 4/389 = 0.0103, which
+  misses 1%, and 500 gives 3/389 = 0.0077, which holds. This is the declared procedure being
+  completed, not a threshold re-picked after seeing results, and it is recorded rather than done
+  quietly.
+  **The mode choice was made after seeing the sweep, and is recorded as such.** D-167 deferred
+  the option without fixing a rule, so unlike the threshold this one was not pre-registered. The
+  rule applied: among modes whose declared threshold holds the target, take the higher
+  true-positive rate. 3Di+AA gives 61.7% against 3Di-only's 11.2% at the same cut and the same
+  false-positive target. The margin is a factor of five, so no defensible rule chooses otherwise.
+- **Rejected:** `--alignment-type 0`, despite being the more attractive option on independence
+  grounds — it scores 3Di alone, so it does not re-use the amino-acid signal A2.1 already
+  searches. At the declared cut it finds one fifth as many true fold members. On the probe it also
+  scored a shuffled decoy at 58 bits above a genuine domain at 17. Calibrating on shuffles alone,
+  which would have put the cut near 60 bits and left the near-fold false-positive rate at 60%.
+- **Consequence, and this is the substantive one:** **the near-fold non-viral decoys are detected
+  at a rate that no bit score separates from the true positives until most sensitivity is gone.**
+  At 100 bits they run at 56% while unrelated folds and shuffles are already at 0.8% — seventy
+  times apart — and the near-fold curve tracks the positive curve closely (0.56 against 0.79 at
+  100 bits, 0.51 against 0.78 at 140) before separating above 160. Holding them to 1% costs
+  sensitivity: 61.7% at the declared cut against 78.8% at 100 bits. **And it never reaches zero:
+  3 of 389 cellular near-fold proteins pass at 500 bits.**
+  That is the method working, not failing. Nucleoplasmin, peptide-N-glycanase and Cu(2+)
+  monooxygenase genuinely have the jelly-roll capsid fold. What the curve measures is that
+  *"carries this fold"* and *"is viral-derived"* are different claims, and this instrument cannot
+  fully separate them. Three things follow. It is the quantitative justification for D-169
+  excluding those families from the reference set. It is a stated limitation for the write-up,
+  not a parameter to tune — and a sharper one than §A2 anticipated for this route. And it means
+  the dominant false-positive source in the real pass will be cellular proteins carrying these
+  folds, which bacterial and metagenomic records do contain, rather than chance alignments.
+  **A second ceiling:** 13% of held-out true fold members never hit their own fold at all, even
+  at 20 bits. Predicted-3Di fold search misses them outright, which caps what any threshold here
+  can achieve and belongs beside the survival figures as a sensitivity bound.
+  **Two corrections to D-167**, both found by running the chain rather than trusting the note.
+  `convertalis` does **not** refuse against a ProstT5 database in the direction D-167 itself
+  chose — ProstT5 as query, structures as target — and reports every requested column; 34,822
+  rows in 3Di+AA and 71,689 in 3Di-only. The refusal D-167 recorded must have been with the
+  ProstT5 database as the *target*; read literally, that entry says this pipeline is impossible.
+  And foldseek silently disables `--sort-by-structure-bits` for want of C-alpha data, the same
+  shape of trap D-167 found with `--tmscore-threshold`. Harmless here because the calibration and
+  the real search share one geometry, but it means the reported `bits` is the plain alignment bit
+  score and not a structure-weighted one, which a reviewer comparing to published foldseek
+  figures needs to know.
+
+### D-172 — A2.2's searches run exhaustively, because foldseek's prefilter silently returns nothing against a 141-structure target
+- **Date:** 2026-10-19
+- **Task:** A2.2
+- **Context:** A smoke run of the finished search tool over real corpus records — six IMG/VR
+  records, 77 called proteins, searched against the pinned 141-structure reference database —
+  returned **no hits at all**. Investigated rather than accepted, because the calibration (D-171)
+  had just measured ~50% of *unrelated* ECOD domains hitting something at 20 bits, so zero from
+  77 viral proteins was not a plausible result.
+  The cause is in foldseek's own log: `Index table k-mer threshold: 78 at k-mer size 6`,
+  `0 median result list length`, **`76 sequences with 0 size result lists`** — and exit status 0.
+  The prefilter is mis-tuned against a target database this small and discards essentially every
+  candidate without failing. The identical query and target databases, searched with
+  `--exhaustive-search 1`, produced **49 hits**. Zero against 49.
+  **What shipping that would have produced.** A complete set of well-formed shards, correct
+  provenance, a `run.json`, and a headline of *no surviving folds anywhere in either Evo release*
+  — a clean, publishable-looking null manufactured entirely by a heuristic. `AGENTS.md` forbids
+  designing any part of the pipeline so that a null is harder to see; a prefilter that deletes
+  every candidate is the strongest possible version of that, and it is the one result this audit
+  must never reach by accident.
+  **Why neither the calibration nor a dry run could have caught it.** The failure is
+  **scale-dependent**. At the calibration's 1,567 queries the prefilter dropped about 7% of rows
+  (3Di+AA 34,822 against 37,286 exhaustive; 3Di-only 71,689 against 83,310) and the threshold
+  still came out right; at 77 queries it dropped nearly everything. So a threshold calibrated at
+  one query count and applied at another hides it completely, and a real shard is around 30,000
+  proteins while a smoke shard is 77 — the pass would have straddled both regimes. Only running
+  the real tool over real corpus records at a realistic small scale exposed it.
+- **Decision:** **Every A2.2 search runs `--exhaustive-search 1`, in the calibration and in the
+  pass alike.** This removes the heuristic rather than retuning it: with 141 targets, every query
+  is aligned against every reference, which is exact, free of any scale dependence, and
+  negligible beside 3Di prediction — the step D-163 measured at 173x the profile search it feeds
+  and which dominates the cost completely. `EXHAUSTIVE_SEARCH` is a module constant in
+  `tools/detect_folds.py` with this reasoning attached, not a command-line knob, because a
+  geometry a run can opt out of is a geometry some run will.
+  The search geometry now enters the shard's `params` fingerprint, so shards produced under the
+  old geometry cannot merge with new ones (`load_shards` refuses a mixed set).
+- **The threshold is re-derived and does not move.** D-171's declared 500 bits, its brackets
+  [400, 600] and its 3Di+AA mode all stand: near-fold false-positive rate 3/389 either way, and
+  sensitivity 0.617 to **0.622**. The prefilter's lost rows were weak alignments concentrated far
+  below the cut, which is visible at the low end of the sweep (at 20 bits the positive rate moves
+  0.867 to 0.939, unrelated 0.513 to 0.602). **This is not a threshold re-picked after seeing
+  results:** D-171's rule and its 1% target were pre-registered and are unchanged, the instrument
+  was broken, and re-applying an unchanged rule to a corrected measurement is the only defensible
+  response. That the answer is identical is a robustness result, not the justification.
+- **One D-171 figure is corrected.** D-171 recorded that 13% of held-out true fold members never
+  hit their own fold at any threshold. Exhaustively that is **6.1%** (positive rate 0.939 at 20
+  bits). The missing half was the prefilter, not the method, so A2.2's sensitivity ceiling is
+  better than D-171 states and the write-up should quote 6.1%.
+- **Rejected:** Raising `--max-seqs` or lowering `--k-score` to make the prefilter behave — that
+  tunes a heuristic until it stops hiding results on the inputs tested, and leaves it free to
+  hide them on inputs not tested; the failure mode is silence, so there is no signal that the
+  tuning was insufficient. Accepting the zero as a finding — it contradicted the calibration's own
+  measured decoy rates, which is what prompted the investigation. Keeping the prefilter for the
+  pass and exhaustive search for the calibration, or the reverse — a threshold must be measured
+  under the geometry it is applied under, which is the whole reason this entry re-derives it.
+- **Consequence:** the instrument is now deterministic with respect to how much corpus a run
+  happens to read, which is a property the audit needs anyway: D-076 rejected E-values for
+  drifting with database size, and a prefilter whose behaviour depends on query count is the same
+  defect one layer down. The lasting lesson is the one `AGENTS.md` already draws for instances and
+  which applies just as well in the container: **a step that reports nothing has not told you it
+  found nothing.** The free smoke tier — the real tool over real corpus records, bounded by
+  `--max-records` so a 16.9 GB object costs 15 seconds — is what turned this up for a fraction of
+  a cent, before $19 of GPU time and before a number reached a write-up.
+
+### D-173 — The detection contract carries each registry's denominator rule and its composition, so D-161 lives in the artefact rather than in this log
+- **Date:** 2026-10-19
+- **Task:** A2.4 (changes `metrics/detections.md`, so A2.1–A2.5 and A3.2 all see it)
+- **Context:** D-161 ruled that the two registries' survival fractions are not comparable and
+  neither is reportable on its own, and that what *is* reportable is the absolute counts plus
+  Pfam's composition — the prophage parts list. It changed no code and produced no artefact. A
+  repo audit found its measured quantities (5,314 genes, 1,201,328 residues, 173 against 33
+  detections per 1,000 genes, the threshold spans, the composition list) existing **only in this
+  log**: `tools/detect_proviruses.py` emitted no composition and named no denominator, and none
+  of those figures appeared under `src/`, `tools/` or any artefact. "Artefacts before prose" is a
+  non-negotiable — every number in a write-up traces to a machine-readable artefact — so as it
+  stood the Phase A write-up could source D-161's numbers from nothing but a decisions entry.
+  A2.4's state block was meanwhile presenting the two fractions side by side, which is exactly
+  the reading D-161 forbids.
+- **Decision:** Every detection table gains two fields, in `metrics/detections.md` and therefore
+  for all five A2 detectors. **`denominator`** names the universe's authority and the restriction
+  on quoting its fraction: Pfam's is never quoted as "the fraction of viral families", RVDB's is
+  never quoted as a measure of how much survived, and a registry the rule does not name still
+  gets a restriction plus `comparable_across_registries: false` — a new registry must not arrive
+  with none, which is how D-074's defect happened. **`composition`** is the families carrying the
+  detections, most first, ties broken by accession so a quoted parts list reproduces from pinned
+  inputs. The per-registry restriction also travels in `notes`, and `reading_this_table` sends a
+  quoter to `denominator` before `survival.fraction`.
+- **Rejected:** Leaving it in prose and relying on the write-up to carry D-161 — that is the
+  arrangement the audit found, and it had already failed once: A2.4's own state block published
+  the forbidden presentation 85 minutes after D-161 landed in the same pull request. Putting the
+  fields only in `detect_proviruses.py` — the rule is about registries, not about prophage, so
+  A2.1's tables need it identically and a second copy would drift. Emitting D-161's
+  cross-registry comparison itself (detections per 1,000 genes, hits per family-record pair,
+  median best scores) — those are a *comparison between two tables* and a per-registry table
+  structurally cannot hold them; that belongs in its own emitter and is not built here.
+  Computing a "phage-relevant subset" of RVDB to fix its denominator — D-161 already declined
+  it as a new reading of someone else's curation needing its own task and pre-registration.
+- **Consequence:** Additive to the contract: both fields derive from `families[]` and `registry`,
+  so A3.3's independent reimplementation gains no measurement to reproduce, and no existing
+  figure changes. A3.2 still must not pool or average the two registries' fractions (D-022,
+  D-161). **A2.4's existing twelve tables predate this and do not carry the fields** — they would
+  need a re-run to gain them, which is not worth the spend for a field derivable from rows the
+  tables already hold; the task file records the gap instead. What this does not resolve: D-161's
+  cross-registry figures are still prose, and a write-up quoting them still has no artefact to
+  cite.
+
+### D-174 — A7.1's criterion 1 is amended to the one-model, coverage-stated deliverable D-047 and D-049 left it
+- **Date:** 2026-10-19
+- **Task:** A7.1
+- **Context:** Auditing the three `review` tasks' criteria the way A1.6's were audited (D-170)
+  found A7.1 carrying "conformance diff computed per model × reading". The deliverable is one
+  model at 3/6 coverage with the readings identical by construction. That is not a shortfall:
+  D-047 established that every rule the three readings differ over reads an input the release
+  withholds, so `readings_agree_by_construction` asserts identity from the specs rather than
+  reporting three columns as agreement; D-049 put the converse direction and Evo 2's arm outside
+  this task; and ESM3-open has neither corpus nor threshold published, so it has no arm at all.
+  The restriction is derived mechanically from the specs, not hand-picked. The criterion was
+  written before those entries narrowed the deliverable and was never amended.
+- **Decision:** Criterion 1 is replaced by three that describe what the task produces — the diff
+  for every model whose release carries the inputs its own rules read, with coverage stated per
+  count; the readings reported as identical by construction rather than as agreement, naming the
+  withheld input; and the models with no arm named with their reason. The original is struck in
+  place. A7.1 **stays at `review`**: its remaining open criterion is the A3.3 gate, which is
+  blocked behind A3.2 and cannot be discharged from this task.
+- **Rejected:** Leaving it stale because A7.1 cannot move past A3.3 anyway — the gate will open,
+  and at that point the criterion would be read as met against a result it does not describe,
+  which is how A1.6 sat for days. Amending it to "one model" without the coverage and
+  by-construction clauses — the 3/6 coverage and the withheld input *are* the finding, and a
+  criterion that omits them invites a later reader to treat identical readings as evidence the
+  readings do not matter. Widening A7.1 to cover the missing models — D-049 placed them
+  elsewhere deliberately and A7.2 closed them.
+- **Consequence:** No number changes and no artefact is touched. Phase A's conformance claim is
+  unaffected: it was always one model with its coverage stated, and the write-up's wording was
+  already bounded by A1.1's verdict and by the A3.3 and X3.1 holds. The audit's general finding
+  stands and is not fixed by this entry: nothing checks a task's Done-when against the decisions
+  that supersede it, so `board.py --check` passes on criteria that have stopped describing their
+  task. This is the third instance found in two days — A1.6, A2.4, A7.1.
+
+### D-175 — Two documentary defects in this log are corrected in place, against its append-only rule
+- **Date:** 2026-10-19
+- **Task:** X1.1 (repo audit)
+- **Context:** An audit of this log found the ID space clean — no duplicates, no gaps, no
+  dangling citations, no missing or future dates — and two factual defects in its renumbering
+  notes. The ten `Numbering:` lines on D-120 to D-129 each state that "A2.4 took the whole
+  D-110..D-119 range first"; D-110 and D-111 are **A2.1's** entries, and only D-112 to D-119 are
+  A2.4's. And "D-134" resolves two ways: it is a live A1.6 entry *and* the number A1.8's D-137
+  was renumbered away from, with no cross-link between them, so a reader meeting the number in a
+  published commit message cannot tell which is meant without finding D-137's note.
+- **Decision:** Both are corrected **in place** — the misattribution in the ten notes, and a
+  reciprocal cross-link added at D-134 and D-137 — rather than only by appending this entry. The
+  project owner decided this explicitly when the alternatives were put. The append-only rule
+  exists so that a *decision* cannot be quietly rewritten after it was acted on; a wrong task
+  attribution inside a renumbering note is not a decision and nothing was ever acted on because
+  of it. A correction fifty entries later does not reach the reader who is standing at D-120,
+  which is the only reader it was for.
+- **Rejected:** Appending this entry alone and leaving the notes untouched — strictly
+  append-only, and useless to the reader it exists to serve. Rewriting the `Numbering:` lines
+  without recording that they were changed — that *would* be the thing the rule forbids, so each
+  correction is marked and points here. Deleting the D-134/D-137 ambiguity by renumbering one of
+  them now — both are cited from several places and from published commit messages, and moving
+  either would strand those citations to fix a readability problem a cross-link solves.
+- **Consequence:** No decision's substance changes and no citation resolves differently. The
+  precedent is narrow and worth stating so it is not stretched: **a factual error in an entry's
+  metadata may be corrected in place, marked; an entry's Context, Decision, Rejected or
+  Consequence may not** — those are corrected by a new entry, as D-154, D-156 and D-162 were.
+  `tools/decisions.py` now fails CI on a duplicate ID, so the collision these notes record is
+  caught deterministically rather than by git happening to notice.
+
+### D-176 — A2.4 is done: D-161 binds A3.2 and the write-up, not A2.4's tables, so yesterday's withdrawal of its completion claim is itself withdrawn
+- **Date:** 2026-10-19
+- **Task:** A2.4
+- **Context:** Yesterday's repo audit withdrew A2.4's "every Done-when criterion is met" claim, on
+  the grounds that D-161 had changed what may be reported from its tables after that claim was
+  written, and recommended amending criterion 1 the way A1.6's (D-170) and A7.1's (D-174) were.
+  Re-read against D-161 itself, that was over-cautious. **D-161's own header reads "A2.4 (governs
+  A3.2 and the Phase A write-up)" and its Consequence names only those two**: A3.2 must not pool
+  the registries' fractions, and the write-up carries the composition and absolute counts with
+  any percentage naming its denominator. It places no requirement on A2.4's tables. A2.4's three
+  criteria — hit tables with route attribution, two-tool concordance on a documented sample,
+  parameters and versions recorded — are met as written, and D-161 is a constraint on the
+  consumers of those tables rather than a change to the deliverable. That is the material
+  difference from A1.6 and A7.1, where the deliverable itself had changed.
+- **Decision:** A2.4 moves to `done`. Criterion 1 is **not** amended. The two gaps the audit found
+  are real and are tracked where they belong rather than held against this task: D-173 records
+  that D-161's cross-registry figures still have no emitter and that A2.4's twelve published
+  tables predate the `denominator` and `composition` fields, and A3.2 and A6.1 are the tasks the
+  rule binds. Depth stays at 0.25% as the shipped result, on this task's own standing framing that
+  deepening to 2.5% "is an improvement to the strength of the claim rather than a missing
+  criterion" — so the open depth question is not a completion blocker either, and it lapses with
+  the task rather than carrying forward as an owner decision.
+- **Rejected:** Amending criterion 1 to require denominator-named reporting, as the audit
+  proposed — it would import a downstream constraint into an upstream task's criteria, and the
+  consequence would be that A2.4 could not close until a write-up that does not yet exist had
+  consumed its tables correctly. Leaving A2.4 at `review` until D-161's cross-registry emitter is
+  built — that work is tracked in D-173, it is not in A2.4's criteria, and parking a finished
+  measurement behind it keeps a fourth task showing as in-flight when nothing is. Re-running the
+  twelve tables so they carry the new fields — both fields derive from rows the tables already
+  hold, so the re-run buys a format change for real spend, and D-173 already declined it.
+  Deciding depth now in order to close — the depth question was never a criterion, and answering
+  it under time pressure to tidy a status is the wrong reason to spend $7 and 33 wall hours.
+- **Consequence:** Phase A's prophage result is final at 0.25% of both releases, as a lower bound
+  on two registries whose fractions are not comparable. **The whole of D-161 now rests on A3.2 and
+  A6.1**, and neither has yet consumed an A2.4 table: A3.2 is blocked, A6.1 is behind the A3.3
+  gate, and the tables they will read do not carry the restriction in-band. That is the live risk
+  this entry creates and it is stated rather than hidden — D-173's fields will be present only on
+  tables produced after that code merges. The audit's general finding also stands uncorrected by
+  this entry: nothing checks a task's Done-when against the decisions that supersede it, and this
+  is the fourth task in two days where that question had to be asked by hand — A1.6, A2.4, A7.1,
+  and now A2.4 again in the other direction. Being wrong in *this* direction is the cheaper error,
+  but it is still an error: the check was a judgement call made twice, two days running, by
+  reading prose.
+
+### D-177 — Correction to D-172: the prefilter did not manufacture a false null, and exhaustive search is a robustness choice rather than a rescue
+- **Date:** 2026-10-19
+- **Task:** A2.2
+- **Context:** D-172 recorded that foldseek's prefilter "silently returns nothing" against the
+  141-structure reference set, citing a smoke run where 77 called proteins produced
+  `76 sequences with 0 size result lists` against 49 hits from the same databases searched
+  exhaustively. It concluded that shipping the prefilter "would have produced a complete set of
+  well-formed shards reporting no surviving folds anywhere in either Evo release — a false null,
+  manufactured". **That conclusion is not supported by the evidence, and this entry withdraws
+  it.** Two measurements, both made after D-172 was written:
+  **1. The 49 hits are noise.** Their bit scores run from **2 to 6**, every one of them against
+  a `class_i_fusion` reference. A2.2 stores hits only at or above 15 bits and declares detections
+  at **500** (D-171), so not one of the 49 would have survived either cut. The prefilter was
+  discarding alignments that this pipeline discards anyway. `hits=0` was the correct answer for
+  those records, and the tool returning it was the tool working.
+  **2. At the declared threshold the two geometries agree.** Re-scoring the full 1,567-query
+  calibration both ways: prefiltered 34,822 rows, exhaustive 37,286 — and at 500 bits the
+  near-fold decoy rate is **3/389 either way** and the true-positive count is **242 against
+  244 of 392**, a difference of two queries, or 0.5%. The declared threshold, its brackets and
+  the chosen alignment mode are identical. There is no false null in that comparison, and D-172's
+  own observation that "the threshold re-derives unchanged" should have been read as evidence
+  against its headline rather than as a robustness footnote to it.
+- **Decision:** **Exhaustive search stays**, and `EXHAUSTIVE_SEARCH` keeps its place as a module
+  constant rather than a flag — but it is recorded as a *robustness and determinism* choice, not
+  as a fix for a result-destroying bug. The reasons that survive scrutiny: the prefilter's
+  behaviour depends on query count, so a threshold measured at one scale and applied at another
+  rests on an assumption nobody is checking; with 141 targets the heuristic buys nothing, because
+  aligning every query against every reference is exact and negligible beside 3Di prediction,
+  which D-163 measured at 173x the profile search it feeds; and D-076 already rejected E-values
+  for drifting with database size, so a prefilter whose behaviour drifts with query count is the
+  same defect one layer down. Those justify the choice on their own.
+- **Rejected:** Leaving D-172 as written. It is an append-only log, so the entry stands, but an
+  overstatement about a result-destroying bug is exactly the kind of claim §7's adversarial
+  reader would check first — and finding it unsupported would cost more credibility than the
+  correction does. `AGENTS.md` asks for the audit to be airtight against a reviewer who wants
+  the result to be wrong; that cuts both ways, and an alarming claim of ours is as much in scope
+  as a convenient one.
+- **Consequence:** the pipeline is unchanged and no number moves — D-171's threshold, brackets and
+  mode were already measured under the exhaustive geometry. What changes is the claim attached to
+  it. Also worth carrying forward: the 2-to-6-bit noise was **entirely** against
+  `class_i_fusion` references, the one fold this project assembled itself (D-166) and already
+  flagged as the weakest of the three. That is a second, independent reason to treat that fold's
+  rows cautiously, and it is a reason the decoy calibration could not have surfaced, since the
+  calibration's queries were ECOD domains rather than full-length corpus proteins.
+
+### D-178 — A1.8's figures carry intervals that include zero, so the count and the rate become separate claims
+- **Date:** 2026-10-19
+- **Task:** A1.8
+- **Context.** The band artefact's interval was computed over any-identity hits while the
+  figure being quoted was the ≥0.70 band — different sets of records, so the headline had no
+  uncertainty attached at all, in breach of the non-negotiable that uncertainty travels with
+  the estimate. The per-family hit counts restricted to a threshold had never been recorded,
+  so this needed a fourth pass over shard 0 rather than a recomputation (`a9e369a`,
+  `corpora/results/a1-8/band-select-agent-intervals.json`, all six cells, nine groups).
+- **The measurement.** Over 1,097,174 records and **34 seed families**:
+
+  | reading | ≥0.70 | 95% CI | design effect | exact 1.00 | 95% CI |
+  |---|---|---|---|---|---|
+  | mode 0 | 0.8362% | 0.2978% – 1.3747% | 999 | 0.01048% | 0 – 0.02486% |
+  | mode 1 | 0.9135% | 0.3526% – 1.4745% | 993 | 0.01130% | 0 – 0.02606% |
+  | mode 2 | 0.9086% | 0.3488% – 1.4685% | 994 | 0.01167% | 0 – 0.02762% |
+
+  Identical across all three sensitivities, as every other figure in this band has been.
+- **A design effect near 1,000 is the finding, not an inconvenience.** The honest interval is
+  about 31 times the binomial one. Matches are clumped into so few families that 1,097,174
+  searched records buy an effective sample of a few dozen. D-104 raised exactly this as the
+  objection to sampling and D-140 chose the family as the sampling unit because of it; this
+  is what that choice costs when the denylist names 53 taxa collapsing to 34 families.
+- **Decision: the count and the rate are separate claims and are written separately.**
+  - **The count is an observation.** 115 to 128 records in this shard match select-agent seed
+    material at identity 1.00. They were found and counted; no inference is involved, and the
+    interval does not bear on it. This may be stated.
+  - **The rate is an estimate whose interval includes zero.** 0.0105% to 0.0117% with a lower
+    bound of 0 at 95%. Generalising it to the corpus is **not supported**, and no sentence
+    may imply the exact-match rate is reliably above zero.
+
+  So "material identical to sequences from organisms on the list is present in the sampled
+  corpus, and we counted it" is supportable; "the corpus contains exact matches at a rate of
+  0.011%" is not. The ≥0.70 figure is better placed — its interval excludes zero — but it
+  spans a factor of 4.9 and must always be quoted with it, never as "about 0.9%".
+- **What would and would not narrow these.** More shards add corpus and not families, so they
+  would barely move the intervals: the variance is between families, and shard 0 already
+  contains all 34. **A wider seed band is the only thing that helps**, because it adds seeds
+  and therefore families. Band 2 at 1/10 would draw roughly ten times the seeds; whether that
+  multiplies families is an empirical question this band cannot answer, since the 34 come from
+  53 named taxa and the ceiling may be near. **Nobody should buy more shards expecting a
+  tighter interval.**
+- **Rejected:** Quoting the point estimate with the interval in a footnote — an interval that
+  includes zero is not a footnote to its estimate, it is the main thing known about it.
+  Reporting the binomial interval, which is 31 times narrower and would be false precision of
+  exactly the kind D-104 warned of. Dropping the exact-match result because its rate is not
+  significant — the count is an observation and remains the sharpest thing this arm has, since
+  it needs no threshold argument (D-107's unpublished threshold does not touch identity 1.00).
