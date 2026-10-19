@@ -148,6 +148,26 @@ def test_the_service_linked_role_refusal_is_named_as_such() -> None:
     assert "retry" not in message.lower(), "a retry cannot create an IAM role"
 
 
+def test_a_spot_count_limit_is_not_mistaken_for_capacity() -> None:
+    """Measured 2026-10-19: MaxSpotInstanceCountExceeded with zero spot instances in the account.
+
+    A quota does not clear by retrying, so conflating it with capacity costs a retry loop that
+    cannot win — and conflating it with the service-linked role sends somebody to the wrong IAM
+    page. It needs its own message, and that message has to name the on-demand fallback, because
+    pricing:GetProducts is denied here and the fallback needs an explicit --price-per-hour.
+    """
+    message = tool.spot_refusal(
+        "An error occurred (MaxSpotInstanceCountExceeded) when calling the RunInstances "
+        "operation: Max spot instance count exceeded"
+    )
+    assert message is not None
+    assert "quota" in message.lower()
+    assert "retrying will not clear it" in message
+    assert "price-per-hour" in message
+    assert "nothing billed" in message
+    assert "AWSServiceRoleForEC2Spot" not in message, "this is not the IAM-role refusal"
+
+
 def test_a_capacity_refusal_says_to_retry_instead() -> None:
     message = tool.spot_refusal("InsufficientInstanceCapacity: there is no Spot capacity")
     assert message is not None and "Retry" in message

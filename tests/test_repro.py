@@ -84,6 +84,21 @@ class TestGitState:
         assert state["dirty"] is True
         assert "new.txt" in state["dirty_paths"]
 
+    def test_reports_a_modified_tracked_path_in_full(self, tmp_path):
+        """The case a fixed `line[3:]` slice got wrong, and the untracked case hid.
+
+        A modified-yet-unstaged file's porcelain line begins with a space, and the captured
+        output is stripped as a whole, so the first one arrives a character short: the
+        dirty-tree refusal named "ixi.lock" for `pixi.lock` and "ests/..." for `tests/...`.
+        A refusal that names a file nobody can find is worse than no detail at all.
+        """
+        repo = _git_repo(tmp_path)
+        tracked = next(p for p in repo.iterdir() if p.is_file() and p.name != ".gitignore")
+        tracked.write_text("changed\n")
+        state = git_state(repo)
+        assert state["dirty"] is True
+        assert tracked.name in state["dirty_paths"], state["dirty_paths"]
+
     def test_marks_unavailable_outside_a_repo(self, tmp_path):
         assert git_state(tmp_path)["available"] is False
 
