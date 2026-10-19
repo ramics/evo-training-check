@@ -133,7 +133,11 @@ def main(argv: list[str] | None = None) -> int:
         m.parameter("decision_refs", ["D-182", "D-078", "D-136"])
 
         blobs = og.fetch_tree(og.OG2)
-        drift = og.verify_manifest(og.OG2, blobs)
+        # `verify_manifest` returns a row per quantity whether or not it agrees, so the drift is
+        # the disagreeing rows and not the truthiness of the list.
+        checks = og.verify_manifest(og.OG2, blobs)
+        m.parameter("manifest_checks", checks)
+        drift = [row for row in checks if not row["agrees"]]
         if drift:
             # The pin is what every count is attributed to. A release that has moved is a finding
             # to report, not something to index quietly against a changed tree.
@@ -148,7 +152,17 @@ def main(argv: list[str] | None = None) -> int:
         m.parameter("tars_indexed", len(tars))
         m.parameter("tar_bytes", sum(b.size for b in tars))
         for blob in tars:
-            m.input_url(og.resolve_url(og.OG2, blob.path), sha256=blob.sha256, bytes=blob.size)
+            # `verified=False` is the honest record: this pass reads 512 bytes per member and
+            # never the whole object, so it cannot match the published digest. The pin rests on
+            # the tree's own checksum, which the staging pass does verify over the bytes it takes.
+            m.input_url(
+                og.resolve_url(og.OG2, blob.path),
+                role="component tar (headers only)",
+                bytes=blob.size,
+                checksum=blob.sha256,
+                checksum_type="sha256",
+                verified=False,
+            )
 
         started = time.time()
         members: list[Member] = []
@@ -194,12 +208,15 @@ def main(argv: list[str] | None = None) -> int:
         if total:
             summary["band"]["byte_share"] = round(summary["band"]["bytes"] / total, 6)
 
-        index_path = m.output_file(out / "assembly-index.json", role="assembly index")
+        # Written before being declared: `output_file` hashes the file as it records it.
+        index_path = out / "assembly-index.json"
         index_path.write_text(
             json.dumps({"summary": summary, "members": index_to_rows(members)}, indent=1) + "\n"
         )
-        summary_path = m.output_file(out / "component-summary.json", role="component summary")
+        m.output_file(index_path, role="assembly index")
+        summary_path = out / "component-summary.json"
         summary_path.write_text(json.dumps(summary, indent=1) + "\n")
+        m.output_file(summary_path, role="component summary")
         if repeated:
             m.note(f"{len(repeated)} accessions appear in more than one tar")
 
