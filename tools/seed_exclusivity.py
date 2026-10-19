@@ -35,7 +35,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import exclusivity, repro, seeds, uniref
+from amazebio import exclusivity, objectstore, repro, seeds, uniref
 
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 S3_REGION = "us-east-1"
@@ -225,6 +225,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
         manifest_name=f"run-exclusivity-{args.tier}.json",
+        durable=objectstore.durable_results("a1-6"),
     ) as manifest:
         if args.code_commit:
             manifest.parameter("code_commit", args.code_commit)

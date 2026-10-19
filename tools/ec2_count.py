@@ -52,6 +52,9 @@ PAYLOAD = (
     "src/amazebio/__init__.py",
     "src/amazebio/uniref.py",
     "src/amazebio/repro.py",
+    # repro imports objectstore for its durable-output upload (D-188); the closure test
+    # catches the omission here rather than on the instance, where it costs a launch.
+    "src/amazebio/objectstore.py",
     "tools/count_clusters.py",
 )
 

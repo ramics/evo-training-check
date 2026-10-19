@@ -67,6 +67,7 @@ __all__ = [
     "RangedObject",
     "Stage2Structure",
     "StagedSource",
+    "durable_results",
     "has_lineage_tag",
     "iter_fasta_records",
     "iter_stage2_records",
@@ -76,9 +77,12 @@ __all__ = [
     "undeclared_objects",
 ]
 
-BUCKET = "amazebio-corpora-897641797669"
+from amazebio.objectstore import CORPORA_BUCKET, durable_results
+
+BUCKET = CORPORA_BUCKET
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 S3_REGION = "us-east-1"
+
 
 #: Read size for the ranged object reader. 8 MiB keeps the number of GETs over a 15.8 GiB
 #: Parquet file in the low thousands while staying far below the memory a session container has.

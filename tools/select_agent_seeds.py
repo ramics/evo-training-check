@@ -51,7 +51,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import repro, seeds, selectagents, similarity, uniref
+from amazebio import objectstore, repro, seeds, selectagents, similarity, uniref
 from amazebio.repro import ReproError
 
 S3_REGION = "us-east-1"
@@ -566,6 +566,7 @@ def _execute(
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
         manifest_name=manifest_name,
+        durable=objectstore.durable_results("a1-8"),
     ) as manifest:
         if args.code_commit:
             manifest.parameter("code_commit", args.code_commit)

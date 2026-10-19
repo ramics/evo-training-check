@@ -50,6 +50,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from amazebio import conformance as cf
+from amazebio import objectstore
 from amazebio import opengenome as og
 from amazebio.repro import run
 
@@ -477,6 +478,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=outdir,
         allow_dirty=args.allow_dirty or bool(args.code_commit),
         manifest_name=f"run-scan-{args.release}.json",
+        durable=objectstore.durable_results("a7-1"),
     ) as m:
         m.parameter("release", args.release)
         m.parameter("block_chars", cf.BLOCK_CHARS)

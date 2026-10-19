@@ -773,7 +773,13 @@ def main(argv: list[str] | None = None) -> int:
     dates = args.release or sorted(imgvr.RELEASES)
     outdir = Path(args.outdir)
 
-    with run("A4.1", seed=None, outdir=outdir, allow_dirty=args.allow_dirty) as m:
+    with run(
+        "A4.1",
+        seed=None,
+        outdir=outdir,
+        allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a4-1"),
+    ) as m:
         m.parameter("releases", dates)
         m.parameter("source", uri)
         m.parameter("workers", args.workers)

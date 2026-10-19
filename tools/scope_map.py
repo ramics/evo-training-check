@@ -43,7 +43,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import esm3, opengenome, policyspec, scope
+from amazebio import esm3, objectstore, opengenome, policyspec, scope
 from amazebio.repro import ReproError, run
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -395,6 +395,7 @@ def main(argv: list[str] | None = None) -> int:
             outdir=outdir,
             allow_dirty=args.allow_dirty,
             manifest_name="run-scope.json",
+            durable=objectstore.durable_results("a4-3"),
         ) as m:
             m.parameter("esm3_not_addressed", sorted(ESM3_NOT_ADDRESSED))
             m.parameter("evo_releases", [r[0] for r in EVO_RELEASES])

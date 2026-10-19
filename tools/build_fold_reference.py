@@ -44,7 +44,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import folds
+from amazebio import folds, objectstore
 from amazebio.repro import run
 
 #: RCSB's unauthenticated download endpoint. Verified reachable from this container for mmCIF;
@@ -341,6 +341,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=20261015,
         outdir=args.out,
         allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a2-2"),
     ) as manifest:
         manifest.parameter("ecod_version", folds.ECOD_V295_2.version)
         manifest.parameter("ecod_sha256", folds.ECOD_V295_2.sha256)

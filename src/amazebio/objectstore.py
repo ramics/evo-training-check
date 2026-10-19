@@ -33,11 +33,13 @@ from collections.abc import Iterator
 from typing import Any
 
 __all__ = [
+    "CORPORA_BUCKET",
     "REGION",
     "S3_ENDPOINT",
     "S3RandomRead",
     "byte_shards",
     "client",
+    "durable_results",
     "shard_lines",
     "split_uri",
     "stream_lines",
@@ -45,6 +47,35 @@ __all__ = [
 
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 REGION = "us-east-1"
+
+#: The staged-corpus bucket. It lives here rather than in `amazebio.corpora` so that
+#: :func:`durable_results` can be reached without importing that module, which pulls in
+#: `conformance`, `policyspec` and pyarrow. The EC2 launchers ship their first-party import
+#: closure by hand, and a helper that formats a string should not add three modules to every
+#: payload. `corpora.BUCKET` re-exports it, so existing call sites are unchanged.
+CORPORA_BUCKET = "amazebio-corpora-897641797669"
+
+
+def durable_results(task: str) -> str:
+    """The durable destination for a task's result artefacts — `repro.run(durable=...)`.
+
+    One scheme for every task, so a reader who knows a task id can find its results without
+    knowing which tool produced them. D-188 is why this exists: nine finished tasks had written
+    their tables only to git-ignored `artifacts/`, and `repro.run` now refuses a local-only
+    result rather than letting the next one join them.
+
+    `task` is the lower-cased, hyphenated task id — `a2-5`, not `A2.5` — matching the
+    `artifacts/` layout and the prefixes A1.6, A1.8, A2.2, A2.4 and A7.2 already use.
+
+    Note that this bucket has no `s3:DeleteObject`: anything written here is permanent, which is
+    what makes a staged corpus un-rewritable and also means a run that uploads junk uploads it
+    forever. `AGENTS.md` says to be sure about the keys before a run that uploads.
+    """
+    slug = task.strip().lower().replace(".", "-").replace("_", "-")
+    if not slug or slug.strip("-") != slug:
+        raise ValueError(f"task id {task!r} does not form a key segment")
+    return f"s3://{CORPORA_BUCKET}/corpora/results/{slug}"
+
 
 #: Read size for sequential streaming. Four megabytes: large enough that the per-request
 #: overhead disappears, small enough that a retry re-reads little.

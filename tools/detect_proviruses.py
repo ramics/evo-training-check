@@ -47,7 +47,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import gtdb, profilesearch
+from amazebio import gtdb, objectstore, profilesearch
 from amazebio.apply import route_for
 from amazebio.detect import (
     DetectionTable,
@@ -740,6 +740,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=args.out,
         allow_dirty=args.allow_dirty or bool(args.code_commit),
         repo=REPO,
+        durable=objectstore.durable_results("a2-4"),
     ) as manifest_run:
         # The instance has no git checkout, so `repro` cannot discover the commit and a
         # manifest produced there would be untraceable. The launcher refuses a dirty tree and

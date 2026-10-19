@@ -601,6 +601,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=outdir,
         allow_dirty=args.allow_dirty,
         manifest_name=f"run-input-scan-{args.release}.json",
+        durable=objectstore.durable_results("a7-2"),
     ) as m:
         m.parameter("release", args.release)
         m.parameter("version", release.version)

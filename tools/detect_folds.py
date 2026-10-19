@@ -1136,7 +1136,14 @@ def main(argv: list[str] | None = None) -> int:
     thresholds = load_threshold(args.calibration / "threshold.json", mode=args.alignment_mode)
     entries = load_manifests(args.manifests)
 
-    with run("A2.2", seed=SEED, outdir=args.out, allow_dirty=args.allow_dirty, repo=REPO) as m:
+    with run(
+        "A2.2",
+        seed=SEED,
+        outdir=args.out,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        durable=objectstore.durable_results("a2-2"),
+    ) as m:
         m.parameter("threshold_bits", thresholds["declared"])
         m.parameter("threshold_brackets", thresholds["brackets"])
         m.parameter("alignment_mode", thresholds["alignment_mode"])

@@ -210,3 +210,66 @@ named record was in the sample without re-running anything.
 widening the sample never re-searches what has already been searched. A table's realized counts
 are recorded per source, so a run that was stopped early reports the sample it actually read
 rather than the one it intended.
+
+## Where a table actually lives
+
+Added 2026-10-19, DECISIONS.md **D-188**.
+
+The `artifacts/a2-1/` paths above are where a run **writes**. They are not where a consumer
+should expect to **find** a table, and the difference cost this project nine tasks' artefacts:
+`artifacts/` is git-ignored and a session container is reclaimed, so a table that exists only
+there is gone when the session ends.
+
+Every table therefore has a durable copy at `s3://<corpora bucket>/corpora/results/<task>/`,
+written by `amazebio.repro.run(durable=...)` on a clean exit, with the run's own `run.json`
+beside it — a durable copy with no provenance is not citable, which is the point of keeping it.
+`amazebio.objectstore.durable_results` builds the destination, so the scheme is one function
+rather than a convention per tool.
+
+**A consumer reads the durable copy.** A local `artifacts/` directory is a cache of the last run
+in this container, and its absence says nothing about whether the table exists.
+
+## A2.5's extension: a category is not a family, and `absent` is not `unlabelled`
+
+A2.5 emits this shape with `detector: taxonomy-checklist`, and two fields of its own. Both are
+extensions rather than reinterpretations: nothing above changes meaning.
+
+**`categories[]` replaces `families[]`.** A2.5's universe is four §A2 problem categories defined
+as ICTV taxon sets (D-187), not a registry's protein families, so `registry` is the pinned VMR
+release and the zero-fill runs over **category members** — `members_with_a_record` and
+`members_without_a_record` carry it. The composition rule of D-173 applies unchanged, and for a
+problem-taxa table composition *is* the finding: `f__Phycodnaviridae 22,803` says what survived
+in a way no fraction of an ICTV-derived universe does.
+
+**`verdicts` has three values, not two.** This is the part another detector must not copy
+blindly and A3.2 must not flatten:
+
+| verdict | means |
+|---|---|
+| `present` | a category member matched the record's label, at its own rank or by lifting a finer one |
+| `absent` | every member was **refuted** — at its rank, or at a coarser rank that excludes it |
+| `unlabelled` | the label neither matches nor refutes. **Not evidence of absence.** |
+
+A2.5 reads taxonomy, which is the evidence the filter itself acted on, and §A2 opens by warning
+that an audit using taxonomy reproduces the filter's blind spots. A two-way split would record
+"we could not tell" as "it is not there" — over a corpus where 2,543,536 of Evo 1's 2,653,047
+surviving records carry no label below class, that is how a label-based sweep manufactures a
+clean bill of health.
+
+**Refutation runs up the ladder as well as down, and which way it runs differs per category.**
+`c__Caudoviricetes` settles the giant-virus category outright, because every NCLDV family sits
+under a class that is not that one. The same label cannot settle the segmented-genome category,
+because three of its 48 families — Birnaviridae, Polymycoviridae, Polydnaviriformidae — are
+themselves unplaced above family in MSL37.3. So `decided_at` records the rank each verdict rests
+on, and a zero established at class over two million records does not support the same sentence
+as a zero established family by family.
+
+`unlabelled_by_reason` separates four cases that have different remedies: no label at all; a
+taxon the reference does not know (taxonomic drift, which is A9.1's subject); a taxon the
+reference knows but **does not place** above the category's rank, so no label on the record could
+help; and a label that simply stops too high.
+
+**Two shares, each naming its denominator.** `present_share_of_settled` divides by the records
+whose label can answer the question; `present_share_of_all` divides by every record. They differ
+by orders of magnitude for a family-keyed category over a class-labelled corpus, and quoting
+either alone misleads in a different direction — the same failure D-161 measured one task over.
