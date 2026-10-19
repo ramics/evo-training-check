@@ -133,6 +133,27 @@ ALIGNMENT_FLAGS = {"3di_aa": "2", "3di_only": "0"}
 #: How often a running step says it is still alive, in seconds.
 HEARTBEAT_INTERVAL_S = 120
 
+#: Every search runs exhaustively, and this is not a tuning knob.
+#:
+#: Foldseek's prefilter is mis-tuned against a target database this small and **silently returns
+#: nothing**: measured on real corpus input, 77 called proteins against the 141 reference
+#: structures produced `0 median result list length`, `76 sequences with 0 size result lists`,
+#: and an exit status of 0 — while the identical query and target databases searched
+#: exhaustively produced 49 hits. Zero against 49.
+#:
+#: Shipping that would have manufactured a false null: a complete set of well-formed shards with
+#: correct provenance reporting no surviving folds anywhere in either Evo release, which is the
+#: one result this audit must never produce by accident. AGENTS.md forbids designing any part of
+#: the pipeline so a null is harder to see, and a prefilter that deletes every candidate is the
+#: strongest possible version of that.
+#:
+#: It is also **scale-dependent**, which is what makes it so dangerous: at the calibration's
+#: 1,567 queries the prefilter dropped about 7% of rows, so a threshold calibrated at one query
+#: count and applied at another would have hidden the failure entirely. Exhaustive search removes
+#: the heuristic rather than retuning it — with 141 targets every query is aligned against every
+#: reference, which is exact, scale-free, and negligible beside 3Di prediction.
+EXHAUSTIVE_SEARCH = True
+
 #: Why each unsearched component is unsearched, by corpus component. Carried per manifest rather
 #: than omitted: `metrics/detections.md` is explicit that a table silently covering part of a
 #: release reads as a verdict on all of it.
@@ -187,6 +208,7 @@ def params_fingerprint(reference_sha256: str) -> str:
             "cov_mode": 1,
             "min_target_coverage": 0.5,
             "floor_bits": FLOOR_BITS,
+            "exhaustive_search": EXHAUSTIVE_SEARCH,
             "seed": SEED,
         },
         sort_keys=True,
@@ -628,6 +650,7 @@ def search_shard(
                 "0.5",
                 "-e",
                 "1000",
+                *(("--exhaustive-search", "1") if EXHAUSTIVE_SEARCH else ()),
                 "--threads",
                 str(threads),
             ],

@@ -142,6 +142,14 @@ ALIGNMENT_MODE_RULE = (
     "decoy class, take the one with the higher true-positive rate at that threshold"
 )
 
+#: The calibration searches exhaustively, because the pass does — see
+#: `tools/detect_folds.py`'s EXHAUSTIVE_SEARCH for why the prefilter cannot be used against a
+#: 141-structure target database. The threshold has to be measured under the geometry it will be
+#: applied under: the prefilter dropped about 7% of rows here and ~100% on a 77-query shard, so
+#: calibrating with it and searching without it would put the cut in the wrong place in a way no
+#: later check would catch.
+EXHAUSTIVE_SEARCH = True
+
 FETCH_PAUSE_S = 0.1
 FETCH_ATTEMPTS = 4
 
@@ -616,6 +624,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest.parameter("per_class_queries", args.per_class)
         manifest.parameter("cov_mode", 1)
         manifest.parameter("min_target_coverage", 0.5)
+        manifest.parameter("exhaustive_search", EXHAUSTIVE_SEARCH)
         manifest.parameter("queries_sha256", staged["fasta_sha256"])
         manifest.parameter("ecod_version", folds.ECOD_V295_2.version)
 
@@ -646,6 +655,7 @@ def main(argv: list[str] | None = None) -> int:
                 "target": "the 141 pinned reference structures",
                 "cov_mode": 1,
                 "min_target_coverage": 0.5,
+                "exhaustive_search": EXHAUSTIVE_SEARCH,
                 "score": "bit score",
                 "unavailable": ["alntmscore", "qtmscore", "ttmscore", "lddt"],
             },

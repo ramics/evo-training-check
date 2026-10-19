@@ -133,7 +133,7 @@ PAYLOAD = (
 USER_DATA = """#!/bin/bash
 set -xeuo pipefail
 exec > >(tee /dev/console) 2>&1
-echo "=== amazebio a2-2 3di throughput starting $(date -Is) ==="
+echo "=== amazebio a2-2 {stage} starting $(date -Is) ==="
 
 # Armed before anything that can fail. Covers the cases the launcher's own terminate cannot:
 # the session ending, the watcher being killed. InstanceInitiatedShutdownBehavior=terminate at
@@ -192,24 +192,18 @@ for path in sorted(pathlib.Path("src/amazebio").glob("*.py")):
         importlib.import_module(f"amazebio.{{path.stem}}")
 print("=== every shipped module imports cleanly ===")
 PRECHECK
-pixi run -e dev python tools/fold_throughput.py --help >/dev/null \
+pixi run -e dev python {smoke_tool} --help >/dev/null \
   || die "the shipped tool cannot start"
+{inputs_block}
 
 # 2.3 GB of f16 GGUF from huggingface.co/Rostlab/ProstT5, unauthenticated (D-163).
 pixi run -e foldseek foldseek databases ProstT5 /opt/amazebio/prostt5 /opt/amazebio/tmpdb \
   --threads {threads} || die "ProstT5 weights download failed"
 
 export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
-( pixi run -e dev python tools/fold_throughput.py \
-    --foldseek "$FOLDSEEK" \
-    --prostt5-model /opt/amazebio/prostt5 \
-    --outdir /opt/amazebio/out --workdir /opt/amazebio/work \
-    --devices {devices} --ladder {ladder} --cpu-ladder {cpu_ladder} \
-    --threads {threads} \
-    --s3-uri "$AMAZEBIO_S3_URI" --upload-results \
-    --allow-dirty --code-commit {commit} ; echo "=== throughput exited $? ===" )
+{run_block}
 
-echo "=== amazebio a2-2 3di throughput finished $(date -Is) ==="
+echo "=== amazebio a2-2 {stage} finished $(date -Is) ==="
 die "run complete" 0
 """
 
@@ -290,8 +284,126 @@ def render_user_data(**kwargs: Any) -> str:
     return text
 
 
+#: What the search stage needs that it cannot rebuild on the instance, tarred and staged to
+#: object storage beside the payload.
+#:
+#: The reference database is the case that decides this. Rebuilding it there would mean 103
+#: unauthenticated RCSB fetches and a `gemmi` cut of every one of them, on a machine nobody can
+#: reach, inside a window the budget caps — three new ways to lose a launch in service of
+#: reproducing a 141-structure database that is a few megabytes and already has a `run.json`
+#: pinning how it was built. The two artefacts come along because the shard records which
+#: reference set and which alignment mode produced it, and both are read from these files.
+INPUTS = (
+    "artifacts/a2-2/reference/fold-universe.json",
+    "artifacts/a2-2/reference/run.json",
+    "artifacts/a2-2/calibration/threshold.json",
+    "artifacts/a2-2/calibration/run.json",
+)
+
+
+def build_inputs(root: Path, refdb_dir: Path) -> bytes:
+    """Tar the search stage's inputs: the two artefacts and the built reference database.
+
+    Refuses rather than shipping a partial bundle. An instance that starts the search with no
+    reference database dies after the ProstT5 download — about ten minutes in — and the refusal
+    here costs nothing.
+    """
+    missing = [rel for rel in INPUTS if not (root / rel).exists()]
+    if missing:
+        raise SystemExit(
+            f"the search stage's inputs are missing: {missing}. Run "
+            "tools/build_fold_reference.py and tools/calibrate_folds.py first — the instance "
+            "cannot produce either, and a shard written without them records no reference set."
+        )
+    if not refdb_dir.is_dir() or not any(refdb_dir.iterdir()):
+        raise SystemExit(
+            f"no reference database at {refdb_dir}. Build it with:\n"
+            "  pixi run -e foldseek foldseek createdb "
+            "/tmp/amazebio-a2-2/reference-structures /tmp/amazebio-a2-2/refdb/ref"
+        )
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for rel in INPUTS:
+            tar.add(root / rel, arcname=rel)
+        for path in sorted(refdb_dir.iterdir()):
+            if path.is_file():
+                tar.add(path, arcname=f"refdb/{path.name}")
+    return buf.getvalue()
+
+
+#: The per-stage pieces of `USER_DATA`. Both stages stay reachable: `throughput` produced D-164's
+#: cited speedup measurement and deleting its launch path would leave that artefact unreproducible.
+def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any) -> dict[str, str]:
+    if stage == "throughput":
+        return {
+            "stage": "3di throughput",
+            "smoke_tool": "tools/fold_throughput.py",
+            "inputs_block": "",
+            "run_block": (
+                "( pixi run -e dev python tools/fold_throughput.py \\\n"
+                '    --foldseek "$FOLDSEEK" \\\n'
+                "    --prostt5-model /opt/amazebio/prostt5 \\\n"
+                "    --outdir /opt/amazebio/out --workdir /opt/amazebio/work \\\n"
+                f"    --devices {kw['devices']} --ladder {kw['ladder']} "
+                f"--cpu-ladder {kw['cpu_ladder']} \\\n"
+                f"    --threads {kw['threads']} \\\n"
+                '    --s3-uri "$AMAZEBIO_S3_URI" --upload-results \\\n'
+                f"    --allow-dirty --code-commit {kw['commit']} ; "
+                'echo "=== throughput exited $? ===" )'
+            ),
+        }
+    if stage == "search":
+        caps = ""
+        if kw.get("max_records"):
+            caps += f" --max-records {kw['max_records']}"
+        if kw.get("band"):
+            caps += f" --band {kw['band']}"
+        if kw.get("max_shards") is not None:
+            caps += f" --max-shards {kw['max_shards']}"
+        return {
+            "stage": "fold search",
+            "smoke_tool": "tools/detect_folds.py",
+            "inputs_block": (
+                f'aws s3 cp "s3://{bucket}/{prefix}/inputs.tar.gz" inputs.tar.gz '
+                f'--region {region} || die "inputs fetch failed"\n'
+                'tar xzf inputs.tar.gz || die "inputs tarball is corrupt"\n'
+                "test -f refdb/ref_ca || die "
+                '"the reference database has no C-alpha file; the search cannot run"'
+            ),
+            "run_block": (
+                "( pixi run -e dev python tools/detect_folds.py --search \\\n"
+                '    --foldseek "$FOLDSEEK" \\\n'
+                "    --prostt5-model /opt/amazebio/prostt5 \\\n"
+                "    --refdb /opt/amazebio/refdb/ref \\\n"
+                "    --reference artifacts/a2-2/reference \\\n"
+                "    --calibration artifacts/a2-2/calibration \\\n"
+                "    --shards /opt/amazebio/shards --workdir /opt/amazebio/work \\\n"
+                f"    --threads {kw['threads']} --gpu{caps} \\\n"
+                '    --s3-uri "$AMAZEBIO_S3_URI" \\\n'
+                f"    --code-commit {kw['commit']} ; "
+                'echo "=== search exited $? ===" )'
+            ),
+        }
+    raise SystemExit(f"unknown stage {stage!r}")
+
+
 def parse_args(argv: list[str] | None) -> Any:
     ap = argparse.ArgumentParser(description=__doc__ and __doc__.splitlines()[0])
+    ap.add_argument(
+        "--stage",
+        choices=("search", "throughput"),
+        default="search",
+        help="search runs A2.2's pass; throughput re-runs D-164's speedup measurement",
+    )
+    ap.add_argument("--max-records", type=int, default=0, help="smoke test: cap per shard")
+    ap.add_argument("--band", default=None, help="smoke test: override the band as LO:HI")
+    ap.add_argument("--max-shards", type=int, default=None, help="stop after this many shards")
+    ap.add_argument(
+        "--refdb-dir",
+        type=Path,
+        default=Path("/tmp/amazebio-a2-2/refdb"),
+        help="the built foldseek reference database, shipped to the instance",
+    )
     ap.add_argument("--instance-type", default="g6.xlarge", choices=ALLOWED_TYPES)
     ap.add_argument("--owner", default="claude", help="non-empty Owner tag, required by policy")
     ap.add_argument("--profile", default="AmazebioStager", help="instance profile name")
@@ -362,7 +474,8 @@ def main(argv: list[str] | None = None) -> int:
 
     bucket = args.bucket or corpora.BUCKET
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
-    prefix = args.prefix or f"{RESULT_PREFIX}/throughput/{stamp}-{commit[:12]}"
+    kind = "throughput" if args.stage == "throughput" else "search"
+    prefix = args.prefix or f"{RESULT_PREFIX}/{kind}/{stamp}-{commit[:12]}"
     code_key = f"{prefix}/code.tar.gz"
 
     s3 = boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
@@ -408,6 +521,20 @@ def main(argv: list[str] | None = None) -> int:
         flush=True,
     )
 
+    blocks = stage_blocks(
+        args.stage,
+        bucket=bucket,
+        prefix=prefix,
+        region=REGION,
+        commit=commit,
+        devices=args.devices,
+        ladder=args.ladder,
+        cpu_ladder=args.cpu_ladder,
+        threads=args.threads,
+        max_records=args.max_records,
+        band=args.band,
+        max_shards=args.max_shards,
+    )
     user_data = render_user_data(
         bucket=bucket,
         prefix=prefix,
@@ -418,6 +545,7 @@ def main(argv: list[str] | None = None) -> int:
         ladder=args.ladder,
         cpu_ladder=args.cpu_ladder,
         threads=args.threads,
+        **blocks,
         hard_stop_minutes=hard_stop,
         pixi_url=PIXI_URL,
         pixi_sha256=PIXI_SHA256,
@@ -470,6 +598,11 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"=== uploading payload to s3://{bucket}/{code_key}", flush=True)
     s3.put_object(Bucket=bucket, Key=code_key, Body=build_payload(root))
+    if args.stage == "search":
+        body = build_inputs(root, args.refdb_dir)
+        key = f"{prefix}/inputs.tar.gz"
+        print(f"=== uploading inputs to s3://{bucket}/{key} ({len(body) / 1e6:.1f} MB)", flush=True)
+        s3.put_object(Bucket=bucket, Key=key, Body=body)
 
     instance = ec2.run_instances(**launch)["Instances"][0]
     iid = instance["InstanceId"]
@@ -501,27 +634,44 @@ def watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any, hard
     console is for the boot failures that happen before the heartbeat exists.
     """
     deadline = time.monotonic() + hard_stop * 60 + 300
-    result_key = f"{prefix}/throughput.json"
+    searching = args.stage == "search"
+    # The search has no single terminal artefact: it publishes one shard per finished unit so a
+    # reclaim keeps what ran, which is the whole point of the shard split. So the watcher reports
+    # shards as they appear and lets the instance's own exit end the wait.
+    result_key = f"{prefix}/{'search-progress.json' if searching else 'throughput.json'}"
+    beat_key = f"{prefix}/{'search-progress.json' if searching else 'throughput-progress.json'}"
     seen_stage = None
+    seen_shards: set[str] = set()
     while time.monotonic() < deadline:
         time.sleep(args.poll_seconds)
+        if searching:
+            try:
+                page = s3.list_objects_v2(Bucket=bucket, Prefix=f"{prefix}/")
+                for obj in page.get("Contents", []):
+                    name = obj["Key"].rsplit("/", 1)[-1]
+                    if name.endswith(".json") and "--" in name and name not in seen_shards:
+                        seen_shards.add(name)
+                        print(f"=== shard landed: {name} ({obj['Size']} bytes)", flush=True)
+            except Exception:
+                pass
+        else:
+            try:
+                s3.head_object(Bucket=bucket, Key=result_key)
+                print(f"=== result landed: s3://{bucket}/{result_key}", flush=True)
+                body = s3.get_object(Bucket=bucket, Key=result_key)["Body"].read()
+                data = json.loads(body)
+                print(json.dumps(data.get("speedup", {}), indent=2, sort_keys=True), flush=True)
+                print(json.dumps(data.get("projection", {}), indent=2, sort_keys=True), flush=True)
+                return 0
+            except Exception:
+                pass
         try:
-            s3.head_object(Bucket=bucket, Key=result_key)
-            print(f"=== result landed: s3://{bucket}/{result_key}", flush=True)
-            body = s3.get_object(Bucket=bucket, Key=result_key)["Body"].read()
-            data = json.loads(body)
-            print(json.dumps(data.get("speedup", {}), indent=2, sort_keys=True), flush=True)
-            print(json.dumps(data.get("projection", {}), indent=2, sort_keys=True), flush=True)
-            return 0
-        except Exception:
-            pass
-        try:
-            beat = json.loads(
-                s3.get_object(Bucket=bucket, Key=f"{prefix}/throughput-progress.json")[
-                    "Body"
-                ].read()
+            beat = json.loads(s3.get_object(Bucket=bucket, Key=beat_key)["Body"].read())
+            stage = (
+                beat.get("stage"),
+                beat.get("shard"),
+                len(beat.get("points", {}).get("gpu", []) or []),
             )
-            stage = (beat.get("stage"), len(beat.get("points", {}).get("gpu", []) or []))
             if stage != seen_stage:
                 seen_stage = stage
                 print(f"    heartbeat: {beat.get('stage')} {beat.get('written_at')}", flush=True)
@@ -529,6 +679,12 @@ def watch(ec2: Any, s3: Any, iid: str, bucket: str, prefix: str, args: Any, hard
             pass
         state = instance_state(ec2, iid)
         if state in ("shutting-down", "terminated", "stopped"):
+            if searching and seen_shards:
+                print(
+                    f"=== instance {state}; {len(seen_shards)} shard(s) published and kept",
+                    flush=True,
+                )
+                return 0
             print(f"=== instance {state}; no result object", flush=True)
             tail = console_tail(ec2, iid)
             if tail:

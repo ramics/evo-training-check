@@ -134,21 +134,47 @@ def test_ami_is_the_driver_bearing_one(folds):
     assert "nvidia-driver" in folds.AMI_PARAMETER
 
 
-def test_user_data_renders_within_the_limit_and_shuts_down_safely(folds):
-    text = folds.render_user_data(
-        bucket="b",
-        prefix="p",
-        code_key="p/code.tar.gz",
-        region="us-east-1",
-        commit="deadbeef",
-        devices="cpu,gpu",
-        ladder="100,500",
-        cpu_ladder="100",
-        threads=4,
-        hard_stop_minutes=180,
-        pixi_url=folds.PIXI_URL,
-        pixi_sha256=folds.PIXI_SHA256,
+def _render(folds, *, stage="search", **over):
+    """Render UserData the way the launcher does — through `stage_blocks`.
+
+    The per-stage blocks go through the real builder rather than being stubbed, so these tests
+    exercise the script the instance would actually receive. Defaults to the search stage,
+    because that is the one A2.2's pass runs.
+    """
+    kw = {
+        "bucket": "b",
+        "prefix": "p",
+        "code_key": "p/code.tar.gz",
+        "region": "us-east-1",
+        "commit": "deadbeef",
+        "devices": "cpu,gpu",
+        "ladder": "100,500",
+        "cpu_ladder": "100",
+        "threads": 4,
+        "hard_stop_minutes": 180,
+        "pixi_url": folds.PIXI_URL,
+        "pixi_sha256": folds.PIXI_SHA256,
+    }
+    kw.update(over)
+    blocks = folds.stage_blocks(
+        stage,
+        bucket=kw["bucket"],
+        prefix=kw["prefix"],
+        region=kw["region"],
+        commit=kw["commit"],
+        devices=kw["devices"],
+        ladder=kw["ladder"],
+        cpu_ladder=kw["cpu_ladder"],
+        threads=kw["threads"],
+        max_records=0,
+        band=None,
+        max_shards=None,
     )
+    return folds.render_user_data(**kw, **blocks)
+
+
+def test_user_data_renders_within_the_limit_and_shuts_down_safely(folds):
+    text = _render(folds)
     assert len(text.encode()) <= 16 * 1024
     # Comments in this script quote the very commands they warn about, so ordering is checked
     # over the commands alone — matching prose would pass while the script was wrong.
@@ -168,20 +194,7 @@ def test_user_data_renders_within_the_limit_and_shuts_down_safely(folds):
 
 def test_user_data_refuses_to_render_when_too_large(folds):
     with pytest.raises(SystemExit):
-        folds.render_user_data(
-            bucket="b" * 20000,
-            prefix="p",
-            code_key="k",
-            region="us-east-1",
-            commit="c",
-            devices="cpu",
-            ladder="1",
-            cpu_ladder="1",
-            threads=1,
-            hard_stop_minutes=1,
-            pixi_url="u",
-            pixi_sha256="s",
-        )
+        _render(folds, bucket="b" * 20000)
 
 
 def test_pixi_pin_agrees_with_the_other_launcher(folds):
@@ -201,27 +214,15 @@ def test_pixi_pin_agrees_with_the_other_launcher(folds):
 
 
 def test_user_data_unpacks_pixi_rather_than_chmodding_the_download(folds):
-    text = folds.render_user_data(
-        bucket="b",
-        prefix="p",
-        code_key="p/code.tar.gz",
-        region="us-east-1",
-        commit="deadbeef",
-        devices="cpu,gpu",
-        ladder="100",
-        cpu_ladder="100",
-        threads=4,
-        hard_stop_minutes=10,
-        pixi_url=folds.PIXI_URL,
-        pixi_sha256=folds.PIXI_SHA256,
-    )
+    text = _render(folds, hard_stop_minutes=10)
     # Checksum before unpacking, and unpacking at all: the asset is a tarball containing a
     # single `pixi` binary, so writing the download straight to /usr/local/bin cannot work.
     assert text.index("sha256sum -c -") < text.index("tar xzf pixi.tar.gz")
     assert "install -m 0755 pixi /usr/local/bin/pixi" in text
 
 
-def test_precheck_imports_through_the_normal_machinery(folds):
+@pytest.mark.parametrize("stage", ["search", "throughput"])
+def test_precheck_imports_through_the_normal_machinery(folds, stage):
     """The payload guard must not be able to fail on a complete payload.
 
     One launch died here. The precheck used `spec_from_file_location` plus
@@ -231,29 +232,33 @@ def test_precheck_imports_through_the_normal_machinery(folds):
     the payload was complete. A false positive here costs a launch, exactly like the true
     positive it exists to catch.
     """
-    text = folds.render_user_data(
-        bucket="b",
-        prefix="p",
-        code_key="p/code.tar.gz",
-        region="us-east-1",
-        commit="deadbeef",
-        devices="cpu,gpu",
-        ladder="100",
-        cpu_ladder="100",
-        threads=4,
-        hard_stop_minutes=10,
-        pixi_url=folds.PIXI_URL,
-        pixi_sha256=folds.PIXI_SHA256,
-    )
+    text = _render(folds, stage=stage, hard_stop_minutes=10)
     # Commands only: the comments above this guard quote the broken pattern by name in
     # order to explain it, and matching prose would fail on the explanation.
     code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
     assert "spec_from_file_location" not in code
     assert "module_from_spec" not in code
     # Every shipped first-party module, by name, and then the tool started the way the run
-    # starts it — so the check exercises the import path the measurement will use.
+    # starts it — so the check exercises the import path the run will use. Asserted per stage
+    # rather than against one hardcoded tool name: this assertion read `fold_throughput.py`
+    # and went green while the search stage it was meant to cover ran a different tool.
     assert "importlib.import_module" in code
-    assert "fold_throughput.py --help" in code
+    expected = folds.stage_blocks(
+        stage,
+        bucket="b",
+        prefix="p",
+        region="us-east-1",
+        commit="c",
+        devices="cpu",
+        ladder="1",
+        cpu_ladder="1",
+        threads=1,
+        max_records=0,
+        band=None,
+        max_shards=None,
+    )["smoke_tool"]
+    assert f"{expected} --help" in code
+    assert code.index(f"{expected} --help") < code.index("databases ProstT5")
 
 
 def test_results_go_to_a_task_scoped_prefix(folds):
