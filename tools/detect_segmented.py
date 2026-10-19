@@ -310,6 +310,129 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def assemble(out_dir: Path, universe: set[str], selection: dict[str, Any]) -> dict[str, Any]:
+    """Merge every band table in `out_dir` into one figure for the span they cover.
+
+    Bands are nested and disjoint by construction (D-078), but "by construction" is what a
+    merge has to *check* rather than assume: this refuses a set of bands that overlaps, that
+    leaves a gap, that mixes manifests, or that mixes registries. An overlap would double-count
+    records and a gap would make the span a lie, and either would be invisible in the merged
+    number.
+    """
+    tables = []
+    for path in sorted(out_dir.glob("segmented-*-band*.json")):
+        payload = json.loads(path.read_text())
+        if payload.get("arm") != "segmented-genome families":
+            continue
+        tables.append((path, payload))
+    if not tables:
+        raise SystemExit(f"no band tables found under {out_dir}")
+
+    manifests = {t["manifest"]["sha256"] for _, t in tables}
+    if len(manifests) != 1:
+        raise SystemExit(
+            "the bands were searched against different A1.4 manifests "
+            f"({len(manifests)} digests). Their counts are over different surviving sets and "
+            "must not be merged."
+        )
+    registries = {(t["registry"]["id"], t["registry"]["version"]) for _, t in tables}
+    if len(registries) != 1:
+        raise SystemExit(f"the bands used different registries: {sorted(registries)}")
+    restricted = {t["registry"]["restricted_to"] for _, t in tables}
+    if restricted != {len(universe)}:
+        raise SystemExit(
+            f"the bands were restricted to {sorted(restricted)} families; this merge reports "
+            f"against {len(universe)}. A figure is only comparable to its own universe."
+        )
+
+    spans = sorted((t["sample"]["band"]["lo"], t["sample"]["band"]["hi"]) for _, t in tables)
+    lo = spans[0][0]
+    cursor = lo
+    for a, b in spans:
+        if a < cursor:
+            raise SystemExit(f"bands overlap at {a}: {spans}. Merging them would double-count.")
+        if a > cursor:
+            raise SystemExit(f"bands leave a gap {cursor}-{a}: {spans}. The span is not covered.")
+        cursor = b
+    hi = cursor
+
+    families: dict[str, dict[str, Any]] = {}
+    routes: Counter[str] = Counter()
+    records = genes = residues = bases = hits = 0
+    for _, payload in tables:
+        for row in payload["families"]:
+            into = families.setdefault(
+                row["family_id"],
+                {"family_id": row["family_id"], "hits": 0, "records": 0, "best_score": None},
+            )
+            into["hits"] += row["hits"]
+            into["records"] += row["records"]
+            into["best_score"] = max(into["best_score"] or row["best_score"], row["best_score"])
+        routes.update(payload["routes"])
+        records += payload["gene_calling"]["records"]
+        genes += payload["gene_calling"]["genes"]
+        residues += payload["gene_calling"]["residues"]
+        bases += payload["gene_calling"]["bases"]
+        hits += payload["search"]["accepted_hits"]
+
+    ordered = sorted(families.values(), key=lambda r: (-r["hits"], r["family_id"]))
+    detected = {r["family_id"] for r in ordered}
+    interval = wilson_interval(len(detected), len(universe))
+    census = (lo, hi) == (0.0, 1.0)
+    return {
+        "task": "A2.5",
+        "detector": "profile-hmmer",
+        "arm": "segmented-genome families",
+        "decision": "D-190, D-191",
+        "assembled_from": [path.name for path, _ in tables],
+        "sample": {
+            "seed": SEED,
+            "band": {"lo": lo, "hi": hi},
+            "bands_merged": spans,
+            "method": "nested hash bands, checked here for overlap and gaps",
+            "is_census": census,
+        },
+        "estimate_kind": "population" if census else "lower_bound",
+        "registry": {
+            "id": profiles.RVDB_PROT_32_0.id,
+            "version": profiles.RVDB_PROT_32_0.version,
+            "restricted_to": len(universe),
+            "selection": selection,
+        },
+        "manifest": next(t["manifest"] for _, t in tables),
+        "searched": {
+            "records": records,
+            "genes": genes,
+            "residues": residues,
+            "bases": bases,
+            "share_of_component": round((hi - lo), 4),
+        },
+        "search": {"accepted_hits": hits},
+        "survival": {
+            "families_detected": len(detected),
+            "families_in_universe": len(universe),
+            "interval": {
+                "estimate": interval.estimate,
+                "low": interval.low,
+                "high": interval.high,
+            },
+            "denominator": (
+                "RVDB-prot 32.0 restricted to D-190's segmented selection; not 'the fraction of "
+                "viral families' (D-161)."
+            ),
+        },
+        "composition": [{"family_id": r["family_id"], "records": r["records"]} for r in ordered],
+        "routes": dict(sorted(routes.items())),
+        "families": ordered,
+        "families_without_a_hit": sorted(universe - detected),
+        "notes": [
+            f"Merged over the hash span [{lo}, {hi}) of Evo 1's surviving stage 2.",
+            "A family detected in any band is detected; a family absent is absent from the "
+            "records read, and `estimate_kind` says which.",
+        ],
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--band", default="0:0.02", help="hash band as LO:HI, fractions of 1")
@@ -320,6 +443,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=Path("artifacts/a2-5"), type=Path)
     parser.add_argument("--cpus", type=int, default=8)
     parser.add_argument("--limit", type=int, default=None, help="probing only")
+    parser.add_argument(
+        "--assemble",
+        action="store_true",
+        help="merge the band tables already in --out into one figure, searching nothing",
+    )
     parser.add_argument("--allow-dirty", action="store_true")
     args = parser.parse_args(argv)
 
@@ -329,6 +457,35 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"--band {args.band} is not a half-open band inside [0, 1]")
 
     universe, selection = load_selection(args.selection)
+
+    if args.assemble:
+        merged = assemble(args.out, universe, selection)
+        with run(
+            "A2.5",
+            seed=SEED,
+            outdir=args.out,
+            allow_dirty=args.allow_dirty,
+            manifest_name="run-segmented-assembled.json",
+            durable=objectstore.durable_results("a2-5"),
+        ) as m:
+            m.parameter("decision", "D-191")
+            m.parameter("bands_merged", merged["sample"]["bands_merged"])
+            m.parameter("restricted_to_families", len(universe))
+            out = args.out / "segmented-assembled.json"
+            out.write_text(json.dumps(merged, indent=1, sort_keys=True) + "\n")
+            m.output_file(out, role="segmented-assembled")
+        s = merged["survival"]
+        band = merged["sample"]["band"]
+        print(
+            f"span [{band['lo']}, {band['hi']}): {s['families_detected']} of "
+            f"{s['families_in_universe']} families, {merged['searched']['records']:,} records "
+            f"({merged['estimate_kind']})",
+            file=sys.stderr,
+        )
+        for row in merged["composition"][:12]:
+            print(f"  {row['family_id']}  {row['records']} records", file=sys.stderr)
+        return 0
+
     policies = load_policy_dir(SPECS)
     policy = policies[args.policy]
     client = objectstore.client()
