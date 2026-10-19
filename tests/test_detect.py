@@ -270,3 +270,109 @@ def test_bands_travel_in_the_written_sample_design():
     written = design.to_dict()
     assert written["bands"] == [[0, 0.002], [0.002, 0.02]]
     assert written["bands_cover_rate"] is True
+
+
+# --------------------------------------------------------------------------------------
+# D-161: a registry's survival fraction is not reportable on its own, and the composition is
+
+
+def _rvdb_table(detections=()):
+    """The same rows under RVDB-prot's id, so the per-registry rule can be compared."""
+    return DetectionTable(
+        task="A2.4",
+        detector="profile-hmmer",
+        registry="rvdb-prot",
+        registry_version="32.0",
+        manifest=REF,
+        sources=[{"searched": True}],
+        rows=build_rows(detections, universe=UNIVERSE, thresholds=THRESHOLDS),
+    )
+
+
+def test_composition_ranks_the_families_carrying_the_detections():
+    """For A2.4 this is the prophage parts list, and it is the evidence the detections are an
+    integrated element rather than scattered homology."""
+    t = table(
+        [
+            detection(family="PF00001"),
+            detection(family="PF00001", record="r2"),
+            detection(family="PF00002", record="r3"),
+        ]
+    )
+    comp = t.composition()
+    assert [c["family_id"] for c in comp] == ["PF00001", "PF00002"]
+    assert comp[0]["hits"] == 2
+    assert comp[0]["name"] == "fam_a"
+
+
+def test_composition_omits_families_with_no_hit() -> None:
+    """A zero-filled universe is the denominator, not the parts list."""
+    t = table([detection(family="PF00001")])
+    assert [c["family_id"] for c in t.composition()] == ["PF00001"]
+
+
+def test_composition_is_empty_rather_than_absent_when_nothing_was_found() -> None:
+    assert table([]).composition() == []
+
+
+def test_composition_ties_break_deterministically() -> None:
+    """Two families on equal hits must not reorder between runs, or a quoted parts list stops
+    reproducing from pinned inputs."""
+    dets = [detection(family="PF00002", record="r1"), detection(family="PF00001", record="r2")]
+    assert [c["family_id"] for c in table(dets).composition()] == ["PF00001", "PF00002"]
+
+
+def test_composition_respects_its_limit() -> None:
+    dets = [detection(family=f, record=f) for f in ("PF00001", "PF00002", "PF00003")]
+    assert len(table(dets).composition(limit=2)) == 2
+
+
+def test_pfams_fraction_may_not_be_called_the_fraction_of_viral_families() -> None:
+    """Its denominator is this project's reading of 'viral' in Pfam, not a published universe."""
+    d = table([detection()]).denominator()
+    assert d["registry"] == "pfam"
+    assert "fraction of viral families" in d["restriction"]
+    assert d["decision_ref"] == "D-161"
+
+
+def test_rvdbs_fraction_may_not_be_called_a_measure_of_how_much_survived() -> None:
+    """Its denominator includes families no prophage could contain, so it understates."""
+    d = _rvdb_table([detection()]).denominator()
+    assert "how much survived" in d["restriction"]
+    assert "absolute counts" in d["restriction"]
+
+
+def test_the_two_registries_carry_different_restrictions() -> None:
+    """The whole of D-161 is that these fail in opposite directions. One shared caveat would
+    lose exactly the distinction the entry was written to record."""
+    a = table([detection()]).denominator()["restriction"]
+    b = _rvdb_table([detection()]).denominator()["restriction"]
+    assert a != b
+
+
+def test_an_unknown_registry_still_gets_a_denominator_rule() -> None:
+    """A third registry must not silently arrive with no restriction at all — that is how D-074's
+    class of defect happens, a new release slipping past a check that named two by hand."""
+    t = table([detection()])
+    t.registry = "some-new-registry"
+    assert t.denominator()["restriction"]
+    assert t.denominator()["comparable_across_registries"] is False
+
+
+def test_no_registry_declares_its_fraction_comparable() -> None:
+    for t in (table([detection()]), _rvdb_table([detection()])):
+        assert t.denominator()["comparable_across_registries"] is False
+
+
+def test_the_artefact_carries_the_denominator_and_the_composition() -> None:
+    """AGENTS.md requires every published figure to trace to a machine-readable artefact.
+    D-161's composition list was prose in the decisions log with nothing emitting it."""
+    out = table([detection()]).to_dict()
+    assert out["denominator"]["decision_ref"] == "D-161"
+    assert out["composition"][0]["family_id"] == "PF00001"
+    assert "D-161" in out["reading_this_table"]
+
+
+def test_the_reading_note_sends_a_quoter_to_the_denominator_first() -> None:
+    out = table([detection()]).to_dict()
+    assert "before quoting" in out["reading_this_table"].lower()

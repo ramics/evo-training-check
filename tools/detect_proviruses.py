@@ -553,10 +553,22 @@ def _rehome(call):
     return dataclasses.replace(call, source_record=host_of_contig(call.source_record))
 
 
-def table_notes(*, genomes: int, proviruses: int, concordance: dict[str, Any] | None) -> list[str]:
+def table_notes(
+    *,
+    genomes: int,
+    proviruses: int,
+    concordance: dict[str, Any] | None,
+    registry_id: str | None = None,
+) -> list[str]:
     """Caveats that travel with the numbers, not a changelog."""
     notes = [
         SCOPE_NOTE,
+        "**Do not quote this table's survival fraction on its own (D-161).** The two registries'"
+        " fractions are not comparable: their denominators answer different questions, and a "
+        "measured 5.2x sensitivity gap from the threshold regime (D-076) sits on top of that. "
+        "What is reportable is the absolute counts and `composition` — the prophage parts list, "
+        "which depends on neither denominator and is the evidence these are integrated elements "
+        "rather than scattered homology. The `denominator` field carries the per-registry rule.",
         f"{proviruses:,} provirus call(s) across {genomes:,} sampled genome(s). The family "
         "universe and thresholds are A2.1's, unchanged (D-113), so an A2.1 table and this one "
         "differ only in route, element kind and the records searched.",
@@ -567,6 +579,17 @@ def table_notes(*, genomes: int, proviruses: int, concordance: dict[str, Any] | 
         f", pinned apart from A4.2's 1.1.0 object of study (D-112); VIBRANT {VIBRANT.version} for "
         "concordance (D-114).",
     ]
+    per_registry = {
+        "pfam": "This registry's universe is this project's derived viral subset of Pfam "
+        "(D-075), weighted toward well-characterised phage domains and carrying the blind spot "
+        "D-083 measured. Its fraction is never quoted as 'the fraction of viral families'.",
+        "rvdb-prot": "This registry's universe is the publisher's clustering of the whole known "
+        "virosphere, overwhelmingly eukaryotic viruses that cannot occur in a bacterial "
+        "prophage. Its fraction is never quoted as a measure of how much survived; it "
+        "understates by an amount this table does not quantify. Report the absolute counts.",
+    }.get(registry_id or "")
+    if per_registry:
+        notes.append(per_registry)
     if concordance is None:
         notes.append(
             "No concordance subsample was run, so this table rests on one instrument. The "
@@ -984,6 +1007,7 @@ def main(argv: list[str] | None = None) -> int:
                         genomes=genomes_total,
                         proviruses=proviruses_total,
                         concordance=concordance_tables or None,
+                        registry_id=reg.id,
                     ),
                 )
                 survival = table.survival()

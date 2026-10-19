@@ -161,6 +161,9 @@ test = "pytest -q"
 policies-check = "python3 tools/policies.py"
 # Validate the filter policy specs: schema, and that every rule cites a retrieved source.
 specs-check = "python3 tools/specs.py"
+# Validate the decisions log's identifiers: duplicate IDs, dangling citations, dates.
+# board-check validates the task graph and never looks at the log; this is the other half.
+decisions-check = "python3 tools/decisions.py"
 # Validate the Phase B model inventory: every checkpoint's claims cite a retrieved source.
 models-check = "python3 tools/model_inventory.py --check"
 # Render each policy as prose, for eyeballing a spec against its quoted source.
@@ -173,6 +176,7 @@ check = { depends-on = [
   "lint",
   "fmt-check",
   "board-check",
+  "decisions-check",
   "policies-check",
   "specs-check",
   "models-check",

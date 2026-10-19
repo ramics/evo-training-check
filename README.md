@@ -78,37 +78,17 @@ version that could have produced IMG/VR v4's labels, and it needs Python 3.10, n
 mmseqs2 13 to run at all. `--splits 8` is not tuning — the marker search needs about 24 GB in
 one pass and the container has 16. See DECISIONS.md D-085.
 
-`pixi run -e dev check` is what CI runs, so a green local run means a green CI run.
+`pixi run -e dev check` is what CI runs, so a green local run means a green CI run. It is seven
+steps: lint, format, task graph, policy evidence, filter specs, model inventory, tests. The three
+evidence checks are the ones a change to `policies/` trips, so a documentation-only change is not
+automatically safe.
 
 ## Layout
 
-```
-DESIGN.md             the specification
-AGENTS.md             process and conventions — read before working
-pixi.toml / pixi.lock the pinned environment
-pyproject.toml        package metadata, lint and test config
-src/amazebio/         library code
-  repro.py            seeding, input pinning, run provenance
-  survival.py         the frozen route taxonomy and headline metrics
-  models.py           the verified Phase B model inventory (B1.1)
-  proteingym.py       the benchmark DMS ingest, schema and metric (B2.1)
-  conformance.py      released-tag parsing, policy restriction and the cause taxonomy (A7.1)
-  ictv.py             the pinned ICTV Virus Metadata Resource: the benchmark's ground truth
-  genomad.py          the tool A4.2 benchmarks: version bound, output parser, scope note
-  misassignment.py    taxonomy-tool error by direction, exact intervals, leakage propagation
-metrics/survival.md   the frozen survival metric specification (A3.1)
-tools/board.py        regenerates tasks/BOARD.md from task frontmatter
-tools/stage_proteingym.py  acquires and pins the benchmark DMS release
-tools/proteingym_check.py  reproduces the benchmark's published per-assay numbers
-tools/conformance_scan.py  scans a released corpus for the fields the conformance diff needs
-tools/taxonomy_dependency.py  which taxonomy tool the denylist's removals rest on (A4.2)
-tools/taxonomy_benchmark.py   builds the labelled set, scores geNomad's error (A4.2)
-tools/conformance_diff.py  re-executes the published predicates against that scan
-tasks/                one file per unit of work; BOARD.md is generated
-tests/                tests
-data/                 pinned inputs (git-ignored)
-artifacts/            pipeline outputs and run manifests (git-ignored)
-```
+**See the repo map in `AGENTS.md`.** This file used to carry a second map of the same tree.
+The two drifted into different selections of the same 31 modules and 36 tools, neither a
+superset of the other, which is worse than one map that says it is an excerpt. There is now one,
+and it is in `AGENTS.md` because that is the file you are told to read before working.
 
 ## Reproducibility
 
@@ -125,4 +105,11 @@ pre-registered threshold.
 
 ## Status
 
-Pre-Phase-A. See `tasks/BOARD.md` for what is ready to pick up.
+Phase A, in progress. Of 69 tasks, 18 are done and 9 are ready to pick up; the corpora are
+staged and reconstructed, the policy readings execute, and the first survival measurements have
+landed. Four gates are `HOLDING` — A3.3, B5.1, C6.3 and X3.1 — and A3.3 is the binding one,
+because it holds three finished results (A1.4, A7.1, A7.2) and the Phase A write-up behind a
+second-method reimplementation that has not been done.
+
+Nothing has been circulated externally, and nothing may be until X3.1. See `tasks/BOARD.md` for
+the current state — it is generated, so it does not go stale the way this paragraph will.

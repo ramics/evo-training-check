@@ -72,10 +72,46 @@ any part of the pipeline so that a null is harder to see.
 | `thresholds` | what a hit had to beat, and the decision that fixed it |
 | `sources[]` | one row per component of the manifest, searched or not |
 | `survival` | family-level survival with its Wilson interval, and how to read it |
+| `denominator` | what this registry's universe is, and how its fraction may **not** be quoted (D-161) |
+| `composition` | the families carrying the detections, most first — depends on no denominator |
 | `routes`, `element_kinds` | totals across families, for A3.2's cross-tabulation |
 | `families[]` | per-family rows, for families with at least one hit |
 | `families_without_a_hit` | the rest of the universe, by accession |
 | `notes` | caveats that travel with the numbers |
+
+## A survival fraction is not reportable on its own — `denominator` and `composition`
+
+Added 2026-10-19, DECISIONS.md D-173, implementing D-161 in the artefact rather than in prose.
+
+A2.4's first band reported 11.8% of Pfam's viral families and 0.66% of RVDB-prot's surviving as
+prophage, from the same proteins. Side by side that reads as Pfam being eight times more
+permissive, and a reader reaches for one number as the headline. Both readings are wrong:
+
+- **The denominators answer different questions.** Pfam's universe is *this project's* derived
+  viral subset (D-075), weighted toward well-characterised phage domains. RVDB-prot's is the
+  publisher's clustering of the whole known virosphere, overwhelmingly eukaryotic viruses that
+  **cannot** occur in a bacterial prophage — so it carries a large, structurally unreachable mass.
+- **There is also a real sensitivity gap**, 5.2x, from the threshold regime (D-076), and it is not
+  a counting artefact.
+
+So every table carries **`denominator`**: the universe's authority, and the restriction on quoting
+its fraction. Pfam's is never quoted as "the fraction of viral families"; RVDB's is never quoted
+as a measure of how much survived. A registry the rule does not name still gets a restriction — a
+new registry must not arrive with none, which is how a check that names two by hand goes blind to
+a third (D-074).
+
+And every table carries **`composition`**: the families holding the detections, most first. For a
+prophage table that is a parts list — `Phage_integrase`, `Terminase_6N`, `Phage_capsid` — and it
+is the evidence that detections are an integrated element rather than scattered homology.
+**It depends on neither denominator**, which makes it, with the absolute counts, the part that
+carries across registries.
+
+Ties in `composition` break by accession, so a quoted parts list reproduces from pinned inputs.
+
+**A3.3's reimplementation**: both fields are derivable from `families[]` and `registry`, so they
+add no measurement. They are in the contract because `AGENTS.md` requires every published figure
+to trace to a machine-readable artefact, and D-161's composition list was prose in the decisions
+log with nothing emitting it.
 
 The manifest's **sha256** is what stops a table being read against a manifest regenerated later
 under different policy prose: the numbers would still line up and would mean something else.

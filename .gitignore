@@ -23,3 +23,8 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# uv is not this project's resolver -- pixi.lock is authoritative.
+# A second lockfile in the root invites resolving from the one that pins nothing. D-168.
+uv.lock
+.venv/
