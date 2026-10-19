@@ -196,26 +196,23 @@ pixi run -e dev python {smoke_tool} --help >/dev/null \
   || die "the shipped tool cannot start"
 {inputs_block}
 
-# 2.3 GB of f16 GGUF from huggingface.co/Rostlab/ProstT5, unauthenticated (D-163).
+# The 2.3 GB of f16 GGUF, fetched from **our own bucket** rather than from upstream.
 #
-# Retried, and then **verified by looking for the weights** rather than by trusting the exit
-# status. Measured 2026-10-19: this command printed `tar: Error is not recoverable: exiting now`
-# and still exited 0, so `|| die` never fired and the search died a minute later on "Could not
-# find ProstT5 model weights". Checking the artefact instead of the exit code is the same lesson
-# the prefilter taught one layer up: a step that reports success has not shown you what it made.
-for attempt in 1 2 3; do
-  pixi run -e foldseek foldseek databases ProstT5 /opt/amazebio/prostt5 /opt/amazebio/tmpdb \
-    --threads {threads} || echo "=== ProstT5 attempt $attempt exited nonzero ==="
-  if [ "$(find /opt/amazebio/prostt5 -name '*.gguf' -size +1G 2>/dev/null | wc -l)" -ge 1 ]; then
-    echo "=== ProstT5 weights present after attempt $attempt ==="
-    break
-  fi
-  echo "=== ProstT5 attempt $attempt left no usable weights ==="
-  rm -rf /opt/amazebio/prostt5 /opt/amazebio/tmpdb
-  sleep 10
-done
-test "$(find /opt/amazebio/prostt5 -name '*.gguf' -size +1G 2>/dev/null | wc -l)" -ge 1 \
-  || die "ProstT5 weights are absent after three attempts; the search cannot run"
+# `foldseek databases ProstT5` downloads from a third-party Cloudflare worker, and on
+# 2026-10-19 it returned `status=429` to all three attempts from an instance, fifteen minutes
+# after the identical file downloaded cleanly in the session container. A rate limit is not a
+# transient a short retry clears, and it sat on the critical path of a 24.7-hour pass.
+#
+# Pinning matters more than the outage. The published command names no digest, and D-171's
+# threshold was measured with these exact bytes — an instance fetching a different build under
+# the same name would apply a threshold measured on one instrument to another, silently. So the
+# weights are staged by tools/stage_prostt5.py under a key derived from their digest, and
+# verified here against it: in region, free, and identical on every launch.
+mkdir -p /opt/amazebio/prostt5
+aws s3 cp "s3://{bucket}/{weights_key}" /opt/amazebio/prostt5/{weights_name} \
+  --region {region} || die "ProstT5 weights fetch from the staged copy failed"
+echo "{weights_sha256}  /opt/amazebio/prostt5/{weights_name}" | sha256sum -c - \
+  || die "staged ProstT5 weights do not match their pin; refusing to predict 3Di with them"
 
 export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
 {run_block}
@@ -580,10 +577,15 @@ def main(argv: list[str] | None = None) -> int:
         band=args.band,
         max_shards=args.max_shards,
     )
+    from amazebio.folds import PROSTT5
+
     user_data = render_user_data(
         bucket=bucket,
         prefix=prefix,
         code_key=code_key,
+        weights_key=PROSTT5.key,
+        weights_name=PROSTT5.name,
+        weights_sha256=PROSTT5.sha256,
         region=REGION,
         commit=commit,
         devices=args.devices,

@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+from amazebio.folds import PROSTT5
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -155,6 +157,9 @@ def _render(folds, *, stage="search", **over):
         "hard_stop_minutes": 180,
         "pixi_url": folds.PIXI_URL,
         "pixi_sha256": folds.PIXI_SHA256,
+        "weights_key": PROSTT5.key,
+        "weights_name": PROSTT5.name,
+        "weights_sha256": PROSTT5.sha256,
     }
     kw.update(over)
     blocks = folds.stage_blocks(
@@ -189,8 +194,9 @@ def test_user_data_renders_within_the_limit_and_shuts_down_safely(folds):
     # Every failure path goes through `die`, so none of them idles away the window.
     assert code.count("|| die ") >= 5
     assert "nvidia-smi || die" in code
-    # The payload import check runs before the weights download and the measurement.
-    assert code.index("imports cleanly") < code.index("databases ProstT5")
+    # The payload import check runs before the weights fetch and the measurement. Anchored on
+    # the staged key rather than on `databases ProstT5`, which is no longer how they arrive.
+    assert code.index("imports cleanly") < code.index(PROSTT5.key)
 
 
 def test_user_data_refuses_to_render_when_too_large(folds):
@@ -259,7 +265,7 @@ def test_precheck_imports_through_the_normal_machinery(folds, stage):
         max_shards=None,
     )["smoke_tool"]
     assert f"{expected} --help" in code
-    assert code.index(f"{expected} --help") < code.index("databases ProstT5")
+    assert code.index(f"{expected} --help") < code.index(PROSTT5.key)
 
 
 def test_results_go_to_a_task_scoped_prefix(folds):
@@ -363,17 +369,29 @@ def test_a_successful_run_falls_through_to_the_caller(folds, stage, tmp_path):
     assert done.returncode == 0
 
 
-def test_the_prostt5_download_is_verified_by_its_artefact_not_its_exit_code(folds):
-    """Measured 2026-10-19: `foldseek databases ProstT5` printed a fatal tar error and exited 0.
+def test_the_prostt5_weights_come_from_the_staged_pin_and_are_verified(folds):
+    """Measured 2026-10-19: upstream returned 429 to all three attempts from an instance.
 
-    So `|| die` never fired and the search died a minute later on missing weights. The script
-    must look for the weights themselves.
+    `foldseek databases ProstT5` also names no digest, which made the weights an unpinned input
+    on the critical path — and D-171's threshold was measured with these exact bytes. So the
+    launch fetches the staged copy and checks it against its pin, and both failure paths die.
     """
     text = _render(folds, stage="search")
     code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    assert "*.gguf" in code, "the download must be verified by finding the weights file"
-    assert "-size +1G" in code, "a truncated download leaves a small file, so size is checked"
-    assert "ProstT5 weights are absent" in code
-    # Verified after the download, and before the run that needs them.
-    assert code.index("databases ProstT5") < code.index("ProstT5 weights are absent")
-    assert code.index("ProstT5 weights are absent") < code.index("detect_folds.py --search")
+    assert PROSTT5.key in code, "the weights come from the staged, digest-derived key"
+    assert PROSTT5.sha256 in code, "and are verified against their pin on the instance"
+    assert "sha256sum -c -" in code
+    assert (
+        "foldseek databases ProstT5" not in code
+    ), "the rate-limited upstream download must not be on the critical path"
+    assert 'die "ProstT5 weights fetch from the staged copy failed"' in code
+    assert "refusing to predict 3Di with them" in code
+    # Fetched and verified before the run that needs them.
+    assert code.index(PROSTT5.sha256) < code.index("detect_folds.py --search")
+
+
+def test_the_weights_key_is_derived_from_the_digest():
+    """The bucket has no DeleteObject, so a key is a promise: a different build cannot land here."""
+    assert PROSTT5.sha256[:12] in PROSTT5.key
+    assert PROSTT5.key.endswith(PROSTT5.name)
+    assert PROSTT5.bytes > 2_000_000_000

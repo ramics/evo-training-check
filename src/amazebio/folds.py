@@ -62,6 +62,7 @@ __all__ = [
     "EXCLUDED_HOST_RNAI",
     "FOLDS",
     "JELLY_ROLL_CAPSID",
+    "PROSTT5",
     "VIRAL_RDRP",
     "EcodRelease",
     "Fold",
@@ -76,6 +77,43 @@ __all__ = [
 
 class FoldError(RuntimeError):
     """Raised when the fold universe would be built from something it cannot support."""
+
+
+@dataclasses.dataclass(frozen=True)
+class StagedWeights:
+    """The pinned ProstT5 weights foldseek predicts 3Di with, and where they are staged.
+
+    Pinned rather than downloaded per run for two reasons, one of which stopped a launch.
+    `foldseek databases ProstT5` fetches from a third-party host that returned `status=429` to
+    all three attempts from an instance on 2026-10-19, fifteen minutes after the identical file
+    downloaded cleanly in the session container. And the published command names no digest at
+    all, which makes the weights an unpinned input on the critical path — D-171's threshold was
+    measured with *these* bytes, so an instance fetching a different build under the same name
+    would apply a threshold measured on one instrument to another, and nothing would notice.
+
+    `key` is derived from `sha256` so that a different build cannot land where this one is
+    expected: the corpus bucket has no `DeleteObject`, so a key is a promise.
+    """
+
+    name: str
+    sha256: str
+    bytes: int
+    upstream: str
+    publisher: str
+
+    @property
+    def key(self) -> str:
+        return f"corpora/models/prostt5/{self.sha256[:12]}/{self.name}"
+
+
+#: Staged 2026-10-19 and verified by size on landing (D-173).
+PROSTT5 = StagedWeights(
+    name="prostt5-f16.gguf",
+    sha256="b072042c7d5b2c7425ed6cfdbc85d2cbd62b42470d0fc1afc7c2524c1bb70207",
+    bytes=2417458816,
+    upstream="https://foldseek.steineggerlab.workers.dev/prostt5-f16-gguf.tar.gz",
+    publisher="https://huggingface.co/Rostlab/ProstT5",
+)
 
 
 # --------------------------------------------------------------------------------------

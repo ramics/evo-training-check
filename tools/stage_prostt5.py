@@ -44,22 +44,24 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import corpora, objectstore
+from amazebio import corpora, folds, objectstore
 from amazebio.repro import run
 
 REPO = Path(__file__).resolve().parent.parent
 
 #: The staged key. Carries the digest's first 12 characters so a different build cannot land on
 #: the same key and be fetched in its place — the bucket is append-only, so a key is a promise.
-WEIGHTS_SHA256 = "b072042c7d5b2c7425ed6cfdbc85d2cbd62b42470d0fc1afc7c2524c1bb70207"
-WEIGHTS_BYTES = 2417458816
-WEIGHTS_NAME = "prostt5-f16.gguf"
-WEIGHTS_KEY = f"corpora/models/prostt5/{WEIGHTS_SHA256[:12]}/{WEIGHTS_NAME}"
+#: The pin itself lives in `amazebio.folds` so the launcher reads the same one this tool wrote
+#: to — two copies of a digest is one copy too many.
+WEIGHTS_SHA256 = folds.PROSTT5.sha256
+WEIGHTS_BYTES = folds.PROSTT5.bytes
+WEIGHTS_NAME = folds.PROSTT5.name
+WEIGHTS_KEY = folds.PROSTT5.key
 
 #: Where `foldseek databases ProstT5` fetches from, recorded so the provenance of the staged copy
 #: is not just "it was on disk".
-UPSTREAM = "https://foldseek.steineggerlab.workers.dev/prostt5-f16-gguf.tar.gz"
-UPSTREAM_PUBLISHER = "https://huggingface.co/Rostlab/ProstT5"
+UPSTREAM = folds.PROSTT5.upstream
+UPSTREAM_PUBLISHER = folds.PROSTT5.publisher
 
 #: Read in 8 MiB blocks: the file is 2.3 GB and is never held in memory.
 CHUNK = 8 << 20
