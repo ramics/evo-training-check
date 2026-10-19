@@ -156,11 +156,15 @@ def band_records(
         for sampled in seqstream.iter_stage2_sampled(
             obj.buffered(),
             component=source.component,
-            # A1.4 and `amazebio.corpora` identify a stage-2 record by the object key plus the
-            # row index, and the route below is recomputed against that manifest — so the id
-            # scheme has to be theirs, not A2.1's shorter one, or the removed set would never
-            # match and nothing would ever be subtracted.
-            record_prefix=source.key,
+            # **`<component>:<filename>#<row>`, which is A1.4's scheme and A2.1's.** The first
+            # run of this arm used the object key instead, and the damage was not only that no
+            # id matched the manifest's removed set: band membership is a hash *of the id*, so
+            # the wrong prefix drew an entirely different 2% of the corpus. The D-059 guard
+            # caught it — a record resolving to `removed` while apparently surviving — which is
+            # exactly the disagreement it exists to refuse. Note that 0 of the 95 removed
+            # records fall in band 1 under the correct ids, so "0 subtracted" is right here and
+            # is not a symptom of anything.
+            record_prefix=f"{source.corpus_component}:{Path(source.key).name}",
             seed=SEED,
             lo=lo,
             hi=hi,
