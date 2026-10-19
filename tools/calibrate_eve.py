@@ -85,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--assemblies", type=int, default=2, help="band assemblies to search")
     parser.add_argument(
+        "--offset", type=int, default=0, help="skip this many band assemblies first"
+    )
+    parser.add_argument(
         "--models",
         type=int,
         nargs="+",
@@ -116,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         m.parameter("band_rate", BAND_RATE)
         m.parameter("model_counts", args.models)
         m.parameter("assemblies", args.assemblies)
+        m.parameter("offset", args.offset)
         m.parameter("cpus", args.cpus)
         m.parameter("decision_refs", ["D-183", "D-103", "D-149"])
         m.tool("pyhmmer", [sys.executable, "-c", "import pyhmmer; print(pyhmmer.__version__)"])
@@ -125,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         # The calibration set is the front of the band by accession, which is a deterministic
         # nested subset: the same assemblies every run, and already inside what the full pass
         # would search, so none of this is work the pass repeats.
-        targets: list[Member] = band[: args.assemblies]
+        targets: list[Member] = band[args.offset : args.offset + args.assemblies]
         m.parameter("calibration_accessions", [t.accession for t in targets])
 
         dna = Alphabet.dna()
