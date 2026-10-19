@@ -8401,3 +8401,74 @@ decision has a threshold or parameter in it, the number goes in the entry.
   must say so in the same field that reports it. The label-independent arm is the owner's
   standing decision of 2026-10-19: ship the label census first, then measure a small slice of the
   marker pass before committing to any of it.
+
+### D-188 — Nine finished tasks had no surviving result artefact, and `repro.run` now refuses a local-only result
+- **Date:** 2026-10-19
+- **Task:** X (cross-cutting; found from A2.5, affects every task that produces an artefact)
+- **Context:** A2.5 went looking for A1.4's manifests, which `metrics/manifests.md` says live in
+  `artifacts/a1-4/`, and found nothing: `artifacts/` is git-ignored, the session container that
+  produced them had been reclaimed, and nothing had been uploaded. Auditing the other finished
+  tasks found the same thing in eight more.
+  **The audit, over all 24 finished tasks (21 `done`, 3 `review`).** The mechanism is entirely
+  mechanical: 24 tools in `tools/` upload to the object store and 19 write only to `artifacts/`.
+  Every task served by the first group is intact; every task served only by the second lost its
+  tables.
+  *Results safe because the deliverable is committed:* A0.1 (`policies/sources.json`,
+  `policies/captures/`), A0.2, A0.3 (`policies/specs/`), A1.1 (a verdict recorded in this log),
+  A3.1 (`metrics/survival.md`, `src/amazebio/survival.py`), X1.1, X1.4.
+  *Results safe in object storage:* A1.3 (UniRef composition), A1.6 (29 objects, 1.63 GB),
+  A1.8 (13 objects, 820 MB), A2.2 (25 objects), A2.4 (32 objects), A7.1 (2 objects — the
+  `stage2` census), A7.2 (6 objects, 34 MB).
+  *Results absent, regeneration needed:* **A2.1** (profile detection tables, both registries,
+  the ten-fold deepened pass — about 20 hours of compute), **A4.2** (the taxonomy-tool
+  misassignment benchmark — a geNomad run, hours), A1.4 (the seven manifests, about an hour),
+  A4.1, A4.3, A1.2, A1.5, A1.7, B1.1, B2.1 (all cheap; B1.1 is re-derived by a CI step).
+  **What was not lost, stated so the scale is not overstated either.** All 1.02 TB of staged
+  corpora are intact and that bucket has no `s3:DeleteObject`, which is why. No code, decision,
+  task record, policy spec or evidence capture was lost. And no *finding* was lost as a recorded
+  number: A2.1's family counts and intervals, A4.2's error rates by direction and the rest are
+  written into their task files and this log.
+  **That last point is the defect, not the consolation.** `AGENTS.md` makes "artefacts before
+  prose" a non-negotiable — every number in a write-up traces to a machine-readable artefact
+  produced by a pipeline — so a figure whose only surviving form is prose is a figure the Phase A
+  write-up cannot cite. D-173 had already recorded one instance of this for D-161's
+  cross-registry numbers. This entry is the general case: it was not a lapse in one task, it was
+  the default behaviour of three quarters of the tools.
+- **Decision:** **`amazebio.repro.run` refuses to complete a run that recorded a local output
+  and named no durable destination.** The guard goes there because `AGENTS.md` already requires
+  every pipeline to wrap its work in `repro.run`, so it is the one chokepoint that cannot be
+  bypassed by a new tool written next month — which is the actual requirement, not fixing the
+  nine.
+  `durable="s3://bucket/prefix"` uploads every local output on a clean exit, records each as an
+  object URI in `run.json`, and uploads `run.json` itself — a durable copy with no provenance
+  beside it is not citable, which is the whole point. `durable_exempt="<reason>"` is the other
+  way out, and it is a **string rather than a flag** so the reason lands in the manifest and is
+  greppable across the tree. `tests/test_repro.py` holds the inventory of exempt call sites and
+  asserts it matches what is on disk, so the set can shrink but cannot silently grow.
+  Three properties the guard needs and has: it fires only on a **clean** exit, so a failing run
+  reports its own exception rather than this one; it ignores a run whose outputs went straight to
+  object storage, which is already durable; and it ignores a run with no outputs, so a probe or a
+  dry run is not made harder.
+  **The cheap seven are regenerated and stored durably** under this entry. A2.1 and A4.2 are not:
+  they cost real compute, and the remaining local-only tools still need converting, so both go to
+  a task of their own rather than being absorbed into A2.5.
+- **Rejected:** *Committing `artifacts/` to git.* `artifacts/README.md` is right that a result
+  which cannot be regenerated is a pipeline defect rather than a reason to commit the file, and
+  the tables run to hundreds of megabytes. Durability and version control are different problems.
+  *A warning instead of a refusal.* The nine tasks are what a convention achieves. The project
+  owner's instruction was that this cannot happen again, and a warning in a log nobody re-reads
+  is not that.
+  *A CI check that greps the tools.* It would catch today's 19 and miss the first tool written
+  after it, because nothing would make a new author aware of it. The guard is in the code path
+  the result actually travels, so the failure arrives at the moment of producing a result.
+  *Making `durable` a required positional argument.* It would break every call site at once
+  including ones mid-flight in parallel sessions, and it offers no place to record *why* a run
+  legitimately needs no copy.
+  *Uploading on every `output_file` call rather than at exit.* A run that fails midway would
+  leave a partial result in permanent storage, and the corpus bucket has no delete.
+- **Consequence:** Any new tool that writes a result and forgets to persist it now fails on its
+  first real run, with the reason and both remedies in the message. The nine tasks' status is
+  recorded above rather than quietly repaired, because a `done` task whose artefact needs
+  regenerating is a thing a reader of the board should be able to see. **A2.1 and A4.2 are the
+  two that cost meaningful compute to restore, and neither blocks A2.5.** Whoever picks up A3.2
+  or A6.1 needs A2.1's tables first, and that is now a named task rather than a discovery.
