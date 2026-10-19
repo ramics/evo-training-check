@@ -7924,3 +7924,90 @@ decision has a threshold or parameter in it, the number goes in the entry.
   entries while its own decomposition sat in the sentence being quoted. In every case the
   information was already in the repository. **Re-read the source sentence when you cite the
   number, not only when you first record it.**
+
+### D-182 — A2.3's corpus is one release's eukaryotic genomes, staged as a hash-sampled set of whole assemblies
+- **Date:** 2026-10-19
+- **Task:** A2.3
+- **Context:** `DESIGN.md` §A2 asks for endogenous elements in "surviving host genomes", and two
+  facts settle what that means before any instrument is chosen.
+  **A2.3 is structurally a one-release task**, where A2.4 was a two-release one. Evo 1's release
+  exposes no eukaryotic genomes at all — `OG1_COMPONENTS` is `stage2`, `stage1_gtdb` and
+  `stage1_imgpr` — which D-019 already recorded as "the scope gap opens with Evo 2's additions
+  rather than with Evo 1".
+  **Evo 2's eukaryotic component is not staged, and staging it was explicitly left to this
+  task.** `opengenome.OG2_COMPONENTS` declares `ncbi_eukaryotic_genomes` (2.17 TB) and
+  `eukaryotic_genic_windows` (129 GB) with `tier1=False`. D-031 costed four staging tiers, chose
+  134.2 GiB, rejected the 2.88 TB tier that would have covered this one, and left the
+  consequence: "A2.3 and A4.1 must each stage their own component before they can run". The
+  corpus bucket has no `s3:DeleteObject`, so every staged byte is permanent and recurring, which
+  is why D-031 escalated the tier rather than deciding it and why D-119 is the precedent for an
+  A2 detector getting its corpus staged.
+  Put to the project owner with three costed options: the full 2.17 TB at about $50/month
+  forever; a hash-sampled set of whole assemblies at about $0.13/month for 0.25% and $0.50/month
+  for 1%; or stage nothing and ship `not_searched` as A2.2 did under D-180. **The owner chose the
+  sampled set.**
+  **The component's layout was measured before the sampling unit was chosen, not assumed.** The
+  pinned tree (`opengenome.fetch_tree(OG2)`, 1,126 files and 5,523,240,795,932 bytes, matching
+  the pin exactly) puts `fasta/ncbi_eukaryotic_genomes` in **90 tar files of 20-44 GB**, and a
+  Range walk of `batch1.tar`'s header chain shows members of the form
+  `batch1/GCA_018245875.1.fasta.gz` — one gzipped FASTA per assembly, named for its NCBI
+  assembly accession, ranging from 4.7 MB to 428 MB compressed. That is the **same shape as Evo
+  2's GTDB component**, which `amazebio.gtdb` already reads: `assembly_of_member` and
+  `iter_og2_genomes` transfer unchanged. The first design this task considered — sampling
+  per-assembly files by name — was not available, and the measurement is what replaced it.
+- **Decision:** A2.3's corpus is Evo 2's `ncbi_eukaryotic_genomes` only, and the sampling unit is
+  the **tar member**, which is one assembly.
+  **Selection** is the project's existing hash rule, `blake2b(key=seed, id)[:8] < rate · 2⁶⁴` at
+  seed **20261015**, keyed on the assembly accession recovered from the member name. The record
+  is the genome (D-136), so the sampling unit is the unit a detection is attributed to; the rate
+  is nested (D-078), so a deeper band is a superset and nothing already staged is re-staged or
+  re-searched; and membership is checkable per accession afterwards without re-running anything.
+  **Rate is 1%**, inside the figure the owner approved, for about 22 GB and $0.50/month.
+  **Acquisition is a two-pass design, and the first pass is cheap enough to be worth having on
+  its own.** Pass one walks all 90 tars' header chains over HTTP Range reads and emits an
+  **assembly index** — accession, tar, byte offset, compressed size — transferring 512 bytes per
+  member rather than the member. Pass two ranged-GETs only the sampled members, verifies, and
+  uploads them to the corpus bucket. Neither pass reads the 2.17 TB, which is what makes a
+  sampled stage of an unstaged component possible at all.
+  **`eukaryotic_genic_windows` is not staged.** Its 129 GB is seven parts of one split gzip
+  stream (`windows_5kb.fasta.gz.aa` … `.ag`), so it is not independently samplable at the
+  assembly level; it is cut from the genomes above, so it adds no independent sequence; and it is
+  cut around genes, which biases against exactly the intergenic, pseudogenized relics the EVE
+  arms look for.
+  **`tier1` stays `False` on both components.** Flipping it would make `tools/stage_opengenome.py
+  --stage` take the whole 2.17 TB on its next run against a bucket that cannot be emptied. A2.3
+  stages its sample through its own path, and `tier1` keeps meaning "what A1.2's staging tier
+  covers".
+- **Rejected:** **The full 2.17 TB** — the owner declined the $50/month, and it is not the
+  binding constraint anyway: detection compute sits on top of it and is uncalibrated, and
+  D-117/D-149 established that assuming that rate is how a design decision gets taken by
+  accident.
+  **Staging nothing and shipping `not_searched`** — defensible, and it is what A2.2 did
+  yesterday, but the two situations differ in the direction that matters. A2.2's null was near
+  certain on composition grounds, because the folds §A2 names are concentrated in virus groups
+  that are a minority of its corpora. Here composition argues the other way: endogenous
+  retroelements are near-universal in eukaryotic genomes, so a sampled pass is expected to detect
+  rather than to report a null, and the route §A2 names first for host genomes would otherwise
+  contribute nothing at all to A3.2.
+  **Sampling contigs, windows or bytes rather than assemblies** — would require reading the
+  component to sample it, and would attribute detections to fragments of a genome rather than to
+  the genome, breaking D-136's record definition and the per-genome denominator the retroelement
+  arm needs.
+  **Substituting an external genome set** (Ensembl, a RefSeq query) for the component — the audit
+  is of a named corpus, and a different set of assemblies is a different corpus. D-116's rule
+  that neither release substitutes for the other applies with more force to a set the release
+  does not contain.
+- **Consequence:** Evo 1's A2.3 tables are `not_searched` **by construction, and for a reason
+  that is not A2.2's**: the component does not exist in that release, where A2.2's existed and
+  was not bought. Those two must not collapse into one row, so the per-source reason strings
+  carry the difference into the artefact rather than leaving it in this log.
+  A2.3's figures are lower bounds (D-115), and the 1% band is nested, so depth can be bought
+  later without re-staging or re-searching. The assembly index is reusable: A4.1 still has its
+  own 252 GB metagenomic component to stage and this decision does not cover it, but the
+  header-walk pass is the same instrument if that component is also tarred.
+  One thing this decision does **not** settle, deliberately: no reading's rules reach this
+  component, because D-016 withdrew the strict reading's endogenous-element rule. So every
+  detection here is `out_of_scope` under the literal and charitable readings and
+  `retained_by_design` under the strict one — structurally the same situation as GTDB, which is
+  why A2.4's route handling transfers. The instruments, their thresholds and the false-positive
+  modes are a separate pre-registration, taken before anything is searched.
