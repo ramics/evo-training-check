@@ -8548,3 +8548,82 @@ decision has a threshold or parameter in it, the number goes in the entry.
   side effects injected, and adding a side effect to a tool adds it to every test that drives the
   tool.** The durability guard was sound; the blast radius of switching it on was not thought
   through.
+
+### D-190 — A2.5's marker arm: the segmented-family set is derived from three pinned authorities, and the satellite arm cannot be run this way
+- **Date:** 2026-10-19
+- **Task:** A2.5
+- **Context:** The label-side census (D-187) leaves two of A2.5's four categories resting on
+  2.6% of Evo 1's surviving records — only that share carries a family-level label — so "no
+  segmented genomes" and "no satellite nucleic acids" there are statements about labels, not
+  about content. The project owner asked for the label-free arm to be **priced before being
+  committed to**, which is the pattern D-183 and D-186 set for A2.3.
+  **D-187 overstated one thing and this entry corrects it.** D-187 says segmented-genome
+  membership "has no sequence marker at all, so no marker pass can strengthen that category's
+  zero". The *property* has no marker — a single contig cannot show that a genome is split — but
+  the **48 families** do: Orthomyxoviridae, Bunyavirales' families, the reovirus families,
+  Geminiviridae, Cystoviridae and the rest all have ordinary marker proteins. So the category is
+  reachable by the same profile search as any other, and D-187's sentence should be read as
+  applying to the property only.
+  **The cost was measured, and the first figure given to the owner was wrong by about twenty
+  times.** `tools/marker_throughput.py` (artefact `corpora/results/a2-5/marker-throughput.json`)
+  timed a 1,500-record prefix of Evo 1's stage 2: gene calling **1.608 core-seconds per Mbp**, so
+  **16.2 core-hours** over the component's 36,236,025,613 bases, charged once whatever the marker
+  set. Search was timed at 50 and 200 profiles. Two approximations are stated in the tool and
+  stand here: it reads a **prefix, not a sample** (D-046 — valid for throughput, invalid for any
+  count), and it times **synthetic single-sequence profiles**, whose per-profile rate ran 26x,
+  then 10.6x, then 5.56x above D-098's published rate over curated models as the profile count
+  rose — the fixed-overhead amortisation D-186 was corrected for. **At the scale this arm
+  actually runs, D-098's rate is the applicable one** and the synthetic figure is the
+  conservative bound.
+  An estimate of "about a dollar" was given on the assumption of a handful of hand-picked marker
+  genes. A *derived* set is not that: see below.
+- **Decision:** **Membership is derived, never recalled.** Three pinned authorities and one rule:
+  1. the **ICTV VMR MSL37.3** gives the 48 segmented families (D-187's labelled-segment rule);
+  2. the **NCBI taxonomy** `taxdmp_2023-04-01.zip` (`amazebio.seeds.TAXDUMP_2023_04`, sha256
+     `6afaee95…71d07`, verified on retrieval) resolves each family name to a taxid and expands it
+     to its descendants — **48 of 48 resolved, no misses**, giving 145,376 taxids;
+  3. **RVDB-prot 32.0**'s annotation database (md5 `4179c579…ace7`, verified) gives each of its
+     13,679 families an `LCAtaxid`, and a family is selected when that taxid falls inside the
+     expanded set.
+  **1,285 families** are selected. The set is an artefact, not a list in this entry, for the
+  reason D-075 gives for Pfam's universe: a denominator a reviewer cannot check is not a
+  denominator.
+  **Threshold: RVDB's published rule, unchanged.** E ≤ `PINNED_E_VALUE` (1e-5) against
+  `PINNED_Z` = 1,000,000 (D-076). RVDB-prot ships no curated per-model cutoffs, and pinning `Z`
+  is what makes the E-value a fixed per-model bit score — so the same hit means the same thing at
+  every depth, which is the property this arm needs since its depth is not yet fixed.
+  **Depth is deliberately left to a follow-up entry**, exactly as D-183 left A2.3's: it is fixed
+  from a measured in-container throughput, declared before any hit is inspected. What is fixed
+  *now* is the family set and the threshold, which are the things that could otherwise be tuned
+  to a result.
+  **Scope: the segmented arm only.** The owner's call, on these grounds:
+  - *Segmented* is the weak zero and the one worth buying: ~106 core-hours, about **$5** at
+    D-098's rate (about $30 at the conservative one).
+  - *NCLDV* is **not run.** Its label-side zero is already *established* rather than merely
+    unobserved — 2,652,952 records refuted at phylum against 95 unlabelled, 99.996% of the
+    component — so a 3,690-family pass at about $15 would confirm what is already solid. The
+    cost is recorded here so a later task can buy it without re-measuring.
+  **The satellite arm cannot be run on this selection, and that is a method finding rather than
+  a scope cut.** Both satellite categories select **zero** RVDB families. That is not evidence of
+  anything: RVDB labels a family with the **lowest common ancestor** of its sequences, so a
+  family holding satellite sequences beside their helper viruses carries an LCA *above* the
+  satellite taxon and drops out. A zero from this rule would be zero **by construction** — the
+  manufactured null `AGENTS.md` forbids designing for. The satellite question therefore needs a
+  different instrument and is not attempted; it stays an open limitation of A2.5.
+- **Rejected:** *Hand-picking marker accessions* — the NCLDV core gene set, alphasatellite Rep,
+  and so on. It would have been the actual dollar, and it is not defensible: the accessions would
+  come from memory rather than from a pinned source, and §A2's whole concern is a selection
+  nobody can check. Pfam cannot supply the selection either: its families carry no ICTV taxon
+  annotation, and D-083 already records that selecting Pfam families *by taxon* is precisely that
+  registry's blind spot.
+  *Running the satellite arm anyway and reporting its zero* with a caveat. A zero that the
+  selection rule guarantees is worse than no measurement, because it reads as a result.
+  *Using the synthetic per-profile rate for the budget.* It is the conservative bound and is
+  reported, but D-098's measurement over real models at 13,679 profiles is the applicable one at
+  this scale, and quoting the higher figure would have made an affordable pass look unaffordable.
+- **Consequence:** A2.5 gains a label-independent arm for the one category where its census is
+  weak, at a cost measured rather than guessed, with membership a reviewer can check family by
+  family. Two things are now on the record that were not: **D-187's "no sequence marker" sentence
+  applies to the property and not to the families**, and **LCA-based selection cannot answer a
+  satellite question** — which bears on any later task that reaches for RVDB to find satellites,
+  A2.1's registries included.
