@@ -175,6 +175,7 @@ def _render(folds, *, stage="search", **over):
         max_records=0,
         band=None,
         max_shards=None,
+        shards_uri=folds.shards_uri_for(kw["bucket"], "6ff2a0ebf24f"),
     )
     return folds.render_user_data(**kw, **blocks)
 
@@ -263,6 +264,7 @@ def test_precheck_imports_through_the_normal_machinery(folds, stage):
         max_records=0,
         band=None,
         max_shards=None,
+        shards_uri=folds.shards_uri_for("b", "6ff2a0ebf24f"),
     )["smoke_tool"]
     assert f"{expected} --help" in code
     assert code.index(f"{expected} --help") < code.index(PROSTT5.key)
@@ -395,3 +397,56 @@ def test_the_weights_key_is_derived_from_the_digest():
     assert PROSTT5.sha256[:12] in PROSTT5.key
     assert PROSTT5.key.endswith(PROSTT5.name)
     assert PROSTT5.bytes > 2_000_000_000
+
+
+def test_shards_go_to_a_stable_params_keyed_prefix(folds):
+    """Resumption looks where shards are, and the launch prefix carries a timestamp.
+
+    This was a resumability bug with a price tag: shards were written under the per-launch
+    prefix, so every launch saw an empty destination, found nothing already finished, and would
+    have re-searched work a previous launch completed. A 24.7-hour pass needing more than one
+    window — the case the shard split exists for — would have made no progress across launches
+    while appearing to work perfectly.
+    """
+    uri = folds.shards_uri_for("bucket", "6ff2a0ebf24f")
+    assert uri == "s3://bucket/corpora/results/a2-2/shards/6ff2a0ebf24f"
+    # Keyed by the fingerprint, so only shards searched under one geometry share a prefix.
+    assert folds.shards_uri_for("bucket", "aaaaaaaaaaaa") != uri
+    # And it is not the per-launch prefix.
+    assert "shards" in uri and uri.count("/shards/") == 1
+
+
+def test_the_search_block_passes_the_stable_shards_uri(folds):
+    blocks = folds.stage_blocks(
+        "search",
+        bucket="b",
+        prefix="p",
+        region="us-east-1",
+        commit="c",
+        devices="gpu",
+        ladder="1",
+        cpu_ladder="1",
+        threads=4,
+        max_records=0,
+        band=None,
+        max_shards=None,
+        shards_uri=folds.shards_uri_for("b", "deadbeefcafe"),
+    )
+    assert '--shards-uri "s3://b/corpora/results/a2-2/shards/deadbeefcafe"' in blocks["run_block"]
+    # A real-depth run carries neither cap, so its shards are not marked partial.
+    assert "--max-records" not in blocks["run_block"]
+    assert "--band" not in blocks["run_block"]
+
+
+def test_the_fingerprint_is_one_definition_shared_by_both_sides(folds):
+    """Two definitions would mean two prefixes and a pass that silently never resumes."""
+    import importlib.util
+
+    from amazebio.folds import params_fingerprint
+
+    spec = importlib.util.spec_from_file_location("df_fp", ROOT / "tools" / "detect_folds.py")
+    assert spec and spec.loader
+    df = importlib.util.module_from_spec(spec)
+    sys.modules["df_fp"] = df
+    spec.loader.exec_module(df)
+    assert df.params_fingerprint("abc") == params_fingerprint("abc")

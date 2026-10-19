@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import json
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -63,6 +64,7 @@ __all__ = [
     "FOLDS",
     "JELLY_ROLL_CAPSID",
     "PROSTT5",
+    "SEARCH_GEOMETRY",
     "VIRAL_RDRP",
     "EcodRelease",
     "Fold",
@@ -70,6 +72,7 @@ __all__ = [
     "ReferenceDomain",
     "fold_for_family",
     "iter_domains",
+    "params_fingerprint",
     "reference_domains",
     "sha256_of",
 ]
@@ -77,6 +80,28 @@ __all__ = [
 
 class FoldError(RuntimeError):
     """Raised when the fold universe would be built from something it cannot support."""
+
+
+#: The search geometry A2.2 runs under, and the only things that change what a shard's scores
+#: mean. Lives here rather than in the tool because the launcher has to derive the same
+#: fingerprint to place shards where a later launch will look for them — two definitions of this
+#: would mean two prefixes and a pass that silently never resumes.
+#:
+#: The threshold is deliberately absent: shards are stored above a floor far below any declared
+#: cut, so re-cutting at the declared value or either bracket does not invalidate them.
+SEARCH_GEOMETRY = {
+    "cov_mode": 1,
+    "min_target_coverage": 0.5,
+    "floor_bits": 15.0,
+    "exhaustive_search": True,
+    "seed": 20261015,
+}
+
+
+def params_fingerprint(reference_sha256: str) -> str:
+    """A short digest of the reference set plus :data:`SEARCH_GEOMETRY`."""
+    body = json.dumps({"reference_sha256": reference_sha256, **SEARCH_GEOMETRY}, sort_keys=True)
+    return hashlib.sha256(body.encode()).hexdigest()[:12]
 
 
 @dataclasses.dataclass(frozen=True)

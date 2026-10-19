@@ -81,7 +81,6 @@ an exact match once fired after a finished 70-minute search.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import shutil
@@ -196,24 +195,22 @@ def object_name(key: str) -> str:
 
 
 def params_fingerprint(reference_sha256: str) -> str:
-    """A short digest of everything that would change a shard's scores.
+    """Delegates to `amazebio.folds`, which both this tool and the launcher read.
 
-    The threshold is deliberately **not** in it: shards are stored above :data:`FLOOR_BITS`, so
-    re-cutting does not invalidate them. The reference set and the search geometry are, because
-    either changing means the stored scores answer a different question.
+    The launcher needs the identical fingerprint to place shards where a later launch will look
+    for them, so a second definition here would mean two prefixes and a pass that never resumes.
     """
-    body = json.dumps(
-        {
-            "reference_sha256": reference_sha256,
-            "cov_mode": 1,
-            "min_target_coverage": 0.5,
-            "floor_bits": FLOOR_BITS,
-            "exhaustive_search": EXHAUSTIVE_SEARCH,
-            "seed": SEED,
-        },
-        sort_keys=True,
-    )
-    return hashlib.sha256(body.encode()).hexdigest()[:12]
+    if folds.SEARCH_GEOMETRY["floor_bits"] != FLOOR_BITS:
+        raise FoldDetectError(
+            f"FLOOR_BITS is {FLOOR_BITS} and the pinned geometry says "
+            f"{folds.SEARCH_GEOMETRY['floor_bits']}; a shard would be fingerprinted under a "
+            "geometry it was not searched with"
+        )
+    if folds.SEARCH_GEOMETRY["exhaustive_search"] != EXHAUSTIVE_SEARCH:
+        raise FoldDetectError("EXHAUSTIVE_SEARCH disagrees with the pinned geometry")
+    if folds.SEARCH_GEOMETRY["seed"] != SEED:
+        raise FoldDetectError("SEED disagrees with the pinned geometry")
+    return folds.params_fingerprint(reference_sha256)
 
 
 def shard_name(release: str, key: str, lo: float, hi: float) -> str:
@@ -933,6 +930,13 @@ def parse_args(argv: list[str] | None) -> Any:
     ap.add_argument("--refdb", type=Path, default=Path("/tmp/amazebio-a2-2/refdb/ref"))
     ap.add_argument("--workdir", type=Path, default=Path("/tmp/amazebio-a2-2/work"))
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
+    ap.add_argument(
+        "--shards-uri",
+        default=None,
+        help="where finished shards live, and where resumption looks. Defaults to --s3-uri. "
+        "Give it a *stable* location derived from the params fingerprint so shards from "
+        "different launches accumulate and are skipped rather than redone.",
+    )
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--gpu", action="store_true", help="require a GPU and refuse a CPU fallback")
     ap.add_argument("--max-shards", type=int, default=None, help="stop after this many shards")
@@ -983,7 +987,14 @@ def do_search(args: Any) -> int:
             for s in shards
         ]
 
-    already = finished_shards(client, args.s3_uri)
+    # Shards go to a stable place, the heartbeat to a per-launch one. Keeping them together was
+    # a resumability bug with a price tag: the launcher's prefix carries a timestamp, so every
+    # launch looked at an empty destination, found nothing already written, and would have
+    # re-searched shards a previous launch had finished. A 24.7-hour pass that needs more than one
+    # window — which is the case this split exists for — would have made no progress at all
+    # across launches while appearing to work perfectly.
+    shards_uri = args.shards_uri or args.s3_uri
+    already = finished_shards(client, shards_uri)
     outstanding = [s for s in shards if s["name"] not in already]
     print(
         f"{len(shards)} shards planned, {len(already)} already written, "
@@ -1041,8 +1052,8 @@ def do_search(args: Any) -> int:
         body["registry_version"] = universe["registry_version"]
         text = json.dumps(body, indent=2, sort_keys=True) + "\n"
         (local / shard["name"]).write_text(text)
-        if args.s3_uri:
-            bucket, prefix = objectstore.split_uri(args.s3_uri)
+        if shards_uri:
+            bucket, prefix = objectstore.split_uri(shards_uri)
             client.put_object(Bucket=bucket, Key=f"{prefix}/{shard['name']}", Body=text.encode())
         progress["done"] += 1
         print(

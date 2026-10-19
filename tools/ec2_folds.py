@@ -375,6 +375,17 @@ def _guarded_run(label: str, command: str) -> str:
 
 #: The per-stage pieces of `USER_DATA`. Both stages stay reachable: `throughput` produced D-164's
 #: cited speedup measurement and deleting its launch path would leave that artefact unreproducible.
+#: Where shards accumulate across launches: stable, and keyed by the params fingerprint so that
+#: only shards searched under one geometry ever share a prefix. Separate from the per-launch
+#: prefix on purpose — the launch prefix carries a timestamp, so resumption looking there would
+#: find an empty destination every time and silently redo finished work.
+SHARD_PREFIX = "corpora/results/a2-2/shards"
+
+
+def shards_uri_for(bucket: str, params: str) -> str:
+    return f"s3://{bucket}/{SHARD_PREFIX}/{params}"
+
+
 def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any) -> dict[str, str]:
     if stage == "throughput":
         return {
@@ -421,6 +432,7 @@ def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any
                 "    --reference artifacts/a2-2/reference \\\n"
                 "    --calibration artifacts/a2-2/calibration \\\n"
                 "    --shards /opt/amazebio/shards --workdir /opt/amazebio/work \\\n"
+                f'    --shards-uri "{kw["shards_uri"]}" \\\n'
                 f"    --threads {kw['threads']} --gpu{caps} \\\n"
                 '    --s3-uri "$AMAZEBIO_S3_URI" \\\n'
                 f"    --code-commit {kw['commit']}",
@@ -563,6 +575,20 @@ def main(argv: list[str] | None = None) -> int:
         flush=True,
     )
 
+    from amazebio.folds import PROSTT5, params_fingerprint, sha256_of
+
+    universe_path = root / "artifacts" / "a2-2" / "reference" / "fold-universe.json"
+    if args.stage == "search" and not universe_path.exists():
+        raise SystemExit(
+            f"{universe_path} is missing; run tools/build_fold_reference.py first. The shard "
+            "prefix is derived from it, so without it shards cannot be placed where a later "
+            "launch would find them."
+        )
+    params = params_fingerprint(sha256_of(universe_path)) if universe_path.exists() else "none"
+    shards_uri = shards_uri_for(bucket, params)
+    if args.stage == "search":
+        print(f"=== shards accumulate at {shards_uri}", flush=True)
+
     blocks = stage_blocks(
         args.stage,
         bucket=bucket,
@@ -576,8 +602,8 @@ def main(argv: list[str] | None = None) -> int:
         max_records=args.max_records,
         band=args.band,
         max_shards=args.max_shards,
+        shards_uri=shards_uri,
     )
-    from amazebio.folds import PROSTT5
 
     user_data = render_user_data(
         bucket=bucket,
