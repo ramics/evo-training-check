@@ -55,6 +55,24 @@ def spot_refusal(text: str) -> str | None:
             "  that price difference is not a detail: D-104's $240-450 and D-109's $26 are "
             "spot figures."
         )
+    # Measured 2026-10-19, launching A2.2's smoke test: `MaxSpotInstanceCountExceeded` with
+    # **zero** spot instances and zero open spot requests in the account, the day after D-164
+    # ran a g6.xlarge on spot successfully. So it is an account limit rather than anything the
+    # caller is holding, and unlike capacity it will not clear by retrying — which is exactly
+    # why it needs its own message. Reading it as capacity costs a retry loop that cannot win;
+    # reading it as the service-linked role sends somebody to the wrong IAM page.
+    if "MaxSpotInstanceCountExceeded" in text or "Max spot instance count" in text:
+        return (
+            f"spot refused by an account limit: {text[:160]}\n"
+            "  nothing launched, nothing billed, and nothing in the account is holding it — "
+            "this was seen with zero spot instances and zero open spot requests.\n"
+            "  it is a quota, so retrying will not clear it. Either someone raises the spot "
+            "limit for this instance family, or the run goes on demand with an explicit "
+            "--price-per-hour, since pricing:GetProducts is denied here.\n"
+            "  on demand is roughly 1.06x spot for g6.xlarge at the quotes seen on 2026-10-19 "
+            "($0.8048 against $0.7606), so for a short run the difference is noise — but say "
+            "which was used, because a remembered on-demand rate is a guess, not a ceiling."
+        )
     if "Capacity" in text or "capacity" in text:
         return (
             f"spot capacity refused: {text[:200]}\n"

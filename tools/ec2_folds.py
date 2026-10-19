@@ -604,7 +604,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"=== uploading inputs to s3://{bucket}/{key} ({len(body) / 1e6:.1f} MB)", flush=True)
         s3.put_object(Bucket=bucket, Key=key, Body=body)
 
-    instance = ec2.run_instances(**launch)["Instances"][0]
+    # A launch refusal is translated before it is raised. This tool had its own local copies of
+    # the spot helpers and none of them classified `MaxSpotInstanceCountExceeded`, so the first
+    # attempt at A2.2's smoke launch surfaced a raw botocore traceback — the same misreading
+    # AGENTS.md records for a bare `UnauthorizedOperation`, which cost a round trip.
+    try:
+        instance = ec2.run_instances(**launch)["Instances"][0]
+    except Exception as exc:
+        from amazebio.ec2 import spot_refusal
+
+        explained = spot_refusal(str(exc))
+        if explained:
+            raise SystemExit(explained) from exc
+        raise
     iid = instance["InstanceId"]
     print(
         f"=== launched {iid} ({args.instance_type}{' spot' if args.spot else ''}, "
