@@ -8217,3 +8217,89 @@ decision has a threshold or parameter in it, the number goes in the entry.
   A2.1's `families_without_a_hit`, A2.2's excluded fold nodes and A2.4's twelve tables all have
   the same two-sided shape. Where a later entry gives a universe size, it should say which side
   of its own exclusions the number falls on.
+
+### D-186 — The retroelement arm switches to a seeded aligner over model consensus, at 0.25%
+- **Date:** 2026-10-19
+- **Task:** A2.3
+- **Context:** D-183 pinned the arm to profile search and deliberately left the depth to a
+  post-calibration entry. The calibration says the profile route cannot have one.
+  **The first projection was wrong and this entry supersedes it.** It reported a unit rate of
+  14.4 core-seconds per model-megabase and about 480,000 core-hours for the 1% band, and that
+  figure was put to the project owner. Two errors, both inflating it, and the calibration's own
+  linearity check is what exposed them — `linear_within_10_percent: false`, spread 6.06 — which
+  is the whole reason D-183 insisted the measurement be taken at more than one point.
+  *Cost does not scale with model count.* Wall time was identical at 4 and 8 models (652.2 s
+  against 651.7 s on one assembly, 122.3 s against 121.9 s on another). The right unit is
+  model **residues** times megabases, not models times megabases.
+  *The timed models were the longest in the library.* The first four in file order total 22,439
+  residues, a mean of 5,610 against the registry's ERV **median of 566** and mean of 1,208. The
+  calibration had sampled roughly the longest models available.
+  **Re-measured across 4, 32 and 256 models** on a 25.6 Mb assembly: 126.0 s, 372.1 s and
+  1,656.7 s, so wall rose x2.95 then x13.15 while model residues rose x7.10 then x23.25 —
+  sublinear at first where fixed overhead dominates, then roughly linear. Fitted at the
+  256-model point, whose mean model length is closest to the registry's,
+  **4.962e-4 core-seconds per model-residue-megabase**.
+  That puts the full ERV registry over the 1% band at **48,040 core-hours (about $960)** and
+  over a 0.25% band at **12,010 core-hours (about $240)** — ten times cheaper than the figure
+  first reported, and still one to two orders over anything this project has spent on a single
+  pass. A $30 ceiling, A2.2's under D-165, buys 3.1% of the 1% band.
+  Put to the owner with three options — switch instrument, buy a thin slice, or report the cost
+  as the finding. **The owner chose to switch instrument**, and on being shown the corrected
+  figure confirmed it and set the depth at **0.25%**.
+- **Decision:** **The arm searches consensus sequences with a seeded aligner.** This is what
+  RepeatMasker does and the reason it exists, so D-183's rejection of that whole approach is
+  reversed on its cost premise while its registry, selection rule and element kind stand.
+  **The consensus comes from the pinned models, not from a new download.** Each curated HMM
+  carries a match-state consensus of its own length, read with `pyhmmer`'s `HMM.consensus`. So
+  the query set is derived from the registry already acquired and verified under D-183, with no
+  second acquisition and no second pin: **5,420 ERV-subtype consensus sequences, 6,545,678 bp**.
+  This also sidesteps a real obstacle — Dfam 4.0's *curated consensus* component ships the root
+  partition only, so these families' consensus sequences are not in it, and the alternative was
+  the per-partition flat files at tens of gigabytes.
+  **The aligner is `mmseqs2`, already in `[dependencies]`** for A1.6, so the switch pins no new
+  tool. **Consensus is the query and the genomes are the target**, which is the direction
+  `AGENTS.md` records as measured rather than assumed: on identical data the small side as query
+  took 335 s where the corpus as query had not left the prefilter after 45 minutes.
+  **Threshold, fixed here before any hit is seen, and it is this project's own.** Dfam's `GA`
+  cutoffs are profile bit scores and do not transfer to an aligner, so they cannot be reused:
+  **E-value ≤ 1e-10, alignment length ≥ 100 bp, sequence identity ≥ 0.70.** Declared as a
+  choice rather than borrowed from a convention this project has not retrieved from its primary
+  source. Every table carries the cut and the per-hit identity and length, so it can be re-cut
+  stricter without re-searching — which is what `metrics/detections.md` already requires of the
+  `threshold` column.
+  **Depth is 0.25% of the component**, a nested sub-band of the 1% D-182 approved at the same
+  seed: about 38 assemblies and roughly 13,300 Mb. Nested, so the 1% remains a superset and
+  nothing searched here is searched again.
+  **The band is fetched to ephemeral scratch and not staged.** D-182 committed to staging the
+  sampled assemblies, and that commitment stands for a depth that is actually bought; it is
+  deferred here. The corpus bucket has no `s3:DeleteObject`, so staging is permanent, and
+  writing 4 GB of it before the arm has produced a single table would be paying for a pin the
+  run does not need: the assembly index pins which bytes were read, `fetch_member` verifies each
+  member against its own gzip CRC, and a fetch costs 7.5 s for 20 MB. Each assembly is fetched,
+  searched and deleted, per D-103.
+- **Rejected:** **Keeping the profile instrument at a depth that fits a budget.** At $30 it
+  reaches 3.1% of the 1% band, which is 0.03% of the component. A detection would still be a
+  detection, but the per-family denominator would be a small fraction of the registry and a null
+  would carry no information at all.
+  **Reporting the cost as the finding**, which is what A2.2 did under D-180. Declined because
+  unlike A2.2's case a cheaper instrument exists, is already pinned, and needs no new data — so
+  the cost here is a fact about one instrument rather than about the question.
+  **Downloading Dfam's per-partition flat files for consensus sequences.** Tens of gigabytes
+  against 20 GB of working disk, to obtain what the models already carry.
+  **Reusing Dfam's `GA` cutoffs as an aligner score.** They are bit scores from a different
+  instrument; carrying the number across would look like the publisher's threshold while being
+  this project's invention, which is worse than declaring a cut outright.
+- **Consequence:** The arm becomes affordable and the 0.25% band is a short run rather than a
+  purchase. Its figures are lower bounds for four compounding reasons, all declared in advance:
+  a sampled corpus, the curated component only, the 762 LTR-class models with no curated
+  threshold (145 of them ERV-subtype, D-185), and now a consensus search in place of a profile
+  search — a single consensus is less sensitive than the profile it was derived from, and that
+  direction is the safe one for an audit reporting survival.
+  **The profile route's cost is itself a result and is kept**, in
+  `artifacts/a2-3/calibration.json`, because §A2 names Dfam profiles as an instrument and what
+  they cost on a corpus this size is a finding a later task can cite rather than re-measure.
+  One thing this entry does **not** settle: whether the consensus search and the profile search
+  agree where both can run. That is the concordance question D-114 fixed for A2.4, A2.3's
+  Done-when does not require it, and the profile route is now priced well enough that a small
+  paired comparison is affordable if the owner ever wants the sensitivity gap measured rather
+  than asserted.
