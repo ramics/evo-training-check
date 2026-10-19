@@ -484,7 +484,13 @@ def main(argv: list[str] | None = None) -> int:
 
     s3 = objectstore.client()
 
-    with repro.run("A2.2", seed=None, outdir=outdir, allow_dirty=args.allow_dirty) as manifest:
+    with repro.run(
+        "A2.2",
+        seed=None,
+        outdir=outdir,
+        allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a2-2"),
+    ) as manifest:
         # Every parameter before any output, which `repro` enforces rather than trusts.
         manifest.parameter("ladder", ladder)
         manifest.parameter("cpu_ladder", cpu_ladder)

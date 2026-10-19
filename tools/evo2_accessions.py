@@ -163,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=outdir,
         allow_dirty=args.allow_dirty,
         manifest_name="run-evo2-accessions.json",
+        durable=objectstore.durable_results("a7-2"),
     ) as m:
         m.parameter("release", "opengenome2-imgvr")
         m.parameter("revision", og.OG2.revision)

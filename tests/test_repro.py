@@ -409,3 +409,47 @@ def test_no_tool_silently_writes_results_only_locally():
         "tools claiming durable_exempt have changed. Added one? Put it in EXEMPT_CALL_SITES "
         "with a reason, or give it durable= instead. Removed one? Delete its entry."
     )
+
+
+def test_every_run_call_site_in_tools_names_a_durable_destination():
+    """The static half of D-188's guard, so a missed call site fails review not a six-hour run.
+
+    `repro.run` refuses a local-only result at runtime, which is what binds a tool nobody has
+    written yet. But a tool whose long pass only reaches `run`'s exit after hours of compute
+    would learn about it the expensive way, and `stage_opengenome.py` showed the gap is easy to
+    miss by inspection: it was skipped during the conversion *because* it uploads the staged
+    corpus, and it also writes local composition tables.
+
+    So every `run(...)` in `tools/` must name `durable=` or `durable_exempt=`, checked by
+    parsing rather than grepping — a call spanning several lines is the normal case here.
+    """
+    import ast
+    import pathlib
+
+    def is_run(node: ast.AST) -> bool:
+        if not isinstance(node, ast.Call):
+            return False
+        func = node.func
+        if isinstance(func, ast.Name):
+            return func.id == "run"
+        return (
+            isinstance(func, ast.Attribute)
+            and func.attr == "run"
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "repro"
+        )
+
+    bare = []
+    seen = 0
+    for path in sorted((pathlib.Path(__file__).resolve().parent.parent / "tools").glob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if is_run(node):
+                seen += 1
+                if not {"durable", "durable_exempt"} & {kw.arg for kw in node.keywords}:
+                    bare.append(f"{path.name}:{node.lineno}")
+
+    assert seen > 30, f"only found {seen} run() call sites; has the check stopped matching?"
+    assert not bare, (
+        "these run() call sites name no durable destination, so their results would not "
+        f"survive the session (D-188): {bare}"
+    )
