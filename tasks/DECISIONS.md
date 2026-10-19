@@ -8472,3 +8472,79 @@ decision has a threshold or parameter in it, the number goes in the entry.
   regenerating is a thing a reader of the board should be able to see. **A2.1 and A4.2 are the
   two that cost meaningful compute to restore, and neither blocks A2.5.** Whoever picks up A3.2
   or A6.1 needs A2.1's tables first, and that is now a named task rather than a discovery.
+
+### D-189 — A test run overwrote four A1.6 objects in the no-delete bucket; two are unrecoverable and both are small
+- **Date:** 2026-10-19
+- **Task:** X (cross-cutting; caused while implementing D-188, damage is A1.6's)
+- **Context:** D-188 gave every tool a durable destination. Several tests drive a tool's `main()`
+  end-to-end against a real client and no mock — deliberately, because the on-instance path is the
+  one thing a `DryRun` cannot check (`AGENTS.md`). So the full test suite, run once at 15:18 UTC
+  to verify the D-188 change, uploaded its **synthetic fixtures** to `corpora/results/a1-6/`.
+  The corpus bucket has no `s3:DeleteObject` and versioning is disabled, so the writes are
+  permanent and the prior contents are gone. `AGENTS.md` says in as many words that a bug which
+  writes junk there writes it forever, and A1.6's own task file and `esm3_calibrate.py`'s module
+  docstring each warn about a collision under this exact prefix. The warnings were read and the
+  consequence was not.
+  **Nine keys were written; four collided.** The five that were new are flat names
+  (`exclusivity-rows-2023_02-uniref90.tsv.gz`, `exclusivity-counts-…`, `run-exclusivity-uniref90.json`,
+  `exposure-q100.json`, `run-exposure-q100.json`) whose real equivalents are nested under
+  `exclusivity/2023_02/…` and `exposure/2023_02/…` with content hashes. The four that collided are
+  recorded below.
+- **Decision:** The accounting, because the apparent size and the real loss differ by two orders
+  of magnitude and the first report of this overstated it.
+
+  **`viral-seeds.faa`, 1,249,029,570 bytes — not lost.** The destroyed object was a *duplicate*.
+  The canonical copy is `corpora/samples/a1-6/uniref100/2023_02/rate40/viral-seeds.faa`, intact,
+  and it is the key that sample's own manifest names as `seed_fasta` with
+  sha256 `8a23f5ea10ac9413671bd8753c4c33778a9692f5c64090c18cc22b0a8f845632` — the same digest the
+  two surviving exposure manifests cite as their input. So 95% of the bytes that disappeared from
+  the results prefix were never at risk, and **no in-region pass is needed to restore them**.
+
+  **`band.json`, about 65.6 MB — superseded, and held elsewhere.** It was the five-cell state of
+  the band 1 run, published before the resumed sixth cell landed.
+  `band-viral-arm-5cells-backup-20261018.json` is intact at 65,743,883 bytes and carries the same
+  per-cell structure (identity bands, coverage mode, per-family hit counts). `band-complete.json`,
+  which A1.6 names as authoritative, was never touched.
+
+  **`run-calibration.json` — lost, and its critical field survives.** The provenance manifest for
+  the caps run. The code commit is recoverable as `8200f2f8a107c252d3350d54399a7f0d31078aa4`, from
+  `progress-caps.json` and from the sample manifest, and it is a real commit in this repository
+  dated 2026-10-17. What is gone is the consolidated record: the pinned input digests, the tool
+  versions actually invoked, and the declared parameters as one attested object.
+
+  **`cap-measurement.json` — the one real loss.** No copy exists anywhere in the bucket. Per cell
+  it held `bands_by_reading`, `records_by_reading` across all three coverage readings,
+  `search_core_seconds`, `hit_rows`, the `saturation` distributions and `reading1_agreement`.
+  **Its headline figures survive verbatim** in A1.6's task file — the six cells as three caps
+  (slack/50%/20%) by two coverage modes, with wall seconds and records lost — together with all
+  four findings, including the 6x-over-D-104 result that moved the broad arm's price from $26 to
+  $300-430 and then to D-128's 0.3125% for about $50. **Nothing downstream consumed it**: no
+  surviving manifest references it.
+
+  **The fix.** No upload is attempted from a test process unless the test injected the client
+  itself (`repro.in_test_run`, and `AMAZEBIO_NO_UPLOAD=1` for a manual run), and the manifest
+  records `upload_skipped` so a `run.json` produced under test cannot be read as one whose outputs
+  persisted. The durable destination is also validated at `run()` entry now rather than at exit,
+  so a malformed one fails before the compute.
+- **Rejected:** **Re-running `esm3_calibrate.py` to repair the damaged keys.** Proposed twice and
+  wrong both times, which is the part of this worth recording. `--curve` writes `calibration.json`,
+  which *survived* and holds published figures, so re-running it would destroy a survivor.
+  `--caps` writes the published `cap-measurement.json`, so it substitutes a fresh measurement under
+  a cited key — and the published run "ended before the second target size", so a new one would not
+  even be structurally comparable. `--band` cannot restore `band.json` at all, because A1.6's own
+  rule is to pass `--artefact-name` something new. **No mode can restore a damaged key; each can
+  only write new numbers under an old name.** That is worse than an honest gap, and it is the
+  silent substitution this project's own notes warn about.
+  Also rejected: a tombstone object over the test junk. It would replace a hazard with a signpost,
+  but it is another irreversible write to a bucket already carrying two of them, and the junk is
+  documented here instead.
+- **Consequence:** `corpora/results/a1-6/` carries four objects whose contents are test fixtures,
+  permanently. A reader of that prefix cannot tell by inspection; this entry and A1.6's task file
+  are the only things that say so, which is why both say it. **A1.6 is in `review` and its caps
+  measurement no longer has a machine-readable artefact** — under "artefacts before prose" that is
+  a real gap in its deliverable, and whoever closes that review decides whether a re-measurement
+  under a new key is worth two hours. X1.6 holds that re-run alongside A2.1's and A4.2's.
+  The wider lesson is narrow and specific: **a test that exercises a real code path needs its
+  side effects injected, and adding a side effect to a tool adds it to every test that drives the
+  tool.** The durability guard was sound; the blast radius of switching it on was not thought
+  through.

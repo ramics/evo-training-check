@@ -778,6 +778,38 @@ travelled without the thing that qualified it. **Before treating a gap as work, 
 fixed reading already governs it** — and when you carry a seed set, artefact or figure forward,
 carry its qualifier into the result, not into a note beside it.
 
+## Correction — 2026-10-19: the caps artefact is gone, and its figures live only here (D-189)
+
+Not a measurement error. Nothing about the caps result, the band, the exclusivity arm or the
+exposure report changes. What changed is what backs them.
+
+A test run from another session overwrote four objects under `corpora/results/a1-6/` on
+2026-10-19 at 15:18 UTC. The bucket has no `DeleteObject` and versioning is disabled, so they are
+permanent. D-189 is the full accounting; the part that matters to this task:
+
+- **`cap-measurement.json` is destroyed and has no copy.** The six-cell table above — three caps
+  by two coverage modes, wall seconds and records lost — and all four of its findings are now the
+  only surviving form of that measurement. **Under "artefacts before prose" this task's caps
+  result currently traces to prose, not to an artefact.** That is a gap in the deliverable, and it
+  is for whoever closes this review to decide whether a two-hour re-measurement is worth it. It
+  must go under a **new** `--artefact-name`: writing the old key substitutes new numbers under a
+  cited name, which is the hazard this file already warns about twice.
+- **`run-calibration.json` is destroyed.** The caps run's code commit is recoverable as
+  `8200f2f8a107c252d3350d54399a7f0d31078aa4` from the surviving `progress-caps.json`. The input
+  digests and invoked tool versions are not.
+- **`band.json` was overwritten and nothing is lost.** It held the superseded five-cell state;
+  `band-viral-arm-5cells-backup-20261018.json` holds it, and `band-complete.json` — this task's
+  authoritative artefact — was never touched.
+- **`viral-seeds.faa` was overwritten and nothing is lost.** That object was a duplicate; the
+  canonical copy this task's own sample manifest names,
+  `corpora/samples/a1-6/uniref100/2023_02/rate40/viral-seeds.faa`, is intact and matches the
+  sha256 the exposure manifests cite. **Do not rebuild it.**
+
+**Do not read the four objects now at those keys.** They contain unit-test fixtures. There is no
+way to tell that by inspection, which is why it is written here.
+
+The re-measurement, if wanted, is tracked in X1.6 with A2.1's and A4.2's re-runs.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
