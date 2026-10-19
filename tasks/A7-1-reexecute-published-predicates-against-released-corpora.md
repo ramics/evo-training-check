@@ -35,7 +35,23 @@ stated rule against delivered data, claiming nothing about homology or capabilit
 
 ## Done when
 
-- Conformance diff computed per model × reading, reproducible from pinned inputs.
+**Criterion 1 amended 2026-10-19 by D-174.** It promised a model × reading matrix this task's
+deliverable never had, and could not have: D-047 established that every rule the three readings
+differ over reads an input the release withholds, so the readings are identical *by construction*
+rather than by agreement, and D-049 put the converse direction and Evo 2's arm outside this task.
+ESM3 has no arm at all. Criteria that no longer describe the deliverable cannot be "demonstrably
+met", and the board should not later read a one-model, 3/6-coverage result against a criterion
+promising a matrix. The original is struck below.
+
+- Conformance diff computed for **every model whose release carries the inputs its own rules
+  read** — Evo 1 — reproducible from pinned inputs, with **coverage stated per count** (3/6) and
+  the restriction derived mechanically from the specs rather than chosen, so a rule is never
+  dropped by hand.
+- The readings are reported as **identical by construction, not as agreement** (D-047), naming
+  the withheld input that makes them so. A §A0 finding, not a null.
+- Models with no arm are named, with the reason: Evo 2 and the converse direction are A7.2's
+  (D-049), and ESM3-open has neither corpus nor threshold published, so it is A1.6's.
+- ~~Conformance diff computed per model × reading, reproducible from pinned inputs.~~
 - Every failure is classified by cause, and causes are defined before counting.
 - A clean result is written up as a positive finding, per the §2 commitment, not buried.
 - Claims are qualified by A1.1's verdict: a conformance claim against a proxy corpus is not a
