@@ -125,6 +125,34 @@ platforms = ["linux-64"]
 [feature.vibrant.dependencies]
 vibrant = "==1.2.1"
 
+# A2.3's registry acquisition, and only that. The element registry §A2 names is Dfam, which
+# ships as a partitioned HDF5 database rather than as a flat profile library, so something has to
+# read it to get the profiles out. `famdb` is the publisher's own reader and this is the only
+# place it is used: the export runs once, produces the pinned registry artefact, and the
+# detection pass that follows reads that artefact with `pyhmmer` — already in `[dependencies]`
+# for A2.1 — and never touches the database again.
+#
+# Version 3.0.0 is not a preference. Dfam 4.0's own README states the pairing: "This new format
+# is compatible with FamDB tool v3.0.0, and RepeatMasker 4.2.4." The previous release's files are
+# format 2.0.0 and this reader refuses them outright, so the tool and the database release are
+# one pin rather than two. Same principle as D-112's geNomad-to-marker-database pairing: an
+# attested pairing is what the pin needs.
+#
+# Deliberately *not* `repeatmasker`, which is what pulled `famdb` in while this was being worked
+# out. RepeatMasker is a search engine and this project already has one; adding a second would
+# mean a second set of thresholds, a second cost model and a compiled toolchain to pin, for
+# profiles `pyhmmer.nhmmer` can search directly. The 25 MB of annotation data the conda package
+# bundles is not a repeat library — it ships no Dfam at all — so it would not have saved the
+# acquisition step either.
+#
+# Its own solve group and `no-default-feature` for the reason the other tool environments have
+# theirs: it holds a tool and its runtime, and the pipeline calls it from the dev environment.
+[feature.dfam]
+platforms = ["linux-64", "osx-arm64"]
+
+[feature.dfam.dependencies]
+famdb = "==3.0.0"
+
 [feature.dev.dependencies]
 pytest = ">=8.3,<9"
 ruff = ">=0.8,<0.9"
@@ -148,6 +176,10 @@ proviruses = { features = [
 vibrant = { features = [
   "vibrant",
 ], solve-group = "vibrant", no-default-feature = true }
+# A2.3's registry reader. See the comment on `feature.dfam.dependencies`.
+dfam = { features = [
+  "dfam",
+], solve-group = "dfam", no-default-feature = true }
 
 [tasks]
 # Regenerate the task board from task frontmatter.
