@@ -90,6 +90,24 @@ HEARTBEAT_NAMES = {
 }
 
 
+def manifest_name_for(artefact_name: str | None) -> str:
+    """The run manifest's name, following `--artefact-name` when one is given.
+
+    `--artefact-name` exists so a re-measurement does not write a key whose figures are
+    already cited — A1.6's own rule, after D-189 destroyed `cap-measurement.json`. Until
+    X1.6 re-ran the caps measurement the flag renamed the *result* and not its manifest, so
+    the re-run still wrote `run-calibration.json`: the provenance key belonging to the very
+    run whose result it had carefully avoided overwriting. The corpus bucket has no
+    `DeleteObject`, so that write cannot be taken back, and a manifest is not a lesser
+    artefact than the numbers it attests — a durable copy with no provenance beside it is
+    not citable, which is why `repro` uploads both.
+    """
+    if not artefact_name:
+        return "run-calibration.json"
+    stem = artefact_name[: -len(".json")] if artefact_name.endswith(".json") else artefact_name
+    return f"run-{stem}.json"
+
+
 def human(n: float) -> str:
     for unit in ("B", "KB", "MB", "GB", "TB"):
         if abs(n) < 1000:
@@ -738,6 +756,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
     seed_fasta = work / "viral-seeds.faa"
     shard_paths = [work / f"shard-{i:02d}.faa" for i in range(args.buckets)]
     timing_path = args.outdir / (args.artefact_name or ARTEFACT_NAMES[args.measure])
+    run_manifest_name = manifest_name_for(args.artefact_name)
 
     print(f"loading taxonomy from {args.taxdump}", flush=True)
     taxonomy = seeds.Taxonomy.from_taxdump_zip(args.taxdump)
@@ -749,7 +768,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         seed=None,  # the sample is a hash of the cluster id, not an RNG draw
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
-        manifest_name="run-calibration.json",
+        manifest_name=run_manifest_name,
         durable=objectstore.durable_results("a1-6"),
     ) as manifest:
         for name, value in (
@@ -1089,8 +1108,8 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         upload(timing_path, "calibration")
 
     if args.upload_results and client is not None:
-        local = args.outdir / "run-calibration.json"
-        key = f"{prefix}/results/{args.results_task}/run-calibration.json"
+        local = args.outdir / run_manifest_name
+        key = f"{prefix}/results/{args.results_task}/{run_manifest_name}"
         client.put_object(Bucket=bucket, Key=key, Body=local.read_bytes())
         print(f"  uploaded s3://{bucket}/{key}", flush=True)
     return 0
