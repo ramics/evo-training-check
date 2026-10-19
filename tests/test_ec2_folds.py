@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -314,3 +315,65 @@ def test_spot_price_failure_is_not_a_silent_zero(folds):
             raise RuntimeError("no")
 
     assert folds.spot_price_now(Broken(), "g6.xlarge") is None
+
+
+@pytest.mark.parametrize("stage", ["search", "throughput"])
+def test_a_failing_run_reaches_die_instead_of_dying_silently(folds, stage, tmp_path):
+    """The bug A2.2's first smoke launch found, executed rather than asserted.
+
+    The old shape was `( <command> ; echo "exited $?" )` with a comment claiming a tool failure
+    would fall through to `die "run complete" 0`. Under `set -euo pipefail` it does not: the
+    failing command aborts the subshell before the echo, the status propagates, and `set -e`
+    kills the script — so `die` never runs, the log is never uploaded, and the instance never
+    shuts down. Measured on a real launch: it failed 77 seconds into a 25-minute window and then
+    idled, which from outside is indistinguishable from a long run still working.
+
+    This runs the generated block under bash with a stub `die`, because the property that matters
+    is behavioural and a substring assertion would not have caught the original.
+    """
+    block = folds._guarded_run(stage, "false")
+    script = tmp_path / "run.sh"
+    script.write_text(
+        "#!/bin/bash\nset -euo pipefail\n"
+        'die() { echo "DIE $1 code=${2:-1}"; exit "${2:-1}"; }\n'
+        f"{block}\n"
+        'echo "REACHED THE END"\n'
+    )
+    done = subprocess.run(["bash", str(script)], capture_output=True, text=True)
+    assert "DIE " in done.stdout, f"die was not reached: {done.stdout!r}"
+    assert f"{stage} exited 1" in done.stdout, "the tool's exit status must be reported"
+    assert "REACHED THE END" not in done.stdout, "a failed run must not continue"
+    assert done.returncode == 1, "the tool's own exit code is what the script exits with"
+
+
+@pytest.mark.parametrize("stage", ["search", "throughput"])
+def test_a_successful_run_falls_through_to_the_caller(folds, stage, tmp_path):
+    """Success must not call `die` with a failure code; the caller's own `die ... 0` ends the run."""
+    block = folds._guarded_run(stage, "true")
+    script = tmp_path / "run.sh"
+    script.write_text(
+        "#!/bin/bash\nset -euo pipefail\n"
+        'die() { echo "DIE $1 code=${2:-1}"; exit "${2:-1}"; }\n'
+        f"{block}\n"
+        'echo "REACHED THE END"\n'
+    )
+    done = subprocess.run(["bash", str(script)], capture_output=True, text=True)
+    assert "REACHED THE END" in done.stdout
+    assert "DIE " not in done.stdout
+    assert done.returncode == 0
+
+
+def test_the_prostt5_download_is_verified_by_its_artefact_not_its_exit_code(folds):
+    """Measured 2026-10-19: `foldseek databases ProstT5` printed a fatal tar error and exited 0.
+
+    So `|| die` never fired and the search died a minute later on missing weights. The script
+    must look for the weights themselves.
+    """
+    text = _render(folds, stage="search")
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    assert "*.gguf" in code, "the download must be verified by finding the weights file"
+    assert "-size +1G" in code, "a truncated download leaves a small file, so size is checked"
+    assert "ProstT5 weights are absent" in code
+    # Verified after the download, and before the run that needs them.
+    assert code.index("databases ProstT5") < code.index("ProstT5 weights are absent")
+    assert code.index("ProstT5 weights are absent") < code.index("detect_folds.py --search")

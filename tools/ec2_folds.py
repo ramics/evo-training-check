@@ -197,8 +197,25 @@ pixi run -e dev python {smoke_tool} --help >/dev/null \
 {inputs_block}
 
 # 2.3 GB of f16 GGUF from huggingface.co/Rostlab/ProstT5, unauthenticated (D-163).
-pixi run -e foldseek foldseek databases ProstT5 /opt/amazebio/prostt5 /opt/amazebio/tmpdb \
-  --threads {threads} || die "ProstT5 weights download failed"
+#
+# Retried, and then **verified by looking for the weights** rather than by trusting the exit
+# status. Measured 2026-10-19: this command printed `tar: Error is not recoverable: exiting now`
+# and still exited 0, so `|| die` never fired and the search died a minute later on "Could not
+# find ProstT5 model weights". Checking the artefact instead of the exit code is the same lesson
+# the prefilter taught one layer up: a step that reports success has not shown you what it made.
+for attempt in 1 2 3; do
+  pixi run -e foldseek foldseek databases ProstT5 /opt/amazebio/prostt5 /opt/amazebio/tmpdb \
+    --threads {threads} || echo "=== ProstT5 attempt $attempt exited nonzero ==="
+  if [ "$(find /opt/amazebio/prostt5 -name '*.gguf' -size +1G 2>/dev/null | wc -l)" -ge 1 ]; then
+    echo "=== ProstT5 weights present after attempt $attempt ==="
+    break
+  fi
+  echo "=== ProstT5 attempt $attempt left no usable weights ==="
+  rm -rf /opt/amazebio/prostt5 /opt/amazebio/tmpdb
+  sleep 10
+done
+test "$(find /opt/amazebio/prostt5 -name '*.gguf' -size +1G 2>/dev/null | wc -l)" -ge 1 \
+  || die "ProstT5 weights are absent after three attempts; the search cannot run"
 
 export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
 {run_block}
@@ -331,6 +348,34 @@ def build_inputs(root: Path, refdb_dir: Path) -> bytes:
     return buf.getvalue()
 
 
+def _guarded_run(label: str, command: str) -> str:
+    """Wrap the run so that **every** exit path reaches `die`.
+
+    This is the bug the first A2.2 smoke launch found, and it is the one AGENTS.md already
+    records as having cost two launches and most of a day. The previous shape was
+    `( <command> ; echo "exited $?" )`, with a comment asserting that a tool failure would fall
+    through to `die "run complete" 0`. It does not. Under `set -euo pipefail` the failing command
+    aborts the subshell *before* the echo, the non-zero status propagates to the parent, and
+    `set -e` kills the script — so `die` never runs, the cloud-init log is never uploaded, and
+    `shutdown -c; shutdown -h now` never happens. Measured 2026-10-19: the instance failed 77
+    seconds in and then sat idle inside its 25-minute window, which from outside — no artefact,
+    process gone, status checks `ok` — is indistinguishable from a long run still working. On the
+    24.7-hour pass that would have burned the whole window and the budget with it.
+
+    So the status is captured explicitly with `set -e` lifted around the call only, reported, and
+    then routed through `die` with the tool's own exit code. A successful run falls through to
+    the caller's `die "run complete" 0`, which uploads the log either way.
+    """
+    return (
+        "set +e\n"
+        f"{command}\n"
+        "rc=$?\n"
+        "set -e\n"
+        f'echo "=== {label} exited $rc ==="\n'
+        f'[ "$rc" -eq 0 ] || die "the {label} run failed (exit $rc)" "$rc"'
+    )
+
+
 #: The per-stage pieces of `USER_DATA`. Both stages stay reachable: `throughput` produced D-164's
 #: cited speedup measurement and deleting its launch path would leave that artefact unreproducible.
 def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any) -> dict[str, str]:
@@ -339,8 +384,9 @@ def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any
             "stage": "3di throughput",
             "smoke_tool": "tools/fold_throughput.py",
             "inputs_block": "",
-            "run_block": (
-                "( pixi run -e dev python tools/fold_throughput.py \\\n"
+            "run_block": _guarded_run(
+                "throughput",
+                "pixi run -e dev python tools/fold_throughput.py \\\n"
                 '    --foldseek "$FOLDSEEK" \\\n'
                 "    --prostt5-model /opt/amazebio/prostt5 \\\n"
                 "    --outdir /opt/amazebio/out --workdir /opt/amazebio/work \\\n"
@@ -348,8 +394,7 @@ def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any
                 f"--cpu-ladder {kw['cpu_ladder']} \\\n"
                 f"    --threads {kw['threads']} \\\n"
                 '    --s3-uri "$AMAZEBIO_S3_URI" --upload-results \\\n'
-                f"    --allow-dirty --code-commit {kw['commit']} ; "
-                'echo "=== throughput exited $? ===" )'
+                f"    --allow-dirty --code-commit {kw['commit']}",
             ),
         }
     if stage == "search":
@@ -370,8 +415,9 @@ def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any
                 "test -f refdb/ref_ca || die "
                 '"the reference database has no C-alpha file; the search cannot run"'
             ),
-            "run_block": (
-                "( pixi run -e dev python tools/detect_folds.py --search \\\n"
+            "run_block": _guarded_run(
+                "search",
+                "pixi run -e dev python tools/detect_folds.py --search \\\n"
                 '    --foldseek "$FOLDSEEK" \\\n'
                 "    --prostt5-model /opt/amazebio/prostt5 \\\n"
                 "    --refdb /opt/amazebio/refdb/ref \\\n"
@@ -380,8 +426,7 @@ def stage_blocks(stage: str, *, bucket: str, prefix: str, region: str, **kw: Any
                 "    --shards /opt/amazebio/shards --workdir /opt/amazebio/work \\\n"
                 f"    --threads {kw['threads']} --gpu{caps} \\\n"
                 '    --s3-uri "$AMAZEBIO_S3_URI" \\\n'
-                f"    --code-commit {kw['commit']} ; "
-                'echo "=== search exited $? ===" )'
+                f"    --code-commit {kw['commit']}",
             ),
         }
     raise SystemExit(f"unknown stage {stage!r}")
