@@ -33,127 +33,115 @@ that sequence search misses.
 - Thresholds fixed in advance and recorded.
 - Structural coverage gaps documented as a limitation.
 
-## State — 2026-10-18
+## State — 2026-10-18 (second session)
 
-`in-progress`. **Branch `ccr-3db3a0c2-il11ej`** (pushed). Project management on `main` as usual.
-**Method and sizing are settled; nothing has been searched, and no corpus hit has been looked
-at.** Decisions: D-163, D-164, D-165, D-166, D-167.
+`in-progress`. **Branch `ccr-7a87e8bd-9ow1h1`** (the earlier branch `ccr-3db3a0c2-il11ej` is
+merged into it). Decisions: D-163, D-164, D-165, D-166, D-167, **D-169**.
 
-**Why this task and not A2.3.** A2.3 reads the 2.17 TB eukaryotic component, which is not
-staged: `OG2_COMPONENTS` carries it `tier1=False` with the note "Deferred to A2.3, which is the
-only task that needs it", D-031 says A2.3 "must stage its own component before it can run" and
-must re-ask the cost question, and D-046 puts a pass over those genomes in the in-region case. So
-A2.3 opens with a standing-bill decision for the owner, not with analysis. A2.2 reads corpora
-that are already staged.
+**The fold universe and the reference set are built; the threshold is being calibrated; no corpus
+hit has been looked at.**
 
-### What is settled
+### Finished this session
 
-**The cost, and it nearly killed the task (D-163).** The query side has no structures, so 3Di
-must be predicted from sequence. Measured on real corpus input: ProstT5 on CPU is **18.58
-core-hours per million residues, 173x A2.1's profile search**. A census is 458,800 core-hours and
-even A2.1's sample depth is 6,745 — about seventy days of this container. CPU is not a slow route
-here, it is no route.
+- **The fold universe is re-derived, shipped and corrected (D-169).** D-166's identifier list was
+  never written as the artefact its own decision required, so it was re-derived from the pinned
+  release. The ECOD pin re-verifies exactly, and the pin is now version + sha256 rather than a URL,
+  because the publisher keeps no per-version filename for the current release. Two corrections:
+  the capsid fold had been selected at H-group level, which admits 867 cellular domains and 12
+  cellular representatives (nucleoplasmin, peptide-N-glycanase, Cu monooxygenase, TGF-beta
+  propeptide); and D-166's six RdRp family names were illustrative, missing influenza PB1,
+  flavivirus NS5 and the mononegavirus, bunyavirus and coronavirus polymerases. The universe is now
+  **141 reference structures** (capsid 97, RdRp 30, fusion 14) against D-166's recorded 166. The
+  capsid cut was the owner's choice between three options; they took the strict one.
+- **The reference database is built.** All 141 representatives fetched from RCSB and cut to ECOD's
+  residue ranges, no drops, `foldseek createdb` ignoring none. `gemmi` is pinned for the cut.
+  One silent bug fixed: segments of a discontinuous domain were each becoming their own chain, so
+  141 domains made **152** database entries — which defeats D-167's target coverage floor, since a
+  fold split into three targets lets a third of it clear a floor meant for the whole.
+- **The whole path is proved end to end.** A native domain sequence recovers its own reference at
+  939 bits; three shuffled decoys return nothing at all at `-e 1000`. That last figure is why the
+  calibration does not rest on shuffles.
+- **The heartbeat is fixed.** `tools/fold_throughput.py` used `subprocess.run(capture_output=True)`
+  and so published only *between* rungs; the 32-minute CPU rung was 32 minutes of silence. Now
+  `Popen` with a 60-second tick, output to files rather than pipes, and a test that fails if the
+  tick is refactored out.
 
-**The GPU speedup, 64.48x (D-164).** One `g6.xlarge` (NVIDIA L4), both devices timed on the same
-machine over identical input, both arms linear, and the instance reproduced the container's CPU
-figure to within 1.7% — which is what licenses reading the CPU and GPU projections off one scale.
-Artefacts and `run.json`: `corpora/results/a2-2/throughput/20261018T170641Z-9303d375d237/`.
-Four launch facts verified rather than assumed, each otherwise worth a wasted launch: only
-`g5.xlarge` and `g6.xlarge` authorize (**both GPU 2xlarges return `UnauthorizedOperation`**, so
-the "up to 8 cores" allowance holds for CPU only); the base AL2023 AMI the other `ec2_*` tools
-use has **no NVIDIA driver** while the Deep Learning base AMI is reachable via `ssm:GetParameter`;
-bioconda's single foldseek 10.941cd33 build **is** CUDA-capable; and the 2.3 GB ProstT5 weights
-download unauthenticated.
+### Finished this session, continued
 
-**The depth, pre-registered at A2.1 parity: 363 Maa = 24.7 GPU instance-hours.** Explicitly not a
-census (1,682 instance-hours). Parity because A3.2 merges this table with A2.1's, A2.4's and
-A2.5's, and `metrics/detections.md` forbids pooling a `lower_bound` table with a `population` one.
-
-**The budget, $30, enforced in code (D-165).** `tools/ec2_folds.py` derives the instance's
-shutdown timer from the ceiling and the live price, because that timer is the only spend control
-surviving a launch (`ec2:ModifyInstanceAttribute` is denied). Prices are read, never remembered;
-spot takes the worst recent zone quote; `--no-spot` demands an explicit price because
-`pricing:GetProducts` is denied. The ceiling is **not** the binding constraint — it buys ~39
-instance-hours against a 25-hour pass.
-
-**The fold universe: 3 folds, 166 curated representative structures (D-166).** ECOD v295.2,
-selected at **family level by enumerated identifiers, never by regex over names**. The three
-measurements that forced that rule: the `jelly-roll` architecture holds 15,544 Concanavalin A
-lectins and 9,881 galactose-binding domains beside 16,690 viral capsid domains; viral RdRp is
-filed under topologies named for adenylyl cyclases and reverse transcriptases, and its own
-English name finds only 81 birnavirus domains while missing every canonical family; and **"class
-I fusion glycoprotein" has no ECOD node at all** — influenza HA2, HIV gp41, coronavirus S2 and
-paramyxovirus F sit in unrelated branches, and the family name `GP41` matches a phage tail
-protein as readily as HIV's envelope. Two folds borrow a curator's definition; the fusion class
-is this project's own construction and ships labelled so — that is the structural coverage gap
-the Done-when criterion requires. Host RNAi polymerases are excluded from RdRp deliberately:
-they share the fold and are not viral-derived content.
-
-**The search geometry and the score (D-167).** The **corpus is the query** and the reference set
-is the target, because a ProstT5 database holds 3Di strings and no coordinates, so only the
-structure side can be the target. This inverts AGENTS.md's "query the small side" rule — the
-tool decides it — and it puts the coverage floor on the **target** (`--cov-mode 1`), since the
-reference domain is the target and half the reference *fold* must be matched. The score is the
-**bit score**, database-size independent and so satisfying D-076 outright. Two traps found by
-testing rather than declaring: `--tmscore-threshold` can be **silently disabled** (foldseek says
-so and carries on, still producing a plausible table), and `convertalis` refuses to report from a
-ProstT5 database at all, even for columns needing no coordinates.
-
-**A limitation to carry into the write-up, not a parameter.** A2.2 **can never report a TM-score
-or LDDT for an Evo hit** — the publisher states it. The evidence is a structural-alphabet
-alignment against a reference fold, not a superposition, which caps how strongly the fold claim
-may be worded. It also partly undercuts the independence §A2 wants from this route: the 3Di
-string is predicted *from sequence*, and the default alignment mode scores amino acids alongside
-3Di.
+- **The threshold is fixed and recorded (D-171): 500 bits, brackets [400, 600], 3Di+AA.** 1,567
+  queries, 385,185 residues, 3Di predicted once in 1h39m and both alignment modes searched
+  against the same query database. At the declared cut: cellular near-fold decoys 0.8%,
+  unrelated folds 0%, shuffles 0%, held-out true fold members 61.7%.
+  **The decoy curve is a finding, not a diagnostic.** Real cellular proteins carrying these
+  folds are detected at 56% at 100 bits, where unrelated folds and shuffles are already at 0.8%
+  — seventy times apart — and the near-fold curve tracks the true-positive curve closely until
+  about 160 bits. Holding them to 1% costs sensitivity (61.7% against 78.8% at 100 bits) and
+  never reaches zero: 3 of 389 pass at 500 bits. That is the method working. Nucleoplasmin,
+  peptide-N-glycanase and Cu monooxygenase genuinely have the jelly-roll capsid fold, so
+  "carries this fold" and "is viral-derived" are different claims this instrument cannot fully
+  separate. It justifies D-169's exclusions quantitatively, it is a stated write-up limitation,
+  and it means the dominant false positive in the real pass will be cellular fold-carriers
+  rather than chance alignments.
+  A second ceiling: 13% of held-out true fold members never hit their own fold at all, even at
+  20 bits. That caps what any threshold here achieves.
+- **D-167's deferred 3Di-only option is closed**: 3Di+AA finds five times as many true members at
+  the same false-positive target. Recorded honestly as a rule stated after seeing the sweep,
+  since D-167 deferred it without fixing one.
+- **A1.4's manifests are regenerated** — 7 manifests, 95 records removed for Evo 1 and 0 for
+  Evo 2, 2.65M and 2.96M records unresolved.
+- **The shard contract and the per-fold tables are written and tested** (`tools/detect_folds.py`,
+  18 tests). A shard is keyed on (release, staged object, band) and searched **once**, with the
+  three Evo 1 readings attributed from the same scores: 3Di prediction is the entire cost and a
+  protein's 3Di string does not depend on which reading kept its record. Shards store every hit
+  above a threshold-independent floor so the declared cut and both brackets apply at assembly.
+  The family universe is the three folds; the membership rule ships separately.
+- **Two corrections to D-167, both from running the chain.** `convertalis` does *not* refuse
+  against a ProstT5 database in the direction D-167 chose — read literally, that entry says this
+  pipeline is impossible. And foldseek silently disables `--sort-by-structure-bits` for want of
+  C-alpha data, so the reported `bits` is the plain alignment score.
+- **A `repro` bug fixed:** the dirty-tree refusal named files that do not exist ("ixi.lock" for
+  `pixi.lock`), because porcelain's leading space on a modified-tracked line is stripped and the
+  fixed `line[3:]` slice then eats a character. The old test only ever dirtied the tree with an
+  untracked file, the one case the slice gets right.
 
 ### What is left, in order
 
-1. **Calibrate the threshold's value.** Everything else about scoring is fixed; the cut is not.
-   Search the reference set against shuffled or unrelated queries, pick a bit score at a stated
-   false-discovery rate, and fix its **two bracketing values in the same breath**, as
-   `metrics/survival.md` requires. This also decides the one deferred option: 3Di-only
-   (`--alignment-type 0`) against the default 3Di+AA, which changes the score distribution and
-   therefore the cut. Must happen before any corpus hit is seen; `amazebio.repro` enforces it.
-2. **Regenerate A1.4's manifests.** They are not in object storage and `artifacts/` is empty in a
-   fresh container, so there is currently no surviving-record set to search over. A1.4 runs in
-   the session container (D-046).
-3. **Make the pass survivable.** 24.7 instance-hours exceeds one instance's window, so it needs
-   per-object resumability or a longer timer — A2.4 reached the same conclusion about deepening,
-   so reuse that shape rather than reinvent it. Resumability is also what makes spot safe, so it
-   protects the budget rather than competing with it. While there, fix the heartbeat in
-   `tools/fold_throughput.py`: it publishes **between** rungs, not on an interval, so the
-   32-minute CPU rung was 32 minutes of silence — half of what AGENTS.md requires, and exactly
-   the condition under which silence means nothing.
-4. **Build the reference set as a foldseek database.** 166 ECOD representatives fetched from
-   RCSB by accession and cut to ECOD's residue ranges. Verified reachable: RCSB serves
-   structures unauthenticated, and `foldseek createdb` over a directory of `.cif` files produces
-   the `_ca` files the target side needs.
-5. **Then the search**, emitting `metrics/detections.md`'s schema with `detector: foldseek`
-   (already pinned as a valid detector string by `tests/test_survival.py`), `element_kind` from
-   the record's component per D-079 and **never** from the hit, and routes from
-   `amazebio.apply.route_for` rather than re-derived. Re-calling genes is expected: A2.1's called
-   proteins were deliberately not persisted (D-103), and `--collect`/`--from-cache` is the
-   machinery for doing it once per release instead of once per search.
+1. **Factor A2.1's corpus reading into a module, then write the search stage.** This is the only
+   thing between here and a table. The search needs A1.4 manifest reading, sampled streaming,
+   gene calling and the per-object protein cache, all private to `tools/detect_profiles.py`.
+   The precedent is D-113, which factored `amazebio.profilesearch` out of that same tool for
+   A2.4; this is the corpus-reading half of the same move. It touches a finished task's code, so
+   it wants its own decision entry — and A2.1's numbers must not move, which its own tests guard.
+   **Correction to the earlier state note:** the resumability shape to copy is **A2.1's**, not
+   A2.4's. `detect_profiles.py` has the real per-object checkpointing (`cache_stem` keyed on the
+   *object* name, after a component-keyed stem made Evo 1's three splits collide and
+   last-write-win; plus `hits_dump_path` as a second layer). A2.4 has incremental publish and an
+   in-memory cache but no S3 checkpoint and no restart logic — its docstring says the pass "is
+   re-run deliberately or not at all".
+2. **Point `tools/ec2_folds.py` at the search tool.** It currently runs `fold_throughput.py`.
+   Repointing means its `PAYLOAD` tuple, the `--help` smoke test, the run command and `watch()`'s
+   result and heartbeat keys. `PAYLOAD` must carry the new tool's first-party import closure or
+   the instance dies on an ImportError half a minute in; `tests/test_ec2_folds.py` enforces that.
+   Simulate the bootstrap locally first — build the real payload, unpack it, run both precheck
+   steps — which is the habit three lost launches paid for.
+3. **Run the pass and assemble.** 5 shards at the pre-registered depth (`--plan` lists them).
+   24.7 instance-hours, so it exceeds one window and needs the resumability above; the $30
+   ceiling is not the binding constraint but cumulative spend across relaunches is worth tracking,
+   since the launcher enforces the cap per launch.
 
-### Also worth knowing
+### Still open, unchanged
 
-**The ESM3 proxy manifest is a separate, unanswered cost question.** A2.1 left it
-`not_searched`. D-033 records that AlphaFoldDB and ESMAtlas were deliberately not staged and that
-"measuring either is A2.2's work", with the cost question to be re-asked. Its records are UniRef
-entries, so much of it may already have predicted structures and need no prediction at all —
-which would make it the *cheapest* manifest here rather than the dearest. Settle that before
-assuming it costs what the Evo corpora cost.
+**The ESM3 proxy manifest is a separate, unanswered cost question.** A2.1 left it `not_searched`;
+D-033 records that AlphaFoldDB and ESMAtlas were deliberately not staged and that measuring either
+is A2.2's work. Its records are UniRef entries, so much of it may already have predicted structures
+and need no prediction at all — which would make it the cheapest manifest here, not the dearest.
 
-**Three launches were spent, none on the measurement itself**, and the lasting fix was not either
-patch: a pixi URL re-derived by eye (lost the version and the `.tar.gz` suffix), then a payload
-guard that failed on a *complete* payload (`module_from_spec` without registering in
-`sys.modules`, so the first `@dataclass` raised). Both died in ~40 seconds through their own `die`
-path with logs in object storage rather than idling away a 150-minute window. What would have
-caught both for free is **simulating the instance bootstrap locally** — build the real payload,
-unpack it, run both precheck steps against it — and that is now the habit to keep.
+**A limitation to carry into the write-up, not a parameter.** A2.2 can never report a TM-score or
+LDDT for an Evo hit — the publisher states it. The evidence is a structural-alphabet alignment
+against a reference fold, not a superposition. It also partly undercuts the independence §A2 wants
+from this route: the 3Di string is predicted *from sequence*.
 
-**Waiting on the project owner:** nothing. The GPU authorization and the $30 ceiling are both
-answered and recorded.
+**Waiting on the project owner:** nothing.
 
 ## Notes
 

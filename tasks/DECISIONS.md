@@ -7237,3 +7237,204 @@ decision has a threshold or parameter in it, the number goes in the entry.
   hand-maintained against generated frontmatter with nothing checking the two agree, so it can
   drift again. The new line pointing at `BOARD.md` as authoritative is a mitigation, not a
   mechanism.
+
+### D-169 — A2.2's fold universe is re-derived at family level, because D-166's list was never shipped and its capsid set contradicted its own rule
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Numbering:** appended as D-168 and renumbered to D-169 before pushing — the repo audit's
+  D-168 landed on `main` in between and is already cited from `AGENTS.md`. Commit messages on
+  branch `ccr-7a87e8bd-9ow1h1` citing D-168 for the fold universe mean this entry.
+- **Context:** D-166 fixed the three folds §A2 names at **166 ECOD representatives** and required
+  the enumerated identifier list to ship as an artefact with the table. **That artefact was never
+  written.** The list existed only in the session that derived it, so the universe had to be
+  re-derived from the pinned release before anything could be searched — and re-deriving it
+  turned up two things.
+  The pin itself re-verifies exactly. ECOD **v295.2**, generated 2026-08-27, retrieved
+  unauthenticated. One correction of record: the publisher keeps **no per-version filename** for
+  the current release — the distribution listing stops at `develop292` while `ecod.latest.domains.txt`
+  *is* v295.2 — so the pin cannot be a URL and is now the version string plus a sha256
+  (`cd3abc43…afe8`). The file holds **2,943,252** classified domain rows; D-166's 2,943,253 is
+  that count plus the header line.
+  **1. The capsid fold was selected one level up, and that contradicts D-166's own finding.**
+  D-166 established that ECOD's `jelly-roll` X-group mixes Concanavalin A lectins and
+  galactose-binding domains with viral capsids, and concluded that selection must be at **family**
+  level by enumerated identifier. It then selected the capsid fold at the **H-group**
+  `Nucleoplasmin-like/VP (viral coat and capsid proteins)` — 16,690 domains, 119 curated
+  representatives, both of which reproduce exactly. But that group is nucleoplasmin-*like*: it
+  carries **867 plainly cellular domains** — nucleoplasmin itself (132), peptide-N-glycanase and
+  PNGaseA (64), Cu(2+) monooxygenase (162), TGF-beta propeptide (201), NPL (141) and others — and
+  **12 of the 119 representatives are cellular**. A further 665 domains and 10 representatives sit
+  in ECOD's two *unnamed* families of the group, and `10.2.1.0` holds peptide-N-glycanase outright
+  (`e1pgsA1`, PDB 1pgs). Admitting any of those as a reference structure manufactures the exact
+  false positive the family-level rule was adopted to prevent: a corpus protein matching the
+  nucleoplasmin or N-glycanase jelly-roll would be reported as a surviving viral capsid fold.
+  **2. D-166's RdRp list was illustrative, not exhaustive.** Its prose names six families
+  (`RdRP_1`, `RdRP_3`, `RdRP`, `Birna_RdRp_palm`, `Birna_RdRp_C`, `CoV_RPol_N`). Applied literally,
+  with the host set excluded, those six select **1,441 domains and 18 representatives** — not the
+  1,907 and 31 recorded — and they miss influenza PB1, flavivirus NS5, the mononegavirus and
+  bunyavirus L polymerases, the coronavirus nsp12 thumb, `RdRP_4`, `RdRP_5` and the permutotetra
+  and cypovirus polymerases. Every one of those is a canonical viral RdRp. Two mechanical traps
+  explain part of the gap: ECOD's family names are **comma-joined Pfam lists**, so `CoV_RPol_N`
+  appears only as `RdRP_1,CoV_RPol_N` and an exact-string match never finds it; and RdRp's palm
+  and thumb are filed under two different topologies, so a list drawn from one topology silently
+  covers half the fold.
+- **Decision:** **Apply D-166's family-level rule consistently to all three folds, and ship the
+  enumerated lists as code and as an artefact.** `src/amazebio/folds.py` holds them; the artefact
+  is `fold-universe.json`, and it carries the **excluded** identifiers beside the included ones,
+  because what a denominator leaves out is as much a part of its membership rule as what it admits.
+  **Jelly-roll capsid** — the 64 demonstrably viral families of the H-group: **15,158 domains, 97
+  representatives**. The 25 cellular families and 2 unnamed families are listed by identifier and
+  excluded. Put to the project owner as a three-way choice between this strict set (97), keeping
+  the unnamed family (107), and holding D-166's whole H-group as recorded (119); **the owner chose
+  the strict set.**
+  **Viral RdRp** — the complete enumeration across both topologies: **27 families, 2,583 domains,
+  30 representatives**, against D-166's recorded 31. Host RNAi polymerase families stay excluded
+  exactly as D-166 decided, and they are listed by identifier too (269 domains), since they are
+  this fold's sharpest decoys and D-170 uses them as such.
+  **Class I fusion glycoprotein** — **15 families, 7,361 domains, 14 representatives**, against
+  D-166's recorded 9,606 and 16. **The gap is deliberately not padded.** Reaching 9,606 needs
+  either the coronavirus S1 beta domain, which is receptor binding and not fusion, or ECOD's
+  unnamed families in the `MPER trimer` topology — a topology that carries HIV gp41 beside
+  bZIP transcription factors, GATA domains, syntaxin, fungal rhodopsin, mitochondrial carriers
+  and a phage fibritin trimerisation domain. Guessing which of those D-166 counted would be
+  inventing a denominator.
+  **The reference set is therefore 141 structures, not 166**, all 141 fetched from RCSB and cut to
+  ECOD's ranges without a single drop.
+- **Rejected:** Holding the recorded 166 — the capsid component of it demonstrably admits cellular
+  reference structures, and a false positive in the largest of the three folds is the costliest
+  error this detector can make. Re-deriving by regex over family names — D-166's finding 3 already
+  measured what that costs, and the comma-joined names found here are a second, independent reason.
+  Reconstructing D-166's exact lists by searching for combinations that reproduce 1,907 and 9,606 —
+  that fits a number rather than stating a rule, and the rule is the thing a reviewer checks.
+- **Consequence:** The three folds' membership rules are now in code, in an artefact, and
+  checkable against the registry by identifier, with the asymmetry D-166 identified preserved and
+  sharpened: the capsid fold borrows a curator's grouping **minus a correction of ours**, RdRp
+  borrows families and assembles them across topologies, and the fusion class is ours outright.
+  That last one remains the structural coverage gap A2.2's Done-when criterion asks to be
+  documented, and it is now also the fold whose denominator differs most from what D-166 recorded.
+  **Nothing in this entry looks at a corpus hit.** The threshold is D-170.
+### D-170 — A1.6's Done-when criteria are amended to the deliverable D-134 and D-150 left it, and the task goes to review
+- **Date:** 2026-10-18
+- **Task:** A1.6
+- **Context:** A1.6's code is entirely on `main` and no instance is running, but the task was
+  still `in-progress` and the project owner's reading was that it was finished. Checked against
+  its own Done-when, it was not, and the reason was not unfinished work: two of its four criteria
+  had stopped describing the task. "Both manifests exist in A1.4's format" was written when the
+  arm was a corpus-wide pass; D-134 replaced that with nested seed-sample bands reporting a rate
+  with an interval, and D-156 established that the charitable reading's seed set is not executable
+  from the published text at all, so there is no charitable manifest to produce and never will
+  be. "The comparison against the paper's reported 10.6M is written up" was overtaken by D-150:
+  no published denylist size can validate a corpus-level reconstruction, because every published
+  size counts a different object. Its "written up" also has nowhere to land — there is no Phase A
+  write-up in the repo; A6.1 owns it and the A3.3 gate holds it. So the criteria could neither be
+  met nor honestly waived, which is the state in which a task gets marked `done` with its own
+  conditions unmet.
+- **Decision:** The criteria are amended, in place, with the originals kept and struck beside
+  them. The deliverable is now stated as: the strict reading's rate on at least one band with its
+  interval, realised family count and design effect; every figure naming which reading it belongs
+  to per D-156; the charitable reading's non-executability recorded as a §A0 finding; the seed-set
+  construction pinned and checksummed; the absence of any valid published-size comparison recorded
+  as a §A0 finding; and a `run.json`. Against those, A1.6 is met and goes to `review`. Band 1's
+  reading labels are restated as the task's settled position in a closing block rather than left
+  in a mid-file note: the any-identity column is the strict reading proper (≥1.5473% to ≥4.0975%),
+  the 0.70 column is the strict seed set at the charitable threshold (0.6537% to 0.6844%) and is
+  a hybrid of none of D-015's three readings, and D-153's "charitable" label on that column is
+  withdrawn. The withdrawn ~4M validation sentence is struck in place rather than deleted, because
+  it was acted on and the correction is only legible against it. Bands 2 and 3 and the strata
+  sidecars stay unauthorised and are named as owner decisions, not as outstanding work.
+- **Rejected:** Moving A1.6 to `done` — `review` is the honest state, because the amendment is
+  itself a change a reviewer should see, and because the arm's reporting into the write-up is real
+  work that A6.1 owns rather than work that has happened. Leaving the criteria as written and
+  closing against them anyway — that is marking a task done with unmet conditions, and the
+  Definition of done exists to prevent exactly that. Leaving the criteria as written and the task
+  `in-progress` indefinitely — it reads as a fourth in-flight task on the board when nothing is
+  in flight, and it hides a finished measurement behind a stale specification. Deleting the
+  superseded criteria instead of striking them — the original specification is the record of what
+  this task was bought to produce, and the gap between that and what it produced is itself part of
+  the §A0 story. Rewriting the earlier state blocks to remove the withdrawn 4M claim, which an
+  earlier block instructed — it was acted on for days, and a file that shows no trace of a
+  withdrawn claim cannot explain why the correction exists.
+- **Consequence:** Phase A's ESM3 broad arm now has a reportable result with its interval, and two
+  §A0 findings that are results in their own right. **A6.1 inherits two hard constraints:** it must
+  take the reading labels verbatim and must not offer the ~4M as corroboration, in any hedged form.
+  The amendment is not a precedent for loosening criteria to fit an outcome: it is admissible here
+  only because D-134, D-150 and D-156 each changed the deliverable *before* this entry, for
+  recorded reasons, and each is cited. A criterion amended after results are seen and *without* such
+  a prior entry would be the thing the non-negotiables forbid. One thing this does not resolve: the
+  task reached `review` with its original criteria unmeetable for three days before anyone noticed,
+  because nothing checks Done-when against the decisions that supersede it — `board.py` validates
+  the graph, not the criteria.
+
+### D-171 — A2.2's threshold is 500 bits with brackets [400, 600] and 3Di+AA scoring, and the near-fold decoys are a finding in their own right
+- **Date:** 2026-10-18
+- **Task:** A2.2
+- **Numbering:** appended as D-170 and renumbered to D-171 before pushing — A1.6's D-170 landed
+  on `main` while this branch was running the calibration. Commit messages on branch
+  `ccr-7a87e8bd-9ow1h1` citing D-170 for A2.2's threshold mean this entry.
+- **Context:** D-167 fixed everything about A2.2's score except its value — corpus as query, the
+  141 pinned reference structures as target, coverage floor on the target at `--cov-mode 1 -c
+  0.5`, bit score rather than E-value — and deferred one option, `--alignment-type 0` (3Di only)
+  against foldseek's default 3Di+amino-acid scoring, "to the threshold calibration". Both are
+  settled here, from decoys, before any corpus hit was seen; `amazebio.repro` enforces the order.
+  **The decoy design, declared before the run.** A shuffled sequence is not a test here: three
+  shuffled reference domains returned no hit at all at `-e 1000` in the probe. The decoys that
+  matter are real proteins that *share the fold and are not viral* — and D-166 and D-169
+  enumerated precisely those while deciding what to exclude. Four classes, 400 queries each:
+  `near_fold_nonviral` (the excluded cellular capsid families and the host RNAi polymerases),
+  `unrelated_fold` (ECOD X-groups disjoint from the universe's), `shuffled` (the positives'
+  sequences shuffled at a pinned seed), and `positive` (held-out non-representative domains of
+  the fold families). A positive sharing a PDB entry with any reference structure was dropped —
+  393 of them — because the same deposition re-scored against itself measures nothing.
+  Every query took the corpus's own path: amino acids through ProstT5, then the search, so the
+  prediction error sits inside the threshold rather than outside it. 1,567 queries, 385,185
+  residues; 3Di predicted once in 1h39m on four cores and both modes searched against the same
+  query database. Target false-positive rate **1% on `near_fold_nonviral`**, declared in advance.
+- **Decision:** **Declared threshold 500 bits; brackets 400 and 600; alignment mode 3Di+AA.**
+  Realised at the declared cut: `near_fold_nonviral` 3/389 (0.8%), `unrelated_fold` 0/394,
+  `shuffled` 0/392, `positive` 242/392 (61.7%).
+  **The grid was extended upward once and the declared value did not move.** The rule — the
+  lowest grid value holding the target on the binding class — and the target were both fixed
+  beforehand. The first grid stopped at 500, which is where the rule's answer fell, so the value
+  had no upper neighbour and `metrics/survival.md` requires *two* bracketing values. Nothing was
+  inserted below 500, so the selection provably could not change: 400 gives 4/389 = 0.0103, which
+  misses 1%, and 500 gives 3/389 = 0.0077, which holds. This is the declared procedure being
+  completed, not a threshold re-picked after seeing results, and it is recorded rather than done
+  quietly.
+  **The mode choice was made after seeing the sweep, and is recorded as such.** D-167 deferred
+  the option without fixing a rule, so unlike the threshold this one was not pre-registered. The
+  rule applied: among modes whose declared threshold holds the target, take the higher
+  true-positive rate. 3Di+AA gives 61.7% against 3Di-only's 11.2% at the same cut and the same
+  false-positive target. The margin is a factor of five, so no defensible rule chooses otherwise.
+- **Rejected:** `--alignment-type 0`, despite being the more attractive option on independence
+  grounds — it scores 3Di alone, so it does not re-use the amino-acid signal A2.1 already
+  searches. At the declared cut it finds one fifth as many true fold members. On the probe it also
+  scored a shuffled decoy at 58 bits above a genuine domain at 17. Calibrating on shuffles alone,
+  which would have put the cut near 60 bits and left the near-fold false-positive rate at 60%.
+- **Consequence, and this is the substantive one:** **the near-fold non-viral decoys are detected
+  at a rate that no bit score separates from the true positives until most sensitivity is gone.**
+  At 100 bits they run at 56% while unrelated folds and shuffles are already at 0.8% — seventy
+  times apart — and the near-fold curve tracks the positive curve closely (0.56 against 0.79 at
+  100 bits, 0.51 against 0.78 at 140) before separating above 160. Holding them to 1% costs
+  sensitivity: 61.7% at the declared cut against 78.8% at 100 bits. **And it never reaches zero:
+  3 of 389 cellular near-fold proteins pass at 500 bits.**
+  That is the method working, not failing. Nucleoplasmin, peptide-N-glycanase and Cu(2+)
+  monooxygenase genuinely have the jelly-roll capsid fold. What the curve measures is that
+  *"carries this fold"* and *"is viral-derived"* are different claims, and this instrument cannot
+  fully separate them. Three things follow. It is the quantitative justification for D-169
+  excluding those families from the reference set. It is a stated limitation for the write-up,
+  not a parameter to tune — and a sharper one than §A2 anticipated for this route. And it means
+  the dominant false-positive source in the real pass will be cellular proteins carrying these
+  folds, which bacterial and metagenomic records do contain, rather than chance alignments.
+  **A second ceiling:** 13% of held-out true fold members never hit their own fold at all, even
+  at 20 bits. Predicted-3Di fold search misses them outright, which caps what any threshold here
+  can achieve and belongs beside the survival figures as a sensitivity bound.
+  **Two corrections to D-167**, both found by running the chain rather than trusting the note.
+  `convertalis` does **not** refuse against a ProstT5 database in the direction D-167 itself
+  chose — ProstT5 as query, structures as target — and reports every requested column; 34,822
+  rows in 3Di+AA and 71,689 in 3Di-only. The refusal D-167 recorded must have been with the
+  ProstT5 database as the *target*; read literally, that entry says this pipeline is impossible.
+  And foldseek silently disables `--sort-by-structure-bits` for want of C-alpha data, the same
+  shape of trap D-167 found with `--tmscore-threshold`. Harmless here because the calibration and
+  the real search share one geometry, but it means the reported `bits` is the plain alignment bit
+  score and not a structure-weighted one, which a reviewer comparing to published foldseek
+  figures needs to know.

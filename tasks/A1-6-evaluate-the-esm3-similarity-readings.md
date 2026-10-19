@@ -2,7 +2,7 @@
 id: A1.6
 title: Evaluate the ESM3 similarity readings against the proxy corpus
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
@@ -57,11 +57,32 @@ the threshold is unpublished, which needs no compute, so A1.4 ships it.
 
 ## Done when
 
-- Both manifests exist in A1.4's format, reproducible from pinned inputs and seeds.
+**Amended 2026-10-18 by D-170.** The original four criteria are kept below, struck, because two
+of them specified a deliverable this task no longer has: D-134 replaced the corpus-wide passes
+with nested seed-sample bands reporting a rate with an interval, and D-150 established that no
+published denylist size can validate the reconstruction. Criteria that no longer describe the
+deliverable cannot be "demonstrably met", and leaving them in place is how a task gets closed
+with its own conditions unmet. The reasoning, and the alternatives rejected, are in D-170.
+
+- The strict reading's rate is measured on at least one band, with its interval, its realised
+  family count and its design effect, from pinned inputs and seeds.
+- Each reported figure names **which reading it belongs to**, per D-156: the any-identity column
+  is the strict reading proper, and the 0.70 column is the strict seed set at the charitable
+  threshold — a hybrid that is none of the three readings D-015 fixed, and labelled as one.
+- The charitable reading's non-executability is recorded as a §A0 finding, not as a gap to close:
+  clause (b) carries no number in the source and D-015 declined to invent one.
 - Seed-set construction is pinned, checksummed and recorded as a reading.
-- The comparison against the paper's reported 10.6M is written up, with the proxy qualifier
-  A1.1 requires on every ESM3 result.
+- The absence of any valid published-size comparison is recorded as a §A0 finding (D-150), with
+  the proxy qualifier A1.1 requires on every ESM3 result.
 - A `run.json` manifest pins inputs, outputs, parameters, aligner version and seed.
+
+Original, superseded:
+
+- ~~Both manifests exist in A1.4's format, reproducible from pinned inputs and seeds.~~
+- ~~Seed-set construction is pinned, checksummed and recorded as a reading.~~ (retained above)
+- ~~The comparison against the paper's reported 10.6M is written up, with the proxy qualifier
+  A1.1 requires on every ESM3 result.~~
+- ~~A `run.json` manifest pins inputs, outputs, parameters, aligner version and seed.~~ (retained)
 
 ## Before starting, re-ask the cost question
 
@@ -98,11 +119,16 @@ $10, before the full pass is authorised.
 **Left.** The in-region calibration launcher and run; the select-agent seed set; the charitable
 and strict passes once the calibration prices them; the comparison against the stated 4M.
 
-**Two things the next worker should not rediscover.** The seed-set reconstruction has a
+**Two things the next worker should not rediscover.** ~~The seed-set reconstruction has a
 validation target that works — ESM3 states the viral denylist is roughly 4M sequences — which is
 worth having because D-032 established the reported 10.6M removals cannot validate a
-reconstruction. And a bounded run cannot estimate the viral share of a tier: UniRef is ordered by
-accession, so a prefix is not a sample, and only the full-tier pass produces a seed count.
+reconstruction.~~ And a bounded run cannot estimate the viral share of a tier: UniRef is ordered
+by accession, so a prefix is not a sample, and only the full-tier pass produces a seed count.
+
+*The struck sentence is wrong and is the one D-150 withdrew: the ~4M counts UniProt sequences and
+this arm counts UniRef100 clusters, so the closeness is a coincidence of scale. It is struck
+rather than deleted because it was acted on, and the correction below is only legible against it.
+**No published denylist size can validate either arm's reconstruction.***
 
 **Update 2026-10-16.** The first in-region run finished its corpus pass and lost its searches.
 The seed set is measured — 3,159,223 viral-seeded clusters out of 350,950,053, the latter matching
@@ -1035,3 +1061,59 @@ sidecars force), and roughly $0.12 of egress for the join inputs. Under $1.20 in
 
 **A1.6's exposure work is done.** What remains on the task is unchanged by it: the arm's own
 reporting into the Phase A write-up.
+
+## Closed to review — 2026-10-18 (D-170)
+
+`review`. Nothing is on a branch: `ccr-81045ff3-7u9p0a` and `ccr-ff660039-p1xxuf` are both
+ancestors of `main`. No instance is running. The Done-when criteria above were amended by D-170
+to describe what this task produces; this block states the settled position, so a reader does not
+have to reconstruct it from twelve state blocks.
+
+**What the arm measured.** The strict reading's rate on band 1 — one of D-134's three bands,
+nine groups over shard 0's 1,097,174 records from 31,381 seeds (1/100) — plus the clause-(b)
+exposure measurement from the staged UniRef90 and UniRef50 tiers (D-158, D-160). Band 1
+regenerates from pinned inputs: the D-160 re-run reproduced every completed cell to four decimal
+places on rate and both confidence bounds.
+
+**What each figure is, by reading.** This is D-156's correction and it is the thing most likely to
+be misquoted:
+
+- **any-identity: ≥1.5473% to ≥4.0975%** across our settings. This is the **strict reading
+  proper**, since strict removes on any detected hit, and these are clean lower bounds — the only
+  sampling error on that reading is the 1/100 seed sample.
+- **0.70: 0.6537% to 0.6844%**, remarkably flat across settings. This is the **strict seed set at
+  the charitable reading's threshold** — a hybrid that is none of the three readings D-015 fixed.
+  D-153 labelled this column "charitable"; that label is wrong and must not be reused.
+- **The charitable reading's own seed set was never executed, and cannot be**, because clause (b)
+  ("align almost exclusively to other viral sequences") carries no number in the published text.
+  That is a §A0 finding to report, not a gap to close. Do not implement clause (b) unless the
+  project owner asks for it as a fourth reading with its own entry.
+
+**Two §A0 findings this arm produces, which are results rather than shortfalls.** The charitable
+reading is not executable from the published text. And no published denylist size can validate any
+corpus-level reconstruction, on either arm, because every published size counts a different object
+(D-150) — the ~4M counts UniProt sequences, this arm counts UniRef100 clusters, and A1.8's
+UniProtKB execution of the stated method got 140,591 against a published 187K.
+
+**What this is not.** 0.3125% of the corpus, UniRef100 only, 1% of the seeds, MGnify90 unscored.
+Not validated against any published size. Not a bound in a known direction (D-154 as corrected by
+D-156). And not a statement about *what* the matched records are — band 1 measures that they
+align, not whether they are viral material or host protein that resembles it. That is A2.* and
+B3.*'s question.
+
+**Deliberately not run, and needing the owner rather than a worker.** Bands 2 and 3 are
+unauthorised. Band 2's remaining value is the seed axis alone — how far the bound rises as the
+seed sample deepens, which is the only available evidence about the gap to a full-seed rate. The
+strata sidecars are unstaged (~$0.20, one launch); staging them would save every later band and
+A1.8 a 52.5-minute corpus pass each. Neither is a blocker on `review`; both are cheap and both
+need a decision rather than a judgement call.
+
+**Before band 2, if it is ever authorised:** a per-cell heartbeat. Band 1's longest cell was a
+95-minute silence in which a live run and a dead one are indistinguishable from outside —
+survivable because the cell is the unit, and dangerous at band 2's ~15.8-hour cells.
+
+**What is left, and it is not this task's.** The arm's reporting into the Phase A write-up, which
+A6.1 owns and the A3.3 gate holds. There is no write-up file in the repo, so the earlier blocks'
+instructions to "strike it from the write-up" have nowhere to land and are carried here instead:
+**A6.1 must take the reading labels above verbatim, and must not offer the ~4M as
+corroboration.**
