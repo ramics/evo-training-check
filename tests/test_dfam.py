@@ -11,7 +11,8 @@ import pytest
 
 from amazebio.dfam import (
     ERV_SUBTYPES,
-    EXPECTED_ERV_MODELS,
+    EXPECTED_ERV_IN_CLASS,
+    EXPECTED_ERV_SEARCHABLE,
     EXPECTED_LTR_MODELS,
     EXPECTED_WITHOUT_THRESHOLD,
     FILES,
@@ -156,15 +157,24 @@ def test_a_final_model_with_no_terminator_is_still_yielded():
 # --- the universe --------------------------------------------------------------------------
 
 
-def synthetic_export(*, ltr: int, erv: int, no_threshold: int) -> list[str]:
-    """An export with a controlled universe, plus non-LTR families that must be ignored."""
+def synthetic_export(
+    *, ltr: int, erv: int, no_threshold: int, unthresholded_are_erv: int | None = None
+) -> list[str]:
+    """An export with a controlled universe, plus non-LTR families that must be ignored.
+
+    `unthresholded_are_erv` says how many of the unthresholded families carry an ERV subtype, so
+    a test can separate the two ERV counts. Defaults to all of them, which is the arrangement
+    that makes a careless ERV count inflate the headline.
+    """
+    erv_without = no_threshold if unthresholded_are_erv is None else unthresholded_are_erv
     blocks = []
     for i in range(erv):
         blocks.append(model(f"E{i}#LTR/ERVK", f"DF{i:09d}.1"))
     for i in range(erv, ltr - no_threshold):
         blocks.append(model(f"G{i}#LTR/Gypsy", f"DF{i:09d}.1"))
     for i in range(ltr - no_threshold, ltr):
-        blocks.append(model(f"N{i}#LTR/ERV1", f"DF{i:09d}.1", ga=None))
+        subtype = "ERV1" if i - (ltr - no_threshold) < erv_without else "Gypsy"
+        blocks.append(model(f"N{i}#LTR/{subtype}", f"DF{i:09d}.1", ga=None))
     for i in range(5):
         blocks.append(model(f"D{i}#DNA/hAT-Ac", f"DF{900000 + i:09d}.1"))
     return "".join(blocks).splitlines(keepends=True)
@@ -212,16 +222,30 @@ def test_a_changed_denominator_stops_the_run():
         universe(models, strict=True)
 
 
-def test_the_strict_check_passes_on_the_counts_d183_measured():
+def test_the_strict_check_passes_on_the_measured_counts():
     models = list(
         iter_models(
             synthetic_export(
                 ltr=EXPECTED_LTR_MODELS,
-                erv=EXPECTED_ERV_MODELS,
+                erv=EXPECTED_ERV_SEARCHABLE,
                 no_threshold=EXPECTED_WITHOUT_THRESHOLD,
+                unthresholded_are_erv=EXPECTED_ERV_IN_CLASS - EXPECTED_ERV_SEARCHABLE,
             )
         )
     )
     result = universe(models, strict=True)
     assert result["ltr_models"] == EXPECTED_LTR_MODELS
     assert result["excluded_no_threshold"] == EXPECTED_WITHOUT_THRESHOLD
+    assert result["erv_models"] == EXPECTED_ERV_SEARCHABLE
+    assert result["erv_models_in_class"] == EXPECTED_ERV_IN_CLASS
+
+
+def test_the_two_erv_counts_are_reported_separately():
+    """Reporting only the in-class figure would overstate what was searched (D-185)."""
+    models = list(
+        iter_models(synthetic_export(ltr=100, erv=60, no_threshold=10, unthresholded_are_erv=4))
+    )
+    result = universe(models, strict=False)
+    assert result["erv_models"] == 60
+    assert result["erv_models_in_class"] == 64
+    assert result["erv_excluded_no_threshold"] == 4

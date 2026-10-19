@@ -116,8 +116,16 @@ ERV_SUBTYPES = frozenset({"ERV", "ERV1", "ERVK", "ERVL", "ERVL-MaLR", "ERV-Foamy
 #: What the counts above were measured on, so a re-export that disagrees is visible rather than
 #: quietly becoming the new denominator. Checked by `universe`.
 EXPECTED_LTR_MODELS = 8593
-EXPECTED_ERV_MODELS = 5565
 EXPECTED_WITHOUT_THRESHOLD = 762
+
+#: The ERV subtypes' two counts, which are **not** the same number and must not be conflated.
+#: `IN_CLASS` is how many ERV-subtype models the class holds; `SEARCHABLE` is how many of those
+#: carry a curated threshold and are therefore actually searched. D-183 recorded only the first
+#: and called it the arm's headline, which D-185 corrects: 145 ERV-subtype models have no general
+#: GA cutoff, so the searched universe is the smaller figure. Both are reported, because the
+#: difference between them is the arm's blind spot restricted to the families it cares about.
+EXPECTED_ERV_IN_CLASS = 5565
+EXPECTED_ERV_SEARCHABLE = 5420
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -247,6 +255,7 @@ def universe(models: Iterable[FamilyModel], *, strict: bool = True) -> dict[str,
     ltr = [m for m in models if m.type == LTR_TYPE]
     searchable = [m for m in ltr if m.threshold is not None]
     excluded = [m for m in ltr if m.threshold is None]
+    erv_in_class = [m for m in ltr if m.is_erv]
     erv = [m for m in searchable if m.is_erv]
 
     composition: dict[str, int] = {}
@@ -261,6 +270,16 @@ def universe(models: Iterable[FamilyModel], *, strict: bool = True) -> dict[str,
             problems.append(
                 f"{len(excluded)} without a general threshold, D-183 measured "
                 f"{EXPECTED_WITHOUT_THRESHOLD}"
+            )
+        if len(erv_in_class) != EXPECTED_ERV_IN_CLASS:
+            problems.append(
+                f"{len(erv_in_class)} ERV-subtype models in the class, D-183 measured "
+                f"{EXPECTED_ERV_IN_CLASS}"
+            )
+        if len(erv) != EXPECTED_ERV_SEARCHABLE:
+            problems.append(
+                f"{len(erv)} searchable ERV-subtype models, D-185 measured "
+                f"{EXPECTED_ERV_SEARCHABLE}"
             )
         if problems:
             raise DfamError(
@@ -278,7 +297,12 @@ def universe(models: Iterable[FamilyModel], *, strict: bool = True) -> dict[str,
         "decision_ref": "D-183",
         "ltr_models": len(ltr),
         "searchable": len(searchable),
+        # Two ERV counts, never one. `erv_models` is what is searched; `erv_models_in_class` is
+        # what the class holds. Their difference is the blind spot restricted to the families the
+        # arm cares about, and reporting only the larger one would overstate the search (D-185).
         "erv_models": len(erv),
+        "erv_models_in_class": len(erv_in_class),
+        "erv_excluded_no_threshold": len(erv_in_class) - len(erv),
         "excluded_no_threshold": len(excluded),
         "excluded_accessions": sorted(m.accession for m in excluded),
         "composition": dict(sorted(composition.items(), key=lambda kv: (-kv[1], kv[0]))),
