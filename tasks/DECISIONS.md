@@ -8011,3 +8011,102 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `retained_by_design` under the strict one — structurally the same situation as GTDB, which is
   why A2.4's route handling transfers. The instruments, their thresholds and the false-positive
   modes are a separate pre-registration, taken before anything is searched.
+
+### D-183 — A2.3's retroelement arm: registry, selection rule and threshold, fixed before anything is searched
+- **Date:** 2026-10-19
+- **Task:** A2.3
+- **Context:** D-182 settled what A2.3 searches. This settles what it searches *with*, and it is
+  written before a single genome has been read, because `AGENTS.md` requires thresholds and
+  analysis specs to be fixed before results are inspected.
+  §A2 names two instrument classes for host genomes: Dfam/RepeatMasker and LTR finders for the
+  retroelement route, and a separate search for the non-retroviral route. This entry covers the
+  **retroelement arm only**. The other arm needs a different registry with a different authority
+  and a different denominator rule, and bundling an arm whose cost and universe have not been
+  measured into a pre-registration would make this one weaker rather than the other one stronger.
+  It gets its own entry when it is built.
+  Four things were measured first, and each changed the design that preceded it.
+  **The registry does not ship as a profile library.** Dfam is a partitioned HDF5 database, so
+  the profiles have to be exported from it. The reader is `famdb`, and the pairing is the
+  publisher's own: Dfam 4.0's `FamDB/README.txt` states "This new format is compatible with FamDB
+  tool v3.0.0, and RepeatMasker 4.2.4." The previous release's files are format 2.0.0 and
+  `famdb` 3.0.0 refuses them outright — confirmed by trying it — so the tool and the release are
+  one pin, on D-112's principle that an attested pairing is what a pin needs.
+  **RepeatMasker is not needed and was dropped.** Dfam's profiles are nucleotide HMMs, and
+  `pyhmmer.hmmer.nhmmer` — already pinned for A2.1 — searches them directly against genomic DNA.
+  That matters for more than dependency hygiene: it means no gene calling and no six-frame
+  translation, which is the right instrument for a degraded, pseudogenised relic that no gene
+  caller will call. It also avoids a second search engine with its own thresholds and its own
+  cost model. The conda package was checked and ships **no** repeat library — 25 MB of annotation
+  data and no database — so it would not have saved the export step either.
+  **The curated component is 30,621 families and the uncurated one is two orders of magnitude
+  larger.** Measured from the pinned release: curated HMMs are 688 (root) + 29,933 (Bilateria),
+  about 2.1 GB compressed, while the uncurated HMM partitions run to 10-18 GB *each* across more
+  than a hundred partitions.
+  **Dfam's own thresholds do not cover every family, and the gap is measurable.** Of the 8,593
+  curated LTR-class models in the Bilateria partition, **7,831 (91.1%) carry a general GA/TC/NC
+  threshold and 762 (8.9%) do not**. Most families instead carry per-species `TH` lines — 1,448
+  of them across the 688 root families alone — which is a better threshold for one named species
+  and unusable as a fixed universe, because a per-species cut makes the denominator change from
+  genome to genome.
+- **Decision:** **Registry.** Dfam **4.0** (release date 2026-05-22), the **curated HMM**
+  component only: `dfam40.0.h5` (the required root metadata), `dfam40.curated.hmm.0.h5` (root,
+  688 families) and `dfam40.curated.hmm.1.h5` (Bilateria, 29,933 families), each pinned by the
+  md5 the publisher serves beside it and verified on acquisition.
+  **Selection rule.** The registry universe is the curated families whose Dfam Type is `LTR`,
+  and the arm's headline is the **ERV subtypes** within it: `ERV1`, `ERVK`, `ERVL`, `ERVL-MaLR`,
+  `ERV` and `ERV-Foamy` — **5,565 of the 8,593** LTR-class Bilateria models, counted before any
+  search. The remaining LTR subtypes (`Gypsy` 2,041, `Pao` 567, `Copia` 97, `Ngaro` 38, `DIRS`
+  29, and 256 classified `LTR` with no subtype) are **retained in the universe and reported as
+  their own rows**, never merged into the ERV count: they are LTR retrotransposons rather than
+  integrated retroviruses, so a figure that pooled them would overstate the viral-derived
+  fraction. The selection runs in this project's own tested code against the class string the
+  export carries, not through the reader's `--class` flag, for the reason D-075 derived Pfam's
+  viral subset here rather than trusting a label and D-166 re-derived A2.2's fold universe.
+  **Threshold.** Dfam's **own general GA cutoff, per model**, exactly as A2.1 took Pfam's own
+  per-model gathering cutoffs under D-076 rather than an E-value this project picked. A family
+  with no general GA is **excluded from the universe and reported as excluded, by accession**,
+  rather than given a threshold this project invented: 762 models, 8.9% of the LTR class, and
+  that number is this arm's declared sensitivity blind spot in the same way D-083 is A2.1's.
+  **Element kind and route.** Every detection on this arm is `ENDOGENOUS_RETROELEMENT`, assigned
+  from the instrument rather than from the component — which is the one place A2.3 differs from
+  D-079's rule, and legitimately: D-079 says a *profile* hit cannot distinguish element kinds and
+  leaves the stronger claim to "A2.3 (EVEs) and A2.4 (prophage)", so making that claim is this
+  task's deliverable rather than an inference it is forbidden. Route comes from
+  `amazebio.apply.route_for` as for every other detector, and on this component it is
+  `out_of_scope` under the literal and charitable readings and `retained_by_design` under the
+  strict one (D-016, D-182).
+  **Depth is not fixed here, and deliberately.** The cost of one genome against this registry has
+  not been measured, and D-117 and D-149 between them establish that the measured rate came in
+  2.74x off a single-genome extrapolation while D-098 found an *assumed* rate wrong by thirty
+  times. "A cost assumed is a design decision taken by accident." So depth is pre-registered in
+  a separate entry, after calibration on real assemblies and before any hit is inspected.
+- **Rejected:** **The uncurated component.** It is where most of Dfam's families are, and taking
+  it would raise sensitivity. Declined on three grounds: its partitions are 10-18 GB each against
+  a 29 GB working disk; its families are de novo products with no curated thresholds, so the
+  threshold policy above would have nothing to read; and a de novo family is not an independent
+  authority on what a retroelement is, which is what the registry is here to supply. The
+  consequence is a lower bound, which is the direction D-115 requires.
+  **A threshold of this project's own choosing for the 762 models without one.** Any value would
+  be invented, and an invented cut on 8.9% of the universe would be indistinguishable in the
+  output from a curated one. Excluding them and naming them keeps the gap visible and keeps every
+  reported hit attributable to the publisher's own cutoff.
+  **Per-species `TH` thresholds.** More sensitive for a named species, and the export can extract
+  them. Declined because the sample spans thousands of species, so the universe would differ per
+  genome and `metrics/detections.md`'s one-universe-per-registry rule would be broken — the
+  denominator would stop meaning the same thing between two rows of the same table.
+  **RepeatMasker, and LTR finders.** RepeatMasker for the reasons above. Structural LTR finders
+  are the other instrument §A2 names, and they are genuinely independent — they detect by
+  structure rather than by homology — but they return candidate elements with no family identity,
+  so they cannot produce the per-family table `metrics/detections.md` specifies and A3.2 merges.
+  They are the natural second instrument for a concordance check of the kind D-114 fixed for
+  A2.4, which A2.3's Done-when does not require; recorded here as the obvious extension rather
+  than silently dropped.
+- **Consequence:** The retroelement arm's universe, threshold and element kind are fixed and
+  countable before any genome is read, and the two numbers a reader needs to judge its
+  sensitivity — 5,565 ERV-subtype models searched, 762 LTR-class models excluded for want of a
+  curated threshold — are already on the record. The figures this arm produces will be lower
+  bounds for three compounding reasons, all declared in advance: a sampled corpus (D-182), the
+  curated component only, and the excluded 8.9%.
+  What is still open and is this task's next step: the cost of one assembly against this
+  registry, and therefore the depth. Nothing else about the arm moves after calibration — that is
+  what makes the calibration safe to run and look at.
