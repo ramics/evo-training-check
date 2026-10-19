@@ -7694,3 +7694,52 @@ decision has a threshold or parameter in it, the number goes in the entry.
   flagged as the weakest of the three. That is a second, independent reason to treat that fold's
   rows cautiously, and it is a reason the decoy calibration could not have surfaced, since the
   calibration's queries were ECOD domains rather than full-length corpus proteins.
+
+### D-178 — A1.8's figures carry intervals that include zero, so the count and the rate become separate claims
+- **Date:** 2026-10-19
+- **Task:** A1.8
+- **Context.** The band artefact's interval was computed over any-identity hits while the
+  figure being quoted was the ≥0.70 band — different sets of records, so the headline had no
+  uncertainty attached at all, in breach of the non-negotiable that uncertainty travels with
+  the estimate. The per-family hit counts restricted to a threshold had never been recorded,
+  so this needed a fourth pass over shard 0 rather than a recomputation (`a9e369a`,
+  `corpora/results/a1-8/band-select-agent-intervals.json`, all six cells, nine groups).
+- **The measurement.** Over 1,097,174 records and **34 seed families**:
+
+  | reading | ≥0.70 | 95% CI | design effect | exact 1.00 | 95% CI |
+  |---|---|---|---|---|---|
+  | mode 0 | 0.8362% | 0.2978% – 1.3747% | 999 | 0.01048% | 0 – 0.02486% |
+  | mode 1 | 0.9135% | 0.3526% – 1.4745% | 993 | 0.01130% | 0 – 0.02606% |
+  | mode 2 | 0.9086% | 0.3488% – 1.4685% | 994 | 0.01167% | 0 – 0.02762% |
+
+  Identical across all three sensitivities, as every other figure in this band has been.
+- **A design effect near 1,000 is the finding, not an inconvenience.** The honest interval is
+  about 31 times the binomial one. Matches are clumped into so few families that 1,097,174
+  searched records buy an effective sample of a few dozen. D-104 raised exactly this as the
+  objection to sampling and D-140 chose the family as the sampling unit because of it; this
+  is what that choice costs when the denylist names 53 taxa collapsing to 34 families.
+- **Decision: the count and the rate are separate claims and are written separately.**
+  - **The count is an observation.** 115 to 128 records in this shard match select-agent seed
+    material at identity 1.00. They were found and counted; no inference is involved, and the
+    interval does not bear on it. This may be stated.
+  - **The rate is an estimate whose interval includes zero.** 0.0105% to 0.0117% with a lower
+    bound of 0 at 95%. Generalising it to the corpus is **not supported**, and no sentence
+    may imply the exact-match rate is reliably above zero.
+
+  So "material identical to sequences from organisms on the list is present in the sampled
+  corpus, and we counted it" is supportable; "the corpus contains exact matches at a rate of
+  0.011%" is not. The ≥0.70 figure is better placed — its interval excludes zero — but it
+  spans a factor of 4.9 and must always be quoted with it, never as "about 0.9%".
+- **What would and would not narrow these.** More shards add corpus and not families, so they
+  would barely move the intervals: the variance is between families, and shard 0 already
+  contains all 34. **A wider seed band is the only thing that helps**, because it adds seeds
+  and therefore families. Band 2 at 1/10 would draw roughly ten times the seeds; whether that
+  multiplies families is an empirical question this band cannot answer, since the 34 come from
+  53 named taxa and the ceiling may be near. **Nobody should buy more shards expecting a
+  tighter interval.**
+- **Rejected:** Quoting the point estimate with the interval in a footnote — an interval that
+  includes zero is not a footnote to its estimate, it is the main thing known about it.
+  Reporting the binomial interval, which is 31 times narrower and would be false precision of
+  exactly the kind D-104 warned of. Dropping the exact-match result because its rate is not
+  significant — the count is an observation and remains the sharpest thing this arm has, since
+  it needs no threshold argument (D-107's unpublished threshold does not touch identity 1.00).

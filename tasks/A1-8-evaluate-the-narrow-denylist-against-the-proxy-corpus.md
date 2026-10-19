@@ -480,3 +480,32 @@ restricted to the band is still owed before any figure is quoted.
 
 `FINE_TOP_EDGES` is reported alongside the frozen `IDENTITY_BAND_EDGES` and does not change
 them; `metrics/survival.md` is untouched.
+
+## Intervals — 2026-10-19
+
+The owed interval work is done (**D-178**). Artefact
+`corpora/results/a1-8/band-select-agent-intervals.json`, commit `a9e369a`, six cells, nine
+groups, shard 0, band 1/100. Every earlier figure reproduced exactly for the third time.
+
+| reading | ≥0.70 | 95% CI | deff | exact 1.00 | 95% CI |
+|---|---|---|---|---|---|
+| mode 0 | 0.8362% | 0.2978 – 1.3747% | 999 | 0.01048% | 0 – 0.02486% |
+| mode 1 | 0.9135% | 0.3526 – 1.4745% | 993 | 0.01130% | 0 – 0.02606% |
+| mode 2 | 0.9086% | 0.3488 – 1.4685% | 994 | 0.01167% | 0 – 0.02762% |
+
+**The exact-match interval includes zero**, so D-178 splits the claim: the *count* of 115-128
+records at identity 1.00 is an observation and stands; the *rate* may not be generalised to
+the corpus. The ≥0.70 interval excludes zero but spans a factor of 4.9 and may never be
+quoted as "about 0.9%" without it.
+
+**Do not buy more shards expecting tighter intervals.** The variance is between families and
+shard 0 already holds all 34; more corpus adds records, not families. Only a wider seed band
+adds families, and whether it adds many is unknown — 34 come from 53 named taxa.
+
+**Every Done-when criterion is now met except the two that were never this task's to close.**
+The seed set is pinned, checksummed and reconciled at the release ESM3 names (D-157); the
+sample is scored with the saturation guard checked; the result ships as rates with intervals
+and a realised family count; the per-record manifest and the no-all-clear statement are in
+place; `run.json` manifests pin every pass. What remains is the comparison with A1.6's band,
+which needs an argument about relative denylist breadth rather than a subtraction, and the
+disclosure-package question of which specific records were in ESM3's denylist.
