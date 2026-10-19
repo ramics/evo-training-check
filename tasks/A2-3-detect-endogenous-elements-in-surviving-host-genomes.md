@@ -2,7 +2,7 @@
 id: A2.3
 title: Detect endogenous elements in surviving host genomes
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
@@ -18,75 +18,100 @@ owner: claude
 **Branch:** `claude/fervent-hopper-8ht0h3`, pushed. Project management on `main` as usual.
 
 **Pre-registered before anything was searched:** D-182 (substrate and staging tier), D-183
-(registry, selection rule, threshold). D-184 records the measured denominator.
+(registry, selection rule, threshold), D-186 (instrument and depth). D-184 records the measured
+denominator and D-185 corrects D-183's headline count.
 
-### What is settled
+### The result — 0.25% of Evo 2's eukaryotic component
 
-**A2.3 is a one-release task.** Evo 1's release exposes no eukaryotic genomes at all
-(D-018, D-019), so its manifests are `not_searched` *by construction* — and for a different
-reason than A2.2's, which had a component and did not buy it. The per-source reason strings
-carry that difference rather than leaving it in the log.
+| release | component | assemblies | sequence | families detected | of universe | 95% CI |
+|---|---|---|---|---|---|---|
+| `opengenome2` | `ncbi_eukaryotic_genomes` | 33 of 15,044 | 12,339 Mb | **1,294** | 5,420 | 0.228 - 0.250 |
+| `opengenome` | — | — | — | `not_searched` | — | — |
 
-**The blocker D-031 left is cleared.** The target component was unstaged, 2.17 TB, against a
-bucket with no delete. Put to the project owner with three costed options; **the owner chose a
-hash-sampled set of whole assemblies** (D-182). Sampling is by assembly accession at the
-project's existing seed, so the band is nested and depth can be bought later without re-staging.
+**1,706 detections, every one `endogenous_retroelement`, `estimate_kind: lower_bound`.** 25 of
+the 33 assemblies carry at least one, from 373,928 raw alignments collapsed to one detection per
+family per genome (D-136). 60 minutes of search on 4 cores.
 
-**The component is measured, for the first time in this project** (D-184). 90 of 90 tars,
-**15,044 assemblies**, 2,174,531,002,595 bytes, no duplicated accession, byte total agreeing
-with the pinned tree exactly. That is a third number for this component: the developers state
-16,704 downloaded from NCBI and D-007 records 15,148 after deduplication, so the release carries
-**104 fewer genomes than its own stated deduplicated count** — stated-versus-delivered, not a
-staging gap, and not reconcilable from the published text.
+**Route is the finding, and it is the same shape A2.4 found.** Every detection is `out_of_scope`
+under the literal and charitable readings and `retained_by_design` under the strict one, **with
+identical counts** — the figures do not move between readings, only the reason the sequence is
+still in the corpus. D-016 withdrew the only rule that could have reached these genomes, so no
+rule was broken because no rule applied. D-007's headline route as measurement.
 
-**The 1% band is 167 assemblies, 16,782,960,377 bytes** — 0.77% by bytes rather than 1%, because
-assemblies run from 2,030 bytes to a single compressed member of 28.9 GB. Inside what the owner
-approved.
+**Evo 1's tables are `not_searched` by construction**, and for a different reason from A2.2's:
+that release exposes no eukaryotic genome component at all, where A2.2's existed and was not
+bought. The per-source row carries `present_in_release: false` so the two cannot collapse.
 
-**The instruments are pinned and the arm is pre-registered** (D-183). Dfam 4.0's curated HMM
-component, at the reader version the publisher's own README attests; the universe is the
-curated LTR class, **8,593 models**, of which **5,565** are the ERV subtypes that are the arm's
-headline and **762 (8.9%)** are excluded for carrying no curated threshold and named by
-accession. The threshold is Dfam's own per-model general cutoff, as A2.1 took Pfam's under
-D-076. RepeatMasker was dropped: these are nucleotide profiles, so the already-pinned `pyhmmer`
-searches them directly against genomic DNA — no gene calling, no six-frame translation, which is
-the right instrument for a degraded relic no gene caller will call.
+### What this task established along the way
 
-### Landed on the branch
+**The component had never been counted.** 90 of 90 tars, **15,044 assemblies**,
+2,174,531,002,595 bytes, no duplicated accession, byte total agreeing with the pinned tree
+exactly. That is a third figure for it: the developers state 16,704 downloaded from NCBI and
+D-007 records 15,148 after deduplication, so the release ships **104 fewer genomes than its own
+stated deduplicated count** — stated-versus-delivered, not a staging gap, and not reconcilable
+from the published text (D-184).
 
-- `src/amazebio/eukaryotes.py` — the tar-header walker and the member fetch. The walker transfers
-  512 bytes per assembly instead of the assembly, which is what makes a sampled stage of an
-  unstaged 2.17 TB component possible; the fetch verifies each member against its own gzip CRC,
-  which is the only integrity check available because the publisher digests whole tars.
-- `src/amazebio/dfam.py` — the pinned release, the selection rule, the threshold policy.
-- `tools/index_eukaryotes.py` — the index pass, run complete.
-- `tests/test_eukaryotes.py`, `tests/test_dfam.py` — 44 tests. `pixi run -e dev check` green.
-- `pixi.toml` / `pixi.lock` — `famdb` 3.0.0 in its own environment, used once for the export.
-- Artefacts in `artifacts/a2-3/`: `assembly-index.json`, `component-summary.json`,
-  `run-index.json`.
+**The blocker D-031 left for this task is cleared.** The component was unstaged, 2.17 TB,
+against a bucket with no delete. Put to the project owner costed; the owner chose a hash-sampled
+set of whole assemblies (D-182). The band is fetched to ephemeral scratch and **nothing was
+staged**, so the permanent spend D-031 was protecting against was not incurred at all.
 
-### What is left
+**A tar is addressable without being read.** The index walks each archive's header chain at 512
+bytes per assembly, which is what makes a sampled pass over an unstaged 2.17 TB component
+possible — about 8 MB of transfer for the whole index. Four of the 90 tars carry a member above
+the octal size field's 8 GiB ceiling, the largest 10,808,659,176 bytes, and the strict parse
+raised on it rather than mis-reading it.
 
-1. **Calibrate** the per-assembly cost of the retroelement arm against the pinned registry, on
-   real assemblies. Deliberately not assumed: D-098, D-117 and D-149 are three separate records
-   of what assuming this costs, and D-149 came in 2.74x off a single-genome extrapolation.
-2. **Pre-register the depth** from that measurement, then stage the band and run. Staging is
-   irreversible, so calibration comes first.
-3. **The non-retroviral arm.** §A2 names it separately and it needs its own registry, denominator
-   rule and threshold. D-183 covers the retroelement arm only, on purpose — bundling an arm whose
-   universe and cost are unmeasured would weaken the pre-registration rather than strengthen it.
-4. **Document the false-positive modes**, which is the third Done-when criterion and is not
-   satisfied by either arm running.
+**The instrument changed on a measurement.** D-183 pinned profile search; calibration measured
+4.962e-4 core-seconds per model-residue-megabase, putting the full registry over the 1% band at
+48,040 core-hours. **The first projection reported to the owner was ten times worse than that
+and wrong**, and the calibration's own linearity check is what exposed it — cost does not scale
+with model count, and the timed models were the longest in the library. D-186 switched the arm to
+a seeded aligner over each model's own consensus, which needed no new acquisition and no new
+tool, and the 0.25% band then cost an hour.
 
-Two things worth knowing before picking this up. A structural LTR finder is the natural second
-instrument for a concordance check of the kind D-114 fixed for A2.4; this task's Done-when does
-not require one, and D-183 records it as the obvious extension rather than dropping it silently.
-And `element_kind` here is assigned from the instrument rather than from the component, which is
-the one place A2.3 departs from D-079 — legitimately, since D-079 leaves exactly this claim to
-A2.3 and A2.4.
+### Done-when
 
-**Waiting on the project owner:** nothing. The staging question was the one that needed an
-answer and it has one.
+- *Hit tables exist with route attribution.* Six tables at `artifacts/a2-3/`, routes from
+  `amazebio.apply.route_for`, element kinds assigned from the instrument.
+- *Tool versions and parameters pinned and recorded.* Dfam 4.0 by publisher digest at the reader
+  version its own README attests; the acceptance rule fixed before any hit was seen; a run
+  manifest per invocation.
+- *Known false-positive modes documented.* `metrics/eve-detection.md` — seven modes, ordered by
+  how much each could move a figure.
+
+**Results regenerate.** 1,294 families, 1,706 detections and 12,339 Mb reproduced identically
+across **three** separately launched runs, and every run's positive control returned 5,420 of
+5,420 families finding themselves.
+
+### What a reviewer should know went wrong
+
+Three defects, all found by reading the artefacts rather than by a failing test, and all costing
+a re-run rather than a wrong number.
+
+- **Two clobbers between invocations.** Emitting Evo 1's tables as a second invocation into the
+  same directory overwrote the detections index and the run manifest — the second because both
+  invocations wrote `run-detect.json`, which `repro.run`'s own docstring warns about by name and
+  which A1.5 had already hit. The index now merges and each invocation names its own manifest.
+- **Three source rows for one component.** Evo 1 publishes its viral component as three splits,
+  so the first Evo 1 tables showed it three times against the schema's one-row-per-component
+  rule.
+- **A cost projection built on a non-linear assumption and an unrepresentative sample**, put to
+  the owner before it was checked. Corrected in D-186; the decision it informed did not change.
+
+**No wrong number reached a shipped artefact**, and the shipped set comes from one code version.
+
+### Deliberately not done
+
+**No second instrument.** §A2 names a structure-based finder, and this arm runs none, so no
+detection here is confirmed by an independent mechanism. That limit is the first entry in
+`metrics/eve-detection.md` and is stated in every table's `notes` rather than left in this file.
+D-186 records that a paired comparison is now affordable if the owner wants the sensitivity gap
+measured rather than asserted — it is not a Done-when criterion and was not quietly absorbed.
+
+**Depth stays at 0.25%**, nested at the project's seed, so buying more re-searches nothing.
+
+**Waiting on the project owner:** nothing.
 
 ## Goal
 
