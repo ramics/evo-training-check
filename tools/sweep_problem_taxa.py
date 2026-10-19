@@ -347,7 +347,19 @@ def _stream(
             f"{source.key}: staged object is {live} bytes, the pin says {source.bytes}. "
             "Re-verify before trusting any count from it."
         )
-    obj = corpora.RangedObject(client, corpora.BUCKET, source.key)
+    # Ranged and retrying, with reconnects reported. A single forward pass over stage 2 moves
+    # about 17 GB, and A1.4's own regeneration hit a broken pipe partway through it: a reader
+    # without retry turns a transient reset into a lost hour.
+    obj = corpora.RangedObject(
+        client,
+        bucket=corpora.BUCKET,
+        key=source.key,
+        size=source.bytes or live,
+        on_retry=lambda attempt, pos, exc: print(
+            f"    reconnect {attempt} at byte {pos:,} of {source.corpus_component}: {exc}",
+            file=sys.stderr,
+        ),
+    )
     records = corpora.iter_stage2_records(
         obj,
         component=source.corpus_component,
