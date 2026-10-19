@@ -4,7 +4,7 @@ title: Build one-command reproduction
 phase: X
 status: blocked
 gate: false
-depends_on: [X1.1, A5.1, B3.5, C7.1]
+depends_on: [X1.1, X1.5, A5.1, B3.5, C7.1]
 blocks: []
 design_ref: "§5 deliverable 7"
 deliverable: 7
