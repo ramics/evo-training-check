@@ -291,6 +291,73 @@ class DetectionTable:
     def families_with_a_hit(self) -> int:
         return sum(1 for r in self.rows if r.hits >= 1)
 
+    def composition(self, limit: int = 10) -> list[dict[str, Any]]:
+        """The families carrying the detections, most first — what was found, not how much.
+
+        D-161's point: for A2.4 this is a prophage parts list (`Phage_integrase`,
+        `Terminase_6N`, `Phage_capsid`, …) and it is the evidence that the detections are an
+        integrated element rather than scattered homology. Unlike the survival fraction it
+        **depends on neither denominator**, so it is the one thing comparable across registries
+        whose universes mean different things.
+
+        Computed here rather than in a write-up because `AGENTS.md` requires every published
+        figure to trace to an artefact, and D-161's composition list was prose in the decisions
+        log with nothing emitting it.
+        """
+        hit = [r for r in self.rows if r.hits >= 1]
+        hit.sort(key=lambda r: (-r.hits, r.family_id))
+        return [
+            {"family_id": r.family_id, "name": r.name, "hits": r.hits, "records": r.records}
+            for r in hit[:limit]
+        ]
+
+    def denominator(self) -> dict[str, Any]:
+        """What this registry's denominator is, and how its fraction may not be quoted.
+
+        **D-161.** The two registries' survival fractions are not comparable and neither is
+        reportable on its own: Pfam's universe is this project's derived viral subset (D-075),
+        weighted toward well-characterised phage domains; RVDB-prot's is the publisher's
+        clustering of the whole known virosphere, overwhelmingly eukaryotic viruses that cannot
+        occur in a bacterial prophage, so its denominator carries a large structurally
+        unreachable mass. On top of that sits a measured 5.2x sensitivity gap from the threshold
+        regime (D-076) which is not a counting artefact.
+
+        Read side by side the two fractions look like one registry being eight times more
+        permissive, and a reader reaches for one as the headline. This travels with the table so
+        that reading is refused at the source rather than in a caveat someone has to find.
+        """
+        restriction = {
+            "pfam": (
+                "This fraction is never quoted as 'the fraction of viral families'. Its "
+                "denominator is this project's reading of 'viral' in Pfam (D-075), not a "
+                "published universe, and it carries the blind spot D-083 measured."
+            ),
+            "rvdb-prot": (
+                "This fraction is never quoted as a measure of how much survived. Its "
+                "denominator includes families no prophage could contain, so the fraction "
+                "understates by an amount this table does not quantify. Report the absolute "
+                "counts instead."
+            ),
+        }.get(
+            self.registry,
+            "Name this denominator in the same sentence as any percentage drawn from it.",
+        )
+        return {
+            "registry": self.registry,
+            "registry_version": self.registry_version,
+            "families_in_universe": len(self.rows),
+            "authority": {
+                "pfam": "this project's derived viral subset of Pfam (D-075)",
+                "rvdb-prot": "the publisher's clustering of the whole known virosphere",
+            }.get(self.registry, "see the registry's own pin"),
+            "restriction": restriction,
+            "decision_ref": "D-161",
+            "comparable_across_registries": False,
+            "what_is_comparable": (
+                "absolute counts, and `composition` — neither depends on a denominator"
+            ),
+        }
+
     def survival(self) -> dict[str, Any]:
         """Family-level survival over this table, with its interval.
 
@@ -339,6 +406,8 @@ class DetectionTable:
             "thresholds": self.thresholds,
             "sources": self.sources,
             "survival": self.survival(),
+            "denominator": self.denominator(),
+            "composition": self.composition(),
             "routes": self.route_totals(),
             "element_kinds": self.kind_totals(),
             "families": [r.to_dict() for r in self.rows if r.hits >= 1],
@@ -349,7 +418,10 @@ class DetectionTable:
                 "the pinned universe is in `families_without_a_hit`, so the denominator is the "
                 "two lists together and a zero is a measured zero rather than an absent row. "
                 "`estimate_kind` says whether the figures are a population value or a lower "
-                "bound from a sample. Registries are never pooled (metrics/survival.md)."
+                "bound from a sample. Registries are never pooled (metrics/survival.md). "
+                "**Before quoting `survival.fraction`, read `denominator`:** per D-161 the two "
+                "registries' fractions are not comparable and neither is reportable on its own. "
+                "`composition` and the absolute counts are what carry across registries."
             ),
         }
 
