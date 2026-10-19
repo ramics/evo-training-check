@@ -222,3 +222,53 @@ def test_a_cache_from_an_older_format_is_refused_with_an_instruction(tmp_path):
         detect_profiles.read_cache(
             tmp_path, component="stage2", object_name="train_stage2.parquet", lo=0.0, hi=1.0
         )
+
+
+def test_the_plan_path_reads_the_current_searched_sources_shape():
+    """`--plan` must survive `searched_sources` changing shape (X1.6).
+
+    It did not: the branch passed one argument to a two-argument function and indexed the
+    result as a mapping, so the flag raised `TypeError` rather than reporting anything. The
+    search paths were fine throughout, which is why nothing caught it — this test drives the
+    reporting path against the real staged-source metadata, which is offline.
+    """
+    release = "opengenome"
+    from amazebio import corpora
+
+    sources = [
+        s
+        for s in corpora.sources_for(release)
+        if s.readable and s.corpus_component in detect_profiles.SAMPLE_RATES
+    ]
+    assert sources, "fixture assumes opengenome has readable stage2 objects"
+    manifest = {
+        "release": release,
+        "policy": {"id": "evo1-literal"},
+        "sources": [{"key": s.key, "records": 1_000_000} for s in sources],
+    }
+
+    lines = detect_profiles.plan_lines(manifest, release)
+
+    assert len(lines) == len(sources)
+    # 0.2% of a million records, formatted — the number a reader checks the plan for.
+    assert all("~2,000 sampled" in line for line in lines)
+    assert all("stage2" in line for line in lines)
+
+
+def test_the_plan_path_reports_unknown_rather_than_guessing_a_count():
+    """A manifest row without `records` is reported as unknown, not as zero sampled."""
+    release = "opengenome"
+    from amazebio import corpora
+
+    sources = [
+        s
+        for s in corpora.sources_for(release)
+        if s.readable and s.corpus_component in detect_profiles.SAMPLE_RATES
+    ]
+    manifest = {
+        "release": release,
+        "policy": {"id": "evo1-literal"},
+        "sources": [{"key": s.key} for s in sources],
+    }
+
+    assert all("unknown sampled" in line for line in detect_profiles.plan_lines(manifest, release))
