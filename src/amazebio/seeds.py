@@ -54,8 +54,8 @@ from __future__ import annotations
 import hashlib
 import re
 import zipfile
-from collections import deque
-from collections.abc import Iterable, Iterator
+from collections import Counter, deque
+from collections.abc import Iterable, Iterator, Mapping
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -191,10 +191,14 @@ _WHITESPACE = re.compile(rb"\s+")
 class UniRefEntry:
     """One UniRef cluster, reduced to what the seed-set question needs.
 
-    `member_taxids` covers the representative and every member, because a cluster is
-    viral-seeded if *any* of its members is viral. `representative_taxid` is kept
-    separately so the representative-versus-member gap can be counted rather than
-    assumed away.
+    `member_taxids` covers the representative and every member, because a cluster is seeded
+    if *any* of its members is on the denylist. `representative_taxid` is kept separately so
+    the representative-versus-member gap can be counted rather than assumed away.
+
+    The taxid set these methods take is whichever denylist is being built — the viral one for
+    A1.6, the select-agent one for A1.8 — and nothing here is specific to either. The names
+    said `viral` until both arms existed, which would have mislabelled the second arm's
+    provenance (D-139).
     """
 
     cluster_id: str
@@ -202,16 +206,18 @@ class UniRefEntry:
     representative_taxid: int | None
     member_taxids: tuple[int, ...]
 
-    def is_viral_seeded(self, viral: set[int]) -> bool:
-        """True if any member is viral — the first clause of the denylist's definition."""
-        return any(t in viral for t in self.member_taxids)
+    def is_seeded(self, denylist_taxids: set[int]) -> bool:
+        """True if any member is on the denylist — the first clause of its definition."""
+        return any(t in denylist_taxids for t in self.member_taxids)
 
-    def representative_is_viral(self, viral: set[int]) -> bool:
-        return self.representative_taxid is not None and self.representative_taxid in viral
+    def representative_is_seeded(self, denylist_taxids: set[int]) -> bool:
+        return (
+            self.representative_taxid is not None and self.representative_taxid in denylist_taxids
+        )
 
-    def is_mixed(self, viral: set[int]) -> bool:
-        """True if members disagree about being viral."""
-        flags = [t in viral for t in self.member_taxids]
+    def is_mixed(self, denylist_taxids: set[int]) -> bool:
+        """True if members disagree about being on the denylist."""
+        flags = [t in denylist_taxids for t in self.member_taxids]
         return bool(flags) and any(flags) and not all(flags)
 
 
@@ -279,29 +285,29 @@ def write_fasta(handle: IO[bytes], cluster_id: str, sequence: str) -> int:
 class SeedCounts:
     """What a seed-building pass saw, for the manifest and the write-up.
 
-    `representative_not_viral` and `mixed` are the measured size of the limitation this
+    `representative_not_seeded` and `mixed` are the measured size of the limitation this
     module's docstring describes. They are counts rather than a rate so that a later
     pass over a different tier can be added to them.
     """
 
     clusters: int = 0
     residues: int = 0
-    viral_seeded: int = 0
-    viral_residues: int = 0
-    representative_not_viral: int = 0
+    seeded: int = 0
+    seeded_residues: int = 0
+    representative_not_seeded: int = 0
     mixed: int = 0
 
-    def observe(self, entry: UniRefEntry, viral: set[int]) -> bool:
-        """Count one entry, returning whether it is viral-seeded."""
+    def observe(self, entry: UniRefEntry, denylist_taxids: set[int]) -> bool:
+        """Count one entry, returning whether it is seeded by the denylist it was given."""
         self.clusters += 1
         self.residues += len(entry.sequence)
-        if not entry.is_viral_seeded(viral):
+        if not entry.is_seeded(denylist_taxids):
             return False
-        self.viral_seeded += 1
-        self.viral_residues += len(entry.sequence)
-        if not entry.representative_is_viral(viral):
-            self.representative_not_viral += 1
-        if entry.is_mixed(viral):
+        self.seeded += 1
+        self.seeded_residues += len(entry.sequence)
+        if not entry.representative_is_seeded(denylist_taxids):
+            self.representative_not_seeded += 1
+        if entry.is_mixed(denylist_taxids):
             self.mixed += 1
         return True
 
@@ -309,24 +315,91 @@ class SeedCounts:
         """Fold another pass's counts in. Used to recombine parallel batches."""
         self.clusters += other.clusters
         self.residues += other.residues
-        self.viral_seeded += other.viral_seeded
-        self.viral_residues += other.viral_residues
-        self.representative_not_viral += other.representative_not_viral
+        self.seeded += other.seeded
+        self.seeded_residues += other.seeded_residues
+        self.representative_not_seeded += other.representative_not_seeded
         self.mixed += other.mixed
 
     def to_dict(self) -> dict[str, int | float | None]:
         return {
             "clusters": self.clusters,
             "residues": self.residues,
-            "viral_seeded": self.viral_seeded,
-            "viral_residues": self.viral_residues,
-            "representative_not_viral": self.representative_not_viral,
+            "seeded": self.seeded,
+            "seeded_residues": self.seeded_residues,
+            "representative_not_seeded": self.representative_not_seeded,
             "mixed": self.mixed,
-            "viral_share": (self.viral_seeded / self.clusters if self.clusters else None),
-            "representative_not_viral_share": (
-                self.representative_not_viral / self.viral_seeded if self.viral_seeded else None
+            "seeded_share": (self.seeded / self.clusters if self.clusters else None),
+            "representative_not_seeded_share": (
+                self.representative_not_seeded / self.seeded if self.seeded else None
             ),
-            "mixed_share": (self.mixed / self.viral_seeded if self.viral_seeded else None),
+            "mixed_share": (self.mixed / self.seeded if self.seeded else None),
+        }
+
+
+@dataclass(frozen=True)
+class Attribution:
+    """Which denylist entry each taxon came from, for a pass that reports the split.
+
+    Optional, and off by default: A1.6's viral arm has one entry — the Viruses superkingdom —
+    so attributing it would cost a dict lookup per seeded cluster to learn nothing.
+
+    `by_taxid`'s values are shared tuple objects, one per distinct combination of entries
+    rather than one per taxon. That is not a micro-optimisation: this map goes to every
+    worker at pool start, and pickle preserves object identity within a pickling, so sharing
+    turns a hundred thousand tuples on the wire into a few dozen.
+    """
+
+    by_taxid: dict[int, tuple[str, ...]]
+
+    @classmethod
+    def from_entry_taxa(cls, taxa_by_entry: Mapping[str, frozenset[int]]) -> Attribution:
+        """Invert an entry-to-taxa map, interning the values as the class requires."""
+        claims: dict[int, list[str]] = {}
+        for entry, taxa in taxa_by_entry.items():
+            for taxid in taxa:
+                claims.setdefault(taxid, []).append(entry)
+        shared: dict[tuple[str, ...], tuple[str, ...]] = {}
+        by_taxid: dict[int, tuple[str, ...]] = {}
+        for taxid, entries in claims.items():
+            key = tuple(sorted(entries))
+            by_taxid[taxid] = shared.setdefault(key, key)
+        return cls(by_taxid)
+
+    def claiming(self, taxids: Iterable[int]) -> tuple[str, ...]:
+        """Every entry that claims any of these taxa, in a stable order."""
+        found: set[str] = set()
+        for taxid in taxids:
+            found.update(self.by_taxid.get(taxid, ()))
+        return tuple(sorted(found))
+
+
+@dataclass
+class EntryCounts:
+    """Seeded clusters attributed to the denylist entries that claimed them.
+
+    Two counters because one cannot answer the question that matters. `claimed` counts a
+    cluster once for every entry claiming it, so it says how much each entry contributes and
+    its total may exceed the seeded count. `exclusive` counts only the clusters a single
+    entry claims alone, which is what says how much the seed set would *lose* if that entry
+    were read differently — the one number a reconciliation can act on.
+    """
+
+    claimed: Counter[str] = field(default_factory=Counter)
+    exclusive: Counter[str] = field(default_factory=Counter)
+
+    def observe(self, entries: tuple[str, ...]) -> None:
+        self.claimed.update(entries)
+        if len(entries) == 1:
+            self.exclusive[entries[0]] += 1
+
+    def merge(self, other: EntryCounts) -> None:
+        self.claimed.update(other.claimed)
+        self.exclusive.update(other.exclusive)
+
+    def to_dict(self) -> dict[str, dict[str, int]]:
+        return {
+            "claimed": dict(self.claimed.most_common()),
+            "exclusive": dict(self.exclusive.most_common()),
         }
 
 
@@ -347,26 +420,36 @@ class ScanConfig:
     """What a worker needs to reduce a batch of entries without shipping them back.
 
     The point of the parallel path is that the corpus does not make the return trip:
-    workers see raw entry blocks and send back only the viral-seeded clusters, the
-    sampled ones, and counts — on UniRef100 that is a few percent of what went out.
-    Shipping parsed entries back instead would move the bottleneck to the pipe.
+    workers see raw entry blocks and send back only the seeded clusters, the sampled ones,
+    and counts — on UniRef100 that is a few percent of what went out. Shipping parsed
+    entries back instead would move the bottleneck to the pipe.
 
-    `viral` is the expensive member and is sent once per worker at pool start, not once
-    per batch.
+    `denylist_taxids` is the expensive member and is sent once per worker at pool start, not
+    once per batch. It is whichever denylist the run is building — viral for A1.6, select
+    agent for A1.8 — and the class has never been specific to either (D-139).
     """
 
-    viral: frozenset[int]
+    denylist_taxids: frozenset[int]
     sample_rate: int = 0
     buckets: int = 1
+    #: Which entry each taxon came from, where the pass reports the split (D-146). The
+    #: lookup runs only on seeded clusters — a fraction of a percent of UniRef100 — so the
+    #: cost falls on the clusters being attributed rather than on the whole corpus.
+    attribution: Attribution | None = None
 
     def scan(self, blocks: Iterable[bytes]) -> BatchResult:
         result = BatchResult()
+        if self.attribution is not None:
+            result.entries = EntryCounts()
         for block in blocks:
             entry = _parse_entry(block)
             if entry is None:
                 continue
-            if result.counts.observe(entry, self.viral):  # type: ignore[arg-type]
+            if result.counts.observe(entry, self.denylist_taxids):  # type: ignore[arg-type]
                 result.seeds.append((entry.cluster_id, entry.sequence, entry.representative_taxid))
+                if result.entries is not None:
+                    assert self.attribution is not None
+                    result.entries.observe(self.attribution.claiming(entry.member_taxids))
             if self.sample_rate and bucket_of(entry.cluster_id, self.sample_rate) == 0:
                 shard = bucket_of(entry.cluster_id + "#shard", self.buckets)
                 result.samples.append(
@@ -391,6 +474,9 @@ class BatchResult:
     #: makes a staged sample self-describing; recovering it afterwards would need a second
     #: corpus pass (D-142).
     samples: list[tuple[int, str, str, int | None]] = field(default_factory=list)
+    #: Present only where the run asked for the per-entry split, so a pass that did not ask
+    #: for it carries no empty counter back from every worker.
+    entries: EntryCounts | None = None
 
 
 def iter_entry_blocks(chunks: Iterable[bytes], batch_bytes: int = 8 << 20) -> Iterator[list[bytes]]:

@@ -66,6 +66,14 @@ STRICT = ("-c", "0.8", "--cov-mode", "1", "-s", "7.5")
 
 #: One artefact name per mode, because the corpus bucket has no DeleteObject: a second mode
 #: writing to the first's key would overwrite a preserved grid permanently.
+#: Which task's results prefix this run writes under. A1.6 owns this tool and is the
+#: default, but A1.8 scores its own denylist with the same pass (D-159) and its artefacts
+#: must not land under A1.6's key: the corpus bucket has no `DeleteObject`, so a collision
+#: there destroys the earlier arm's deliverable and replaces it with the other arm's numbers
+#: under a key the write-up cites — silent substitution, and D-108 forbids pooling the two.
+#: Caught before it happened on 2026-10-18, by A1.6 reading this run's UserData.
+DEFAULT_RESULTS_TASK = "a1-6"
+
 ARTEFACT_NAMES = {
     "curve": "calibration.json",
     "caps": "cap-measurement.json",
@@ -221,6 +229,20 @@ def main(argv: list[str] | None = None) -> int:
         "shards a result about the staged sample rather than about a lookalike",
     )
     ap.add_argument(
+        "--results-task",
+        default=DEFAULT_RESULTS_TASK,
+        help="which task's results prefix every artefact, heartbeat and manifest is written "
+        "under. Defaults to the arm that owns this tool; A1.8 scores its own denylist with "
+        "the same pass and must not write under A1.6's keys, which cannot be un-written "
+        "(default: %(default)s)",
+    )
+    ap.add_argument(
+        "--seeds-uri",
+        help="score this seed set instead of the viral one, with its .taxids.tsv sidecar "
+        "taken from the same prefix. The shards and their strata still come from the "
+        "corpus pass or the staged sample; only the query changes (D-159)",
+    )
+    ap.add_argument(
         "--band-denominator",
         type=int,
         default=100,
@@ -370,7 +392,14 @@ def _chunks(stream: Any, limit: int, progress_seconds: float, heartbeat: Any = N
         yield chunk
 
 
-def _make_heartbeat(client: Any, bucket: str, prefix: str, name: str, commit: str | None) -> Any:
+def _make_heartbeat(
+    client: Any,
+    bucket: str,
+    prefix: str,
+    name: str,
+    commit: str | None,
+    results_task: str = DEFAULT_RESULTS_TASK,
+) -> Any:
     """Write a few hundred bytes to S3 saying how far the corpus pass has got.
 
     Measured need, 2026-10-16: an instance ran 95 minutes on a pass due in 53 with no way to
@@ -387,7 +416,7 @@ def _make_heartbeat(client: Any, bucket: str, prefix: str, name: str, commit: st
     """
     if client is None:
         return None
-    key = f"{prefix}/results/a1-6/{name}"
+    key = f"{prefix}/results/{results_task}/{name}"
 
     def beat(read: int, elapsed: float) -> None:
         body = {
@@ -479,7 +508,7 @@ def _progress(
     """
     if client is None:
         return
-    key = f"{prefix}/results/a1-6/{HEARTBEAT_NAMES[args.measure]}"
+    key = f"{prefix}/results/{args.results_task}/{HEARTBEAT_NAMES[args.measure]}"
     body = {
         "code_commit": args.code_commit,
         "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -574,9 +603,9 @@ def _load_staged_sample(
         for name in (
             "clusters",
             "residues",
-            "viral_seeded",
-            "viral_residues",
-            "representative_not_viral",
+            "seeded",
+            "seeded_residues",
+            "representative_not_seeded",
             "mixed",
         ):
             value = staged.seed_counts.get(name)
@@ -587,7 +616,7 @@ def _load_staged_sample(
         # than inventing them — but say so, because a zero that reads as a measurement is
         # the failure this branch exists to avoid.
         counts.clusters = staged.corpus_clusters
-        counts.viral_seeded = staged.viral_seeded_clusters
+        counts.seeded = staged.viral_seeded_clusters
         print(
             "  note: this manifest carries only the denominators, so the "
             "representative-versus-member counts are absent rather than zero",
@@ -687,7 +716,7 @@ def _stage_sample(
         sample_rate=args.sample_rate,
         buckets=args.buckets,
         corpus_clusters=counts.clusters,
-        viral_seeded_clusters=counts.viral_seeded,
+        viral_seeded_clusters=counts.seeded,
         seed_fasta=shardstore.describe(seed_path, seed_key),
         shards=staged_shards,
         sidecars=staged_sidecars or None,
@@ -751,7 +780,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
         if args.resume_band_from:
             name = args.artefact_name or ARTEFACT_NAMES["band"]
-            destination = f"{prefix}/results/a1-6/{name}"
+            destination = f"{prefix}/results/{args.results_task}/{name}"
             src_bucket, src_key = _parse_s3_uri(args.resume_band_from)
             if src_key == destination and src_bucket == bucket:
                 raise SystemExit(
@@ -822,7 +851,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             # must be, or the target would be missing exactly the records the filter is
             # supposed to remove.
             config = seeds.ScanConfig(
-                viral=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
+                denylist_taxids=frozenset(viral), sample_rate=args.sample_rate, buckets=args.buckets
             )
             try:
                 seed_taxid_path = seed_fasta.with_suffix(".taxids.tsv")
@@ -839,6 +868,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                                 prefix,
                                 HEARTBEAT_NAMES[args.measure],
                                 args.code_commit,
+                                args.results_task,
                             ),
                         ),
                         config,
@@ -883,13 +913,13 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         if staged is not None:
             print(
                 f"\nstaged sample: {counts.clusters:,} clusters in the corpus it was drawn "
-                f"from ({counts.viral_seeded:,} viral-seeded), no corpus pass run",
+                f"from ({counts.seeded:,} viral-seeded), no corpus pass run",
                 flush=True,
             )
         else:
             print(
                 f"\ncorpus pass: {counts.clusters:,} clusters in {corpus_seconds:.0f}s"
-                f"  ({counts.viral_seeded:,} viral-seeded)",
+                f"  ({counts.seeded:,} viral-seeded)",
                 flush=True,
             )
         print(
@@ -923,7 +953,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         def upload(path: Path, role: str) -> None:
             if not (args.upload_results and client is not None):
                 return
-            key = f"{prefix}/results/a1-6/{path.name}"
+            key = f"{prefix}/results/{args.results_task}/{path.name}"
             client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
             manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
             print(f"  uploaded s3://{bucket}/{key}", flush=True)
@@ -942,7 +972,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             if not (args.upload_results and client is not None):
                 return
             tag = args.code_commit or "nocommit"
-            key = f"{prefix}/results/a1-6/disclosure/seed-hits/{tag}/{path.name}"
+            key = f"{prefix}/results/{args.results_task}/disclosure/seed-hits/{tag}/{path.name}"
             client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
             manifest.output_object(f"s3://{bucket}/{key}", bytes=path.stat().st_size, role=role)
             print(f"  staged s3://{bucket}/{key}", flush=True)
@@ -958,7 +988,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
             """
             timing_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
             if args.upload_results and client is not None:
-                key = f"{prefix}/results/a1-6/{timing_path.name}"
+                key = f"{prefix}/results/{args.results_task}/{timing_path.name}"
                 client.put_object(Bucket=bucket, Key=key, Body=timing_path.read_bytes())
 
         # The seed set goes up *now*, before the searches, because it is the deliverable
@@ -966,7 +996,8 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         # an already-finished 53-minute corpus pass with them, purely because the upload
         # sat after them in this function. Deliverables ship when they exist.
         publish()
-        upload(seed_fasta, "viral-seed-set")
+        if not args.seeds_uri:
+            upload(seed_fasta, "viral-seed-set")
 
         if args.stage_sample or args.stage_sidecars_only:
             staged_uri = _stage_sample(
@@ -989,6 +1020,18 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 # declaring this as a parameter is refused and takes the run down with it.
                 manifest.output_object(staged_uri, role="staged-sample")
                 publish()
+
+        # Swap in a different denylist's seed set, after everything that checks the viral
+        # one. The corpus pass still builds the shards and their strata, because those are
+        # the target and the denominator and belong to the sample rather than to a denylist;
+        # only the query changes. Placed here deliberately: `--verify-sample-against` digests
+        # the viral seed FASTA against the staged manifest, so replacing it any earlier would
+        # fail that check, and `--stage-sample` would stage the wrong seed set under the
+        # sample's key.
+        if args.seeds_uri:
+            seed_fasta = _load_external_seeds(args.seeds_uri, client, work)
+            payload["seed_set"] = args.seeds_uri
+            manifest.parameter("seeds_uri", args.seeds_uri)
 
         if not args.skip_search:
             if args.measure == "band":
@@ -1031,7 +1074,9 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
         timing_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         manifest.output_file(timing_path, role="calibration")
-        manifest.output_file(seed_fasta, role="viral-seed-set")
+        manifest.output_file(
+            seed_fasta, role="scored-seed-set" if args.seeds_uri else "viral-seed-set"
+        )
         manifest.tool("mmseqs", ["mmseqs", "version"])
         if args.limit_bytes:
             manifest.note(
@@ -1044,7 +1089,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
 
     if args.upload_results and client is not None:
         local = args.outdir / "run-calibration.json"
-        key = f"{prefix}/results/a1-6/run-calibration.json"
+        key = f"{prefix}/results/{args.results_task}/run-calibration.json"
         client.put_object(Bucket=bucket, Key=key, Body=local.read_bytes())
         print(f"  uploaded s3://{bucket}/{key}", flush=True)
     return 0
@@ -1699,6 +1744,42 @@ def _band_cell(
     return stream
 
 
+def _load_external_seeds(uri: str, client: Any, work: Path) -> Path:
+    """Fetch a seed set and its strata sidecar, for scoring a denylist this pass did not build.
+
+    A1.8's select-agent arm runs the same six cells over the same shards as A1.6's band 1 and
+    differs only in the query set (D-159), so the alternative to this parameter is a second
+    copy of the band pass. The sidecar is required rather than optional: without a taxid per
+    seed there is no realised seed-family count, and `_run_band` refuses rather than publish a
+    rate with no interval (D-142).
+
+    The two objects are named by convention — `X.faa` and `X.taxids.tsv` — because they are
+    written as a pair and a mismatched pair is worse than a missing one.
+    """
+    if client is None:
+        raise SystemExit("--seeds-uri needs S3")
+    bucket, key = _parse_s3_uri(uri)
+    if not key.endswith(".faa"):
+        raise SystemExit(f"--seeds-uri should name a .faa seed set, got {key}")
+    sidecar_key = key[: -len(".faa")] + ".taxids.tsv"
+    dest = work / "scored-seeds.faa"
+    sidecar = dest.with_suffix(".taxids.tsv")
+    for src, target in ((key, dest), (sidecar_key, sidecar)):
+        print(f"fetching s3://{bucket}/{src}", flush=True)
+        try:
+            body = client.get_object(Bucket=bucket, Key=src)["Body"]
+        except Exception as exc:
+            raise SystemExit(
+                f"cannot read s3://{bucket}/{src}: {exc}. The seed set and its strata sidecar "
+                "are written as a pair and this pass needs both."
+            ) from exc
+        with target.open("wb") as fh:
+            while chunk := body.read(8 << 20):
+                fh.write(chunk)
+        print(f"  {target.name}: {target.stat().st_size:,} bytes", flush=True)
+    return dest
+
+
 def _run_band(
     args: argparse.Namespace,
     work: Path,
@@ -1832,7 +1913,12 @@ def _run_band(
             publish()
             for group in payload["band"]["combined"]["groups"]:
                 r = group["rate"]
-                lead = "at least " if r["lower_bound"] else ""
+                # `net_direction`, not `lower_bound`. The flag marks one axis — the seed
+                # sample understates — while "at least" claims the whole figure is a floor,
+                # which D-154 says it is not and D-159 forbids for this arm. `Rate.describe`
+                # was fixed for that; this printer renders the same number by hand and kept
+                # the old rule, so the qualifier survived in the one place anyone reads.
+                lead = "at least " if r.get("net_direction") == "lower" else ""
                 shown = "n/a" if r["rate"] is None else f"{lead}{r['rate']:.4%}"
                 lo, hi = r["ci95"]
                 span = "" if lo is None else f" (95% CI {lo:.4%}-{hi:.4%})"

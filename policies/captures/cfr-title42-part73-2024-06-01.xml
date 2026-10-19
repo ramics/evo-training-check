@@ -1,0 +1,683 @@
+<?xml version="1.0"?>
+<DIV5 N="73" TYPE="PART" VOLUME="1" hierarchy_metadata="{&amp;quot;path&amp;quot;:&amp;quot;/on/_SUBSTITUTE_DATE_/title-42/part-73&amp;quot;,&amp;quot;citation&amp;quot;:&amp;quot;42 CFR Part 73&amp;quot;}">
+<HEAD>PART 73&#x2014;SELECT AGENTS AND TOXINS
+</HEAD>
+<AUTH>
+<HED>Authority:</HED><PSPACE>42 U.S.C. 262a; sections 201-204, 221 and 231 of Title II of Public Law 107-188, 116 Stat. 637 (42 U.S.C. 262a).
+</PSPACE></AUTH>
+<SOURCE>
+<HED>Source:</HED><PSPACE>70 FR 13316, Mar. 18, 2005, unless otherwise noted.
+</PSPACE></SOURCE>
+<DIV8 N="73.0" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.0&quot;,&quot;citation&quot;:&quot;42 CFR 73.0&quot;}">
+<HEAD>&#xA7; 73.0 Applicability and related requirements.</HEAD>
+<P>All individuals and entities that possess SARS-CoV, Lujo virus, or Chapare virus must provide notice to CDC regarding their possession of SARS-CoV, Lujo virus, or Chapare virus on or before December 4, 2012. Currently registered individuals and entities possessing SARS-CoV, Lujo virus, or Chapare virus must meet all the requirements of this part by December 4, 2012. All previously unregistered individuals and entities possessing SARS-CoV, Lujo virus, or Chapare virus must meet all of the requirements of this part by April 3, 2013.</P>
+<CITA TYPE="N">[77 FR 61110, Oct. 5, 2012, as amended at 77 FR 71702, Dec. 4, 2012]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.1" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.1&quot;,&quot;citation&quot;:&quot;42 CFR 73.1&quot;}">
+<HEAD>&#xA7; 73.1 Definitions.</HEAD>
+<P>For purposes of this part:</P>
+<P><I>Administrator</I> means the Administrator, Animal and Plant Health Inspection Service, or any person authorized to act for the Administrator.</P>
+<P><I>Animal and Plant Health Inspection Service (APHIS)</I> means the Animal and Plant Health Inspection Service of the U.S. Department of Agriculture.</P>
+<P><I>Attorney General</I> means the Attorney General of the United States or any person authorized to act for the Attorney General.</P>
+<P><I>Biological agent</I> means any microorganism (including, but not limited to, bacteria, viruses, fungi, rickettsiae, or protozoa), or infectious substance, or any naturally occurring, bioengineered, or synthesized component of any such microorganism or infectious substance, capable of causing death, disease, or other biological malfunction in a human, an animal, a plant, or another living organism; deterioration of food, water, equipment, supplies, or material of any kind; or deleterious alteration of the environment.</P>
+<P><I>CDC</I> means Centers for Disease Control and Prevention of the Department of Health and Human Services.</P>
+<P><I>Conotoxins means</I> short, paralytic alpha conotoxins containing the following amino acid sequence X<E T="52">1</E>CCX<E T="52">2</E>PACGX<E T="52">3</E>X<E T="52">4</E>X<E T="52">5</E>X<E T="52">6</E>CX<E T="52">7</E>, whereas:</P>
+<EXTRACT>
+<FP-2>(1) C = Cysteine residues are all present as disulfides, with the 1st and 3rd Cysteine, and the 2nd and 4th Cysteine forming specific disulfide bridges;
+</FP-2>
+<FP-2>(2) The consensus sequence includes known toxins &#x3B1;-MI and &#x3B1;-GI (shown above) as well as &#x3B1;-GIA, Ac1.1a, &#x3B1;-CnIA, &#x3B1;-CnIB;
+</FP-2>
+<FP-2>(3) X<E T="52">1</E> = any amino acid(s) or Des-X;
+</FP-2>
+<FP-2>(4) X<E T="52">2</E> = Asparagine or Histidine;
+</FP-2>
+<FP-2>(5) P = Proline;
+</FP-2>
+<FP-2>(6) A = Alanine;
+</FP-2>
+<FP-2>(7) G = Glycine;
+</FP-2>
+<FP-2>(8) X<E T="52">3</E> = Arginine or Lysine;
+</FP-2>
+<FP-2>(9) X<E T="52">4</E> = Asparagine, Histidine, Lysine, Arginine, Tyrosine, Phenylalanine or Tryptophan;
+</FP-2>
+<FP-2>(10) X<E T="52">5</E> = Tyrosine, Phenylalanine, or Tryptophan;
+</FP-2>
+<FP-2>(11) X<E T="52">6</E> = Serine, Threonine, Glutamate, Aspartate, Glutamine, or Asparagine;
+</FP-2>
+<FP-2>(12) X<E T="52">7</E> = Any amino acid(s) or Des X; and
+</FP-2>
+<FP-2>(13) &#x201C;Des X&#x201D; = &#x201C;an amino acid does not have to be present at this position.&#x201D; For example if a peptide sequence were XCCHPA then the related peptide CCHPA would be designated as Des-X.</FP-2></EXTRACT>
+<P><I>Diagnosis</I> means the analysis of specimens for the purpose of identifying or confirming the presence or characteristics of a select agent or toxin provided that such analysis is directly related to protecting the public health or safety, animal health or animal products, or plant health or plant products.</P>
+<P><I>Entity</I> means any government agency (Federal, State, or local), academic institution, corporation, company, partnership, society, association, firm, sole proprietorship, or other legal entity.</P>
+<P><I>HHS</I> means the Department of Health and Human Services.</P>
+<P><I>HHS Secretary</I> means the Secretary of the Department of Health and Human Services or his or her designee, unless otherwise specified.</P>
+<P><I>HHS select agent and/or toxin</I> means a biological agent or toxin included in &#xA7; 73.3.</P>
+<P><I>Information security</I> means protecting information and information systems from unauthorized access, use, disclosure, disruption, modification, or destruction in order to provide&#x2014;</P>
+<P>(1) Integrity, which means guarding against improper information modification or destruction, and includes ensuring information authenticity;</P>
+<P>(2) Confidentiality, which means preserving authorized restrictions on access and disclosure, including means for protecting personal privacy and proprietary information; and</P>
+<P>(3) Availability, which means ensuring timely and reliable access to and use of information.</P>
+<P><I>Occupational exposure</I> means any reasonably anticipated skin, eye, mucous membrane, parenteral contact, or respiratory aerosol exposure to select agents or toxins that may result from the performance of an employee's duties.</P>
+<P><I>Overlap select agent and/or toxin</I> means a biological agent or toxin listed in &#xA7; 73.4 and 9 CFR part 121.4.</P>
+<P><I>Principal investigator</I> means the one individual who is designated by the entity to direct a project or program and who is responsible to the entity for the scientific and technical direction of that project or program.</P>
+<P><I>Proficiency testing</I> means the process of determining the competency of an individual or laboratory to perform a specified test or procedure.</P>
+<P><I>Recombinant nucleic acids</I> means:</P>
+<P>(1) Molecules that are constructed by joining nucleic acid molecules and that can replicate in a living cell or</P>
+<P>(2) Molecules that result from the replication of those described in paragraph (1) of this definition.</P>
+<P><I>Responsible Official</I> means the individual designated by an entity with the authority and control to ensure compliance with the regulations in this part.</P>
+<P><I>Security barrier</I> means a physical structure that is designed to prevent entry by unauthorized persons.</P>
+<P><I>Select agent and/or toxin</I> means unless otherwise specified, all of the biological agents or toxins listed in &#xA7;&#xA7; 73.3 and 73.4.</P>
+<P><I>Specimen</I> means samples of material from humans, animals, plants or the environment or isolates or cultures from such samples for the diagnosis, verification, or proficiency testing.</P>
+<P><I>State</I> means any of the several States of the United States, the Commonwealth of the Northern Mariana Islands, the Commonwealth of Puerto Rico, the District of Columbia, Guam, the Virgin Islands of the United States, or any other territory or possession of the United States.</P>
+<P><I>Synthetic nucleic acids</I> means:</P>
+<P>(1) Molecules that are chemically or by other means synthesized or amplified, including those that are chemically or otherwise modified but can base pair with naturally occurring nucleic acid molecules (<I>i.e.,</I> synthetic nucleic acids) or</P>
+<P>(2) Molecules that result from the replication of those described in paragraph (1) of this definition.</P>
+<P><I>Toxin</I> means the toxic material or product of plants, animals, microorganisms (including, but not limited to, bacteria, viruses, fungi, rickettsiae, or protozoa), or infectious substances, or a recombinant or synthesized molecule, whatever their origin and method of production, and includes any poisonous substance or biological product that may be engineered as a result of biotechnology, produced by a living organism; or any poisonous isomer or biological product, homolog, or derivative of such a substance.</P>
+<P><I>United States</I> means all of the States.</P>
+<P><I>USDA</I> means the United States Department of Agriculture.</P>
+<P><I>Validated inactivation procedure</I> means a procedure, whose efficacy is confirmed by data generated from a viability testing protocol, to render a select agent non-viable but allows the select agent to retain characteristics of interest for future use; or to render any nucleic acids that can produce infectious forms of any select agent virus non-infectious for future use.</P>
+<P><I>Viability testing protocol</I> means a protocol to confirm the validated inactivation procedure by demonstrating the material is free of all viable select agent.</P>
+<P><I>Verification</I> means the demonstration of obtaining established performance (e.g., accuracy, precision, and the analytical sensitivity and specificity) specifications for any procedure used for diagnosis.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61110, Oct. 5, 2012; 82 FR 6290, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.2" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.2&quot;,&quot;citation&quot;:&quot;42 CFR 73.2&quot;}">
+<HEAD>&#xA7; 73.2 Purpose and scope.</HEAD>
+<P>This part implements the provisions of the Public Health Security and Bioterrorism Preparedness and Response Act of 2002 setting forth the requirements for possession, use, and transfer of select agents and toxins. The biological agents and toxins listed in this part have the potential to pose a severe threat to public health and safety, to animal health, or to animal products. Overlap select agents and toxins are subject to regulation by both CDC and APHIS.</P>
+</DIV8>
+
+<DIV8 N="73.3" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.3&quot;,&quot;citation&quot;:&quot;42 CFR 73.3&quot;}">
+<HEAD>&#xA7; 73.3 HHS select agents and toxins.</HEAD>
+<P>(a) Except for exclusions under paragraphs (d) and (e) of this section, the HHS Secretary has determined that the biological agents and toxins listed in this section have the potential to pose a severe threat to public health and safety. The select agents and toxins marked with an asterisk (*) are designated as Tier 1 select agents and toxins and are subject to additional requirements as listed in this part.</P>
+<P>(b) HHS select agents and toxins:</P>
+<EXTRACT>
+<FP-1>Abrin
+</FP-1>
+<FP-1><I>Bacillus cereus</I> Biovar <I>anthracis</I>*
+</FP-1>
+<FP-1>Botulinum neurotoxins*
+</FP-1>
+<FP-1>Botulinum neurotoxin producing species of <I>Clostridium</I>*
+</FP-1>
+<FP-1>Conotoxins (Short, paralytic alpha conotoxins containing the following amino acid sequence X<E T="52">1</E>CCX<E T="52">2</E>PACGX<E T="52">3</E>X<E T="52">4</E>X<E T="52">5</E>X<E T="52">6</E>CX<E T="52">7</E>)
+<SU>1</SU>
+<FTREF/>
+</FP-1>
+<FTNT>
+<P><SU>1</SU> C = Cysteine residues are all present as disulfides, with the 1st and 3rd Cysteine, and the 2nd and 4th Cysteine forming specific disulfide bridges; The consensus sequence includes known toxins &#x3B1;-MI and &#x3B1;-GI (shown above) as well as &#x3B1;-GIA, Ac1.1a, &#x3B1;-CnIA, &#x3B1;-CnIB; X1 = any amino acid(s) or Des-X; X2 = Asparagine or Histidine; P = Proline; A = Alanine; G = Glycine; X3 = Arginine or Lysine; X4 = Asparagine, Histidine, Lysine, Arginine, Tyrosine, Phenylalanine or Tryptophan; X5 = Tyrosine, Phenylalanine, or Tryptophan; X6 = Serine, Threonine, Glutamate, Aspartate, Glutamine, or Asparagine; X7 = Any amino acid(s) or Des X and; &#x201C;Des X&#x201D; = &#x201C;an amino acid does not have to be present at this position.&#x201D; For example if a peptide sequence were XCCHPA then the related peptide CCHPA would be designated as Des-X.</P></FTNT>
+<FP-1><I>Coxiella burnetii</I>
+</FP-1>
+<FP-1>Crimean-Congo hemorrhagic fever virus
+</FP-1>
+<FP-1>Diacetoxyscirpenol
+</FP-1>
+<FP-1>Eastern equine encephalitis virus
+</FP-1>
+<FP-1>Ebola virus*
+</FP-1>
+<FP-1><I>Francisella tularensis</I>*
+</FP-1>
+<FP-1>Lassa fever virus
+</FP-1>
+<FP-1>Lujo virus
+</FP-1>
+<FP-1>Marburg virus*
+</FP-1>
+<FP-1>Monkeypox virus
+</FP-1>
+<FP-1>Reconstructed replication competent forms of the 1918 pandemic influenza virus containing any portion of the coding regions of all eight gene segments (Reconstructed 1918 influenza virus)
+</FP-1>
+<FP-1>Ricin
+</FP-1>
+<FP-1><I>Rickettsia prowazekii</I>
+</FP-1>
+<FP-1>SARS coronavirus (SARS-CoV)
+</FP-1>
+<FP-1>SARS-CoV/SARS-CoV-2 chimeric viruses resulting from any deliberate manipulation of SARS-CoV-2 to incorporate nucleic acids coding for SARS-CoV virulence factors.
+</FP-1>
+<FP-1>Saxitoxin
+</FP-1>
+<FP-1>South American hemorrhagic fever viruses:
+</FP-1>
+<P>Chapare</P>
+<P>Guanarito</P>
+<P>Junin</P>
+<P>Machupo</P>
+<P>Sabia</P>
+<FP-2>Staphylococcal enterotoxins (subtypes A-E)
+</FP-2>
+<FP-2>T-2 toxin
+</FP-2>
+<FP-2>Tetrodotoxin
+</FP-2>
+<FP-2>Tick-borne encephalitis virus
+</FP-2>
+<P>Far Eastern subtype</P>
+<P>Siberian subtype</P>
+<FP-2>Kyasanur Forest disease virus
+</FP-2>
+<FP-2>Omsk haemorrhagic fever virus
+</FP-2>
+<FP-2>Variola major virus (Smallpox virus)*
+</FP-2>
+<FP-2>Variola minor virus (Alastrim)*
+</FP-2>
+<FP-2><I>Yersinia pestis</I>*</FP-2></EXTRACT>
+<P>(c) Genetic Elements, Recombinant and/or Synthetic Nucleic Acids, and Recombinant and/or Synthetic Organisms:</P>
+<P>(1) Nucleic acids that can produce infectious forms of any of the select agent viruses listed in paragraph (b) of this section.</P>
+<P>(2) Recombinant and/or Synthetic nucleic acids that encode for the toxic form(s) of any of the toxins listed in paragraph (b) of this section if the nucleic acids:</P>
+<P>(i) Can be expressed <I>in vivo</I> or <I>in vitro</I>, or</P>
+<P>(ii) Are in a vector or recombinant host genome and can be expressed <I>in vivo</I> or <I>in vitro.</I></P>
+<P>(3) HHS select agents and toxins listed in paragraph (b) of this section that have been genetically modified.</P>
+<P>(d) HHS select agents or toxins that meet any of the following criteria are excluded from the requirements of this part:</P>
+<P>(1) Any HHS select agent or toxin that is in its naturally occurring environment provided the select agent or toxin has not been intentionally introduced, cultivated, collected, or otherwise extracted from its natural source.</P>
+<P>(2) Non-viable HHS select agents or nontoxic HHS toxins.</P>
+<P>(3) A select agent or toxin that has been subjected to decontamination or a destruction procedure when intended for waste disposal.</P>
+<P>(4) A select agent or regulated nucleic acids that can produce infectious forms of any select agent virus that has been subjected to a validated inactivation procedure that is confirmed through a viability testing protocol. Surrogate strains that are known to possess equivalent properties with respect to inactivation can be used to validate an inactivation procedure; however, if there are known strain-to-strain variations in the resistance of a select agent to an inactivation procedure, then an inactivation procedure validated on a lesser resistant strain must also be validated on the more resistant strains.</P>
+<P>(5) Material containing a select agent that is subjected to a procedure that removes all viable select agent cells, spores, or virus particles if the material is subjected to a viability testing protocol to ensure that the removal method has rendered the material free of all viable select agent.</P>
+<P>(6) A select agent or regulated nucleic acids that can produce infectious forms of any select agent virus not subjected to a validated inactivation procedure or material containing a select agent not subjected to a procedure that removes all viable select agent cells, spores, or virus particles if the material is determined by the HHS Secretary to be effectively inactivated or effectively removed. To apply for a determination an individual or entity must submit a written request and supporting scientific information to CDC. A written decision granting or denying the request will be issued.</P>
+<P>(7) Except as required in &#xA7; 73.16(l), the aggregate amount of the toxin under the control of a principal investigator, treating physician or veterinarian, or commercial manufacturer or distributor does not, at any time, exceed the following amounts: 1000 mg of Abrin; 1 mg of Botulinum neurotoxins; 100 mg of Conotoxins (Short, paralytic alpha conotoxins containing the following amino acid sequence X<E T="52">1</E>CCX<E T="52">2</E>PACGX<E T="52">3</E>X<E T="52">4</E>X<E T="52">5</E>X<E T="52">6</E>CX<E T="52">7</E>); 10,000 mg of Diacetoxyscirpenol; 1000 mg of Ricin; 500 mg of Saxitoxin; 100 mg of Staphylococcal enterotoxins (subtypes A-E); 10,000 mg of T-2 toxin; or 500 mg of Tetrodotoxin. Provided that,</P>
+<P>(i) The toxin is transferred only after the transferor uses due diligence and documents the identification of the recipient and the legitimate need (<I>e.g.,</I> prophylactic, protective, bona fide research, or other peaceful purpose) claimed by the recipient to use such toxin. Information to be documented includes, but is not limited to, the recipient identity information, including the recipient's name, institution name, address, telephone number and email address; name of the toxin and the total amount transferred; and the legitimate need claimed by the recipient. Notwithstanding the provisions of paragraph (d) of this section, the HHS Secretary retains the authority to, without prior notification, inspect and copy or request the submission of the due diligence documentation to the CDC.</P>
+<P>(ii) Reports to CDC if they detect a known or suspected violation of Federal law or become aware of suspicious activity related to a toxin listed in this part.</P>
+<P>(8) An animal inoculated with or exposed to an HHS select toxin.</P>
+<P>(9) An HHS select toxin identified in an original food sample or clinical sample.</P>
+<P>(10) For those laboratories that are not exempt under &#xA7; 73.5(a) and &#xA7; 73.6(a), Botulinum neurotoxin that is produced as a byproduct in the study of Botulinum neurotoxin producing species of <I>Clostridium</I> so long as the toxin has not been intentionally cultivated, collected, purified, or otherwise extracted, and the material containing the toxin is rendered non-toxic and disposed of within 30 days of the initiation of the culture.</P>
+<P>(11) Waste generated during the delivery of patient care by health care professionals from a patient diagnosed with an illness or condition associated with a select agent, where that waste is decontaminated or transferred for destruction by complying with state and Federal regulations within seven calendar days of the conclusion of patient care.</P>
+<P>(12) Any South American genotypes of Eastern Equine Encephalitis Virus and any West African Clade of Monkeypox virus provided that the individual or entity can identify that the agent is within the exclusion category.</P>
+<P>(e) An attenuated strain of a select agent or a select toxin modified to be less potent or toxic may be excluded from the requirements of this part based upon a determination by the HHS Secretary that the attenuated strain or modified toxin does not pose a severe threat to public health and safety.</P>
+<P>(1) To apply for exclusion, an individual or entity must submit a written request and supporting scientific information. A written decision granting or denying the request will be issued. An exclusion will be effective upon notification to the applicant. Exclusions will be listed on the National Select Agent Registry Web site at <I>http://www.selectagents.gov/.</I></P>
+<P>(2) If an excluded attenuated strain or modified toxin is subjected to any manipulation that restores or enhances its virulence or toxic activity, the resulting select agent or toxin will be subject to the requirements of this part.</P>
+<P>(3) An individual or entity may make a written request to the HHS Secretary for reconsideration of a decision denying an application for the exclusion of an attenuated strain of a select agent or a select toxin modified to be less potent or toxic. The written request for reconsideration must state the facts and reasoning upon which the individual or entity relies to show the decision was incorrect. The HHS Secretary will grant or deny the request for reconsideration as promptly as circumstances allow and will state, in writing, the reasons for the decision.</P>
+<P>(f) Any HHS select agent or toxin seized by a Federal law enforcement agency will be excluded from the requirements of this part during the period between seizure of the select agent or toxin and the transfer or destruction of such agent or toxin provided that:</P>
+<P>(1) As soon as practicable, the Federal law enforcement agency transfers the seized select agent or toxin to an entity eligible to receive such agent or toxin or destroys the agent or toxin by a recognized sterilization or inactivation process,</P>
+<P>(2) The Federal law enforcement agency safeguards and secures the seized select agent or toxin against theft, loss, or release, and reports any theft, loss, or release of such agent or toxin, and</P>
+<P>(3) The Federal law enforcement agency reports the seizure of the select agent or toxin to CDC or APHIS.</P>
+<P>(i) The seizure of <I>Bacillus cereus</I> Biovar <I>anthracis,</I> Botulinum neurotoxins, Botulinum neurotoxin producing species of <I>Clostridium</I>, Ebola viruses, <I>Francisella tularensis,</I> Marburg virus, Variola major virus (Smallpox virus), Variola minor (Alastrim), or <I>Yersinia pestis</I> must be reported within 24 hours by telephone, facsimile, or e-mail. This report must be followed by submission of APHIS/CDC Form 4 within seven calendar days after seizure of the select agent or toxin.</P>
+<P>(ii) For all other HHS select agents or toxins, APHIS/CDC Form 4 must be submitted within seven calendar days after seizure of the agent or toxin.</P>
+<P>(iii) A copy of APHIS/CDC Form 4 must be maintained for three years.</P>
+<P>(4) The Federal law enforcement agency reports the final disposition of the select agent or toxin by submission of APHIS/CDC Form 4. A copy of the completed form must be maintained for three years.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 70 FR 61049, Oct. 20, 2005; 73 FR 61365, Oct. 16, 2008; 73 FR 64554, Oct. 30, 2008; 77 FR 61110, Oct. 5, 2012; 79 FR 26861, May 12, 2014; 81 FR 63143, Sept. 14, 2016; 82 FR 6290, Jan. 19, 2017; 86 FR 64081, Nov. 17, 2021]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.4" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.4&quot;,&quot;citation&quot;:&quot;42 CFR 73.4&quot;}">
+<HEAD>&#xA7; 73.4 Overlap select agents and toxins.</HEAD>
+<P>(a) Except for exclusions under paragraphs (d) and (e) of this section, the HHS Secretary has determined that the biological agents and toxins listed in this section have the potential to pose a severe threat to public health and safety, to animal health, or to animal products. The select agents and toxins marked with an asterisk (*) are designated as Tier 1 select agents and toxins and are subject to additional requirements as listed in this part.</P>
+<P>(b) Overlap select agents and toxins:</P>
+<EXTRACT>
+<FP-1><I>Bacillus anthracis</I> *
+</FP-1>
+<FP-1><I>Bacillus anthracis</I> Pasteur strain
+</FP-1>
+<FP-1><I>Brucella abortus</I>
+</FP-1>
+<FP-1><I>Brucella melitensis</I>
+</FP-1>
+<FP-1><I>Brucella suis</I>
+</FP-1>
+<FP-1><I>Burkholderia mallei</I> *
+</FP-1>
+<FP-1><I>Burkholderia pseudomallei</I> *
+</FP-1>
+<FP-1>Hendra virus
+</FP-1>
+<FP-1>Nipah virus
+</FP-1>
+<FP-1>Rift Valley fever virus
+</FP-1>
+<FP-1>Venezuelan equine encephalitis virus</FP-1></EXTRACT>
+<P>(c) Genetic Elements, Recombinant and/or Synthetic Nucleic Acids, and Recombinant and/or Synthetic Organisms:</P>
+<P>(1) Nucleic acids that can produce infectious forms of any of the overlap select agent viruses listed in paragraph (b) of this section.</P>
+<P>(2) Recombinant and/or synthetic nucleic acids that encode for the toxic form(s) of any overlap toxins listed in paragraph (b) of this section if the nucleic acids:</P>
+<P>(i) Can be expressed <I>in vivo</I> or <I>in vitro</I>, or</P>
+<P>(ii) Are in a vector or recombinant host genome and can be expressed <I>in vivo</I> or <I>in vitro.</I></P>
+<P>(3) Overlap select agents and toxins listed in paragraph (b) of this section that have been genetically modified.</P>
+<P>(d) Overlap select agents or toxins that meet any of the following criteria are excluded from the requirements of this part:</P>
+<P>(1) Any overlap select agent or toxin that is in its naturally occurring environment provided that the select agent or toxin has not been intentionally introduced, cultivated, collected, or otherwise extracted from its natural source.</P>
+<P>(2) Non-viable overlap select agents or nontoxic overlap toxins.</P>
+<P>(3) A select agent or toxin that has been subjected to decontamination or a destruction procedure when intended for waste disposal.</P>
+<P>(4) A select agent or regulated nucleic acids that can produce infectious forms of any select agent virus that has been subjected to a validated inactivation procedure that is confirmed through a viability testing protocol. Surrogate strains that are known to possess equivalent properties with respect to inactivation can be used to validate an inactivation procedure; however, if there are known strain-to-strain variations in the resistance of a select agent to an inactivation procedure, then an inactivation procedure validated on a lesser resistant strain must also be validated on the more resistant strains.</P>
+<P>(5) Material containing a select agent that is subjected to a procedure that removes all viable select agent cells, spores, or virus particles if the material is subjected to a viability testing protocol to ensure that the removal method has rendered the material free of all viable select agent.</P>
+<P>(6) A select agent or regulated nucleic acids that can produce infectious forms of any select agent virus not subjected to a validated inactivation procedure or material containing a select agent not subjected to a procedure that removes all viable select agent cells, spores, or virus particles if the material is determined by the HHS Secretary or Administrator to be effectively inactivated or effectively removed. To apply for a determination an individual or entity must submit a written request and supporting scientific information to CDC or APHIS. A written decision granting or denying the request will be issued.</P>
+<P>(7) An overlap select toxin identified in an original food sample or clinical sample.</P>
+<P>(8) Waste generated during the delivery of patient care by health care professionals from a patient diagnosed with an illness or condition associated with a select agent, where that waste is decontaminated or transferred for destruction by complying with state and Federal regulations within seven calendar days of the conclusion of patient care.</P>
+<P>(9) Any subtypes of Venezuelan equine encephalitis virus except for Subtypes IAB or IC provided that the individual or entity can identify that the agent is within the exclusion category.</P>
+<P>(e) An attenuated strain of a select agent, or a select toxin modified to be less potent or toxic, may be excluded from the requirements of this part based upon a determination by the HHS Secretary that the attenuated strain or modified toxin does not pose a severe threat to public health and safety.</P>
+<P>(1) To apply for exclusion, an individual or entity must submit a written request and supporting scientific information. A written decision granting or denying the request will be issued. An exclusion will be effective upon notification to the applicant. Exclusions will be listed on the National Select Agent Registry Web site at <I>http://www.selectagents.gov/.</I></P>
+<P>(2) If an excluded attenuated strain or modified toxin is subjected to any manipulation that restores or enhances its virulence or toxic activity, the resulting select agent or toxin will be subject to the requirements of this part.</P>
+<P>(3) An individual or entity may make a written request to the HHS Secretary or Administrator for reconsideration of a decision denying an application for the exclusion of an attenuated strain of a select agent or a select toxin modified to be less potent or toxic. The written request for reconsideration must state the facts and reasoning upon which the individual or entity relies to show the decision was incorrect. The HHS Secretary or Administrator will grant or deny the request for reconsideration as promptly as circumstances allow and will state, in writing, the reasons for the decision.</P>
+<P>(f) Any overlap select agent or toxin seized by a Federal law enforcement agency will be excluded from the requirements of this part during the period between seizure of the select agent or toxin and the transfer or destruction of such agent or toxin provided that:</P>
+<P>(1) As soon as practicable, the Federal law enforcement agency transfers the seized select agent or toxin to an entity eligible to receive such agent or toxin or destroys the agent or toxin by a recognized sterilization or inactivation process,</P>
+<P>(2) The Federal law enforcement agency safeguards and secures the seized select agent or toxin against theft, loss, or release, and reports any theft, loss, or release of such agent or toxin, and</P>
+<P>(3) The Federal law enforcement agency reports the seizure of the overlap select agent or toxin to CDC or APHIS.</P>
+<P>(i) The seizure of <I>Bacillus anthracis, Burkholderia mallei</I> and <I>Burkholderia pseudomallei</I> must be reported within 24 hours by telephone, facsimile, or e-mail. This report must be followed by submission of APHIS/CDC Form 4 within seven calendar days after seizure of the overlap select agent or toxin.</P>
+<P>(ii) For all other overlap select agents or toxins, APHIS/CDC Form 4 must be submitted within seven calendar days after seizure of the select agent or toxin.</P>
+<P>(iii) A copy of APHIS/CDC Form 4 must be maintained for three years.</P>
+<P>(4) The Federal law enforcement agency reports the final disposition of the overlap select agent or toxin by the submission of APHIS/CDC Form 4. A copy of the completed form must be maintained for three years.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 73 FR 61366, Oct. 16, 2008; 77 FR 61111, Oct. 5, 2012; 79 FR 26861, May 12, 2014; 82 FR 6291, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.5" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.5&quot;,&quot;citation&quot;:&quot;42 CFR 73.5&quot;}">
+<HEAD>&#xA7; 73.5 Exemptions for HHS select agents and toxins.</HEAD>
+<P>(a) Clinical or diagnostic laboratories and other entities that possess, use, or transfer a HHS select agent or toxin that is contained in a specimen presented for diagnosis or verification will be exempt from the requirements of this part for such agent or toxin contained in the specimen, provided that:</P>
+<P>(1) Unless directed otherwise by the HHS Secretary, within seven calendar days after identification of the select agent or toxin (except for Botulinum neurotoxin and/or <I>Staphylococcal</I> enterotoxin (Subtypes A-E)), or within 30 calendar days after identification of Botulinum neurotoxin and/or <I>Staphylococcal</I> enterotoxin (Subtypes A-E), the select agent or toxin is transferred in accordance with &#xA7; 73.16 or destroyed on-site by a recognized sterilization or inactivation process,</P>
+<P>(2) The select agent or toxin is secured against theft, loss, or release during the period between identification of the select agent or toxin and transfer or destruction of such agent or toxin, and any theft, loss, or release of such agent or toxin is reported, and</P>
+<P>(3) Unless otherwise directed by the HHS Secretary, the clinical or diagnostic specimens collected from a patient infected with a select agent are transferred in accordance with &#xA7; 73.16 or destroyed on-site by a recognized sterilization or inactivation process within seven calendar days after delivery of patient care by health care professionals has concluded, and</P>
+<P>(4) The identification of the agent or toxin is reported to CDC or APHIS, the specimen provider, and to other appropriate authorities when required by Federal, State, or local law by telephone, facsimile, or email. This report must be followed by submission of APHIS/CDC Form 4 to APHIS or CDC within seven calendar days after identification.</P>
+<P>(i) The identification of any of the following HHS select agents or toxins must be immediately reported by telephone, facsimile, or e-mail: <I>Bacillus cereus</I> Biovar <I>anthracis,</I>, Botulinum neurotoxins, Botulinum neurotoxin producing species of <I>Clostridium</I>, Ebola viruses, <I>Francisella tularensis,</I> Marburg virus, Variola major virus (Smallpox virus), Variola minor (Alastrim), or Yersinia pestis. This report must be followed by submission of APHIS/CDC Form 4 within seven calendar days after identification.</P>
+<P>(ii) For all other HHS select agents or toxins, APHIS/CDC Form 4 must be submitted within seven calendar days after identification.</P>
+<P>(iii) Less stringent reporting may be required based on extraordinary circumstances, such as a widespread outbreak.</P>
+<P>(iv) A copy of APHIS/CDC Form 4 must be maintained for three years.</P>
+<P>(b) Clinical or diagnostic laboratories and other entities that possess, use, or transfer a HHS select agent or toxin that is contained in a specimen presented for proficiency testing will be exempt from the requirements of this part for such agent or toxin contained in the specimen, provided that:</P>
+<P>(1) Unless directed otherwise by the HHS Secretary, within 90 calendar days of receipt, the select agent or toxin is transferred in accordance with &#xA7; 73.16 or destroyed on-site by a recognized sterilization or inactivation process,</P>
+<P>(2) The select agent or toxin is secured against theft, loss, or release during the period between identification of the select agent or toxin and transfer or destruction of such agent or toxin, and the theft, loss, or release of such agent or toxin is reported, and</P>
+<P>(3) The identification of the select agent or toxin, and its derivative, is reported to CDC or APHIS and to other appropriate authorities when required by Federal, State, or local law. To report the identification of a select agent or toxin, APHIS/CDC Form 4 must be submitted within 90 calendar days of receipt of the select agent or toxin. A copy of the completed form must be maintained for three years.</P>
+<P>(c) Unless the HHS Secretary issues an order making specific provisions of this part applicable to protect public health and safety, products that are, bear, or contain listed select agents or toxins that are cleared, approved, licensed, or registered under any of the following laws, are exempt from the provisions of this part insofar as their use meets the requirements of such laws:</P>
+<P>(1) The Federal Food, Drug, and Cosmetic Act (21 U.S.C. 301 <I>et seq.</I>),</P>
+<P>(2) Section 351 of the Public Health Service Act pertaining to biological products (42 U.S.C. 262),</P>
+<P>(3) The Act commonly known as the Virus-Serum-Toxin Act (21 U.S.C. 151-159), or</P>
+<P>(4) The Federal Insecticide, Fungicide, and Rodenticide Act (7 U.S.C. 136 <I>et seq.</I>).</P>
+<P>(d) The HHS Secretary may exempt from the requirements of this part an investigational product that is, bears, or contains a select agent or toxin, when such product is being used in an investigation authorized under any Federal Act and additional regulation under this part is not necessary to protect public health and safety.</P>
+<P>(1) To apply for an exemption, an individual or entity must submit a completed APHIS/CDC Form 5.</P>
+<P>(2) The HHS Secretary shall make a determination regarding the application within 14 calendar days after receipt, provided the application meets all of the requirements of this section and the application establishes that the investigation has been authorized under the cited Act. A written decision granting or denying the request will be issued.</P>
+<P>(3) The applicant must notify CDC or APHIS when an authorization for an investigation no longer exists. This exemption automatically terminates when such authorization is no longer in effect.</P>
+<P>(e) The HHS Secretary may temporarily exempt an individual or entity from the requirements of this part based on a determination that the exemption is necessary to provide for the timely participation of the individual or entity in response to a domestic or foreign public health emergency. With respect to the emergency involved, the exemption may not exceed 30 calendar days, except that one extension of an additional 30 calendar days may be granted.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 73 FR 61366, Oct. 16, 2008; 77 FR 61112, Oct. 5, 2012; 82 FR 6292, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.6" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.6&quot;,&quot;citation&quot;:&quot;42 CFR 73.6&quot;}">
+<HEAD>&#xA7; 73.6 Exemptions for overlap select agents and toxins.</HEAD>
+<P>(a) Clinical or diagnostic laboratories and other entities that possess, use, or transfer an overlap select agent or toxin that is contained in a specimen presented for diagnosis or verification will be exempt from the requirements of this part for such agent or toxin contained in the specimen, provided that:</P>
+<P>(1) Unless directed otherwise by the HHS Secretary or Administrator, within seven calendar days after identification, the select agent or toxin is transferred in accordance with &#xA7; 73.16 or 9 CFR part 121.16 or destroyed on-site by a recognized sterilization or inactivation process,</P>
+<P>(2) The select agent or toxin is secured against theft, loss, or release during the period between identification of the select agent or toxin and transfer or destruction of such agent or toxin, and any theft, loss, or release of such agent or toxin is reported, and</P>
+<P>(3) Unless otherwise directed by the HHS Secretary or Administrator, the clinical or diagnostic specimens collected from a patient infected with a select agent are transferred in accordance with &#xA7; 73.16 or destroyed on-site by a recognized sterilization or inactivation process within seven calendar days after delivery of patient care by health care professionals has concluded, and</P>
+<P>(4) The identification of the agent or toxin is reported to CDC or APHIS, the specimen provider, and to other appropriate authorities when required by Federal, State, or local law by telephone, facsimile, or email. This report must be followed by submission of APHIS/CDC Form 4 to APHIS or CDC within seven calendar days after identification.</P>
+<P>(i) The identification of any of the following overlap select agents or toxins must be immediately reported by telephone, facsimile, or e-mail: <I>Bacillus anthracis, Burkholderia mallei</I> and <I>Burkholderia pseudomallei.</I> This report must be followed by submission of APHIS/CDC Form 4 within seven calendar days after identification.</P>
+<P>(ii) For all other overlap select agents or toxins, APHIS/CDC Form 4 must be submitted within seven calendar days after identification.</P>
+<P>(iii) Less stringent reporting may be required based on extraordinary circumstances, such as a widespread outbreak.</P>
+<P>(iv) A copy of APHIS/CDC Form 4 must be maintained for three years.</P>
+<P>(b) Clinical or diagnostic laboratories and other entities that possess, use, or transfer an overlap select agent or toxin that is contained in a specimen presented for proficiency testing will be exempt from the requirements of this part for such agent or toxin contained in the specimen, provided that:</P>
+<P>(1) Unless directed otherwise by the HHS Secretary or Administrator, within 90 calendar days of receipt, the select agent or toxin is transferred in accordance with &#xA7; 73.16 or 9 CFR part 121.16 or destroyed on-site by a recognized sterilization or inactivation process,</P>
+<P>(2) The select agent or toxin is secured against theft, loss, or release during the period between identification of the select agent or toxin and transfer or destruction of such agent or toxin, and the theft, loss, or release of such agent or toxin is reported, and</P>
+<P>(3) The identification of the select agent or toxin, and its derivative, is reported to CDC or APHIS and to other appropriate authorities when required by Federal, State, or local law. To report the identification of an overlap select agent or toxin, APHIS/CDC Form 4 must be submitted within 90 calendar days of receipt of the select agent or toxin. A copy of the completed form must be maintained for three years.</P>
+<P>(c) Unless the HHS Secretary issues an order making specific provisions of this part applicable to protect public health and safety, products that are, bear, or contain listed select agents or toxins that are cleared, approved, licensed, or registered under any of the following laws, are exempt from the provisions of this part insofar as their use meets the requirements of such laws:</P>
+<P>(1) The Federal Food, Drug, and Cosmetic Act (21 U.S.C. 301 <I>et seq.</I>),</P>
+<P>(2) Section 351 of the Public Health Service Act pertaining to biological products (42 U.S.C. 262),</P>
+<P>(3) The Act commonly known as the Virus-Serum-Toxin Act (21 U.S.C. 151-159), or</P>
+<P>(4) The Federal Insecticide, Fungicide, and Rodenticide Act (7 U.S.C. 136 <I>et seq.</I>).</P>
+<P>(d) The HHS Secretary, after consultation with Administrator, may exempt from the requirements of this part an investigational product that is, bears, or contains an overlap select agent or toxin, may be exempted when such product is being used in an investigation authorized under any Federal Act and additional regulation under this part is not necessary to protect public health and safety.</P>
+<P>(1) To apply for an exemption, an individual or entity must submit a completed APHIS/CDC Form 5.</P>
+<P>(2) The HHS Secretary shall make a determination regarding the application within 14 calendar days after receipt, provided the application meets all of the requirements of this section and the application establishes that the investigation has been authorized under the cited Act. A written decision granting or denying the request will be issued.</P>
+<P>(3) The applicant must notify CDC or APHIS when an authorization for an investigation no longer exists. This exemption automatically terminates when such authorization is no longer in effect.</P>
+<P>(e) The HHS Secretary may exempt an individual or entity from the requirements of this part based on a determination that the exemption is necessary to provide for the timely participation of the individual or entity in response to a domestic or foreign public health emergency. The HHS Secretary may extend the exemption once for additional 30 days.</P>
+<P>(f) Upon request of the Administrator, the HHS Secretary may exempt an individual or entity from the requirements, in whole or in part, of this part for 30 calendar days if the Administrator has granted the exemption for agricultural emergency. The HHS Secretary may extend the exemption once for an additional 30 calendar days.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 73 FR 61366, Oct. 16, 2008; 77 FR 61112, Oct. 5, 2012; 79 FR 26862, May 12, 2014;82 FR 6292, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.7" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.7&quot;,&quot;citation&quot;:&quot;42 CFR 73.7&quot;}">
+<HEAD>&#xA7; 73.7 Registration and related security risk assessments.</HEAD>
+<P>(a) Unless exempted under &#xA7; 73.5, an individual or entity shall not possess, use, or transfer any HHS select agent or toxin without a certificate of registration issued by the HHS Secretary. Unless exempted under &#xA7; 73.6 or 9 CFR part 121.6, an individual or entity shall not possess, use, or transfer overlap select agents or toxins, without a certificate of registration issued by the HHS Secretary and Administrator.</P>
+<P>(b) As a condition of registration, each entity is required to be in compliance with the requirements of this part for select agents and toxins listed on the registration regardless of whether the entity is in actual possession of the select agent or toxin. With regard to toxins, the entity registered for possession, use or transfer of a toxin must be in compliance with the requirements of this part regardless of the amount of toxin currently in its possession.</P>
+<P>(c) As a condition of registration, each entity must designate an individual to be its Responsible Official. While most registrants are likely to be entities, in the event that an individual applies for and is granted a certificate of registration, the individual will be considered the Responsible Official.</P>
+<P>(d)(1) As a condition of registration, the following must be approved by the HHS Secretary or Administrator based on a security risk assessment by the Attorney General:</P>
+<P>(i) The individual or entity,</P>
+<P>(ii) The Responsible Official, and</P>
+<P>(iii) Unless otherwise exempted under this section, any individual who owns or controls the entity.</P>
+<P>(2) Federal, State, or local governmental agencies, including public accredited academic institutions, are exempt from the security risk assessments for the entity and the individual who owns or controls such entity.</P>
+<P>(3) An individual will be deemed to own or control an entity under the following conditions:
+<SU>1</SU>
+<FTREF/></P>
+<FTNT>
+<P><SU>1</SU> These conditions may apply to more than one individual.</P></FTNT>
+<P>(i) For a private institution of higher education, an individual will be deemed to own or control the entity if the individual is in a managerial or executive capacity with regard to the entity's select agents or toxins or with regard to the individuals with access to the select agents or toxins possessed, used, or transferred by the entity.</P>
+<P>(ii) For entities other than institutions of higher education, an individual will be deemed to own or control the entity if the individual:</P>
+<P>(A) Owns 50 percent or more of the entity, or is a holder or owner of 50 percent or more of its voting stock, or</P>
+<P>(B) Is in a managerial or executive capacity with regard to the entity's select agents or toxins or with regard to the individuals with access to the select agents or toxins possessed, used, or transferred by the entity.</P>
+<P>(4) An entity will be considered to be an institution of higher education if it is an institution of higher education as defined in section 101(a) of the Higher Education Act of 1965 (20 U.S.C. 1001(a)), or is an organization described in 501(c)(3) of the Internal Revenue Code of 1986, as amended (26 U.S.C. 501(c)(3)).</P>
+<P>(5) To obtain a security risk assessment, an individual or entity must submit the information necessary to conduct a security risk assessment to the Attorney General.</P>
+<P>(e) To apply for a certificate of registration that covers only HHS select agents or toxins, an individual or entity must submit the information requested in the registration application package (APHIS/CDC Form 1) to CDC. To apply for a certificate of registration that does not cover only HHS select agents or toxins (<I>i.e.,</I> covers at least one overlap select agent and/or toxin, or covers any combination of HHS select agents and/or toxins and USDA select agents and/or toxins), an individual or entity must submit the information requested in the registration application package (APHIS/CDC Form 1) to CDC or APHIS, but not both.</P>
+<P>(f) Prior to the issuance of a certificate of registration, the Responsible Official must promptly provide notification of any changes to the application for registration by submitting the relevant page(s) of the registration application.</P>
+<P>(g) The issuance of a certificate of registration may be contingent upon inspection or submission of additional information, such as the security plan, biosafety plan, incident response plan, or any other documents required to be prepared under this part.</P>
+<P>(h) A certificate of registration will be valid for one physical location (a room, a building, or a group of buildings) where the Responsible Official will be able to perform the responsibilities required in this part, for specific select agents or toxins, and for specific activities.</P>
+<P>(i) A certificate of registration may be amended to reflect changes in circumstances (e.g., replacement of the Responsible Official or other personnel changes, changes in ownership or control of the entity, changes in the activities involving any select agents or toxins, or the addition or removal of select agents or toxins).</P>
+<P>(1) Prior to any change, the Responsible Official must apply for an amendment to a certificate of registration by submitting the relevant page(s) of the registration application.</P>
+<P>(2) The Responsible Official will be notified in writing if an application to amend a certificate of registration has been approved. Approval of the amendment may be contingent upon an inspection or submission of additional information, such as the security plan, biosafety plan, incident response plan, or any other documents required to be prepared under this part.</P>
+<P>(3) No change may be made without such approval.</P>
+<P>(j) An entity must immediately notify CDC or APHIS if it loses the services of its Responsible Official. In the event that an entity loses the services of its Responsible Official, an entity may continue to possess or use select agents or toxins only if it appoints as the Responsible Official another individual who has been approved by the HHS Secretary or Administrator following a security risk assessment by the Attorney General and who meets the requirements of this part.</P>
+<P>(k) A certificate of registration will be terminated upon the written request of the entity if the entity no longer possesses or uses any select agents or toxins and no longer wishes to be registered.</P>
+<P>(l) A certificate of registration will be valid for a maximum of three years.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 82 FR 6292, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.8" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.8&quot;,&quot;citation&quot;:&quot;42 CFR 73.8&quot;}">
+<HEAD>&#xA7; 73.8 Denial, revocation, or suspension of registration.</HEAD>
+<P>(a) An application may be denied or a certificate of registration revoked or suspended if:</P>
+<P>(1) The individual or entity, the Responsible Official, or an individual who owns or controls the entity is within any of the categories described in 18 U.S.C. 175b,</P>
+<P>(2) The individual or entity, the Responsible Official, or an individual who owns or controls the entity as reasonably suspected by any Federal law enforcement or intelligence agency of:</P>
+<P>(i) Committing a crime specified in 18 U.S.C. 2332b(g)(5),</P>
+<P>(ii) Knowing involvement with an organization that engages in domestic or international terrorism (as defined in 18 U.S.C. 2331) or with any other organization that engages in intentional crimes of violence, or</P>
+<P>(iii) Being an agent of a foreign power (as defined in 50 U.S.C. 1801).</P>
+<P>(3) The individual or entity does not meet the requirements of this part, or</P>
+<P>(4) It is determined that such action is necessary to protect public health and safety.</P>
+<P>(b) Upon revocation or suspension of a certificate of registration, the individual or entity must:</P>
+<P>(1) Immediately stop all use of each select agent or toxin covered by the revocation or suspension order,</P>
+<P>(2) Immediately safeguard and secure each select agent or toxin covered by the revocation or suspension order from theft, loss, or release, and</P>
+<P>(3) Comply with all disposition instructions issued by the HHS Secretary for the select agent or toxin covered by the revocation or suspension.</P>
+<P>(c) Denial of an application for registration and revocation of registration may be appealed under &#xA7; 73.20. However, any denial of an application for registration or revocation of a certificate of registration will remain in effect until a final agency decision has been rendered.</P>
+</DIV8>
+
+<DIV8 N="73.9" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.9&quot;,&quot;citation&quot;:&quot;42 CFR 73.9&quot;}">
+<HEAD>&#xA7; 73.9 Responsible Official.</HEAD>
+<P>(a) An individual or entity required to register under this part must designate an individual to be the Responsible Official. The Responsible Official must:</P>
+<P>(1) Be approved by the HHS Secretary or Administrator following a security risk assessment by the Attorney General,</P>
+<P>(2) Be familiar with the requirements of this part,</P>
+<P>(3) Have authority and responsibility to act on behalf of the entity,</P>
+<P>(4) Ensure compliance with the requirements of this part,</P>
+<P>(5) Have a physical (and not merely a telephonic or audio/visual) presence at the registered entity to ensure that the entity is in compliance with the select agent regulations and be able to respond in a timely manner to onsite incidents involving select agents and toxins in accordance with the entity's incident response plan, and</P>
+<P>(6) Ensure that annual inspections are conducted for each registered space where select agents or toxins are stored or used in order to determine compliance with the requirements of this part. The results of each inspection must be documented, and any deficiencies identified during an inspection must be corrected and the corrections documented.</P>
+<P>(7) Ensure that individuals are provided the contact information for the HHS Office of Inspector General Hotline and the USDA Office of Inspector General Hotline so that they may anonymously report any biosafety or security concerns related to select agents and toxins.</P>
+<P>(8) Investigate to determine the reason for any failure of a validated inactivation procedure or any failure to remove viable select agent from material. If the Responsible Official is unable to determine the cause of a deviation from a validated inactivation procedure or a viable select agent removal method; or receives a report of any inactivation failure after the movement of material to another location, the Responsible Official must report immediately by telephone or email the inactivation or viable agent removal method failure to CDC or APHIS.</P>
+<P>(9) Review, and revise as necessary, each of the entity's validated inactivation procedures or viable select agent removal methods. The review must be conducted annually or after any change in Principal Investigator, change in the validated inactivation procedure or viable select agent removal method, or failure of the validated inactivation procedure or viable select agent removal method. The review must be documented and training must be conducted if there are any changes to the validated inactivation procedure, viable select agent removal method, or viability testing protocol.</P>
+<P>(b) An entity may designate one or more individuals to serve as an alternate Responsible Official, who acts for the Responsible Official in his/her absence. These individuals must have the authority and control to ensure compliance with the regulations when acting as the Responsible Official.</P>
+<P>(c) The Responsible Official must report the identification and final disposition of any select agent or toxin contained in a specimen presented for diagnosis or verification.</P>
+<P>(1) The identification of any of the following select agents or toxins must be immediately reported by telephone, facsimile, or e-mail: <I>Bacillus anthracis,</I>, <I>Bacillus cereus</I> Biovar <I>anthracis,&#x201D;</I> Botulinum neurotoxins, Botulinum neurotoxin producing species of <I>Clostridium, Burkholderia</I> <I>mallei, Burkholderia</I> <I>pseudomallei</I> <I>Francisella tularensis,</I> Ebola viruses, , Marburg virus, Variola major virus (Smallpox virus), Variola minor (Alastrim), or <I>Yersinia pestis.</I> The final disposition of the agent or toxin must be reported by submission of APHIS/CDC Form 4 within seven calendar days after identification. A copy of the completed form must be maintained for three years.</P>
+<P>(2) To report the identification and final disposition of any other select agent or toxin, APHIS/CDC Form 4 must be submitted within seven calendar days after identification. A copy of the completed form must be maintained for three years.</P>
+<P>(3) Less stringent reporting may be required based on extraordinary circumstances, such as a widespread outbreak.</P>
+<P>(d) The Responsible Official must report the identification and final disposition of any select agent or toxin contained in a specimen presented for proficiency testing. To report the identification and final disposition of a select agent or toxin, APHIS/CDC Form 4 must be submitted within 90 calendar days of receipt of the agent or toxin. A copy of the completed form must be maintained for three years.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61112, Oct. 5, 2012; 82 FR 6292, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.10" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.10&quot;,&quot;citation&quot;:&quot;42 CFR 73.10&quot;}">
+<HEAD>&#xA7; 73.10 Restricting access to select agents and toxins; security risk assessments.</HEAD>
+<P>(a) An individual or entity required to register under this part may not provide an individual access to a select agent or toxin, and an individual may not access a select agent or toxin, unless the individual is approved by the HHS Secretary or Administrator, following a security risk assessment by the Attorney General.</P>
+<P>(b) An individual will be deemed to have access at any point in time if the individual has possession of a select agent or toxin (e.g., ability to carry, use, or manipulate) or the ability to gain possession of a select agent or toxin.</P>
+<P>(c) Each individual with access to select agents or toxins must have the appropriate education, training, and/or experience to handle or use such agents or toxins.</P>
+<P>(d) To apply for access approval, each individual must submit the information necessary to conduct a security risk assessment to the Attorney General.</P>
+<P>(e) A person with a valid approval from the HHS Secretary or Administrator to have access to select agents and toxins may request, through his or her Responsible Official, that the HHS Secretary or Administrator provide their approved access status to another registered individual or entity for a specified period of time. A Responsible Official must immediately notify the Responsible Official of the visited entity if the person's access to select agents and toxins has been terminated.</P>
+<P>(f) An individual's security risk assessment may be expedited upon written request by the Responsible Official and a showing of good cause (e.g., public health or agricultural emergencies, national security, or a short term visit by a prominent researcher). A written decision granting or denying the request will be issued.</P>
+<P>(g) An individual's access approval will be denied or revoked if the individual is within any of the categories described in 18 U.S.C. 175b,</P>
+<P>(h) An individual's access approval may be denied, limited, or revoked if:</P>
+<P>(1) The individual is reasonably suspected by any Federal law enforcement or intelligence agency of committing a crime specified in 18 U.S.C. 2332b(g)(5), knowing involvement with an organization that engages in domestic or international terrorism (as defined in 18 U.S.C. 2331) or with any other organization that engages in intentional crimes of violence, or being an agent of a foreign power (as defined in 50 U.S.C. 1801), or</P>
+<P>(2) It is determined such action is necessary to protect public health and safety.</P>
+<P>(i) An individual may appeal the HHS Secretary's decision to deny, limit, or revoke access approval under &#xA7; 73.20.</P>
+<P>(j) Access approval is valid for a maximum of three years.</P>
+<P>(k) The Responsible Official must immediately notify CDC or APHIS when an individual's access to select agents or toxins is terminated by the entity and the reasons therefore.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61112, Oct. 5, 2012; 82 FR 6293, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.11" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.11&quot;,&quot;citation&quot;:&quot;42 CFR 73.11&quot;}">
+<HEAD>&#xA7; 73.11 Security.</HEAD>
+<P>(a) An individual or entity required to register under this part must develop and implement a written security plan. The security plan must be sufficient to safeguard the select agent or toxin against unauthorized access, theft, loss, or release.</P>
+<P>(b) The security plan must be designed according to a site-specific risk assessment and must provide graded protection in accordance with the risk of the select agent or toxin, given its intended use. A current security plan must be submitted for initial registration, renewal of registration, or when requested.</P>
+<P>(c) The security plan must:</P>
+<P>(1) Describe procedures for physical security, inventory control, and information systems control,</P>
+<P>(2) Contain provisions for the control of access to select agents and toxins including the safeguarding of animals (including arthropods) or plants intentionally or accidentally exposed to or infected with a select agent, against unauthorized access, theft, loss or release.</P>
+<P>(3) Contain provisions for routine cleaning, maintenance, and repairs,</P>
+<P>(4) Establish procedures for removing unauthorized or suspicious persons,</P>
+<P>(5) Describe procedures for addressing loss or compromise of keys, keycards, passwords, combinations, etc. and protocols for changing access permissions or locks following staff changes,</P>
+<P>(6) Contain procedures for reporting unauthorized or suspicious persons or activities, loss or theft of select agents or toxins, release of select agents or toxins, or alteration of inventory records, and</P>
+<P>(7) Contain provisions for ensuring that all individuals with access approval from the HHS Secretary or Administrator understand and comply with the security procedures.</P>
+<P>(8) Describe procedures for how the Responsible Official will be informed of suspicious activity that may be criminal in nature and related to the entity, its personnel, or its select agents or toxins; and describe procedures for how the entity will notify the appropriate Federal, State, or local law enforcement agencies of such activity.</P>
+<P>(9) Contain provisions for information security that:</P>
+<P>(i) Ensure that all external connections to systems which manage security for the registered space are isolated or have controls that permit only authorized and authenticated users;</P>
+<P>(ii) Ensure that authorized and authenticated users are only granted access to select agent and toxin related information, files, equipment (<I>e.g.,</I> servers or mass storage devices) and applications as necessary to fulfill their roles and responsibilities, and that access is modified when the user's roles and responsibilities change or when their access to select agents and toxins is suspended or revoked;</P>
+<P>(iii) Ensure that controls are in place that are designed to prevent malicious code (such as, but not limited to, computer virus, worms, spyware) from compromising the confidentiality, integrity, or availability of information systems which manage access to spaces registered under this part or records in &#xA7; 73.17;</P>
+<P>(iv) Establish a robust configuration management practice for information systems to include regular patching and updates made to operating systems and individual applications; and</P>
+<P>(v) Establish procedures that provide backup security measures in the event that access control systems, surveillance devices, and/or systems that manage the requirements of section 17 of this part are rendered inoperable.</P>
+<P>(10) Contain provisions and policies for shipping, receiving, and storage of select agents and toxins, including documented procedures for receiving, monitoring, and shipping of all select agents and toxins. These provisions must provide that an entity will properly secure containers on site and have a written contingency plan for unexpected shipments.</P>
+<P>(d) An individual or entity must adhere to the following security requirements or implement measures to achieve an equivalent or greater level of security:</P>
+<P>(1) Allow access only to individuals with access approval from the HHS Secretary or Administrator,</P>
+<P>(2) Allow individuals not approved for access from the HHS Secretary or Administrator to conduct routine cleaning, maintenance, repairs, or other activities not related to select agents or toxins only when continuously escorted by an approved individual if the potential for access to select agents or toxins exists,</P>
+<P>(3) Provide for the control of select agents and toxins by requiring freezers, refrigerators, cabinets, and other containers where select agents or toxins are stored to be secured against unauthorized access (e.g., card access system, lock boxes),</P>
+<P>(4) Inspect all suspicious packages before they are brought into or removed from the area where select agents or toxins are used or stored,</P>
+<P>(5) Establish a protocol for intra-entity transfers under the supervision of an individual with access approval from the HHS Secretary or Administrator, including chain-of-custody documents and provisions for safeguarding against theft, loss, or release,</P>
+<P>(6) Require that individuals with access approval from the HHS Secretary or Administrator refrain from sharing with any other person their unique means of accessing a select agent or toxin (e.g., keycards or passwords),</P>
+<P>(7) Require that individuals with access approval from the HHS Secretary or Administrator immediately report any of the following to the Responsible Official:</P>
+<P>(i) Any loss or compromise of keys, passwords, combination, etc.,</P>
+<P>(ii) Any suspicious persons or activities,</P>
+<P>(iii) Any loss or theft of select agents or toxins,</P>
+<P>(iv) Any release of a select agent or toxin, and</P>
+<P>(v) Any sign that inventory or use records for select agents or toxins have been altered or otherwise compromised, and</P>
+<P>(vi) Any loss of computer, hard drive or other data storage device containing information that could be used to gain access to select agents or toxins.</P>
+<P>(8) Separate areas where select agents and toxins are stored or used from the public areas of the building.</P>
+<P>(e) Entities must conduct complete inventory audits of all affected select agents and toxins in long-term storage when any of the following occur:</P>
+<P>(1) Upon the physical relocation of a collection or inventory of select agents or toxins for those select agents or toxins in the collection or inventory;</P>
+<P>(2) Upon the departure or arrival of a principal investigator for those select agents and toxins under the control of that principal investigator; or</P>
+<P>(3) In the event of a theft or loss of a select agent or toxin, all select agents and toxins under the control of that principal investigator.</P>
+<P>(f) In addition to the requirements contained in paragraphs (c) and (d) of this section, the security plan for an individual or entity possessing a Tier 1 select agent or toxin must also:</P>
+<P>(1) Describe procedures for conducting a pre-access suitability assessment of persons who will have access to a Tier 1 select agent or toxin;</P>
+<P>(2) Describe procedures for how an entity's Responsible Official will coordinate their efforts with the entity's safety and security professionals to ensure security of Tier 1 select agents and toxins and share, as appropriate, relevant information; and</P>
+<P>(3) Describe procedures for the ongoing assessment of the suitability of personnel with access to a Tier 1 select agent or toxin. The procedures must include:</P>
+<P>(i) Self- and peer-reporting of incidents or conditions that could affect an individual's ability to safely have access to or work with select agents and toxins, or to safeguard select agents and toxins from theft, loss, or release;</P>
+<P>(ii) The training of employees with access to Tier 1 select agents and toxins on entity policies and procedures for reporting, evaluation, and corrective actions concerning the assessment of personnel suitability; and</P>
+<P>(iii) The ongoing suitability monitoring of individuals with access to Tier 1 select agents and toxins.</P>
+<P>(4) Entities with Tier 1 select agents and toxins must prescribe the following security enhancements:</P>
+<P>(i) Procedures that will limit access to a Tier 1 select agent or toxin to only those individuals who are approved by the HHS Secretary or Administrator, following a security risk assessment by the Attorney General, have had an entity-conducted pre-access suitability assessment, and are subject to the entity's procedures for ongoing suitability assessment;</P>
+<P>(ii) Procedures that limit access to laboratory and storage facilities outside of normal business hours to only those specifically approved by the Responsible Official or designee;</P>
+<P>(iii) Procedures for allowing visitors, their property, and vehicles at the entry and exit points to the registered space, or at other designated points of entry to the building, facility, or compound that are based on the entity's site-specific risk assessment;</P>
+<P>(iv) A minimum of three security barriers where each security barrier adds to the delay in reaching secured areas where select agents and toxins are used or stored. One of the security barriers must be monitored in such a way as to detect intentional and unintentional circumventing of established access control measures under all conditions (day/night, severe weather, etc.) The final barrier must limit access to the select agent or toxin to personnel approved by the HHS Secretary or Administrator, following a security risk assessment by the Attorney General.</P>
+<P>(v) All registered space or areas that reasonably afford access to the registered space must be protected by an intrusion detection system (IDS) unless physically occupied;</P>
+<P>(vi) Personnel monitoring the IDS must be capable of evaluating and interpreting the alarm and alerting the designated security response force or law enforcement;</P>
+<P>(vii) For powered access control systems, describe procedures to ensure that security is maintained in the event of the failure of access control systems due to power disruption affecting registered space;</P>
+<P>(viii) The entity must:</P>
+<P>(A) Determine that the response time for security forces or local police will not exceed 15 minutes where the response time is measured from the time of an intrusion alarm, or report of a security incident, to the arrival of the responders at the first security barrier or;</P>
+<P>(B) Provide security barriers that are sufficient to delay unauthorized access until the response force arrives in order to safeguard the select agents and toxins from theft, intentional release, or unauthorized access. The response time is measured from the time of an intrusion alarm, or report of a security incident, to the arrival of the responders at the first security barrier.</P>
+<P>(5) Entities that possess Variola major virus and Variola minor virus must have the following additional security requirements:</P>
+<P>(i) Require personnel with independent unescorted access to Variola major or Variola minor virus to have a Top Secret security clearance;</P>
+<P>(ii) Require Variola major or Variola minor virus storage locations to be under the surveillance of closed circuit television that is monitored;</P>
+<P>(iii) After hours access procedures for Variola major or Variola minor virus must require notification of the entity's security staff prior to entry into the Variola laboratory and upon exit;</P>
+<P>(iv) Require that observation zones be maintained in outdoor areas adjacent to the physical barrier at the perimeter of the entity and be large enough to permit observation of the activities of people at that barrier in the event of its penetration;</P>
+<P>(v) Provide for a minimum of four barriers for the protection of the Variola major or Variola minor virus, one of which must be a perimeter fence;</P>
+<P>(vi) Require a numbered picture badge identification subsystem to be used for all individuals who are authorized to access Variola major or Variola minor without escort;</P>
+<P>(vii) Require the use, at all times, of properly trained and equipped security force personnel able to interdict threats identified in the site specific risk assessment;</P>
+<P>(viii) Identify security force personnel designated to strengthen onsite response capabilities, and that will be onsite and available at all times to carry out their assigned response duties;</P>
+<P>(ix) Provide for security patrols to periodically check external areas of the registered areas to include physical barriers and building entrances;</P>
+<P>(x) Require that all on-duty security force personnel shall be capable of maintaining continuous communication with support and response assets by way of security operations center;</P>
+<P>(xi) Require that Variola major and Variola minor material in long term storage be stored in tamper-evident systems;</P>
+<P>(xii) Require that all spaces containing working or permanent Variola major or Variola minor stocks be locked and protected by an intrusion alarm system that will alarm upon the unauthorized entry of a person anywhere into the area;</P>
+<P>(xiii) Require that alarms required pursuant to this section annunciate in a continuously manned security operations center located within the facility; and</P>
+<P>(xiv) Require that the security operations center shall be located within a building so that the interior is not visible from the perimeter of the protected area.</P>
+<P>(g) In developing a security plan, an individual or entity should consider the document entitled, &#x201C;Security Guidance for Select Agent or Toxin Facilities.&#x201D; This document is available on the National Select Agent Registry at <I>http://www.selectagents.gov/.</I></P>
+<P>(h) The plan must be reviewed annually and revised as necessary. Drills or exercises must be conducted at least annually to test and evaluate the effectiveness of the plan. The plan must be reviewed and revised, as necessary, after any drill or exercise and after any incident. Drills or exercises must be documented to include how the drill or exercise tested and evaluated the plan, any problems that were identified and corrective action(s) taken, and the names of registered entity personnel participants.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61112, Oct. 5, 2012; 79 FR 26862, May 12, 2014; 82 FR 6293, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.12" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.12&quot;,&quot;citation&quot;:&quot;42 CFR 73.12&quot;}">
+<HEAD>&#xA7; 73.12 Biosafety.</HEAD>
+<P>(a) An individual or entity required to register under this part must develop and implement a written biosafety plan that is commensurate with the risk of the select agent or toxin, given its intended use. The biosafety plan must contain sufficient information and documentation to describe the biosafety and containment procedures for the select agent or toxin, including any animals (including arthropods) or plants intentionally or accidentally exposed to or infected with a select agent. The current biosafety plan must be submitted for initial registration, renewal of registration, or when requested. The biosafety plan must include the following provisions:</P>
+<P>(1) The hazardous characteristics of each agent or toxin listed on the entity's registration and the biosafety risk associated with laboratory procedures related to the select agent or toxin;</P>
+<P>(2) Safeguards in place with associated work practices to protect entity personnel, the public, and the environment from exposure to the select agent or toxin including, but not limited to: Personal protective equipment and other safety equipment; containment equipment including, but not limited to, biological safety cabinets, animal caging systems, and centrifuge safety containers; and engineering controls and other facility safeguards;</P>
+<P>(3) Written procedures for each validated method used for disinfection, decontamination or destruction, as appropriate, of all contaminated or presumptively contaminated materials including, but not limited to: Cultures and other materials related to the propagation of select agents or toxins, items related to the analysis of select agents and toxins, personal protective equipment, animal caging systems and bedding (if applicable), animal carcasses or extracted tissues and fluids (if applicable), laboratory surfaces and equipment, and effluent material; and</P>
+<P>(4) Procedures for the handling of select agents and toxins in the same spaces with non-select agents and toxins to prevent unintentional contamination.</P>
+<P>(b) The biosafety and containment procedures must be sufficient to contain the select agent or toxin (e.g., physical structure and features of the entity, and operational and procedural safeguards).</P>
+<P>(c) In developing a biosafety plan, an individual or entity should consider:</P>
+<P>(1) The CDC/NIH publication, &#x201C;Biosafety in Microbiological and Biomedical Laboratories.&#x201D; This document is available on the National Select Agent Registry Web site at <I>http://www.selectagents.gov.</I></P>
+<P>(2) The &#x201C;NIH Guidelines for Research Involving Recombinant or Synthetic Nucleic Acid Molecules,&#x201D; (NIH Guidelines). This document is available on the National Select Agent Registry Web site at <I>http://www.selectagents.gov.</I></P>
+<P>(d) The biosafety plan must include an occupational health program for individuals with access to Tier 1 select agents and toxins, and those individuals must be enrolled in the occupational health program.</P>
+<P>(e) The plan must be reviewed annually and revised as necessary. Drills or exercises must be conducted at least annually to test and evaluate the effectiveness of the plan. The plan must be reviewed and revised, as necessary, after any drill or exercise and after any incident. Drills or exercises must be documented to include how the drill or exercise tested and evaluated the plan, any problems that were identified and corrective action(s) taken, and the names of registered entity personnel participants.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61114, Oct. 5, 2012; 82 FR 6293, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.13" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.13&quot;,&quot;citation&quot;:&quot;42 CFR 73.13&quot;}">
+<HEAD>&#xA7; 73.13 Restricted experiments.</HEAD>
+<P>(a) An individual or entity may not conduct, or possess products resulting from, the following experiments unless approved by and conducted in accordance with the conditions prescribed by the HHS Secretary:</P>
+<P>(1) Experiments that involve the deliberate transfer of, or selection for, a drug resistance trait to select agents that are not known to acquire the trait naturally, if such acquisition could compromise the control of disease agents in humans, veterinary medicine, or agriculture.</P>
+<P>(2) Experiments involving the deliberate formation of synthetic or recombinant DNA containing genes for the biosynthesis of select toxins lethal for vertebrates at an LD[50] &lt;100 ng/kg body weight.</P>
+<P>(3) Experiments that involve the creation of SARS-CoV/SARS-CoV-2 chimeric viruses resulting from any deliberate manipulation of SARS-CoV-2 to incorporate nucleic acids coding for SARS-CoV virulence factors or vice versa.</P>
+<P>(b) The HHS Secretary may revoke approval to conduct any of the experiments in paragraph (a) of this section, or revoke or suspend a certificate of registration, if the individual or entity fails to comply with the requirements of this part.</P>
+<P>(c) To apply for approval to conduct any of the experiments in paragraph (a) of this section, an individual or entity must submit a written request and supporting scientific information. A written decision granting or denying the request will be issued.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61114, Oct. 5, 2012; 79 FR 26862, May 12, 2014; 86 FR 64081, Nov. 17, 2021]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.14" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.14&quot;,&quot;citation&quot;:&quot;42 CFR 73.14&quot;}">
+<HEAD>&#xA7; 73.14 Incident response.</HEAD>
+<P>(a) An individual or entity required to register under this part must develop and implement a written incident response plan based upon a site specific risk assessment.
+<SU>2</SU>
+<FTREF/> The incident response plan must be coordinated with any entity-wide plans, kept in the workplace, and available to employees for review. The current incident response plan must be submitted for initial registration, renewal of registration, or when requested.</P>
+<FTNT>
+<P><SU>2</SU> Nothing in this section is meant to supersede or preempt incident response requirements imposed by other statutes or regulations.</P></FTNT>
+<P>(b) The incident response plan must fully describe the entity's response procedures for the theft, loss, or release of a select agent or toxin; inventory discrepancies; security breaches (including information systems); severe weather and other natural disasters; workplace violence; bomb threats and suspicious packages; and emergencies such as fire, gas leak, explosion, power outage, and other natural and man-made events.</P>
+<P>(c) The response procedures must account for hazards associated with the select agent or toxin and appropriate actions to contain such select agent or toxin, including any animals (including arthropods) or plants intentionally or accidentally exposed to or infected with a select agent.</P>
+<P>(d) The incident response plan must also contain the following information:</P>
+<P>(1) The name and contact information (e.g., home and work) for the individual or entity (e.g., responsible official, alternate responsible official(s), biosafety officer, etc.),</P>
+<P>(2) The name and contact information for the building owner and/or manager, where applicable,</P>
+<P>(3) The name and contact information for tenant offices, where applicable,</P>
+<P>(4) The name and contact information for the physical security official for the building, where applicable,</P>
+<P>(5) Personnel roles and lines of authority and communication,</P>
+<P>(6) Planning and coordination with local emergency responders,</P>
+<P>(7) Procedures to be followed by employees performing rescue or medical duties,</P>
+<P>(8) Emergency medical treatment and first aid,</P>
+<P>(9) A list of personal protective and emergency equipment, and their locations,</P>
+<P>(10) Site security and control,</P>
+<P>(11) Procedures for emergency evacuation, including type of evacuation, exit route assignments, safe distances, and places of refuge, and</P>
+<P>(12) Decontamination procedures.</P>
+<P>(e) Entities with Tier 1 select agents and toxins must have the following additional incident response policies or procedures:</P>
+<P>(1) The incident response plan must fully describe the entity's response procedures for failure of intrusion detection or alarm system; and</P>
+<P>(2) The incident response plan must describe procedures for how the entity will notify the appropriate Federal, State, or local law enforcement agencies of suspicious activity that may be criminal in nature and related to the entity, its personnel, or its select agents or toxins.</P>
+<P>(f) The plan must be reviewed annually and revised as necessary. Drills or exercises must be conducted at least annually to test and evaluate the effectiveness of the plan. The plan must be reviewed and revised, as necessary, after any drill or exercise and after any incident. Drills or exercises must be documented to include how the drill or exercise tested and evaluated the plan, any problems that were identified and corrective action(s) taken, and the names of registered entity personnel participants.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61114, Oct. 5, 2012; 82 FR 6293, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.15" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.15&quot;,&quot;citation&quot;:&quot;42 CFR 73.15&quot;}">
+<HEAD>&#xA7; 73.15 Training.</HEAD>
+<P>(a) An individual or entity required to register under this part must provide information and training on biocontainment, biosafety, security (including security awareness), and incident response to:</P>
+<P>(1) Each individual with access approval from the HHS Secretary or Administrator. The training must address the particular needs of the individual, the work they will do, and the risks posed by the select agents or toxins. The training must be accomplished prior to the individual's entry into an area where a select agent is handled or stored, or within 12 months of the date the individual was approved by the HHS Secretary or the Administrator for access, whichever is earlier.</P>
+<P>(2) Each individual not approved for access to select agents and toxins by the HHS Secretary or Administrator before that individual enters areas under escort where select agents or toxins are handled or stored (<I>e.g.,</I> laboratories, growth chambers, animal rooms, greenhouses, storage areas, shipping/receiving areas, production facilities, etc.). Training for escorted personnel must be based on the risk associated with accessing areas where select agents and toxins are used and/or stored. The training must be accomplished prior to the individual's entry into where select agents or toxins are handled or stored (<I>e.g.,</I> laboratories, growth chambers, animal rooms, greenhouses, storage areas, shipping/receiving areas, production facilities, etc.).</P>
+<P>(b) Entities with Tier 1 select agents and toxins must conduct annual insider threat awareness briefings on how to identify and report suspicious behaviors.</P>
+<P>(c) Refresher training must be provided annually for individuals with access approval from the HHS Secretary or Administrator or at such time as the registered individual or entity significantly amends its security, incident response, or biosafety plans.</P>
+<P>(d) The Responsible Official must ensure a record of the training provided to each individual with access to select agents and toxins and each escorted individual (<I>e.g.,</I> laboratory workers, visitors, etc.) is maintained. The record must include the name of the individual, the date of the training, a description of the training provided, and the means used to verify that the employee understood the training.</P>
+<P>(e) The Responsible Official must ensure and document that individuals are provided the contact information of the HHS Office of Inspector General Hotline and the USDA Office of Inspector General Hotline so that they may anonymously report any safety or security concerns related to select agents and toxins.</P>
+<CITA TYPE="N">[77 FR 61114, Oct. 5, 2012, as amended at 82 FR 6293, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.16" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.16&quot;,&quot;citation&quot;:&quot;42 CFR 73.16&quot;}">
+<HEAD>&#xA7; 73.16 Transfers.</HEAD>
+<P>(a) Except as provided in paragraphs (c) and (d) of this section, a select agent or toxin may only be transferred to individuals or entities registered to possess, use, or transfer that agent or toxin. A select agent or toxin may only be transferred under the conditions of this section and must be authorized by CDC or APHIS prior to the transfer.
+<SU>4</SU>
+<FTREF/></P>
+<FTNT>
+<P><SU>4</SU> This section does not cover transfers within an entity when the sender and the recipient are covered by the same certificate of registration.</P></FTNT>
+<P>(b) A transfer may be authorized if:</P>
+<P>(1) The sender:</P>
+<P>(i) Has at the time of transfer a certificate of registration that covers the particular select agent or toxin to be transferred and meets all requirements in this part,</P>
+<P>(ii) Meets the exemption requirements for the particular select agent or toxin to be transferred, or</P>
+<P>(iii) Is transferring the select agent or toxin from outside the United States and meets all import requirements.</P>
+<P>(2) At the time of transfer, the recipient has a certificate of registration that includes the particular select agent or toxin to be transferred and meets all of the requirements of this part.</P>
+<P>(c) A select agent or toxin that is contained in a specimen for proficiency testing may be transferred without prior authorization from CDC or APHIS provided that, at least seven calendar days prior to the transfer, the sender reports to CDC or APHIS the select agent or toxin to be transferred and the name and address of the recipient.</P>
+<P>(d) On a case-by-case basis, the HHS Secretary may authorize a transfer of a select agent or toxin, not otherwise eligible for transfer under this part under conditions prescribed by the HHS Secretary.</P>
+<P>(e) To obtain authorization for transfer, APHIS/CDC Form 2 must be submitted.</P>
+<P>(f) After authorization is provided by APHIS or CDC, the packaging of the select agent(s) and toxin(s) is performed by an individual approved by the HHS Secretary or Administrator to have access to select agents and toxins and is in compliance with all applicable laws concerning packaging.</P>
+<P>(g) The sender must comply with all applicable laws governing packaging and shipping.</P>
+<P>(h) Transportation in commerce starts when the select agent(s) or toxin(s) are packaged for shipment and ready for receipt by a courier transporting select agent(s) or toxin(s) and ends when the package is received by the intended recipient who is an individual approved by the HHS Secretary or Administrator to have access to select agents and toxins, following a security risk assessment by the Attorney General.</P>
+<P>(i) The recipient must submit a completed APHIS/CDC Form 2 within two business days of receipt of a select agent or toxin.</P>
+<P>(j) The recipient must immediately notify CDC or APHIS if the select agent or toxin has not been received within 48 hours after the expected delivery time, or if the package containing select agents or toxins has been damaged to the extent that a release of the select agent or toxin may have occurred.</P>
+<P>(k) An authorization for a transfer shall be valid only for 30 calendar days after issuance, except that such an authorization becomes immediately null and void if any facts supporting the authorization change (e.g., change in the certificate of registration for the sender or recipient, change in the application for transfer).</P>
+<P>(l) A registered individual or entity transferring an amount of a HHS toxin otherwise excluded under the provisions of &#xA7; 73.3(d) must:</P>
+<P>(1) Transfer the amounts only after the transferor uses due diligence and documents that the recipient has a legitimate need (<I>e.g.,</I> prophylactic, protective, bona fide research, or other peaceful purpose) to handle or use such toxins. Information to be documented includes, but is not limited, to the recipient information, toxin and amount transferred, and declaration that the recipient has legitimate purpose to store and use such toxins.</P>
+<P>(2) Report to CDC if they detect a known or suspected violation of Federal law or become aware of suspicious activity related to a toxin listed in &#xA7; 73.3(d) of this part.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61115, Oct. 5, 2012; 79 FR 26862, May 12, 2014; 82 FR 6294, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.17" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.17&quot;,&quot;citation&quot;:&quot;42 CFR 73.17&quot;}">
+<HEAD>&#xA7; 73.17 Records.</HEAD>
+<P>(a) An individual or entity required to register under this part must maintain complete records relating to the activities covered by this part. Such records must include:</P>
+<P>(1) An accurate, current inventory for each select agent (including viral genetic elements, recombinant and/or synthetic nucleic acids, and organisms containing recombinant and/or synthetic nucleic acids) held in long-term storage (placement in a system designed to ensure viability for future use, such as in a freezer or lyophilized materials), including:</P>
+<P>(i) The name and characteristics (e.g., strain designation, GenBank Accession number, etc.),</P>
+<P>(ii) The quantity acquired from another individual or entity (e.g., containers, vials, tubes, etc.), date of acquisition, and the source,</P>
+<P>(iii) Where stored (e.g., building, room, and freezer or other storage container),</P>
+<P>(iv) When moved from storage and by whom and when returned to storage and by whom,</P>
+<P>(v) The select agent used, purpose of use, and, when applicable, final disposition,</P>
+<P>(vi) Records created under &#xA7; 73.16 and 9 CFR 121.16 (Transfers),</P>
+<P>(vii) For intra-entity transfers (sender and the recipient are covered by the same certificate of registration), the select agent, the quantity transferred, the date of transfer, the sender, and the recipient, and</P>
+<P>(viii) Records created under &#xA7; 73.19 and 9 CFR part 121.19 (Notification of theft, loss, or release),</P>
+<P>(2) An accurate, current accounting of any animals or plants intentionally or accidentally exposed to or infected with a select agent (including number and species, location, and appropriate disposition);</P>
+<P>(3) Accurate, current inventory for each toxin held, including:</P>
+<P>(i) The name and characteristics,</P>
+<P>(ii) The quantity acquired from another individual or entity (e.g., containers, vials, tubes, etc.), date of acquisition, and the source,</P>
+<P>(iii) The initial and current quantity amount (e.g., milligrams, milliliters, grams, etc.),</P>
+<P>(iv) The toxin used and purpose of use, quantity, date(s) of the use and by whom,</P>
+<P>(v) Where stored (e.g., building, room, and freezer or other storage container),</P>
+<P>(vi) When moved from storage and by whom and when returned to storage and by whom including quantity amount,</P>
+<P>(vii) Records created under &#xA7; 73.16 and 9 CFR part 121.16 (Transfers),</P>
+<P>(viii) For intra-entity transfers (sender and the recipient are covered by the same certificate of registration), the toxin, the quantity transferred, the date of transfer, the sender, and the recipient,</P>
+<P>(ix) Records created under &#xA7; 73.19 and 9 CFR part 121.19 (Notification of theft, loss, or release), and</P>
+<P>(x) If destroyed, the quantity of toxin destroyed, the date of such action, and by whom,</P>
+<P>(4) A current list of all individuals that have been granted access approval from the HHS Secretary or Administrator,</P>
+<P>(5) Information about all entries into areas containing select agents or toxins, including the name of the individual, name of the escort (if applicable), and date and time of entry,</P>
+<P>(6) Accurate, current records created under &#xA7; 73.9 and 9 CFR part 121.9 (Responsible Official), &#xA7; 73.11 and 9 CFR part 121.11 (Security), &#xA7; 73.12 and 9 CFR part 121.12 (Biosafety), &#xA7; 73.14 and 9 CFR part 121. 14 (Incident response), and &#xA7; 73.15 and 9 CFR part 121.15 (Training), and</P>
+<P>(7) A written explanation of any discrepancies.</P>
+<P>(8) For select agents or material containing select agents or regulated nucleic acids that can produce infectious forms of any select agent virus that have been subjected to a validated inactivation procedure or a procedure for removal of viable select agent:</P>
+<P>(i) A written description of the validated inactivation procedure or viable select agent removal method used, including validation data;</P>
+<P>(ii) A written description of the viability testing protocol used;</P>
+<P>(iii) A written description of the investigation conducted by the entity Responsible Official involving an inactivation or viable select agent removal failure and the corrective actions taken;</P>
+<P>(iv) The name of each individual performing the validated inactivation or viable select agent removal method;</P>
+<P>(v) The date(s) the validated inactivation or viable select agent removal method was completed;</P>
+<P>(vi) The location where the validated inactivation or viable select agent removal method was performed; and</P>
+<P>(vii) A certificate, signed by the Principal Investigator, that includes the date of inactivation or viable select agent removal, the validated inactivation or viable select agent removal method used, and the name of the Principal Investigator. A copy of the certificate must accompany any transfer of inactivated or select agent removed material.</P>
+<P>(b) The individual or entity must implement a system to ensure that all records and data bases created under this part are accurate and legible, have controlled access, and authenticity may be verified.</P>
+<P>(c) The individual or entity must promptly produce upon request any information that is related to the requirements of this part but is not otherwise contained in a record required to be kept by this section. The location of such information may include, but is not limited to, biocontainment certifications, laboratory notebooks, institutional biosafety and/or animal use committee minutes and approved protocols, and records associated with occupational health and suitability programs. All records created under this part must be maintained for 3 years.</P>
+<CITA TYPE="N">[70 FR 13316, Mar. 18, 2005, as amended at 77 FR 61115, Oct. 5, 2012; 82 FR 6294, Jan. 19, 2017]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.18" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.18&quot;,&quot;citation&quot;:&quot;42 CFR 73.18&quot;}">
+<HEAD>&#xA7; 73.18 Inspections.</HEAD>
+<P>(a) Without prior notification, the HHS Secretary, shall be allowed to inspect any site at which activities regulated by this part are conducted and shall be allowed to inspect and copy any records relating to the activities covered by this part.</P>
+<P>(b) Prior to issuing a certificate of registration to an individual or entity, the HHS Secretary may inspect and evaluate the premises and records to ensure compliance with this part.</P>
+</DIV8>
+
+<DIV8 N="73.19" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.19&quot;,&quot;citation&quot;:&quot;42 CFR 73.19&quot;}">
+<HEAD>&#xA7; 73.19 Notification of theft, loss, or release.</HEAD>
+<P>(a) Upon discovery of the theft or loss of a select agent or toxin, an individual or entity must immediately notify CDC or APHIS and appropriate Federal, State, or local law enforcement agencies. Thefts or losses must be reported even if the select agent or toxin is subsequently recovered or the responsible parties are identified.</P>
+<P>(1) The theft or loss of a select agent or toxin must be reported immediately by telephone, facsimile, or e-mail. The following information must be provided:</P>
+<P>(i) The name of the select agent or toxin and any identifying information (e.g., strain or other characterization information),</P>
+<P>(ii) An estimate of the quantity lost or stolen,</P>
+<P>(iii) An estimate of the time during which the theft or loss occurred,</P>
+<P>(iv) The location (building, room) from which the theft or loss occurred, and</P>
+<P>(v) The list of Federal, State, or local law enforcement agencies to which the individual or entity reported, or intends to report the theft or loss.</P>
+<P>(2) A completed APHIS/CDC Form 3 must submitted within seven calendar days.</P>
+<P>(b) Upon discovery of a release of an agent or toxin causing occupational exposure or release of a select agent or toxin outside of the primary barriers of the biocontainment area, an individual or entity must immediately notify CDC or APHIS.</P>
+<P>(1) The release of a select agent or toxin must be reported by telephone, facsimile, or e-mail. The following information must be provided:</P>
+<P>(i) The name of the select agent or toxin and any identifying information (e.g., strain or other characterization information),</P>
+<P>(ii) An estimate of the quantity released,</P>
+<P>(iii) The time and duration of the release,</P>
+<P>(iv) The environment into which the release occurred (e.g., in building or outside of building, waste system),</P>
+<P>(v) The location (building, room) from which the release occurred,</P>
+<P>(vi) The number of individuals potentially exposed at the entity,</P>
+<P>(vii) Actions taken to respond to the release, and</P>
+<P>(viii) Hazards posed by the release.</P>
+<P>(2) A completed APHIS/CDC Form 3 must be submitted within seven calendar days.</P>
+</DIV8>
+
+<DIV8 N="73.20" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.20&quot;,&quot;citation&quot;:&quot;42 CFR 73.20&quot;}">
+<HEAD>&#xA7; 73.20 Administrative review.</HEAD>
+<P>(a) An individual or entity may appeal a denial, revocation, or suspension of registration under this part. The appeal must be in writing, state the factual basis for the appeal, and be submitted to the HHS Secretary within 30 calendar days of the decision.</P>
+<P>(b) An individual may appeal a denial, limitation, or revocation of access approval under this part. The appeal must be in writing, state the factual basis for the appeal, and be submitted to the HHS Secretary within 180 calendar days of the decision.</P>
+<P>(c) The HHS Secretary's decision constitutes final agency action.</P>
+<CITA TYPE="N">[77 FR 61115, Oct. 5, 2012]
+</CITA>
+</DIV8>
+
+<DIV8 N="73.21" TYPE="SECTION" hierarchy_metadata="{&quot;path&quot;:&quot;/on/_SUBSTITUTE_DATE_/title-42/section-73.21&quot;,&quot;citation&quot;:&quot;42 CFR 73.21&quot;}">
+<HEAD>&#xA7; 73.21 Civil money penalties.</HEAD>
+<P>(a) The Inspector General of the Department of Health and Human Services is delegated authority to conduct investigations and to impose civil money penalties against any individual or entity in accordance with regulations in 42 CFR part 1003 for violations of the regulations in this part, as authorized by the Public Health Security and Bioterrorism Preparedness and Response Act of 2002 (Pub. L. 107-188). The delegation of authority includes all powers contained in section 6 of the Inspector General Act of 1978 (5 U.S.C. App.).</P>
+<P>(b) The administrative law judges in, assigned to, or detailed to the Departmental Appeals Board have been delegated authority to conduct hearings and to render decisions in accordance with 42 CFR part 1005 with respect to the imposition of civil money penalties, as authorized by the Public Health Security and Bioterrorism Preparedness and Response Act of 2002 (Pub. L. 107-188). This delegation includes, but is not limited to, the authority to administer oaths and affirmations, to subpoena witnesses and documents, to examine witnesses, to exclude or receive and give appropriate weight to materials and testimony offered as evidence, to make findings of fact and conclusions of law, and to determine the civil money penalties to be imposed.</P>
+<P>(c) The Departmental Appeals Board of the Department of Health and Human Services is delegated authority to make final determinations with respect to the imposition of civil money penalties for violations of the regulations of this part.</P>
+</DIV8>
+
+</DIV5>

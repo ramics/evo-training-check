@@ -1,0 +1,546 @@
+{
+  "note": "The reading taken for every entry of the Select Agents and Toxins List as codified at 2024-06-01 (42 CFR 73.3, 73.4; 9 CFR 121.3; 7 CFR 331.3 \u2014 9 CFR 121.4 duplicates 42 CFR 73.4 and is dropped). Curation decides the taxon and the pinned 2023-04-01 NCBI taxonomy only validates it: name matching against names.dmp resolves several entries into the wrong kingdom. See DECISIONS.md D-137 for the mapping reading and D-138 for the version reading, and src/amazebio/selectagents.py for why each field exists.",
+  "list_as_of": "2024-06-01",
+  "taxonomy": "taxdmp_2023-04-01.zip",
+  "entries": [
+    {
+      "entry": "Abrin",
+      "kind": "toxin",
+      "note": "A molecule. ESM3's sentence says 'organisms', so the literal reading contributes no taxon. Producer reading: Abrus precatorius.",
+      "producer_taxids": [
+        3816
+      ]
+    },
+    {
+      "entry": "Bacillus cereus Biovar anthracis",
+      "kind": "organism",
+      "taxids": [
+        1179100
+      ],
+      "note": "Resolves directly. Rank 'no rank', below B. cereus."
+    },
+    {
+      "entry": "Botulinum neurotoxins",
+      "kind": "toxin",
+      "note": "A molecule. Producer reading uses the four species NCBI carries as botulinum-neurotoxin producing, which is the same set the next entry's predicate names.",
+      "producer_taxids": [
+        1491,
+        1492,
+        1561,
+        29341
+      ]
+    },
+    {
+      "entry": "Botulinum neurotoxin producing species of Clostridium",
+      "kind": "predicate",
+      "note": "A function over a genus, not a taxon: which Clostridium species produce the toxin is a property of strains, and NCBI does not carry the predicate. The literal reading contributes nothing. Alternative, recorded not taken: the four species above. The genus (1491's parent) would be far broader than the list and is not offered."
+    },
+    {
+      "entry": "Conotoxins (Short, paralytic alpha conotoxins containing the following amino acid sequence X1CCX2PACGX3X4X5X6CX7)",
+      "kind": "toxin",
+      "note": "A molecule, and uniquely here one the regulation defines by sequence motif rather than by name \u2014 so even the producer reading is a choice. Producer reading: the genus Conus.",
+      "producer_taxids": [
+        6490
+      ]
+    },
+    {
+      "entry": "Coxiella burnetii",
+      "kind": "organism",
+      "taxids": [
+        777
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Crimean-Congo hemorrhagic fever virus",
+      "kind": "organism",
+      "taxids": [
+        1980519
+      ],
+      "note": "Resolves through a synonym; the pinned scientific name is Orthonairovirus haemorrhagiae."
+    },
+    {
+      "entry": "Diacetoxyscirpenol",
+      "kind": "toxin",
+      "note": "A molecule. Producer reading: the genus Fusarium, which is the best available and is broader than the producing species.",
+      "producer_taxids": [
+        5506
+      ]
+    },
+    {
+      "entry": "Eastern equine encephalitis virus",
+      "kind": "organism",
+      "taxids": [
+        11021
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Ebola virus",
+      "kind": "organism",
+      "taxids": [
+        186538
+      ],
+      "alternative_taxids": [
+        186536
+      ],
+      "note": "Read as the species Zaire ebolavirus. A literal name match instead hits 1570291, a sub-species node that happens to carry the exact string 'Ebola virus', which would exclude the rest of the species. The alternative is the genus Ebolavirus (186536) \u2014 which is what the December 2024 amendment changed this entry to, so the broader reading is the later regulation's own, not ours."
+    },
+    {
+      "entry": "Francisella tularensis",
+      "kind": "organism",
+      "taxids": [
+        263
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Lassa fever virus",
+      "kind": "organism",
+      "taxids": [
+        11620
+      ],
+      "note": "Reclassified: the pinned scientific name is Lassa mammarenavirus, reached through the 'Lassa virus' equivalent name. The regulation's own wording matches no node."
+    },
+    {
+      "entry": "Lujo virus",
+      "kind": "organism",
+      "taxids": [
+        649188
+      ],
+      "note": "Resolves through an equivalent name."
+    },
+    {
+      "entry": "Marburg virus",
+      "kind": "organism",
+      "taxids": [
+        11269
+      ],
+      "note": "Reclassified: the pinned scientific name is Marburg marburgvirus. The regulation's wording matches only strain-level nodes, so an exact-name reading would pick one historical isolate."
+    },
+    {
+      "entry": "Monkeypox virus",
+      "kind": "organism",
+      "taxids": [
+        10244
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Reconstructed replication competent forms of the 1918 pandemic influenza virus containing any portion of the coding regions of all eight gene segments (Reconstructed 1918 influenza virus)",
+      "kind": "construct",
+      "note": "A laboratory construct defined by what was done to it. No node exists, and the 1918 isolate's own nodes are not what the entry regulates."
+    },
+    {
+      "entry": "Ricin",
+      "kind": "toxin",
+      "note": "A molecule. Producer reading: Ricinus communis \u2014 a plant whose whole proteome would enter the seed set, which is why the toxin reading is a sensitivity and not a default.",
+      "producer_taxids": [
+        3988
+      ]
+    },
+    {
+      "entry": "Rickettsia prowazekii",
+      "kind": "organism",
+      "taxids": [
+        782
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "SARS coronavirus (SARS-CoV)",
+      "kind": "organism",
+      "taxids": [
+        694009
+      ],
+      "descend": false,
+      "note": "The one entry where descent is refused. The pinned taxonomy has no 'SARS coronavirus' species: the containing node is 694009, 'Severe acute respiratory syndrome-related coronavirus', whose 222 children include SARS-CoV-2 (2697049). The regulation lists SARS-CoV and does not list SARS-CoV-2 \u2014 it regulates SARS-CoV/SARS-CoV-2 chimeras separately, which only makes sense if SARS-CoV-2 is not itself listed. Descending would therefore import the largest viral sequence space in UniProt on the strength of a node name, inflating the denylist and overstating what the filter should have removed. Taken as the named node without descent; the per-strain alternative is noted in D-137 and declined because it would miss SARS-CoV isolates absent from the 2023-04 dump."
+    },
+    {
+      "entry": "SARS-CoV/SARS-CoV-2 chimeric viruses resulting from any deliberate manipulation of SARS-CoV-2 to incorporate nucleic acids coding for SARS-CoV virulence factors",
+      "kind": "construct",
+      "note": "A laboratory construct. No node exists."
+    },
+    {
+      "entry": "Saxitoxin",
+      "kind": "toxin",
+      "note": "A molecule, and its producers span dinoflagellates and cyanobacteria with no single node and no settled producing set \u2014 so even the producer reading is undefined here, recorded rather than guessed.",
+      "producer_taxids": []
+    },
+    {
+      "entry": "South American hemorrhagic fever viruses:",
+      "kind": "heading",
+      "note": "A heading. Its five sub-entries carry the operative taxa and are mapped individually; the heading itself is not a taxon."
+    },
+    {
+      "entry": "Chapare",
+      "kind": "organism",
+      "taxids": [
+        499556
+      ],
+      "note": "Chapare mammarenavirus. The bare word also matches an orchid (Masdevallia chaparensis) and four other plants, so this is a curated resolution and not a name match."
+    },
+    {
+      "entry": "Guanarito",
+      "kind": "organism",
+      "taxids": [
+        45219
+      ],
+      "note": "Guanarito mammarenavirus."
+    },
+    {
+      "entry": "Junin",
+      "kind": "organism",
+      "taxids": [
+        2169991
+      ],
+      "note": "Reached through an equivalent name, and renamed twice over: the pinned scientific name is Argentinian mammarenavirus, with 'Junin mammarenavirus' only an equivalent name and the older form carrying an accent (Junin with i-acute). So an ASCII match on the regulation's word misses it entirely and instead hits a grass mouse (Akodon juninensis) and an Andes frog."
+    },
+    {
+      "entry": "Machupo",
+      "kind": "organism",
+      "taxids": [
+        11628
+      ],
+      "note": "Machupo mammarenavirus."
+    },
+    {
+      "entry": "Sabia",
+      "kind": "organism",
+      "taxids": [
+        2907957
+      ],
+      "note": "Reached through an equivalent name; the pinned scientific name is 'Sabia virus', rank 'no rank'. The bare word matches taxid 13663 \u2014 a genus of flowering plants \u2014 as a scientific name, so a name-matching implementation that then descended would seed a plant genus into a select-agent denylist. This entry is the reason the mapping is curated and the taxonomy only validates."
+    },
+    {
+      "entry": "Staphylococcal enterotoxins (subtypes A-E)",
+      "kind": "toxin",
+      "note": "A molecule. Producer reading: Staphylococcus aureus.",
+      "producer_taxids": [
+        1280
+      ]
+    },
+    {
+      "entry": "T-2 toxin",
+      "kind": "toxin",
+      "note": "A molecule. Producer reading: the genus Fusarium, as for diacetoxyscirpenol.",
+      "producer_taxids": [
+        5506
+      ]
+    },
+    {
+      "entry": "Tetrodotoxin",
+      "kind": "toxin",
+      "note": "A molecule, and like saxitoxin its production is distributed across unrelated hosts and symbionts with no settled producing set. No producer reading is offered.",
+      "producer_taxids": []
+    },
+    {
+      "entry": "Tick-borne encephalitis virus",
+      "kind": "organism",
+      "taxids": [
+        11084
+      ],
+      "note": "Listed with two subtypes restricting it. The pinned taxonomy has no node for either subtype \u2014 it carries a Western subtype node and strain nodes \u2014 so the list's scope cannot be represented exactly in either direction: the species is broader than the list because it includes the unlisted Western subtype, and the subtypes themselves are unrepresentable. Taken as the species, which overstates the denylist here rather than understating it, and recorded in D-137 as a known over-inclusion."
+    },
+    {
+      "entry": "Far Eastern subtype",
+      "kind": "unresolvable",
+      "note": "No node at subtype rank in the pinned taxonomy. Subsumed by the species taken for the parent entry."
+    },
+    {
+      "entry": "Siberian subtype",
+      "kind": "unresolvable",
+      "note": "No node at subtype rank in the pinned taxonomy. Subsumed by the species taken for the parent entry."
+    },
+    {
+      "entry": "Kyasanur Forest disease virus",
+      "kind": "organism",
+      "taxids": [
+        33743
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Omsk haemorrhagic fever virus",
+      "kind": "organism",
+      "taxids": [
+        12542
+      ],
+      "note": "Resolves through an equivalent name."
+    },
+    {
+      "entry": "Variola major virus (Smallpox virus)",
+      "kind": "organism",
+      "taxids": [
+        12870
+      ],
+      "note": "The parenthetical blocks a name match; the node is 'Variola major virus', rank 'no rank', under Variola virus (10255)."
+    },
+    {
+      "entry": "Variola minor virus (Alastrim)",
+      "kind": "organism",
+      "taxids": [
+        53258
+      ],
+      "note": "As above; the node is 'Variola minor virus', rank 'no rank'."
+    },
+    {
+      "entry": "Yersinia pestis",
+      "kind": "organism",
+      "taxids": [
+        632
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Bacillus anthracis",
+      "kind": "organism",
+      "taxids": [
+        1392
+      ],
+      "note": "Resolves directly; 47 strain children, all of them organisms on the list, so descent applies."
+    },
+    {
+      "entry": "Bacillus anthracis Pasteur strain",
+      "kind": "unresolvable",
+      "note": "No node for the Pasteur strain in the pinned taxonomy, among 47 B. anthracis strain children. Subsumed by the species entry above, which the same section lists separately \u2014 so unlike the TBEV subtypes this gap costs nothing."
+    },
+    {
+      "entry": "Brucella abortus",
+      "kind": "organism",
+      "taxids": [
+        235
+      ],
+      "note": "Resolves directly. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-138)."
+    },
+    {
+      "entry": "Brucella melitensis",
+      "kind": "organism",
+      "taxids": [
+        29459
+      ],
+      "note": "Resolves directly. Delisted by the December 2024 amendment (D-138)."
+    },
+    {
+      "entry": "Brucella suis",
+      "kind": "organism",
+      "taxids": [
+        29461
+      ],
+      "note": "Resolves directly. Delisted by the December 2024 amendment (D-138)."
+    },
+    {
+      "entry": "Burkholderia mallei",
+      "kind": "organism",
+      "taxids": [
+        13373
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Burkholderia pseudomallei",
+      "kind": "organism",
+      "taxids": [
+        28450
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Hendra virus",
+      "kind": "organism",
+      "taxids": [
+        63330
+      ],
+      "note": "Resolves through an equivalent name."
+    },
+    {
+      "entry": "Nipah virus",
+      "kind": "organism",
+      "taxids": [
+        121791
+      ],
+      "note": "Resolves through an equivalent name."
+    },
+    {
+      "entry": "Rift Valley fever virus",
+      "kind": "organism",
+      "taxids": [
+        11588
+      ],
+      "note": "Resolves directly; rank 'no rank'."
+    },
+    {
+      "entry": "Venezuelan equine encephalitis virus",
+      "kind": "organism",
+      "taxids": [
+        11036
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "African horse sickness virus",
+      "kind": "organism",
+      "taxids": [
+        40050
+      ],
+      "note": "Resolves directly. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-138)."
+    },
+    {
+      "entry": "African swine fever virus",
+      "kind": "organism",
+      "taxids": [
+        10497
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Avian influenza virus",
+      "kind": "organism",
+      "taxids": [
+        11320
+      ],
+      "note": "Not a taxon as worded. The name resolves to Influenza A virus (11320) as an equivalent name, and descending it takes in tens of thousands of strain nodes including human seasonal influenza, which the regulation does not list. The regulation's own scope is a virulence criterion on the isolate \u2014 a sequence-level property with no taxonomic expression at all, which is a \u00a7A0 under-specification finding in the list rather than in ESM3. Taken as Influenza A virus with descent, the widest of the three readings, because for an audit of a safeguard an over-inclusive denylist overstates what should have been removed rather than understating it. D-137 records the two narrower readings declined."
+    },
+    {
+      "entry": "Classical swine fever virus",
+      "kind": "organism",
+      "taxids": [
+        11096
+      ],
+      "note": "Resolves directly; rank 'no rank'."
+    },
+    {
+      "entry": "Foot-and-mouth disease virus",
+      "kind": "organism",
+      "taxids": [
+        12110
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Goat pox virus",
+      "kind": "organism",
+      "taxids": [
+        186805
+      ],
+      "note": "The regulation spells it as two words and the taxonomy as one ('Goatpox virus'), so an exact-name match fails on a space."
+    },
+    {
+      "entry": "Lumpy skin disease virus",
+      "kind": "organism",
+      "taxids": [
+        59509
+      ],
+      "note": "Resolves through an equivalent name."
+    },
+    {
+      "entry": "Mycoplasma capricolum",
+      "kind": "organism",
+      "taxids": [
+        2095
+      ],
+      "note": "The regulation restricts this to subspecies capripneumoniae; the species is taken, which over-includes the other subspecies. Recorded in D-137 as a known over-inclusion rather than resolved, because the restriction is in a footnote the parser prunes by design."
+    },
+    {
+      "entry": "Mycoplasma mycoides",
+      "kind": "organism",
+      "taxids": [
+        2102
+      ],
+      "note": "As above: the regulation restricts this to subspecies mycoides, small colony type."
+    },
+    {
+      "entry": "Newcastle disease virus",
+      "kind": "organism",
+      "taxids": [
+        2560319
+      ],
+      "note": "Reclassified: the pinned scientific name is Avian orthoavulavirus 1, reached through an equivalent name. The regulation restricts the entry to virulent isolates by an intracerebral pathogenicity index and an F-protein cleavage-site sequence \u2014 again a sequence-level criterion with no taxonomic expression, so the species over-includes."
+    },
+    {
+      "entry": "Peste des petits ruminants virus",
+      "kind": "organism",
+      "taxids": [
+        31604
+      ],
+      "note": "Reclassified: the pinned scientific name is Small ruminant morbillivirus."
+    },
+    {
+      "entry": "Rinderpest virus",
+      "kind": "organism",
+      "taxids": [
+        11241
+      ],
+      "note": "Resolves through an equivalent name."
+    },
+    {
+      "entry": "Sheep pox virus",
+      "kind": "organism",
+      "taxids": [
+        10266
+      ],
+      "note": "Resolves through an equivalent name."
+    },
+    {
+      "entry": "Swine vesicular disease virus",
+      "kind": "organism",
+      "taxids": [
+        12075
+      ],
+      "note": "Resolves directly; rank 'no rank'."
+    },
+    {
+      "entry": "Coniothyrium glycines, (formerly Phoma glycinicola, Pyrenochaeta glycines)",
+      "kind": "organism",
+      "taxids": [
+        1077358
+      ],
+      "note": "The current name has no node in the pinned taxonomy; the former name the regulation itself supplies parenthetically does (Pyrenochaeta glycines, as a synonym). The parenthetical is load-bearing, which is the clearest single demonstration that these entries are prose and not taxon names."
+    },
+    {
+      "entry": "Peronosclerospora philippinensis (Peronosclerospora sacchari)",
+      "kind": "organism",
+      "taxids": [
+        886948
+      ],
+      "note": "Resolves once the parenthetical is stripped. Delisted by the December 2024 amendment, so in force when the filter ran and absent from the live page (D-138)."
+    },
+    {
+      "entry": "Ralstonia solanacearum",
+      "kind": "organism",
+      "taxids": [
+        305
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Rathayibacter toxicus",
+      "kind": "organism",
+      "taxids": [
+        145458
+      ],
+      "note": "Resolves directly, once the footnote marker glued to the name is pruned."
+    },
+    {
+      "entry": "Sclerophthora rayssiae",
+      "kind": "unresolvable",
+      "note": "Absent from the pinned 2023-04-01 taxonomy under any name, including the genus's other species. A listed select agent that cannot enter the seed set at all \u2014 a limit of the reconstruction rather than a choice within it, and reported with the result."
+    },
+    {
+      "entry": "Synchytrium endobioticum",
+      "kind": "organism",
+      "taxids": [
+        286115
+      ],
+      "note": "Resolves directly."
+    },
+    {
+      "entry": "Xanthomonas oryzae",
+      "kind": "organism",
+      "taxids": [
+        347
+      ],
+      "note": "Resolves directly."
+    }
+  ]
+}

@@ -79,6 +79,17 @@ COVERAGE_READINGS: tuple[int, ...] = (0, 1, 2)
 #: too expensive.
 SEARCH_READINGS: dict[int, tuple[int, ...]] = {1: (0, 1), 2: (2,)}
 
+#: A finer cut **inside** the top band, reported alongside the frozen bands and never in
+#: place of them. `IDENTITY_BAND_EDGES` is frozen by D-105 parameter 6 and `metrics/survival.md`,
+#: so it is not touched; this is additional diagnostic detail.
+#:
+#: The reason it is needed: the top band is 0.90-1.00, and for an audit the difference between
+#: 0.91 and 1.00 is the difference between a distant relative of listed material surviving and
+#: the material itself surviving close to intact. A1.8's band 1 put 23.2% of its matches in that
+#: band and could not say which (2026-10-18). Counting is in constant memory, so it costs the
+#: pass nothing and does not reintroduce the unbounded structure `TargetStream` exists to avoid.
+FINE_TOP_EDGES: tuple[float, ...] = (0.90, 0.95, 0.98, 0.99, 1.0)
+
 #: D-105 parameter 6. The lowest edge is the charitable reading's inferred 0.70 (D-015); the
 #: 0.70-0.75 band is separated because 8.07% of hit rows fall in it and the records on which
 #: two sensitivity settings disagree are 98% inside it. Rows below 0.70 are still emitted and
@@ -381,6 +392,16 @@ class TargetStream:
     #: from the shard itself, rather than by the hit rate, which is the unknown result.
     index: FamilyIndex | None = None
     stratum_hits: dict[int, dict[str, int]] = field(default_factory=dict)
+    #: Records whose best identity falls in each `FINE_TOP_EDGES` interval, plus a final slot
+    #: for an exact 1.0. Diagnostic detail inside the frozen top band, not a change to it.
+    fine_top: dict[int, list[int]] = field(default_factory=dict)
+    #: Per-stratum hit counts restricted to a threshold, which is what an interval for a
+    #: *banded* figure needs. `stratum_hits` counts every hit record regardless of identity,
+    #: so the rate it supports is the any-identity one — and that is the rate the artefact
+    #: carried while the headline quoted was the >=0.70 band, leaving the published figure
+    #: without an interval at all. Bounded by the strata of the shard, like `stratum_hits`.
+    stratum_hits_ge70: dict[int, dict[str, int]] = field(default_factory=dict)
+    stratum_hits_exact: dict[int, dict[str, int]] = field(default_factory=dict)
     #: Collect the *queries* that produced a counted hit, per reading — D-158's second
     #: denominator, which band 1 could not supply because nothing identifier-bearing survived
     #: into its artefact (D-160). Opt-in because the bound is the query set rather than the
@@ -400,6 +421,10 @@ class TargetStream:
             self.bands.setdefault(mode, [0] * (len(IDENTITY_BAND_EDGES) - 1))
             self.records.setdefault(mode, 0)
             self.stratum_hits.setdefault(mode, {})
+            # One slot per interval, plus one for exact identity.
+            self.fine_top.setdefault(mode, [0] * len(FINE_TOP_EDGES))
+            self.stratum_hits_ge70.setdefault(mode, {})
+            self.stratum_hits_exact.setdefault(mode, {})
             if self.track_seeds:
                 self.seeds_hit.setdefault(mode, set())
 
@@ -468,6 +493,8 @@ class TargetStream:
             if best >= 0:
                 self.bands[mode][band_of(best)] += 1
                 self.records[mode] += 1
+                if best >= FINE_TOP_EDGES[0]:
+                    self.fine_top[mode][fine_top_slot(best)] += 1
                 if self.index is not None and target is not None:
                     key = self.index.of.get(target)
                     if key is None:
@@ -477,6 +504,12 @@ class TargetStream:
                         )
                     counts = self.stratum_hits[mode]
                     counts[key] = counts.get(key, 0) + 1
+                    if best >= IDENTITY_BAND_EDGES[1]:
+                        at70 = self.stratum_hits_ge70[mode]
+                        at70[key] = at70.get(key, 0) + 1
+                    if best >= 1.0:
+                        exact = self.stratum_hits_exact[mode]
+                        exact[key] = exact.get(key, 0) + 1
         self._target = None
         self._best = []
 
@@ -507,8 +540,10 @@ class TargetStream:
         out: dict[str, object] = {
             "rows": self.rows,
             "bands": {str(m): self.bands[m] for m in self.derive},
+            "fine_top": {str(m): self.fine_top[m] for m in self.derive},
             "records": {str(m): self.records[m] for m in self.derive},
             "band_labels": list(band_labels()),
+            "fine_top_labels": list(fine_top_labels()),
         }
         if self.track_seeds:
             # Counts, never the ids. A count is not an identifier, so it may travel in the
@@ -592,6 +627,13 @@ class CellResult:
     key: CellKey
     bands: dict[int, list[int]]
     families: dict[int, list[tuple[int, int]]]
+    #: Diagnostic detail inside the frozen top band (`FINE_TOP_EDGES`), additive the same way.
+    #: Defaulted so a cell written before this existed still loads.
+    fine_top: dict[int, list[int]] = field(default_factory=dict)
+    #: Per-stratum hits at a threshold, aligned to `families`' order, for banded intervals.
+    #: Empty on a cell published before these existed — absent, not zero.
+    hits_ge70: dict[int, list[int]] = field(default_factory=dict)
+    hits_exact: dict[int, list[int]] = field(default_factory=dict)
     searched_clusters: int = 0
     searched_residues: int = 0
     #: The realised size of the seed sample, and the number of families it drew from. Both are
@@ -622,6 +664,10 @@ class CellResult:
             "seed_families": self.seed_families,
             "slug": self.key.slug(),
             "bands": {str(m): self.bands[m] for m in sorted(self.bands)},
+            "fine_top": {str(m): self.fine_top[m] for m in sorted(self.fine_top)},
+            "fine_top_labels": list(fine_top_labels()),
+            "hits_ge70": {str(m): self.hits_ge70[m] for m in sorted(self.hits_ge70)},
+            "hits_exact": {str(m): self.hits_exact[m] for m in sorted(self.hits_exact)},
             "families": {
                 str(m): [list(p) for p in self.families[m]] for m in sorted(self.families)
             },
@@ -655,6 +701,13 @@ def cell_from_dict(raw: dict[str, Any]) -> CellResult:
     return CellResult(
         key=key,
         bands={int(m): list(v) for m, v in raw["bands"].items()},
+        # Absent in cells published before the fine histogram existed. Empty rather than
+        # zeroed, so `combine_cells` can tell "this cell did not measure it" from "it
+        # measured zero" — a cell from an older run must not contribute a silent zero to a
+        # total that other cells did measure.
+        fine_top={int(m): list(v) for m, v in (raw.get("fine_top") or {}).items()},
+        hits_ge70={int(m): list(v) for m, v in (raw.get("hits_ge70") or {}).items()},
+        hits_exact={int(m): list(v) for m, v in (raw.get("hits_exact") or {}).items()},
         families={int(m): [tuple(p) for p in v] for m, v in raw["families"].items()},
         searched_clusters=int(raw.get("searched_clusters", 0)),
         searched_residues=int(raw.get("searched_residues", 0)),
@@ -666,7 +719,7 @@ def cell_from_dict(raw: dict[str, Any]) -> CellResult:
     )
 
 
-def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
+def combine_cells(cells: Sequence[CellResult], net_direction: str = "unknown") -> dict[str, Any]:
     """Aggregate completed cells into banded counts and rates, per sensitivity and reading.
 
     Grouped by `(sensitivity, reading)` and summed over shards only. The denominator is the
@@ -705,6 +758,9 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
                 (cell.key.sensitivity, mode),
                 {
                     "bands": [0] * (len(IDENTITY_BAND_EDGES) - 1),
+                    "fine_top": [0] * len(FINE_TOP_EDGES),
+                    "families_ge70": [],
+                    "families_exact": [],
                     "families": [],
                     "shards": [],
                     "searched_clusters": 0,
@@ -728,7 +784,26 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
                         "record counts to be summable"
                     )
             slot["bands"] = [a + b for a, b in zip(slot["bands"], cell.bands[mode], strict=True)]
+            if cell.fine_top.get(mode):
+                slot["fine_top"] = [
+                    a + b for a, b in zip(slot["fine_top"], cell.fine_top[mode], strict=True)
+                ]
             slot["families"].extend(cell.families.get(mode, []))
+            # Zipped within the cell, where both sides came from the same FamilyIndex and
+            # share its stratum order; extended across cells, exactly as `families` is.
+            records = [b for _, b in cell.families.get(mode, [])]
+            for name, vec in (
+                ("families_ge70", cell.hits_ge70.get(mode)),
+                ("families_exact", cell.hits_exact.get(mode)),
+            ):
+                if vec is None:
+                    continue
+                if len(vec) != len(records):
+                    raise ValueError(
+                        f"cell {cell.key.slug()} has {len(vec)} {name} entries against "
+                        f"{len(records)} strata; the two do not describe the same shard"
+                    )
+                slot[name].extend(zip(vec, records, strict=True))
             slot["shards"].append(cell.key.shard)
             slot["searched_clusters"] += cell.searched_clusters
             slot["searched_residues"] += cell.searched_residues
@@ -736,24 +811,44 @@ def combine_cells(cells: Sequence[CellResult]) -> dict[str, Any]:
     denominator = denominators.pop() if denominators else 1
     out: dict[str, Any] = {
         "band_labels": list(band_labels()),
+        "fine_top_labels": list(fine_top_labels()),
         "seed_denominator": denominator,
         "lower_bound": denominator > 1,
+        "net_direction": net_direction,
         "groups": [],
     }
     for (sensitivity, mode), slot in sorted(groups.items()):
-        rate = rate_with_interval(slot["families"], lower_bound=denominator > 1)
+
+        def _rate(pairs: list[tuple[int, int]]) -> dict[str, Any] | None:
+            # None rather than a zeroed rate when a cell predates the banded vectors: a
+            # missing measurement and a measured zero must not look alike.
+            if not pairs:
+                return None
+            return rate_with_interval(
+                pairs, lower_bound=denominator > 1, net_direction=net_direction
+            ).to_dict()
+
+        rate = rate_with_interval(
+            slot["families"], lower_bound=denominator > 1, net_direction=net_direction
+        )
         out["groups"].append(
             {
                 "sensitivity": sensitivity,
                 "reading": mode,
                 "shards": sorted(slot["shards"]),
                 "bands": slot["bands"],
+                "fine_top": slot["fine_top"],
                 "records": sum(slot["bands"]),
                 "searched_clusters": slot["searched_clusters"],
                 "searched_residues": slot["searched_residues"],
                 "seeds_searched": slot["seeds_searched"],
                 "seed_families": slot["seed_families"],
                 "rate": rate.to_dict(),
+                #: The any-identity rate above is not the figure this arm quotes. These are:
+                #: the >=0.70 band the charitable reading turns on, and exact identity, which
+                #: needs no threshold argument at all.
+                "rate_ge70": _rate(slot["families_ge70"]),
+                "rate_exact": _rate(slot["families_exact"]),
             }
         )
     return out
@@ -778,11 +873,25 @@ class Rate:
     #: axis, which contributes a bound and no interval at all. Collapsing them into one figure
     #: would be false precision in the direction of understating leakage (D-134).
     lower_bound: bool = False
+    #: Where the *whole* figure sits relative to the truth, which is not the same question
+    #: `lower_bound` answers. That flag marks one axis — the seed sample understates — and
+    #: D-154 found it being read as a claim about the result, which it is not: the seed set
+    #: implements clause (a) only and is therefore a superset of the denylist, so seed
+    #: construction **overstates** while seed sampling understates. A1.8's select-agent arm
+    #: has the same structure with a larger broadening term, measured at 1.7x to 6.8x
+    #: (D-157, D-159).
+    #:
+    #: Default `"unknown"`, so a caller must assert a direction rather than inherit one. The
+    #: non-negotiables put reporting limits in the harness rather than in good intentions,
+    #: and "at least X%" appearing in output that D-154 says may not be phrased that way is
+    #: exactly the gap between a decision and the code that is supposed to enforce it.
+    net_direction: str = "unknown"
 
     def to_dict(self) -> dict[str, object]:
         return {
             "rate": self.rate,
             "lower_bound": self.lower_bound,
+            "net_direction": self.net_direction,
             "standard_error": self.standard_error,
             "ci95": [self.low, self.high],
             "design_effect": self.design_effect,
@@ -800,17 +909,26 @@ class Rate:
         """
         if self.rate is None:
             return "no records searched"
-        lead = "at least " if self.lower_bound else ""
+        # "at least" only when the whole figure is a floor. The seed sample being a floor is
+        # not that, because seed construction pushes the other way (D-154, D-159).
+        lead = "at least " if self.net_direction == "lower" else ""
         body = f"{lead}{self.rate:.4%}"
         if self.low is not None and self.high is not None:
             body += f" (95% CI {self.low:.4%}-{self.high:.4%} from the corpus sample)"
         else:
             body += " (no interval: one family is not a sample of families)"
-        return f"{body}, {self.families} families"
+        tail = f"{body}, {self.families} families"
+        if self.net_direction == "unknown":
+            tail += " (sampled seeds understate; the seed set is broader than the denylist "
+            tail += "and overstates — net direction not established)"
+        return tail
 
 
 def rate_with_interval(
-    clusters: Sequence[tuple[int, int]], z: float = 1.96, lower_bound: bool = False
+    clusters: Sequence[tuple[int, int]],
+    z: float = 1.96,
+    lower_bound: bool = False,
+    net_direction: str = "unknown",
 ) -> Rate:
     """A hit rate and its interval, treating families as the sampling unit.
 
@@ -838,13 +956,15 @@ def rate_with_interval(
     total_hits = sum(a for a, _ in clusters)
     total_records = sum(b for _, b in clusters)
     if total_records == 0:
-        return Rate(None, None, None, None, None, k, 0, total_hits, lower_bound)
+        return Rate(None, None, None, None, None, k, 0, total_hits, lower_bound, net_direction)
 
     r = total_hits / total_records
     if k < 2:
         # One family is not a sample of families. A point estimate with no interval is the
         # honest output, and it is what makes the realised family count load-bearing.
-        return Rate(r, None, None, None, None, k, total_records, total_hits, lower_bound)
+        return Rate(
+            r, None, None, None, None, k, total_records, total_hits, lower_bound, net_direction
+        )
 
     residual = sum((a - r * b) ** 2 for a, b in clusters)
     var = k * residual / ((k - 1) * total_records**2)
@@ -861,6 +981,7 @@ def rate_with_interval(
         records=total_records,
         hits=total_hits,
         lower_bound=lower_bound,
+        net_direction=net_direction,
     )
 
 
@@ -950,6 +1071,39 @@ class FamilyIndex:
             out.append((got, records))
         return out
 
+    def hit_vector(self, hits: dict[str, int]) -> list[int]:
+        """Hits per stratum, in the same order `pairs` emits, and nothing else.
+
+        Emitted instead of a second full `(hits, records)` list because the records side is
+        identical for every threshold: carrying it again would triple an artefact that is
+        already tens of megabytes, in a bucket where every version written is permanent.
+        The caller zips this against `pairs`' records **within one cell**, where both come
+        from this same index and the order is therefore the same.
+        """
+        return [hits.get(key, 0) for key in self.totals]
+
+
+def fine_top_slot(fident: float) -> int:
+    """Which `FINE_TOP_EDGES` interval an identity falls in; the last slot is exact 1.0.
+
+    Exact identity gets its own slot rather than being folded into 0.99-1.0, because "the
+    sequence is present" and "the sequence is present bar one residue in a hundred" are
+    different claims and an audit should not have to infer which it measured.
+    """
+    if fident >= 1.0:
+        return len(FINE_TOP_EDGES) - 1
+    for i in range(len(FINE_TOP_EDGES) - 2, -1, -1):
+        if fident >= FINE_TOP_EDGES[i]:
+            return i
+    raise ValueError(f"{fident!r} is below the top band; nothing should reach here")
+
+
+def fine_top_labels() -> tuple[str, ...]:
+    edges = FINE_TOP_EDGES
+    out = [f"{lo:.2f}-{hi:.2f}" for lo, hi in itertools.pairwise(edges)]
+    out.append("1.00 exact")
+    return tuple(out)
+
 
 def cell_from_stream(
     key: CellKey,
@@ -975,6 +1129,13 @@ def cell_from_stream(
     return CellResult(
         key=key,
         bands={mode: list(stream.bands[mode]) for mode in stream.derive},
+        fine_top={mode: list(stream.fine_top[mode]) for mode in stream.derive},
+        hits_ge70={
+            mode: index.hit_vector(stream.stratum_hits_ge70[mode]) for mode in stream.derive
+        },
+        hits_exact={
+            mode: index.hit_vector(stream.stratum_hits_exact[mode]) for mode in stream.derive
+        },
         families={mode: index.pairs(stream.stratum_hits[mode]) for mode in stream.derive},
         searched_clusters=index.searched_records,
         searched_residues=searched_residues,

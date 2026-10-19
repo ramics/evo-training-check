@@ -25,6 +25,7 @@ or silently truncate a line, and a count over a truncated read is not a count.
 
 from __future__ import annotations
 
+import contextlib
 import io
 import os
 import time
@@ -238,3 +239,82 @@ def shard_lines(
                 yield tail.decode("utf-8", "replace")
             break
         tail += block
+
+
+class S3SequentialRead:
+    """A forward-only reader over an S3 object: one request, resumed on a broken stream.
+
+    `S3RandomRead` issues a ranged GET **per `read` call**, which is right for seeking around
+    an object and catastrophic for streaming one. A gzip decompressor asks for small blocks,
+    so reading a 182.7 GB archive through it costs an HTTP round trip per few kilobytes:
+    measured in-region at 3.9 MB/s, where the same archive streams from its publisher over
+    the open internet at 128 MB/s. A1.8's release count was killed by that — a run sized at
+    two and a half hours was on course for fifteen.
+
+    This opens the body once and reads it as a stream. A single GET held for hours will
+    sometimes break, so a failure resumes from the current offset with a `Range` rather than
+    restarting: the caller sees one continuous sequence of bytes either way, and a decompressor
+    mid-member cannot tolerate anything less.
+
+    Forward-only on purpose. There is no `seek`, because silently re-opening the body to
+    satisfy a backward seek would reintroduce exactly the per-call request cost this exists to
+    avoid, in a form that is harder to notice.
+    """
+
+    ATTEMPTS = 5
+    BACKOFF = 2.0
+
+    def __init__(self, client: Any, bucket: str, key: str) -> None:
+        self._c, self._bucket, self._key = client, bucket, key
+        self.size = client.head_object(Bucket=bucket, Key=key)["ContentLength"]
+        self._pos = 0
+        self._body: Any = None
+        self.requests = 0
+
+    def _open(self) -> None:
+        kwargs: dict[str, Any] = {"Bucket": self._bucket, "Key": self._key}
+        if self._pos:
+            kwargs["Range"] = f"bytes={self._pos}-"
+        self._body = self._c.get_object(**kwargs)["Body"]
+        self.requests += 1
+
+    def read(self, size: int = -1) -> bytes:
+        if size is None or size < 0:
+            size = self.size - self._pos
+        size = min(size, self.size - self._pos)
+        if size <= 0:
+            return b""
+        out = bytearray()
+        last: Exception | None = None
+        for attempt in range(self.ATTEMPTS):
+            try:
+                if self._body is None:
+                    self._open()
+                while len(out) < size:
+                    chunk = self._body.read(size - len(out))
+                    if not chunk:
+                        break
+                    out += chunk
+                    self._pos += len(chunk)
+                return bytes(out)
+            except Exception as exc:
+                # Resume rather than restart: `_pos` already counts what was handed back.
+                last = exc
+                self._body = None
+                time.sleep(self.BACKOFF**attempt)
+        raise OSError(
+            f"s3://{self._bucket}/{self._key} failed {self.ATTEMPTS} times at offset "
+            f"{self._pos}; last error: {last}"
+        ) from last
+
+    def close(self) -> None:
+        if self._body is not None:
+            with contextlib.suppress(Exception):
+                self._body.close()
+            self._body = None
+
+    def __enter__(self) -> S3SequentialRead:
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.close()

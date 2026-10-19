@@ -545,16 +545,35 @@ def test_a_full_seed_pass_is_not_labelled_a_bound() -> None:
         assert g["rate"]["lower_bound"] is False
 
 
-def test_the_rate_describes_itself_with_at_least_only_when_it_is_a_bound() -> None:
+def test_at_least_needs_an_asserted_direction_not_just_a_sampled_seed_set() -> None:
+    """`lower_bound` marks one axis; "at least" is a claim about the whole figure.
+
+    D-154 found the two being conflated after the number existed: the seed set implements
+    clause (a) only, so seed *construction* overstates while seed *sampling* understates, and
+    the net direction is not established. A1.8's arm has the same shape with a broadening
+    term measured at 1.7x to 6.8x (D-157, D-159). So a sampled seed set alone no longer
+    renders "at least" — a caller has to assert the direction, and the default is "unknown".
+
+    This is the reporting limit put in the harness rather than in the write-up's good
+    intentions, which is what the non-negotiables ask for.
+    """
     clusters = [(1, 100), (3, 100), (2, 100)]
-    assert sim.rate_with_interval(clusters, lower_bound=True).describe().startswith("at least ")
-    bare = sim.rate_with_interval(clusters).describe()
-    assert not bare.startswith("at least ")
+    sampled = sim.rate_with_interval(clusters, lower_bound=True)
+    assert not sampled.describe().startswith("at least "), "a sampled seed axis is not a bound"
+    assert "net direction not established" in sampled.describe()
+    assert sampled.to_dict()["lower_bound"] is True, "the seed axis is still recorded"
+    assert sampled.to_dict()["net_direction"] == "unknown"
+
+    asserted = sim.rate_with_interval(clusters, lower_bound=True, net_direction="lower")
+    assert asserted.describe().startswith("at least ")
+
+    bare = sim.rate_with_interval(clusters, net_direction="lower").describe()
+    assert bare.startswith("at least ")
     assert "95% CI" in bare and "3 families" in bare
 
 
 def test_a_rate_with_no_interval_says_so_rather_than_implying_precision() -> None:
-    said = sim.rate_with_interval([(3, 100)], lower_bound=True).describe()
+    said = sim.rate_with_interval([(3, 100)], lower_bound=True, net_direction="lower").describe()
     assert "at least" in said and "no interval" in said
 
 
@@ -850,6 +869,40 @@ def test_resuming_does_not_change_the_combined_result() -> None:
     assert resumed == one_run
 
 
+# --- The fine cut inside the top band ------------------------------------------------------
+
+
+def test_the_frozen_bands_are_not_changed_by_the_fine_cut() -> None:
+    """`IDENTITY_BAND_EDGES` is frozen by D-105 and metrics/survival.md. This is extra."""
+    assert sim.IDENTITY_BAND_EDGES == (0.0, 0.70, 0.75, 0.80, 0.90, 1.0)
+    assert sim.FINE_TOP_EDGES[0] == 0.90, "the fine cut lives inside the top band"
+    assert sim.FINE_TOP_EDGES[-1] == 1.0
+
+
+def test_exact_identity_gets_its_own_slot() -> None:
+    """ "The sequence is present" and "present bar one residue in a hundred" differ."""
+    labels = sim.fine_top_labels()
+    assert labels[-1] == "1.00 exact"
+    assert sim.fine_top_slot(1.0) == len(sim.FINE_TOP_EDGES) - 1
+    assert sim.fine_top_slot(0.999) != sim.fine_top_slot(1.0)
+    assert sim.fine_top_slot(0.90) == 0
+    assert sim.fine_top_slot(0.96) == 1
+    assert sim.fine_top_slot(0.985) == 2
+    assert sim.fine_top_slot(0.995) == 3
+
+
+def test_the_fine_histogram_sums_to_the_top_band() -> None:
+    """If these disagree the detail is describing a different set from the band it refines."""
+    rows = [
+        sim.HitRow(query="q", target=f"t{i:03d}", fident=f, qcov=0.9, tcov=0.9)
+        for i, f in enumerate([0.91, 0.93, 0.96, 0.985, 0.995, 1.0, 1.0, 0.5, 0.72])
+    ]
+    stream = sim.TargetStream.for_search(1).extend(rows).close()
+    mode = 1
+    assert sum(stream.fine_top[mode]) == stream.bands[mode][-1]
+    assert stream.fine_top[mode][-1] == 2, "two exact matches"
+
+
 # --- D-158's second denominator, which band 1 could not supply (D-160) ------------------
 
 
@@ -912,6 +965,84 @@ def test_asking_for_ids_without_tracking_is_refused_rather_than_empty() -> None:
     with pytest.raises(ValueError, match="track_seeds=True"):
         stream.seeds_hit_ids()
     assert "seeds_with_hits" not in stream.to_dict()
+
+
+def test_a_cell_published_before_the_fine_cut_contributes_no_silent_zero() -> None:
+    """An old cell did not measure this; it must not look like it measured zero."""
+    raw = {
+        "shard": 0,
+        "sensitivity": 5.7,
+        "cov_mode": 1,
+        "seed_denominator": 100,
+        "bands": {"1": [10, 2, 1, 1, 4]},
+        "families": {"1": [[1, 10]]},
+    }
+    cell = sim.cell_from_dict(raw)
+    assert cell.fine_top == {}, "absent, not zeroed"
+
+
+# --- Intervals for the figures actually quoted --------------------------------------------
+
+
+def _banded_cell(mode: int = 1) -> sim.CellResult:
+    """Two strata: one with a clump of high-identity hits, one with sub-threshold noise."""
+    rows = [
+        sim.HitRow(query="q", target="a1", fident=1.00, qcov=0.9, tcov=0.9),
+        sim.HitRow(query="q", target="a2", fident=1.00, qcov=0.9, tcov=0.9),
+        sim.HitRow(query="q", target="a3", fident=0.80, qcov=0.9, tcov=0.9),
+        sim.HitRow(query="q", target="b1", fident=0.50, qcov=0.9, tcov=0.9),
+    ]
+    # Two families: a1-a4 under one, b1-b2 under another.
+    index = sim.FamilyIndex.build(
+        [("a1", 1), ("a2", 1), ("a3", 1), ("a4", 1), ("b1", 2), ("b2", 2)],
+        _Tax({1: 11157, 2: 11158}),
+    )
+    stream = sim.TargetStream.for_search(mode, index=index).extend(rows).close()
+    return sim.cell_from_stream(
+        sim.CellKey(shard=0, sensitivity=5.7, cov_mode=mode, seed_denominator=100),
+        stream,
+        index,
+        seeds_searched=10,
+        seed_families=2,
+        searched_residues=1000,
+    )
+
+
+def test_the_banded_figures_get_their_own_intervals() -> None:
+    """The artefact's interval was on the any-identity rate while the headline was >=0.70.
+
+    "Uncertainty travels with the estimate" is a non-negotiable, so the figures this arm
+    quotes — the >=0.70 band and exact identity — each carry their own interval rather than
+    borrowing one computed over a different set of records.
+    """
+    out = sim.combine_cells([_banded_cell()])
+    g = out["groups"][0]
+    assert g["rate"]["hits"] == 4, "any identity counts every hit record"
+    assert g["rate_ge70"]["hits"] == 3, ">=0.70 excludes the 0.50 record"
+    assert g["rate_exact"]["hits"] == 2, "exact counts only identity 1.00"
+    for key in ("rate", "rate_ge70", "rate_exact"):
+        assert g[key]["records"] == 6, "the denominator is every searched record"
+        assert g[key]["families"] == 2
+
+
+def test_a_banded_rate_is_absent_not_zero_on_an_older_cell() -> None:
+    """A cell from before these vectors existed must not publish a confident zero."""
+    cell = _banded_cell()
+    stripped = sim.cell_from_dict(
+        {k: v for k, v in cell.to_dict().items() if k not in ("hits_ge70", "hits_exact")}
+    )
+    out = sim.combine_cells([stripped])
+    g = out["groups"][0]
+    assert g["rate"] is not None
+    assert g["rate_ge70"] is None and g["rate_exact"] is None
+
+
+def test_a_hit_vector_that_does_not_match_its_strata_is_refused() -> None:
+    """Zipping a mismatched pair would silently attach hits to the wrong families."""
+    cell = _banded_cell()
+    cell.hits_ge70[1] = cell.hits_ge70[1][:-1]
+    with pytest.raises(ValueError, match="do not describe the same shard"):
+        sim.combine_cells([cell])
 
 
 def test_a_cell_published_before_this_field_existed_still_rehydrates() -> None:
