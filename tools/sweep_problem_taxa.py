@@ -257,75 +257,81 @@ def _share(k: int, n: int) -> dict[str, Any]:
 # --------------------------------------------------------------------------------------
 
 
-def sweep_inline(
+def sweep_inline_shared(
     client: Any,
     source: corpora.StagedSource,
     *,
     checklist: problemtaxa.Checklist,
-    policy: policyspec.Policy,
-    removed: set[str],
+    state: dict[str, dict[str, Any]],
+    policies: dict[str, policyspec.Policy],
+    element_kind: str,
     limit: int | None,
-) -> tuple[dict[Category, CategoryTally], dict[str, Any]]:
-    """Classify every surviving record of a source whose lineage travels with it.
+) -> dict[str, dict[str, Any]]:
+    """One pass over a source whose lineage travels with it, serving every reading.
 
-    The removed set is subtracted here rather than filtered afterwards, so a record the reading
-    removes never reaches a tally at all.
+    The classification is computed **once per record** and shared across readings, because a
+    category verdict depends on the lineage and nothing else. What varies by reading is the
+    removed set and the route, and both are applied per reading inside the single pass.
 
-    **The route is recomputed per record, not taken per source.** A1.4's manifest carries outcome
-    *counts* and the removed set, not a per-record outcome for millions of records, and on
-    `stage2` the readings' rules discriminate — so one route for the whole component would
-    report one record's verdict as every record's. `metrics/detections.md` sets the procedure:
-    re-resolve with `amazebio.apply.resolve` over the same evidence declaration A1.4 used, and
-    check it against the manifest. A record that resolves to `removed` while absent from the
-    manifest's removed set **stops the run**, because the manifest and this pass then disagree
-    about what survived and nothing computed downstream of that could be trusted.
+    Returns per-reading statistics; the tallies are accumulated into `state` in place.
     """
-    tallies = {c: CategoryTally() for c in checklist.definitions}
-    element_kind = element_kind_for(source.corpus_component).value
     stats = {
-        "records_read": 0,
-        "records_surviving": 0,
-        "records_removed_by_reading": 0,
-        "parse_failures": 0,
+        policy_id: {
+            "records_read": 0,
+            "records_surviving": 0,
+            "records_removed_by_reading": 0,
+            "parse_failures": 0,
+            "parse_failure_examples": [],
+            "routes_resolved": collections.Counter(),
+        }
+        for policy_id in state
     }
     failures: list[str] = []
-    routes: collections.Counter[str] = collections.Counter()
+    read = 0
 
     def on_parse_error(record_id: str, exc: Exception) -> None:
-        stats["parse_failures"] += 1
         if len(failures) < 5:
             failures.append(f"{record_id}: {exc}")
 
     for record in _stream(client, source, on_parse_error=on_parse_error, limit=limit):
-        stats["records_read"] += 1
-        if record.id in removed:
-            stats["records_removed_by_reading"] += 1
-            continue
-        decision = resolve(policy, record, evidence=source.evidence)
-        if decision.outcome is policyspec.Outcome.REMOVED:
-            raise SystemExit(
-                f"{record.id} resolves to `removed` under {policy.id} but is not in the "
-                f"manifest's removed set. The manifest is the surviving corpus (D-059); if this "
-                "pass and A1.4 disagree about what survived, every count below is unsafe. "
-                f"Rule {decision.rule_id!r}: {decision.why}"
-            )
-        route = route_for(decision.outcome).value
-        routes[route] += 1
-        stats["records_surviving"] += 1
-        for category, detail in checklist.classify(record.taxonomy).items():
-            tallies[category].add(
-                detail,
-                n=1,
-                label=_label(detail, record.taxonomy),
-                route=route,
-                element_kind=element_kind,
-            )
-        if stats["records_read"] % 250_000 == 0:
-            print(f"    {source.corpus_component}: {stats['records_read']:,}", file=sys.stderr)
+        read += 1
+        verdicts = checklist.classify(record.taxonomy)
+        label_cache: dict[Category, str] = {}
+        for policy_id, held_state in state.items():
+            here = stats[policy_id]
+            here["records_read"] += 1
+            if record.id in held_state["removed"]:
+                here["records_removed_by_reading"] += 1
+                continue
+            decision = resolve(policies[policy_id], record, evidence=source.evidence)
+            if decision.outcome is policyspec.Outcome.REMOVED:
+                raise SystemExit(
+                    f"{record.id} resolves to `removed` under {policy_id} but is not in the "
+                    "manifest's removed set. The manifest is the surviving corpus (D-059); if "
+                    "this pass and A1.4 disagree about what survived, every count below is "
+                    f"unsafe. Rule {decision.rule_id!r}: {decision.why}"
+                )
+            route = route_for(decision.outcome).value
+            here["routes_resolved"][route] += 1
+            here["records_surviving"] += 1
+            for category, detail in verdicts.items():
+                if category not in label_cache:
+                    label_cache[category] = _label(detail, record.taxonomy)
+                held_state["tallies"][category].add(
+                    detail,
+                    n=1,
+                    label=label_cache[category],
+                    route=route,
+                    element_kind=element_kind,
+                )
+        if read % 250_000 == 0:
+            print(f"    {source.corpus_component}: {read:,}", file=sys.stderr)
 
-    stats["parse_failure_examples"] = failures
-    stats["routes_resolved"] = dict(sorted(routes.items()))
-    return tallies, stats
+    for here in stats.values():
+        here["parse_failures"] = len(failures)
+        here["parse_failure_examples"] = list(failures)
+        here["routes_resolved"] = dict(sorted(here["routes_resolved"].items()))
+    return stats
 
 
 def _stream(
@@ -406,10 +412,9 @@ def fetch_json(client: Any, key: str) -> dict[str, Any]:
 # --------------------------------------------------------------------------------------
 
 
-def build_table(
+def build_tables(
     *,
-    manifest: dict[str, Any],
-    manifest_path: Path,
+    manifests: list[dict[str, Any]],
     manifest_dir: Path,
     checklist: problemtaxa.Checklist,
     client: Any,
@@ -417,18 +422,81 @@ def build_table(
     gvmag: dict[str, Any],
     policies: dict[str, policyspec.Policy],
     limit: int | None,
-) -> dict[str, Any]:
-    policy_id = manifest["policy"]["id"]
-    release = manifest["release"]
-    rows = {s.get("key"): s for s in manifest["sources"]}
-    by_component = {s.get("corpus_component"): s for s in manifest["sources"]}
+) -> list[dict[str, Any]]:
+    """Every table, reading each staged source **once** for all readings of its release.
 
-    print(f"\n{policy_id} x {release}", file=sys.stderr)
-    merged = {c: CategoryTally() for c in checklist.definitions}
-    sources: list[dict[str, Any]] = []
-    searched_any = False
+    The loop is release-outer and reading-inner on purpose. A reading-outer loop would re-read
+    Evo 1's stage 2 three times for its three readings — 51 GB instead of 17 — and D-046 records
+    A1.4 making exactly that mistake and paying for it. It is also unnecessary: a category
+    verdict is a function of the record's lineage alone, so it is computed once per record and
+    shared, while only the **route** and the **removed set** vary by reading.
+    """
+    by_release: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
+    for held in manifests:
+        by_release[held["manifest"]["release"]].append(held)
 
-    for source in corpora.sources_for(release):
+    built: dict[tuple[str, str], dict[str, Any]] = {}
+    for release, held_here in by_release.items():
+        print(f"\n{release}: {len(held_here)} reading(s)", file=sys.stderr)
+        state = {
+            held["manifest"]["policy"]["id"]: {
+                "held": held,
+                "tallies": {c: CategoryTally() for c in checklist.definitions},
+                "sources": [],
+                "searched_any": False,
+                "removed": removed_ids(manifest_dir, held["manifest"]),
+            }
+            for held in held_here
+        }
+
+        for source in corpora.sources_for(release):
+            entries = _sweep_source(
+                source,
+                release=release,
+                state=state,
+                checklist=checklist,
+                client=client,
+                joined=joined,
+                gvmag=gvmag,
+                policies=policies,
+                limit=limit,
+            )
+            for policy_id, entry in entries.items():
+                state[policy_id]["sources"].append(entry)
+
+        for policy_id, held_state in state.items():
+            held = held_state["held"]
+            built[policy_id, release] = _table(
+                manifest=held["manifest"],
+                manifest_path=held["path"],
+                checklist=checklist,
+                merged=held_state["tallies"],
+                sources=held_state["sources"],
+                searched_any=held_state["searched_any"],
+            )
+
+    return [built[key] for key in sorted(built)]
+
+
+def _sweep_source(
+    source: corpora.StagedSource,
+    *,
+    release: str,
+    state: dict[str, dict[str, Any]],
+    checklist: problemtaxa.Checklist,
+    client: Any,
+    joined: dict[str, dict[str, int]],
+    gvmag: dict[str, Any],
+    policies: dict[str, policyspec.Policy],
+    limit: int | None,
+) -> dict[str, dict[str, Any]]:
+    """Sweep one staged source for every reading of its release, reading it at most once."""
+    element_kind = element_kind_for(source.corpus_component).value
+    entries: dict[str, dict[str, Any]] = {}
+    for policy_id, held_state in state.items():
+        manifest = held_state["held"]["manifest"]
+        rows = {s.get("key"): s for s in manifest["sources"]}
+        by_component = {s.get("corpus_component"): s for s in manifest["sources"]}
         row = rows.get(source.key) or by_component.get(source.corpus_component)
         if row is None:
             raise SystemExit(
@@ -438,36 +506,40 @@ def build_table(
                 "declared."
             )
         outcome = outcome_of(row)
-        route = route_for(outcome).value if outcome is not None else "unresolved"
-        element_kind = element_kind_for(source.corpus_component).value
-        entry: dict[str, Any] = {
+        entries[policy_id] = {
             "component": source.component,
             "corpus_component": source.corpus_component,
             "key": source.key,
-            "route": route,
+            "route": route_for(outcome).value if outcome is not None else "unresolved",
             "element_kind": element_kind,
+            "records_in_source": row.get("records"),
         }
 
-        if source.corpus_component == "stage2" and source.readable:
-            removed = removed_ids(manifest_dir, manifest)
-            print(f"  {source.key}: taxonomy_inline", file=sys.stderr)
-            tallies, stats = sweep_inline(
-                client,
-                source,
-                checklist=checklist,
-                policy=policies[policy_id],
-                removed=removed,
-                limit=limit,
-            )
-            entry.update(evidence="taxonomy_inline", searched=True, **stats)
-            searched_any = True
-            for category, tally in tallies.items():
-                _absorb(merged[category], tally)
-        elif source.corpus_component == "imgvr" and release == "opengenome2":
-            census = joined[JOIN_RELEASE]
-            print(f"  {source.key}: accession_join via IMG/VR {JOIN_RELEASE}", file=sys.stderr)
+    if source.corpus_component == "stage2" and source.readable:
+        print(f"  {source.key}: taxonomy_inline for {len(state)} reading(s)", file=sys.stderr)
+        stats = sweep_inline_shared(
+            client,
+            source,
+            checklist=checklist,
+            state=state,
+            policies=policies,
+            element_kind=element_kind,
+            limit=limit,
+        )
+        for policy_id, entry in entries.items():
+            entry.update(evidence="taxonomy_inline", searched=True, **stats[policy_id])
+            state[policy_id]["searched_any"] = True
+        return entries
+
+    if source.corpus_component == "imgvr" and release == "opengenome2":
+        census = joined[JOIN_RELEASE]
+        print(f"  {source.key}: accession_join via IMG/VR {JOIN_RELEASE}", file=sys.stderr)
+        for policy_id, entry in entries.items():
             tallies, stats = sweep_joined(
-                census, checklist=checklist, route=route, element_kind=element_kind
+                census,
+                checklist=checklist,
+                route=entry["route"],
+                element_kind=element_kind,
             )
             entry.update(
                 evidence="accession_join",
@@ -477,18 +549,27 @@ def build_table(
                 gvmag=gvmag,
                 **stats,
             )
-            searched_any = True
+            state[policy_id]["searched_any"] = True
             for category, tally in tallies.items():
-                _absorb(merged[category], tally)
-        else:
-            entry.update(
-                evidence="not_searched",
-                searched=False,
-                why=_why_not(source, release),
-                records_in_source=row.get("records"),
-            )
-        sources.append(entry)
+                _absorb(state[policy_id]["tallies"][category], tally)
+        return entries
 
+    for entry in entries.values():
+        entry.update(evidence="not_searched", searched=False, why=_why_not(source, release))
+    return entries
+
+
+def _table(
+    *,
+    manifest: dict[str, Any],
+    manifest_path: Path,
+    checklist: problemtaxa.Checklist,
+    merged: dict[Category, CategoryTally],
+    sources: list[dict[str, Any]],
+    searched_any: bool,
+) -> dict[str, Any]:
+    policy_id = manifest["policy"]["id"]
+    release = manifest["release"]
     return {
         "task": "A2.5",
         "detector": "taxonomy-checklist",
@@ -657,18 +738,17 @@ def main(argv: list[str] | None = None) -> int:
             provenance.input_url(f"s3://{corpora.BUCKET}/{key}", role="a7-2-join", verified=False)
 
         index: list[dict[str, Any]] = []
-        for held in manifests:
-            table = build_table(
-                manifest=held["manifest"],
-                manifest_path=held["path"],
-                manifest_dir=args.manifests,
-                checklist=checklist,
-                client=client,
-                joined=joined,
-                gvmag=gvmag,
-                policies=policies,
-                limit=args.limit,
-            )
+        tables = build_tables(
+            manifests=manifests,
+            manifest_dir=args.manifests,
+            checklist=checklist,
+            client=client,
+            joined=joined,
+            gvmag=gvmag,
+            policies=policies,
+            limit=args.limit,
+        )
+        for table in tables:
             policy_id = table["manifest"]["policy_id"]
             release = table["manifest"]["release"]
             stem = f"sweep-{policy_id}-{release}"

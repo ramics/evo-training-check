@@ -292,3 +292,114 @@ def test_a_detection_is_attributed_to_the_records_finest_label(
 def test_a_detection_with_no_usable_label_falls_back_to_the_member() -> None:
     detail = problemtaxa.VerdictDetail(Verdict.PRESENT, matched=("phylum", "Nucleocytoviricota"))
     assert tool._label(detail, {"species": "something"}) == "Nucleocytoviricota"
+
+
+# --------------------------------------------------------------------------------------
+# One pass per source, not one per reading
+# --------------------------------------------------------------------------------------
+
+
+@_needs_vmr
+def test_a_source_is_read_once_for_every_reading(monkeypatch, checklist) -> None:
+    """The regression D-046 records A1.4 paying for: a reading-outer loop re-reads the corpus
+    once per reading, which for Evo 1's stage 2 is 51 GB of egress instead of 17. A category
+    verdict depends on the lineage alone, so one pass must serve all three readings.
+    """
+    from amazebio import corpora
+
+    specs = pathlib.Path(__file__).resolve().parent.parent / "policies" / "specs"
+    policies = policyspec.load_policy_dir(specs)
+    evo1 = {k: v for k, v in policies.items() if k.startswith("evo1-")}
+    assert len(evo1) >= 2, "this test needs at least two readings of the same policy"
+
+    source = next(s for s in corpora.sources_for("opengenome") if s.corpus_component == "stage2")
+    records = [
+        corpora.Record(
+            id=f"{source.key}#{i}",
+            component="stage2",
+            taxonomy={"phylum": "Nucleocytoviricota"} if i == 0 else {"class": "Caudoviricetes"},
+        )
+        for i in range(4)
+    ]
+
+    calls = {"n": 0}
+
+    def fake_stream(client, src, *, on_parse_error, limit):
+        calls["n"] += 1
+        yield from records
+
+    monkeypatch.setattr(tool, "_stream", fake_stream)
+
+    state = {
+        policy_id: {
+            "held": None,
+            "tallies": {c: tool.CategoryTally() for c in checklist.definitions},
+            "sources": [],
+            "searched_any": False,
+            "removed": set(),
+        }
+        for policy_id in evo1
+    }
+    stats = tool.sweep_inline_shared(
+        None,
+        source,
+        checklist=checklist,
+        state=state,
+        policies=policies,
+        element_kind="free_virus",
+        limit=None,
+    )
+
+    assert calls["n"] == 1, "the source was read more than once"
+    # Every reading still gets a full tally over all four records.
+    for policy_id in evo1:
+        assert stats[policy_id]["records_read"] == 4
+        ncldv = state[policy_id]["tallies"][Category.NCLDV]
+        assert sum(ncldv.verdicts.values()) == stats[policy_id]["records_surviving"]
+        assert ncldv.verdicts["present"] == 1
+
+
+@_needs_vmr
+def test_a_removed_record_never_reaches_a_tally(monkeypatch, checklist) -> None:
+    """The manifest is the surviving corpus: a record it removes is subtracted before anything
+    is classified, and the subtraction is reported rather than implied."""
+    from amazebio import corpora
+
+    specs = pathlib.Path(__file__).resolve().parent.parent / "policies" / "specs"
+    policies = policyspec.load_policy_dir(specs)
+    policy_id = next(k for k in policies if k.startswith("evo1-"))
+    source = next(s for s in corpora.sources_for("opengenome") if s.corpus_component == "stage2")
+    records = [
+        corpora.Record(
+            id=f"{source.key}#{i}", component="stage2", taxonomy={"family": "Mimiviridae"}
+        )
+        for i in range(3)
+    ]
+    monkeypatch.setattr(
+        tool,
+        "_stream",
+        lambda client, src, *, on_parse_error, limit: iter(records),
+    )
+
+    state = {
+        policy_id: {
+            "held": None,
+            "tallies": {c: tool.CategoryTally() for c in checklist.definitions},
+            "sources": [],
+            "searched_any": False,
+            "removed": {f"{source.key}#0"},
+        }
+    }
+    stats = tool.sweep_inline_shared(
+        None,
+        source,
+        checklist=checklist,
+        state=state,
+        policies=policies,
+        element_kind="free_virus",
+        limit=None,
+    )
+    assert stats[policy_id]["records_read"] == 3
+    assert stats[policy_id]["records_removed_by_reading"] == 1
+    assert stats[policy_id]["records_surviving"] == 2
+    assert state[policy_id]["tallies"][Category.NCLDV].verdicts["present"] == 2
