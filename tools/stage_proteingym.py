@@ -34,6 +34,7 @@ from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
+from amazebio import objectstore
 from amazebio.proteingym import RELEASE, load_reference, sha256_file, verify_release
 from amazebio.repro import run
 
@@ -149,7 +150,13 @@ def main() -> int:
     if unpinned:
         print(f"  WARNING: no pinned checksum for {', '.join(unpinned)} — record one")
 
-    with run("B2.1", outdir=OUTDIR, allow_dirty=args.allow_dirty, repo=REPO) as m:
+    with run(
+        "B2.1",
+        outdir=OUTDIR,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        durable=objectstore.durable_results("b2-1"),
+    ) as m:
         m.parameter("version", RELEASE.version)
         m.parameter("base_url", RELEASE.base_url)
         m.parameter("github_raw", GITHUB_RAW)

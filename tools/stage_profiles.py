@@ -39,6 +39,7 @@ from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
+from amazebio import objectstore
 from amazebio.profiles import (
     MIN_MODEL_COVERAGE,
     PINNED_DOM_Z,
@@ -264,7 +265,14 @@ def main() -> int:
 
     chosen = [registry(i) for i in (args.registry or sorted(REGISTRIES))]
 
-    with run("A2.1", seed=SEED, outdir=args.out, allow_dirty=args.allow_dirty, repo=REPO) as m:
+    with run(
+        "A2.1",
+        seed=SEED,
+        outdir=args.out,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        durable=objectstore.durable_results("a2-1"),
+    ) as m:
         m.parameter("registries", [r.key for r in chosen])
         m.parameter("pinned_z", PINNED_Z)
         m.parameter("pinned_dom_z", PINNED_DOM_Z)

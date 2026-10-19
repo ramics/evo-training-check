@@ -33,6 +33,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
+from amazebio import objectstore
 from amazebio.proteingym import (
     RELEASE,
     ProteinGymError,
@@ -183,7 +184,13 @@ def main() -> int:
         report(result)
         return exit_code(result)
 
-    with run("B2.1", outdir=OUTDIR, allow_dirty=args.allow_dirty, repo=REPO) as m:
+    with run(
+        "B2.1",
+        outdir=OUTDIR,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        durable=objectstore.durable_results("b2-1"),
+    ) as m:
         m.parameter("version", RELEASE.version)
         m.parameter("model", args.model)
         m.parameter("tolerance", TOLERANCE)

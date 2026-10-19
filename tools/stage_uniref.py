@@ -40,7 +40,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import uniref
+from amazebio import objectstore, uniref
 from amazebio.repro import ReproError, run
 
 DEFAULT_TIERS = ("uniref50", "uniref90")
@@ -204,6 +204,7 @@ def _execute(
         seed=None,  # Nothing here is random: a byte-for-byte transfer or a bug.
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a1-3"),
     ) as manifest:
         manifest.parameter("release", rel.release)
         manifest.parameter("archive_url", rel.archive_url)

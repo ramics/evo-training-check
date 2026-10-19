@@ -69,6 +69,9 @@ _sim = _load_similarity_launcher()
 PAYLOAD_MODULES = (
     "src/amazebio/__init__.py",
     "src/amazebio/repro.py",
+    # repro imports objectstore for its durable-output upload (D-188); the closure test
+    # catches the omission here rather than on the instance, where it costs a launch.
+    "src/amazebio/objectstore.py",
     "src/amazebio/uniref.py",
     "src/amazebio/seeds.py",
     "src/amazebio/selectagents.py",

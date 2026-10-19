@@ -41,6 +41,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from amazebio import conformance as cf
+from amazebio import objectstore
 from amazebio.policyspec import load_policy_dir
 from amazebio.repro import run
 
@@ -560,6 +561,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=outdir,
         allow_dirty=args.allow_dirty,
         manifest_name="run-diff.json",
+        durable=objectstore.durable_results("a7-1"),
     ) as m:
         m.parameter("release", RELEASE)
         m.parameter("policy_prefix", POLICY_PREFIX)

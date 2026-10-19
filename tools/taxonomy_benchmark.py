@@ -41,7 +41,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import genomad, ictv, misassignment, policyspec
+from amazebio import genomad, ictv, misassignment, objectstore, policyspec
 from amazebio.repro import run
 
 TASK = "A4.2"
@@ -617,6 +617,7 @@ def main(argv: list[str] | None = None) -> int:
             outdir=outdir,
             allow_dirty=args.allow_dirty,
             manifest_name="run-build.json",
+            durable=objectstore.durable_results("a4-2"),
         ) as manifest:
             manifest.parameter("in_scope_cap", IN_SCOPE_CAP)
             manifest.parameter("control_cap", CONTROL_CAP)
@@ -673,6 +674,7 @@ def main(argv: list[str] | None = None) -> int:
         # See the note in tools/taxonomy_dependency.py: one manifest per step, or the last
         # pipeline to finish erases the provenance of the artefacts it did not produce.
         manifest_name="run-score.json",
+        durable=objectstore.durable_results("a4-2"),
     ) as manifest:
         manifest.parameter("confidence", 0.95)
         manifest.parameter("interval_method", "clopper-pearson")

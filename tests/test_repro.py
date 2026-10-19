@@ -189,7 +189,13 @@ class TestRunBlock:
     def test_writes_manifest_on_success(self, tmp_path):
         repo = _git_repo(tmp_path)
         outdir = repo / "artifacts" / "t"
-        with run("A1.4", seed=42, outdir=outdir, repo=repo) as m:
+        with run(
+            "A1.4",
+            seed=42,
+            outdir=outdir,
+            repo=repo,
+            durable_exempt="unit test; nothing to persist",
+        ) as m:
             result = outdir / "r.txt"
             result.write_text("ok\n")
             m.output_file(result)
@@ -199,6 +205,7 @@ class TestRunBlock:
         assert manifest["git"]["dirty"] is False
         assert manifest["finished_at"]
         assert manifest["outputs"][0]["path"].endswith("r.txt")
+        assert manifest["durable_exempt"] == "unit test; nothing to persist"
 
     def test_refuses_a_dirty_tree(self, tmp_path):
         repo = _git_repo(tmp_path)
@@ -251,3 +258,225 @@ def test_two_runs_sharing_a_directory_keep_separate_manifests(tmp_path):
 
     assert json.loads((tmp_path / "run.json").read_text())["parameters"]["which"] == "uniref"
     assert json.loads((tmp_path / "run-mgnify.json").read_text())["parameters"]["which"] == "mgnify"
+
+
+class TestDurability:
+    """The guard added after the 2026-10-19 audit (D-188).
+
+    Nine finished tasks had written their results only to `artifacts/`, which is git-ignored,
+    and the container that held them was reclaimed — A2.1's deepened profile pass and A4.2's
+    taxonomy benchmark among them. Every task whose tool uploaded was intact. The figures
+    survived in task files and the decisions log, which is exactly what "artefacts before
+    prose" exists to stop a write-up relying on.
+
+    So these tests pin the one thing that makes it structural rather than a convention: a run
+    that produces a local output and names nowhere for it to live **fails**.
+    """
+
+    def test_a_local_output_with_no_durable_destination_is_refused(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        outdir = repo / "artifacts" / "t"
+        with (
+            pytest.raises(ReproError, match="named no durable destination"),
+            run("A9.9", outdir=outdir, repo=repo) as m,
+        ):
+            result = outdir / "r.txt"
+            result.write_text("ok\n")
+            m.output_file(result)
+
+    def test_the_refusal_names_the_two_ways_out(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        outdir = repo / "artifacts" / "t"
+        with pytest.raises(ReproError) as caught, run("A9.9", outdir=outdir, repo=repo) as m:
+            (outdir / "r.txt").write_text("ok\n")
+            m.output_file(outdir / "r.txt")
+        message = str(caught.value)
+        assert "durable=" in message and "durable_exempt=" in message
+        assert "D-188" in message
+
+    def test_a_run_with_no_outputs_needs_no_destination(self, tmp_path):
+        """A probe or a dry run produces nothing to lose, and must not be made harder."""
+        repo = _git_repo(tmp_path)
+        with run("A9.9", outdir=repo / "artifacts" / "t", repo=repo) as m:
+            m.parameter("threshold", 1)
+        assert m.durable is None
+
+    def test_an_object_output_alone_needs_no_destination(self, tmp_path):
+        """A run that wrote straight to object storage is already durable."""
+        repo = _git_repo(tmp_path)
+        with run("A9.9", outdir=repo / "artifacts" / "t", repo=repo) as m:
+            m.output_object("s3://bucket/key", bytes=3)
+        assert m.uploaded == {}
+
+    def test_a_failing_run_is_not_masked_by_the_guard(self, tmp_path):
+        """The body's exception is the real failure; the guard must not replace it."""
+        repo = _git_repo(tmp_path)
+        outdir = repo / "artifacts" / "t"
+        with (
+            pytest.raises(ValueError, match="the real problem"),
+            run("A9.9", outdir=outdir, repo=repo) as m,
+        ):
+            (outdir / "r.txt").write_text("ok\n")
+            m.output_file(outdir / "r.txt")
+            raise ValueError("the real problem")
+
+    def test_durable_and_exempt_together_are_refused(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        with (
+            pytest.raises(ReproError, match="not both"),
+            run(
+                "A9.9",
+                outdir=repo / "artifacts" / "t",
+                repo=repo,
+                durable="s3://b/p",
+                durable_exempt="why",
+            ),
+        ):
+            pass
+
+    def test_outputs_are_uploaded_and_recorded_as_uris(self, tmp_path):
+        """The upload is what makes the result survive, and `run.json` has to point at it —
+        a durable copy nobody can find is not a durable copy."""
+        repo = _git_repo(tmp_path)
+        outdir = repo / "artifacts" / "t"
+        puts = {}
+
+        class FakeClient:
+            def put_object(self, *, Bucket, Key, Body):
+                puts[f"s3://{Bucket}/{Key}"] = Body
+
+        with run(
+            "A9.9",
+            outdir=outdir,
+            repo=repo,
+            durable="s3://corpora-bucket/corpora/results/a9-9",
+            uploader=FakeClient(),
+        ) as m:
+            (outdir / "table.json").write_text('{"x": 1}\n')
+            m.output_file(outdir / "table.json")
+            nested = outdir / "sub"
+            nested.mkdir()
+            (nested / "rows.jsonl").write_text('{"y": 2}\n')
+            m.output_file(nested / "rows.jsonl")
+
+        assert "s3://corpora-bucket/corpora/results/a9-9/table.json" in puts
+        # The key keeps the path relative to outdir, so a nested layout survives the copy.
+        assert "s3://corpora-bucket/corpora/results/a9-9/sub/rows.jsonl" in puts
+        # run.json itself is uploaded too: outputs without their provenance are not citable.
+        assert "s3://corpora-bucket/corpora/results/a9-9/run.json" in puts
+
+        manifest = json.loads((outdir / MANIFEST_NAME).read_text())
+        assert manifest["durable"] == "s3://corpora-bucket/corpora/results/a9-9"
+        for entry in manifest["outputs"]:
+            assert entry["durable_uri"].startswith("s3://corpora-bucket/")
+
+    def test_a_non_s3_destination_is_refused(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        outdir = repo / "artifacts" / "t"
+        # Refused at entry, before any compute — so the body never runs.
+        with (
+            pytest.raises(ReproError, match="s3:// URI"),
+            run("A9.9", outdir=outdir, repo=repo, durable="/mnt/somewhere"),
+        ):
+            pass
+
+
+#: Every `run(...)` call site in `tools/` that claims `durable_exempt`, with the task that
+#: owns converting it. This list may **shrink** but must not grow: a new tool that writes a
+#: result belongs in object storage, and the audit behind D-188 happened because nothing made
+#: the local-only default visible. A legitimately exempt new tool goes here with a reason in
+#: the same commit, so adding one is a deliberate, reviewed act rather than a default.
+EXEMPT_CALL_SITES: set[str] = set()
+
+
+def test_no_tool_silently_writes_results_only_locally():
+    """A greppable inventory of exemptions, so the default cannot drift back.
+
+    This does not re-litigate each tool: it asserts that the set of tools claiming an
+    exemption is the set we wrote down. A tool added with `durable_exempt` and no entry here
+    fails, which is the moment to ask whether its results are really disposable.
+    """
+    import pathlib
+    import re
+
+    tools = pathlib.Path(__file__).resolve().parent.parent / "tools"
+    claiming = {
+        path.name
+        for path in sorted(tools.glob("*.py"))
+        if re.search(r"durable_exempt\s*=", path.read_text())
+    }
+    assert claiming == EXEMPT_CALL_SITES, (
+        "tools claiming durable_exempt have changed. Added one? Put it in EXEMPT_CALL_SITES "
+        "with a reason, or give it durable= instead. Removed one? Delete its entry."
+    )
+
+
+def test_every_run_call_site_in_tools_names_a_durable_destination():
+    """The static half of D-188's guard, so a missed call site fails review not a six-hour run.
+
+    `repro.run` refuses a local-only result at runtime, which is what binds a tool nobody has
+    written yet. But a tool whose long pass only reaches `run`'s exit after hours of compute
+    would learn about it the expensive way, and `stage_opengenome.py` showed the gap is easy to
+    miss by inspection: it was skipped during the conversion *because* it uploads the staged
+    corpus, and it also writes local composition tables.
+
+    So every `run(...)` in `tools/` must name `durable=` or `durable_exempt=`, checked by
+    parsing rather than grepping — a call spanning several lines is the normal case here.
+    """
+    import ast
+    import pathlib
+
+    def is_run(node: ast.AST) -> bool:
+        if not isinstance(node, ast.Call):
+            return False
+        func = node.func
+        if isinstance(func, ast.Name):
+            return func.id == "run"
+        return (
+            isinstance(func, ast.Attribute)
+            and func.attr == "run"
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "repro"
+        )
+
+    bare = []
+    seen = 0
+    for path in sorted((pathlib.Path(__file__).resolve().parent.parent / "tools").glob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if is_run(node):
+                seen += 1
+                if not {"durable", "durable_exempt"} & {kw.arg for kw in node.keywords}:
+                    bare.append(f"{path.name}:{node.lineno}")
+
+    assert seen > 30, f"only found {seen} run() call sites; has the check stopped matching?"
+    assert not bare, (
+        "these run() call sites name no durable destination, so their results would not "
+        f"survive the session (D-188): {bare}"
+    )
+
+
+def test_a_test_run_never_reaches_the_real_object_store(tmp_path):
+    """The regression that cost four A1.6 objects.
+
+    Several tests drive a tool's `main()` end-to-end with no client injected — deliberately,
+    since the on-instance path is the one thing a dry run cannot check. Giving those tools
+    `durable=` made them upload their synthetic fixtures to the corpus bucket, which has no
+    `s3:DeleteObject`. So under pytest the upload is skipped unless the test supplied the
+    client itself, and the manifest records that it was skipped: a manifest produced under test
+    must not read as one whose outputs were actually persisted.
+    """
+    repo = _git_repo(tmp_path)
+    outdir = repo / "artifacts" / "t"
+    with run(
+        "A9.9", outdir=outdir, repo=repo, durable="s3://real-bucket/corpora/results/a9-9"
+    ) as m:
+        (outdir / "r.txt").write_text("ok\n")
+        m.output_file(outdir / "r.txt")
+
+    assert m.uploaded == {}
+    assert m.upload_skipped == "test run: no uploader injected"
+    manifest = json.loads((outdir / MANIFEST_NAME).read_text())
+    assert manifest["upload_skipped"] == "test run: no uploader injected"
+    assert manifest["uploaded"] == {}
+    # And the output has no durable_uri, so nothing downstream can cite a copy that is not there.
+    assert "durable_uri" not in manifest["outputs"][0]

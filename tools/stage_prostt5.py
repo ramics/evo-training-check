@@ -156,7 +156,14 @@ def main(argv: list[str] | None = None) -> int:
         print("upload verified by size")
 
     args.out.mkdir(parents=True, exist_ok=True)
-    with run("A2.2", seed=20261015, outdir=args.out, allow_dirty=args.allow_dirty, repo=REPO) as m:
+    with run(
+        "A2.2",
+        seed=20261015,
+        outdir=args.out,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        durable=objectstore.durable_results("a2-2"),
+    ) as m:
         m.parameter("weights_sha256", WEIGHTS_SHA256)
         m.parameter("weights_bytes", WEIGHTS_BYTES)
         m.parameter("upstream", UPSTREAM)

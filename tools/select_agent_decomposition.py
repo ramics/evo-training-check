@@ -30,7 +30,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from amazebio import repro, seeds, selectagents  # noqa: E402
+from amazebio import objectstore, repro, seeds, selectagents  # noqa: E402
 
 DEFAULT_CAPTURES = REPO_ROOT / "policies" / "captures"
 DEFAULT_MAPPING = REPO_ROOT / "policies" / "specs" / "select-agents-2024-06-01.json"
@@ -152,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=args.outdir,
         manifest_name="run-select-agent-decomposition.json",
         allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a1-8"),
     ) as manifest:
         manifest.input_file(args.release_count, role="uniprotkb-release-count")
         manifest.input_file(args.taxdump, role="taxdump")

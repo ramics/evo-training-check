@@ -48,6 +48,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from amazebio import objectstore
 from amazebio import opengenome as og
 from amazebio.repro import ReproError, run
 from amazebio.uniref import VerificationError
@@ -178,6 +179,7 @@ def _execute(
         seed=None,  # Nothing here is random: a byte-for-byte transfer or a bug.
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a1-2"),
     ) as manifest:
         manifest.parameter("mode", mode)
         manifest.parameter("releases", [r.key for r in releases])

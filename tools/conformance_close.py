@@ -53,6 +53,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from amazebio import conformance as cf
+from amazebio import objectstore
 from amazebio.policyspec import Outcome, Policy, Record, load_policy_dir
 from amazebio.policyspec import evaluate as evaluate_policy
 from amazebio.repro import run
@@ -1310,6 +1311,7 @@ def main(argv: list[str] | None = None) -> int:
         outdir=outdir,
         allow_dirty=args.allow_dirty,
         manifest_name="run-close.json",
+        durable=objectstore.durable_results("a7-2"),
     ) as m:
         m.parameter("policy_prefix", POLICY_PREFIX)
         m.parameter("primary_host_unit", cf.PRIMARY_HOST_UNIT.value)

@@ -390,6 +390,7 @@ def main(argv: list[str] | None = None) -> int:
         # Distinct per step: three A4.2 pipelines write to this directory, and a shared
         # `run.json` means the last one silently erases the others' provenance. A1.5 hit this.
         manifest_name="run-dependency.json",
+        durable=objectstore.durable_results("a4-2"),
     ) as manifest:
         manifest.parameter("release", args.release)
         manifest.parameter("policy", args.policy)

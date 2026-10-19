@@ -320,6 +320,7 @@ def run(args: argparse.Namespace, client: Any, bucket: str, prefix: str) -> int:
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
         manifest_name=manifest_name,
+        durable=objectstore.durable_results("a1-8"),
     ) as manifest:
         if args.code_commit:
             manifest.parameter("code_commit", args.code_commit)
@@ -519,7 +520,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.stage_only:
                 print(json.dumps(staged, indent=2, sort_keys=True))
                 return 0
-        return run(args, client, bucket, prefix)
+        return run(args, client, bucket, prefix, durable=objectstore.durable_results("a1-8"))
     except ReproError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2

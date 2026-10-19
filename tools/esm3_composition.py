@@ -25,7 +25,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import esm3
+from amazebio import esm3, objectstore
 from amazebio.repro import ReproError, run
 
 OUTDIR = Path("artifacts/a1-5")
@@ -221,6 +221,7 @@ def _execute(args: argparse.Namespace) -> int:
         outdir=args.outdir,
         allow_dirty=args.allow_dirty,
         manifest_name="run-composition.json",
+        durable=objectstore.durable_results("a1-5"),
     ) as manifest:
         # Declared before anything is written, per the repro contract. These are the
         # published quantities the arithmetic rests on; naming them here means a later

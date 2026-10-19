@@ -8303,3 +8303,248 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Done-when does not require it, and the profile route is now priced well enough that a small
   paired comparison is affordable if the owner ever wants the sensitivity gap measured rather
   than asserted.
+
+### D-187 — A2.5's three problem categories are ICTV-anchored taxon predicates, fixed before any survival was counted
+- **Date:** 2026-10-19
+- **Task:** A2.5
+- **Context:** `DESIGN.md` §A2's last detection bullet names "giant viruses and NCLDV, segmented
+  genomes, satellite viruses" and nothing in the repository defines any of the three. A2.5's
+  first step is to "enumerate the problem categories from §A2 into an explicit checklist", and
+  `AGENTS.md` requires the specification fixed before results are inspected. Three categories
+  named in prose are exactly the under-specification §A0 turns into a result, so they are
+  resolved here against an external authority rather than by this project's judgement of what
+  counts as a giant virus.
+  The authority is the **pinned ICTV VMR, MSL37.3** (`VMR_20-190822_MSL37.3.xlsx`, sha256
+  `66791e9b…bf32`, 1,563,522 bytes, verified against `amazebio.ictv`'s pin on retrieval). It is
+  already the benchmark ground truth for A4.2 and it is the taxonomy in force when IMG/VR v4 was
+  built, so using it here adds no pin and introduces no taxonomic revision that A9.1 measures
+  separately.
+  **Retrieval note, because it will recur:** `ictv.global` returns **HTTP 403** to `urllib`'s
+  default user-agent and **HTTP 200** to a browser one. The file is free and public; this is a
+  user-agent block, not a paywall, and it is recorded so the next task does not escalate it as
+  one.
+- **Decision:** Three predicates over a record's taxonomic lineage, disjoint on this release
+  (the NCLDV and segmented sets do not intersect), each naming its rank so a lineage truncated
+  above that rank is **unlabelled for the category rather than negative** for it:
+
+  **1. Giant viruses and NCLDV** — lineage phylum is `Nucleocytoviricota`, which at MSL37.3 is
+  **7 families** over 149 exemplar species: Ascoviridae, Asfarviridae, Iridoviridae,
+  Marseilleviridae, Mimiviridae, Phycodnaviridae, Poxviridae. Matched at **phylum**, so a record
+  labelled only to a higher rank cannot answer the category either way.
+  **Plus a second, label-independent handle specific to this corpus.** IMG/VR names its
+  giant-virus metagenome-assembled genomes in the accession itself — `IMGVR_UViG_GVMAG-M-…` —
+  and A7.2 counted 2,055 of them in the input release while recording them only as an
+  accession-shape anomaly. `GVMAG` membership is therefore tested as its own signal, and it does
+  not depend on the lineage column being populated.
+
+  **2. Segmented genomes** — the family of a VMR exemplar species whose accession cell carries
+  **more than one accession with at least one segment label**. **48 families** over 1,058
+  exemplar species. Matched at **family**.
+  **The label is the discriminator and it is load-bearing.** Multi-accession alone is wrong:
+  Adenoviridae (`Y09598`, `AC_000004`), Poxviridae (four partial records) and Phycodnaviridae
+  (`M96366`, `X06618`) all list several accessions for a **monopartite** genome and would enter a
+  naive set, while Cystoviridae (`L`/`M`/`S`), Orthomyxoviridae (`RNA1`…`RNA8`) and Geminiviridae
+  (`DNA-A`/`DNA-B`) carry labels and are genuinely segmented. Requiring one label admits 48
+  families and excludes those three. `amazebio.ictv`'s own docstring warns that the VMR labels
+  segments inconsistently, so the rule is "**at least one** labelled exemplar in the family",
+  which is robust to a family whose other rows are unlabelled — 22 families have unlabelled
+  multi-accession rows as well and are kept or dropped on their labelled ones.
+  One labelled multi-segment species carries **no family** and so contributes to no family set;
+  it is counted here rather than dropped silently.
+
+  **3. Satellite viruses** — two sets, reported separately and never summed, because §A2 says
+  satellite *viruses* and ICTV's satellites are mostly not viruses:
+  *Satellite viruses* (encode their own capsid): genera `Albetovirus`, `Aumaivirus`,
+  `Papanivirus`, `Virtovirus` — family-unassigned within Riboviria — plus family
+  `Sarthroviridae`. **7 exemplar species.** Matched at **genus**, except Sarthroviridae at family.
+  *Satellite nucleic acids* (no capsid, helper-dependent): families `Alphasatellitidae` and
+  `Tolecusatellitidae`. **216 exemplar species.** Matched at **family**. These carry no realm,
+  kingdom, phylum, class or order in the VMR at all, which is why a realm-level sweep cannot see
+  them and why they are named explicitly.
+  **`Ribozyviria` / `Kolmioviridae` (15 species) is deliberately excluded**, with the boundary
+  stated rather than left to a reader: deltavirus-like agents are satellite-*like* and
+  helper-dependent, but ICTV ratifies them as a realm in their own right and does not classify
+  them as satellites. Excluding them keeps the category ICTV's rather than ours; the count is
+  recorded so a later task can include them without re-deriving anything.
+- **Disclosure, because it bears on what "fixed before results were inspected" means here.**
+  The category definitions were fixed **after** two census artefacts had already been opened and
+  **before** any per-category count was taken. What had been seen: A7.1's `stage2` census — that
+  Evo 1's surviving component is 2,628,513 Duplodnaviria of 2,653,047 records, that its only
+  Riboviria are 6,105 Leviviricetes, and that no `Nucleocytoviricota` appears among its 181
+  lineage tags; and, in A7.2's input scan, that `f__Alphasatellitidae` and `g__Dinodnavirus`
+  occur in IMG/VR's input classifications and in its `released_by_classification` block. So it
+  was known that satellites survive somewhere in Evo 2 and that Evo 1's component is
+  overwhelmingly phage before these predicates were written. What the predicates cannot have
+  been tuned to is any category's count, which is computed only after this entry is pushed.
+  The honest summary is that the **sets are an external authority's and the ranks follow from
+  them**, not that this was a blind pre-registration. Stating which it was is cheaper than
+  implying the stronger one.
+- **Rejected:** *Defining giant viruses by genome size* (the common informal rule, >300 kb or
+  >500 kb). It would make the category a property of the contig rather than of the taxon, so a
+  fragmentary giant-virus contig would fall out of it while a long phage genome fell in, and the
+  threshold would be this project's invention at exactly the point §A2 is asking about taxa.
+  *Treating `>1 accession` as segmented* — wrong on Adenoviridae, Poxviridae and Phycodnaviridae,
+  as above; the error is in the admitting direction and would have inflated every segmented count.
+  *Folding satellite nucleic acids in with satellite viruses* — they differ in whether a capsid
+  is encoded, which is the whole reason a filter might reach one and not the other, and §A2 names
+  only the viruses. They are both measured and kept apart.
+  *Pfam or RVDB family sets as the category definition.* The registries' families are protein
+  clusterings with no rank, so `Nucleocytoviricota` is not expressible in them; and a registry
+  universe is a denominator whose membership rule is a finding about the registry (D-157's rule,
+  carried from D-075). The categories are taxon sets; where the registries enter is the
+  sequence-side arm, and that is a separate entry.
+- **Consequence:** A2.5 has an explicit checklist, so "every §A2 category has a recorded result
+  per manifest" is now a criterion that can be met rather than interpreted. Every category match
+  is at a named rank, which makes **unlabelled** a third outcome beside present and absent — and
+  that is the result that matters most for Evo 1, where 2,543,536 of 2,653,047 surviving records
+  carry no label below class. A zero from this arm is a zero **about labels**, and the artefact
+  must say so in the same field that reports it. The label-independent arm is the owner's
+  standing decision of 2026-10-19: ship the label census first, then measure a small slice of the
+  marker pass before committing to any of it.
+
+### D-188 — Nine finished tasks had no surviving result artefact, and `repro.run` now refuses a local-only result
+- **Date:** 2026-10-19
+- **Task:** X (cross-cutting; found from A2.5, affects every task that produces an artefact)
+- **Context:** A2.5 went looking for A1.4's manifests, which `metrics/manifests.md` says live in
+  `artifacts/a1-4/`, and found nothing: `artifacts/` is git-ignored, the session container that
+  produced them had been reclaimed, and nothing had been uploaded. Auditing the other finished
+  tasks found the same thing in eight more.
+  **The audit, over all 24 finished tasks (21 `done`, 3 `review`).** The mechanism is entirely
+  mechanical: 24 tools in `tools/` upload to the object store and 19 write only to `artifacts/`.
+  Every task served by the first group is intact; every task served only by the second lost its
+  tables.
+  *Results safe because the deliverable is committed:* A0.1 (`policies/sources.json`,
+  `policies/captures/`), A0.2, A0.3 (`policies/specs/`), A1.1 (a verdict recorded in this log),
+  A3.1 (`metrics/survival.md`, `src/amazebio/survival.py`), X1.1, X1.4.
+  *Results safe in object storage:* A1.3 (UniRef composition), A1.6 (29 objects, 1.63 GB),
+  A1.8 (13 objects, 820 MB), A2.2 (25 objects), A2.4 (32 objects), A7.1 (2 objects — the
+  `stage2` census), A7.2 (6 objects, 34 MB).
+  *Results absent, regeneration needed:* **A2.1** (profile detection tables, both registries,
+  the ten-fold deepened pass — about 20 hours of compute), **A4.2** (the taxonomy-tool
+  misassignment benchmark — a geNomad run, hours), A1.4 (the seven manifests, about an hour),
+  A4.1, A4.3, A1.2, A1.5, A1.7, B1.1, B2.1 (all cheap; B1.1 is re-derived by a CI step).
+  **What was not lost, stated so the scale is not overstated either.** All 1.02 TB of staged
+  corpora are intact and that bucket has no `s3:DeleteObject`, which is why. No code, decision,
+  task record, policy spec or evidence capture was lost. And no *finding* was lost as a recorded
+  number: A2.1's family counts and intervals, A4.2's error rates by direction and the rest are
+  written into their task files and this log.
+  **That last point is the defect, not the consolation.** `AGENTS.md` makes "artefacts before
+  prose" a non-negotiable — every number in a write-up traces to a machine-readable artefact
+  produced by a pipeline — so a figure whose only surviving form is prose is a figure the Phase A
+  write-up cannot cite. D-173 had already recorded one instance of this for D-161's
+  cross-registry numbers. This entry is the general case: it was not a lapse in one task, it was
+  the default behaviour of three quarters of the tools.
+- **Decision:** **`amazebio.repro.run` refuses to complete a run that recorded a local output
+  and named no durable destination.** The guard goes there because `AGENTS.md` already requires
+  every pipeline to wrap its work in `repro.run`, so it is the one chokepoint that cannot be
+  bypassed by a new tool written next month — which is the actual requirement, not fixing the
+  nine.
+  `durable="s3://bucket/prefix"` uploads every local output on a clean exit, records each as an
+  object URI in `run.json`, and uploads `run.json` itself — a durable copy with no provenance
+  beside it is not citable, which is the whole point. `durable_exempt="<reason>"` is the other
+  way out, and it is a **string rather than a flag** so the reason lands in the manifest and is
+  greppable across the tree. `tests/test_repro.py` holds the inventory of exempt call sites and
+  asserts it matches what is on disk, so the set can shrink but cannot silently grow.
+  Three properties the guard needs and has: it fires only on a **clean** exit, so a failing run
+  reports its own exception rather than this one; it ignores a run whose outputs went straight to
+  object storage, which is already durable; and it ignores a run with no outputs, so a probe or a
+  dry run is not made harder.
+  **The cheap seven are regenerated and stored durably** under this entry. A2.1 and A4.2 are not:
+  they cost real compute, and the remaining local-only tools still need converting, so both go to
+  a task of their own rather than being absorbed into A2.5.
+- **Rejected:** *Committing `artifacts/` to git.* `artifacts/README.md` is right that a result
+  which cannot be regenerated is a pipeline defect rather than a reason to commit the file, and
+  the tables run to hundreds of megabytes. Durability and version control are different problems.
+  *A warning instead of a refusal.* The nine tasks are what a convention achieves. The project
+  owner's instruction was that this cannot happen again, and a warning in a log nobody re-reads
+  is not that.
+  *A CI check that greps the tools.* It would catch today's 19 and miss the first tool written
+  after it, because nothing would make a new author aware of it. The guard is in the code path
+  the result actually travels, so the failure arrives at the moment of producing a result.
+  *Making `durable` a required positional argument.* It would break every call site at once
+  including ones mid-flight in parallel sessions, and it offers no place to record *why* a run
+  legitimately needs no copy.
+  *Uploading on every `output_file` call rather than at exit.* A run that fails midway would
+  leave a partial result in permanent storage, and the corpus bucket has no delete.
+- **Consequence:** Any new tool that writes a result and forgets to persist it now fails on its
+  first real run, with the reason and both remedies in the message. The nine tasks' status is
+  recorded above rather than quietly repaired, because a `done` task whose artefact needs
+  regenerating is a thing a reader of the board should be able to see. **A2.1 and A4.2 are the
+  two that cost meaningful compute to restore, and neither blocks A2.5.** Whoever picks up A3.2
+  or A6.1 needs A2.1's tables first, and that is now a named task rather than a discovery.
+
+### D-189 — A test run overwrote four A1.6 objects in the no-delete bucket; two are unrecoverable and both are small
+- **Date:** 2026-10-19
+- **Task:** X (cross-cutting; caused while implementing D-188, damage is A1.6's)
+- **Context:** D-188 gave every tool a durable destination. Several tests drive a tool's `main()`
+  end-to-end against a real client and no mock — deliberately, because the on-instance path is the
+  one thing a `DryRun` cannot check (`AGENTS.md`). So the full test suite, run once at 15:18 UTC
+  to verify the D-188 change, uploaded its **synthetic fixtures** to `corpora/results/a1-6/`.
+  The corpus bucket has no `s3:DeleteObject` and versioning is disabled, so the writes are
+  permanent and the prior contents are gone. `AGENTS.md` says in as many words that a bug which
+  writes junk there writes it forever, and A1.6's own task file and `esm3_calibrate.py`'s module
+  docstring each warn about a collision under this exact prefix. The warnings were read and the
+  consequence was not.
+  **Nine keys were written; four collided.** The five that were new are flat names
+  (`exclusivity-rows-2023_02-uniref90.tsv.gz`, `exclusivity-counts-…`, `run-exclusivity-uniref90.json`,
+  `exposure-q100.json`, `run-exposure-q100.json`) whose real equivalents are nested under
+  `exclusivity/2023_02/…` and `exposure/2023_02/…` with content hashes. The four that collided are
+  recorded below.
+- **Decision:** The accounting, because the apparent size and the real loss differ by two orders
+  of magnitude and the first report of this overstated it.
+
+  **`viral-seeds.faa`, 1,249,029,570 bytes — not lost.** The destroyed object was a *duplicate*.
+  The canonical copy is `corpora/samples/a1-6/uniref100/2023_02/rate40/viral-seeds.faa`, intact,
+  and it is the key that sample's own manifest names as `seed_fasta` with
+  sha256 `8a23f5ea10ac9413671bd8753c4c33778a9692f5c64090c18cc22b0a8f845632` — the same digest the
+  two surviving exposure manifests cite as their input. So 95% of the bytes that disappeared from
+  the results prefix were never at risk, and **no in-region pass is needed to restore them**.
+
+  **`band.json`, about 65.6 MB — superseded, and held elsewhere.** It was the five-cell state of
+  the band 1 run, published before the resumed sixth cell landed.
+  `band-viral-arm-5cells-backup-20261018.json` is intact at 65,743,883 bytes and carries the same
+  per-cell structure (identity bands, coverage mode, per-family hit counts). `band-complete.json`,
+  which A1.6 names as authoritative, was never touched.
+
+  **`run-calibration.json` — lost, and its critical field survives.** The provenance manifest for
+  the caps run. The code commit is recoverable as `8200f2f8a107c252d3350d54399a7f0d31078aa4`, from
+  `progress-caps.json` and from the sample manifest, and it is a real commit in this repository
+  dated 2026-10-17. What is gone is the consolidated record: the pinned input digests, the tool
+  versions actually invoked, and the declared parameters as one attested object.
+
+  **`cap-measurement.json` — the one real loss.** No copy exists anywhere in the bucket. Per cell
+  it held `bands_by_reading`, `records_by_reading` across all three coverage readings,
+  `search_core_seconds`, `hit_rows`, the `saturation` distributions and `reading1_agreement`.
+  **Its headline figures survive verbatim** in A1.6's task file — the six cells as three caps
+  (slack/50%/20%) by two coverage modes, with wall seconds and records lost — together with all
+  four findings, including the 6x-over-D-104 result that moved the broad arm's price from $26 to
+  $300-430 and then to D-128's 0.3125% for about $50. **Nothing downstream consumed it**: no
+  surviving manifest references it.
+
+  **The fix.** No upload is attempted from a test process unless the test injected the client
+  itself (`repro.in_test_run`, and `AMAZEBIO_NO_UPLOAD=1` for a manual run), and the manifest
+  records `upload_skipped` so a `run.json` produced under test cannot be read as one whose outputs
+  persisted. The durable destination is also validated at `run()` entry now rather than at exit,
+  so a malformed one fails before the compute.
+- **Rejected:** **Re-running `esm3_calibrate.py` to repair the damaged keys.** Proposed twice and
+  wrong both times, which is the part of this worth recording. `--curve` writes `calibration.json`,
+  which *survived* and holds published figures, so re-running it would destroy a survivor.
+  `--caps` writes the published `cap-measurement.json`, so it substitutes a fresh measurement under
+  a cited key — and the published run "ended before the second target size", so a new one would not
+  even be structurally comparable. `--band` cannot restore `band.json` at all, because A1.6's own
+  rule is to pass `--artefact-name` something new. **No mode can restore a damaged key; each can
+  only write new numbers under an old name.** That is worse than an honest gap, and it is the
+  silent substitution this project's own notes warn about.
+  Also rejected: a tombstone object over the test junk. It would replace a hazard with a signpost,
+  but it is another irreversible write to a bucket already carrying two of them, and the junk is
+  documented here instead.
+- **Consequence:** `corpora/results/a1-6/` carries four objects whose contents are test fixtures,
+  permanently. A reader of that prefix cannot tell by inspection; this entry and A1.6's task file
+  are the only things that say so, which is why both say it. **A1.6 is in `review` and its caps
+  measurement no longer has a machine-readable artefact** — under "artefacts before prose" that is
+  a real gap in its deliverable, and whoever closes that review decides whether a re-measurement
+  under a new key is worth two hours. X1.6 holds that re-run alongside A2.1's and A4.2's.
+  The wider lesson is narrow and specific: **a test that exercises a real code path needs its
+  side effects injected, and adding a side effect to a tool adds it to every test that drives the
+  tool.** The durability guard was sound; the blast radius of switching it on was not thought
+  through.

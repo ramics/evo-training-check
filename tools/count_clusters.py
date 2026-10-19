@@ -33,7 +33,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import uniref
+from amazebio import objectstore, uniref
 from amazebio.repro import ReproError, run
 
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
@@ -140,7 +140,13 @@ def _execute(
     if args.outdir is None:
         args.outdir = Path("artifacts") / task.lower().replace(".", "-")
     out = args.outdir / "composition.json"
-    with run(task, seed=None, outdir=args.outdir, allow_dirty=args.allow_dirty) as manifest:
+    with run(
+        task,
+        seed=None,
+        outdir=args.outdir,
+        allow_dirty=args.allow_dirty,
+        durable=objectstore.durable_results("a1-3"),
+    ) as manifest:
         manifest.parameter("release", rel.release)
         manifest.parameter("tiers", list(tiers))
         manifest.parameter("markers", {k: v.decode() for k, v in uniref.MARKERS.items()})

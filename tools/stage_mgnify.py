@@ -37,7 +37,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import esm3, mgnify, uniref
+from amazebio import esm3, mgnify, objectstore, uniref
 from amazebio.repro import ReproError, run
 
 OUTDIR = Path("artifacts/a1-5")
@@ -156,6 +156,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, key_prefix: str
         # Shares a directory with the UniRef pass and the composition table, so the
         # manifests need distinct names or the last one to finish wins.
         manifest_name="run-mgnify.json",
+        durable=objectstore.durable_results("a1-5"),
     ) as manifest:
         manifest.parameter("release", RELEASE)
         manifest.parameter("mode", "probe" if args.probe else "stage")
