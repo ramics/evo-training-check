@@ -8165,3 +8165,55 @@ decision has a threshold or parameter in it, the number goes in the entry.
   The 28.9 GB member is also the reason the walker reads GNU base-256 size fields at all — four
   of the 90 tars carry a member above the octal field's 8 GiB ceiling, and an octal-only reader
   indexed 86 of 90.
+
+### D-185 — Correction to D-183: the ERV headline is 5,420 searched, not 5,565, and both counts now travel
+- **Date:** 2026-10-19
+- **Task:** A2.3
+- **Context:** D-183 fixed the retroelement arm's universe and, in the same entry, two things
+  that interact: the arm's headline is the ERV subtypes, **5,565 of the 8,593** curated LTR-class
+  models; and a family with no curated general threshold is excluded from the universe and named.
+  Both statements are true. Their product was not stated, and it is not 5,565.
+  Running the export is what surfaced it. **145 of the 5,565 ERV-subtype models carry no general
+  GA cutoff**, so the searched ERV universe is **5,420**. D-183 calls 5,565 "the arm's headline"
+  and "counted before any search", which reads as the number of models the arm searches. It is
+  the number the class *holds*. A reader quoting the entry would have overstated the search by
+  2.6%, and — worse than the size of the error — would have been quoting a denominator that no
+  artefact contains.
+  This is the D-074 shape rather than a measurement error: a figure that was correct about one
+  thing and was going to be cited as another, with nothing in the pipeline positioned to notice.
+  The module's own expectation constant was `EXPECTED_ERV_MODELS = 5565` while the function it
+  guarded returned 5,420, and strict mode did not compare them, so the inconsistency sat between
+  a constant and a return value where no test looked.
+- **Decision:** **Both counts are reported, always, and neither is "the" ERV count.**
+  `amazebio.dfam.universe` emits `erv_models` (searched: **5,420**), `erv_models_in_class`
+  (held by the class: **5,565**) and `erv_excluded_no_threshold` (their difference: **145**).
+  Strict mode checks both against `EXPECTED_ERV_SEARCHABLE` and `EXPECTED_ERV_IN_CLASS`, so a
+  re-export cannot move either one silently — which is the half D-183's guard was missing.
+  **D-183's phrasing is superseded on this point only.** Its registry, selection rule, threshold
+  policy, element kind, route handling and its refusal to fix depth all stand unchanged. Where it
+  says the arm's headline is 5,565, read 5,420 searched of 5,565 held.
+  **The reportable figure is the searched count**, with the held count beside it. The 145 belong
+  in the same sentence as the 762: the arm's blind spot is 8.9% of the LTR class overall and
+  **2.6% of the ERV subtypes specifically**, and the second number is the one that matters for
+  this arm because the ERV subtypes are what it is for.
+- **Rejected:** Giving the 145 a threshold so they could be searched, which is the same
+  invention D-183 rejected for the 762 and no more defensible restricted to the families the arm
+  cares about most.
+  Correcting D-183 in place. The log is append-only; D-175 did edit it in place once and said so
+  against the rule, and that was for defects that made entries unresolvable rather than for a
+  figure that is simply superseded. A correction entry leaves both the original claim and its
+  replacement citable, which matters because D-183 was pushed and may already be cited.
+  Reporting only the searched count and dropping 5,565. It is the right denominator for "how
+  much of Dfam's curated ERV content can this arm see at all", which is a sensitivity question a
+  reviewer will ask, and D-183's own blind-spot framing needs it.
+- **Consequence:** A2.3's retroelement arm searches **5,420 ERV-subtype models** of 5,565 held,
+  within a universe of 7,831 searchable models of 8,593 in the LTR class. Those four numbers are
+  in `artifacts/a2-3/registries/dfam-curated-ltr.json` with the 762 excluded accessions listed,
+  so every one of them traces to an artefact rather than to this log — which is the gap D-173
+  found in D-161 and this entry avoids repeating.
+  The pattern generalises past this arm, and is the reason this is an entry rather than a commit
+  message: **a count taken before a filter and a count taken after it are different numbers, and
+  a pre-registration that states one while implying the other will be read as stating both.**
+  A2.1's `families_without_a_hit`, A2.2's excluded fold nodes and A2.4's twelve tables all have
+  the same two-sided shape. Where a later entry gives a universe size, it should say which side
+  of its own exclusions the number falls on.
