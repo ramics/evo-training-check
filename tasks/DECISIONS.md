@@ -8110,3 +8110,58 @@ decision has a threshold or parameter in it, the number goes in the entry.
   What is still open and is this task's next step: the cost of one assembly against this
   registry, and therefore the depth. Nothing else about the arm moves after calibration — that is
   what makes the calibration safe to run and look at.
+
+### D-184 — The eukaryotic component holds 15,044 assemblies, which is the third number published for it
+- **Date:** 2026-10-19
+- **Task:** A2.3 (affects A3.2, A4.3, A6.1)
+- **Context:** Every figure A2.3 reports is a fraction of "the assemblies in Evo 2's eukaryotic
+  component", and nothing in this project had counted them. The release states a file count and
+  a byte total, not a genome count, because the component is 90 tars rather than 15,000 files
+  (D-182). The index pass built for the sampling design counts them as a by-product, so the
+  count came for free once the walker existed.
+  Two figures were already on the record and neither is this one. The developers' own words,
+  quoted in `policies/corpora.md` §4, are an **acquisition** figure: "All available eukaryotic
+  reference genomes were downloaded from NCBI on May 31, 2024 … This resulted in **16,704
+  genomes** including an estimated 10.7 trillion nucleotides." D-007 then records **15,148
+  deduplicated** eukaryotic reference genomes as what Evo 2 added, after Mash deduplication at
+  distance < 0.01 and contig filtering. D-019 had already corrected one confusion between these
+  two — 16,704 is the NCBI download, not corpus contents — so the distinction was live before
+  this measurement.
+- **Decision:** The component's measured population is **15,044 assemblies** across 90 tars,
+  totalling **2,174,531,002,595 bytes** compressed, with **no duplicated accession**. Recorded as
+  the denominator every A2.3 figure is a fraction of, in
+  `artifacts/a2-3/component-summary.json` with the per-assembly index beside it.
+  The measurement is complete rather than sampled: all 90 of 90 tars walked, `complete: true`,
+  and the byte total agrees with the component's own size in the pinned tree exactly. So the
+  **104-assembly shortfall against D-007's 15,148 is a real stated-versus-delivered gap, not a
+  staging gap** — nothing is missing from the acquisition, and the released component simply
+  carries 0.69% fewer genomes than the release's stated deduplicated count. It is reported as
+  such and is deliberately *not* reconciled by guesswork: the published text gives no
+  per-assembly accounting between the dedup step and the release, so which 104 and why cannot be
+  recovered from it. This is §A0's "under-specification is data" at the scale of a denominator.
+  Three properties of the size distribution are recorded with the count because the sampling
+  design depends on them: the median assembly is 26.4 MB compressed, the 95th percentile is 636
+  MB, and **the largest single member is 28,857,222,864 bytes** — a compressed member of 28.9 GB.
+  The minimum is **2,030 bytes**, which is a genome file too small to be a genome and is flagged
+  rather than dropped.
+- **Rejected:** Taking 15,148 as the denominator because it is the published figure. It is the
+  publisher's count of what it deduplicated to, and the audit's subject is the corpus as
+  released; using a stated number in place of a measured one is the substitution §A7 exists to
+  detect. Both numbers are reported, and the one in the denominator is the measured one.
+  Reconciling the 104 by re-running a Mash deduplication against the NCBI snapshot. It would be a
+  reconstruction of the publisher's step rather than a reading of the release, it needs an NCBI
+  snapshot from May 2024 that is not pinned here, and A2.3 is not the task for it. If it is worth
+  doing it is a new task with a new id, per `AGENTS.md`.
+  Dropping the 2,030-byte member, or any of the small ones, from the denominator. A near-empty
+  assembly is part of the corpus as released and a detector that found nothing in it found
+  nothing in it. Excluding it would quietly improve every rate A2.3 reports.
+- **Consequence:** A2.3's denominator is fixed and measured, and the 1% band D-182 approved is
+  **167 assemblies totalling 16,782,960,377 bytes** — 0.77% of the component by bytes rather
+  than 1%, because the hash samples assemblies and the size distribution spans 2 KB to 28.9 GB.
+  That is inside the figure the owner approved and is the number the staging pass will write.
+  A4.3 maps filter scope against corpus composition and should use 15,044 rather than 15,148 for
+  this component, with the gap named. The index is reusable for that and for any later deepening:
+  the band is nested at the same seed, so buying depth re-reads nothing.
+  The 28.9 GB member is also the reason the walker reads GNU base-256 size fields at all — four
+  of the 90 tars carry a member above the octal field's 8 GiB ceiling, and an octal-only reader
+  indexed 86 of 90.
