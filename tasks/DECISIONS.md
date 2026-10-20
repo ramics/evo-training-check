@@ -8907,3 +8907,61 @@ decision has a threshold or parameter in it, the number goes in the entry.
   *Quietly dropping M3 and reporting two metrics as the headline.* The specification is frozen
   and names three; a headline silently missing one of them is the kind of gap `AGENTS.md`
   requires to be visible as a named commitment rather than forgotten.
+
+### D-196 — The denylist's taxonomy error rate is measured over 16.93% of the removals it actually makes, and the other 83% cannot be measured from this corpus
+- **Date:** 2026-10-20
+- **Task:** A4.4
+- **Context:** D-091 committed Phase A to not publishing a leakage figure that covers a minority
+  of the filter's hazard-relevant removals. A4.2 measured geNomad and recorded that it assigns
+  **38.56%** of the 181,530 records Evo 1's denylist removes. A4.4 owns the rest. A full pass
+  over the pinned IMG/VR v4.1 release reproduced A4.2's two headline counts exactly — 181,530
+  denylist hits, 116,327 after the confidence gate — which is a free cross-check that the two
+  tools read the release the same way.
+  **The 38.56% is the wrong figure to hold D-091 against.** The confidence gate runs *before*
+  the denylist (A4.1, D-081), so the removals the filter actually makes are the 116,327, and
+  over those geNomad's share is **16.93%**, not 38.56%. The share does not fall because geNomad
+  is less used; it falls because 50,302 of geNomad's hits do not survive the gate while every
+  one of RVMT's 89,872 does. RVMT therefore carries **77.26%** of the operative removals.
+- **Decision:** A4.4 reports that **no non-circular benchmark exists** for the catalogues
+  carrying the other 83.07%, and reports that as a bound on *this audit* rather than as a
+  measurement of the filter. The test applied is concrete and countable: inside this corpus the
+  only ground truth independent of the label under test is `MIUViG quality: Reference`, which
+  the release note gives to RefSeq-derived sequences. Counted over the denylist's own hits:
+  **RVMT 89,872 hits, 0 with independent ground truth**; vOTU consensus 10,246 and 0; vOTU with
+  RefSeq genome 25 and 0; geNomad 157 of 69,993; NR 13 of 7,753. RefSeq's 3,641 are all
+  `Reference` and all **circular** — the release note makes its label and its ground truth the
+  same fact, so scoring it would measure a lookup against itself. The two methods with a
+  non-zero count are reported with the interval and not as a rate: 157 records cannot carry an
+  error estimate that D-091 would accept.
+  **What stands in place of a number, from RVMT's own methods (S-RVMT-CELL, digest verified
+  against the register).** RVMT is not a classifier. Of its contig set, 2,765 took ICTV labels
+  by MEGA-BLAST against VMR MSL36 at identity >=98% and coverage >=95% both ways, and 6,878 more
+  from NCBI NR; every other label was *erected* — an approximate-maximum-likelihood RdRp tree,
+  taxa propagated from the last common ancestor of labelled leaves, clades outside existing taxa
+  dissected at a depth threshold and named as new taxa — and contigs were then affiliated
+  through four similarity levels. The authors publish no accuracy and no interval, only that
+  they "estimate that the majority contigs affiliated in this manner, would roughly share the
+  same taxonomic ranks down to genus level". They also record that the assumption the procedure
+  rests on, that existing taxonomy is non-contradictory with respect to the tree, "is violated
+  in multiple places", resolved mostly by stripping the conflicting labels.
+  **Two further facts the pass settled.** No IMG/VR lineage on a denylist hit carries a name the
+  pinned VMR does not ratify (4 RefSeq records aside), so the labels RVMT supplies to the
+  denylist are ratified names produced by that tree inference, not RVMT's own novel taxa. And
+  **96.2% of RVMT's hits are removals on `order` alone** — 78,617 of the 89,872 on
+  `Picornavirales` by itself. So roughly two thirds of everything this filter removes rests on
+  one coarse-rank call, inherited from one catalogue, with no published error rate.
+- **Rejected:** *Benchmarking RVMT against ICTV anyway.* RVMT's ratified labels were themselves
+  produced by matching to ICTV, so scoring them against ICTV measures the coincidence being
+  used as ground truth. That is the circularity `AGENTS.md` and §A4 both warn about, and it
+  would produce a flattering number with no content.
+  *Quoting geNomad's 38.56% as the coverage.* It is the pre-gate share and the filter does not
+  act pre-gate. Carrying it into the write-up would overstate the audit's reach by a factor of
+  more than two.
+  *Scoring geNomad's 157 and NR's 13 Reference-flagged hits as the remaining coverage.* The
+  intervals span most of the range; a precise statement about 170 records is not a measurement
+  of 181,530.
+  *Treating the gap as a Phase A result about the filter.* It is a fact about what can be
+  measured from published artefacts, and the write-up must say so in those words. What it does
+  license is the generalisable point for §10: a filter that inherits taxonomy from catalogues
+  that publish no error rate cannot be audited for taxonomic error by anyone, including its
+  authors.
