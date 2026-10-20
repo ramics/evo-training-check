@@ -9546,3 +9546,86 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Alternatives rejected:** a clean-room reimplementation inside the deliverable (two
   implementations to maintain, and it is not the independent second method §7 asks for);
   limitations documented in `docs/` alone (the report travels and the document does not).
+
+### D-210 — the second method reproduces every Phase A headline number, and the two divergences are in figures the headline does not pass through
+- **Date:** 2026-10-20
+- **Task:** A3.3
+- **Context:** §7 requires the headline counts to be reproduced by a deliberately different
+  method before publication. D-209 explains why the A5.1 facade is not that method; this is.
+  The implementer had not read `survival.py`, `quantify.py`, `conformance.py` or A3.2's and
+  A7.1's tooling, and `src/amazebio/recount.py` imports nothing from them — not even the
+  Wilson interval, which it derives from `metrics/survival.md`.
+- **Decision:**
+  **Recorded as reproduced.** 334 numbers compared across 16 reported groups and 12
+  conformance cells. Every M1 figure agrees exactly — counts, fractions and both interval
+  ends, overall and per route — and the same five groups are withheld as unsearched by both.
+  Pfam 28.27% [26.19%, 30.45%] on Evo 1's release and 29.90% [27.78%, 32.11%] on Evo 2's;
+  RVDB-prot 4.25% [3.93%, 4.61%] and 10.84% [10.33%, 11.37%]. Universe sizes and the overall
+  M2 distributions agree exactly. Conformance agrees exactly: 95 of 2,653,047 records survive
+  a published rule, rate 3.581e-05 [2.930e-05, 4.377e-05], zero on any denylisted family or
+  order, all 95 by the unassigned-realm clause.
+
+  **What makes it a second method**, from the module's own justification: the survival
+  headline is rebuilt from the primitive detection rows rather than from the per-family
+  aggregates A3.2 consumes; the denominator is rebuilt from the pinned registry artefacts and
+  refused if it disagrees with the tables' own lists; M1 is set algebra over a fact table
+  rather than per-route accumulation; and conformance is re-executed from the policy YAML
+  over A7.1's full census plus a bounded re-read of 16,000 records from 16 sampled row groups
+  of the released Parquet — the one check resting on no earlier artefact. What it cannot
+  catch is an error in the measurement itself: both implementations read the same A2
+  artefacts, and a wrong detection is wrong in both.
+
+  **Divergence 1, 21 cells: per-route *record* counts in the six OpenGenome2 groups.** Group
+  totals agree exactly (Pfam 7,521 either way); only the split between routes differs,
+  1,291/6,230 against A3.2's 1,301/6,220, and 487/5,954 against 499/5,942 for RVDB-prot.
+  D-194 apportions a family's records across routes in proportion to its hits; the second
+  method counts distinct records per route from the rows. `PF00589` (`Phage_integrase`) is
+  the whole of the largest gap — 194 hits over 160 records, 49 of them `out_of_scope`, so
+  apportionment says 40.4 records where the rows show 33, because out-of-scope hits are more
+  clustered per record. M1 never passes through the split, so no headline figure moves.
+
+  **Divergence 2, 1 cell: conformance coverage under the charitable reading is 3/7, not 3/6.**
+  That reading publishes a seventh rule, `remove-eukaryotic-host-evidence`, which reads IMG/VR
+  host metadata the release withholds. A7.1's 3/6 is correct for the literal and strict
+  readings.
+
+  **Two findings about the artefacts rather than the numbers.** A2.3's three `.jsonl` files
+  are double-encoded — each line is a JSON string containing the detection object, which
+  `metrics/detections.md` does not allow; the counts are unaffected. And A7.1's conformance
+  *diff* artefact is not in the result store, only its scan, so that half of the comparison
+  joins against the figures as reported in the A7.1 task file: D-188's failure mode, one task
+  over. The segmented universe `rvdb-prot/32.0+D-190` is the one denominator no stored
+  registry artefact can rebuild, because its selection file is git-ignored and unstaged; it
+  is taken from the table's own lists and flagged as not independently checked.
+- **Alternatives rejected:** treating the per-route divergence as a failure of the
+  reproduction (the headline does not pass through it, and the cause is understood exactly);
+  reconciling by changing the second method to apportion as well, which would turn it into a
+  transcription.
+
+### D-211 — per-route record counts are reported as counted, and A3.2's are labelled apportioned
+- **Date:** 2026-10-20
+- **Task:** A3.3
+- **Context:** D-210's first divergence. Two figures exist for the same quantity: D-194
+  apportions a family's records across routes in proportion to its hits, and A3.3 counts
+  distinct records per route from the detection rows.
+- **Decision:** The Phase A write-up quotes the counted figures, and any apportioned figure
+  that remains in an artefact is labelled apportioned rather than left to read as a
+  measurement. Apportionment was a reasonable way to split a per-family aggregate that does
+  not carry the information; where the rows are available the information is there, and the
+  rows are available for every group this affects. No headline figure changes either way.
+- **Alternatives rejected:** keeping the apportioned figures unlabelled, since they read as
+  measurements; re-running A3.2 to produce them, which buys no new measurement; changing A3.3
+  to apportion, which would discard the better number to make a comparison tidy.
+
+### D-212 — conformance coverage is stated per reading
+- **Date:** 2026-10-20
+- **Task:** A3.3
+- **Context:** D-210's second divergence. The three readings of Evo's policy do not publish
+  the same number of rules, so "how much of the policy can this release test" is not one
+  number.
+- **Decision:** Coverage is derived mechanically from each spec's own rule list and stated per
+  reading — 3/6 for literal and strict, 3/7 for charitable. A7.1's single figure is correct
+  for two of the three.
+- **Alternatives rejected:** one coverage figure across the readings, which understates how
+  much of the charitable reading the release cannot test, and does so in the direction that
+  flatters the audit's ability to check the policy.
