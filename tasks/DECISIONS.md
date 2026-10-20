@@ -8844,3 +8844,66 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the tool: a run writing anywhere but the canonical directory declares `durable_exempt` and says
   so. That is D-189's lesson arriving by a second route, which is the argument for putting such
   guards in the code path rather than in a person's care.
+
+### D-194 — A3.2's merge rules: the headline is a union over families and a sum over disjoint components, and the disjointness is checked rather than assumed
+- **Date:** 2026-10-20
+- **Task:** A3.2
+- **Context:** A3.2 merges four detectors' tables into one headline. Two of the metrics combine
+  differently and getting that wrong produces a number that looks right. M1 asks whether a family
+  has at least one surviving homolog, which is a **union** and is safe under any overlap between
+  detectors. M2 is the per-family count of surviving records, which is a **sum**, and a sum over
+  two detectors that read the same corpus records double-counts every record they share.
+  The A2 detectors do partition the corpus — profile search reads the viral and metagenome
+  components, provirus detection the bacterial genomes, element detection the eukaryotic genomes
+  — and `metrics/detections.md` already requires every table to list each component with
+  `searched: false` and a reason where it did not read it. So the partition is stated in the
+  artefacts.
+- **Decision:** The merge **verifies** the partition from each table's own `sources[]` and
+  refuses a group where two detectors both report having searched the same component. Counts are
+  then summed across detectors and families are unioned. Three further rules travel with it:
+  *Universes are never pooled, and a restriction is part of a universe's identity.* RVDB-prot
+  32.0 at 13,679 families and RVDB-prot 32.0 cut to D-190's 1,285 segmented families are two
+  universes, keyed apart, for the same reason Pfam and RVDB are (D-022, D-161).
+  *A table may attribute routes per family row or as one uniform route for every record it
+  searched, and both are checked against the table's own totals.* A row's route counts must sum
+  to its hits; a table with no per-row routes must declare exactly one. Two table-level routes
+  with no per-row tagging leaves each detection's route undetermined, and the merge refuses it
+  rather than picking one — which is what D-042 moved into this task.
+  *Where a family carries detections on more than one route, its record count is split across
+  routes in proportion to the detections on each.* The split is reported as a per-route figure
+  only; the overall M1 and M2, which are the headline, never pass through it.
+- **Rejected:** *Assuming the partition because the A2 task files describe it.* A detector
+  widened to a second component later would inflate every per-family count in its group with
+  nothing in the output saying so, and the check costs one pass over `sources[]`.
+  *De-duplicating on record id instead.* A2.4 publishes no record-level file, so a record-id
+  merge would silently exclude the provirus detector from M2 — the arm carrying the largest
+  single block of detections.
+  *Pooling the three policy readings, which return identical counts for Pfam and RVDB.* They are
+  identical because the readings remove few records, and that equality is itself A0.4's result.
+  Pooling would delete it.
+
+### D-195 — M3 diversity coverage cannot be computed from the A2 artefacts and becomes task A3.4
+- **Date:** 2026-10-20
+- **Task:** A3.2
+- **Context:** `metrics/survival.md` §4 specifies three headline metrics. M1 and M2 are computed
+  from the per-family rows the A2 tables publish. M3 asks, for each surviving family, which of
+  that family's diversity bins the surviving sequence covers — where the bins are the family's
+  reference members clustered at 50% identity over 80% of the shorter sequence. Computing it
+  needs each detection **placed** against those bins, and the A2 detection records carry a
+  record id, a score, a route and an element kind and no sequence, no alignment and no
+  coordinates. There is no depth at which M3 falls out of these artefacts: the measurement was
+  not taken.
+- **Decision:** A3.2 ships M1 and M2, and M3 becomes **A3.4**, a new task with its own id rather
+  than a widening of this one (`AGENTS.md`: a task that turns out to be two tasks is split). The
+  A3.2 artefact names M3 in `metrics_not_computed_here` with this reason, so a reader of the
+  headline sees the gap in the file rather than in a log. A3.4 is `ready` and blocks A6.1: the
+  Phase A write-up either carries M3 or records it as deliberately not run, and that is the
+  project owner's call once its cost is measured, not a judgement to make mid-task.
+- **Rejected:** *Approximating M3 from the per-family record counts.* A count of surviving
+  records is not a count of covered diversity bins — one family's twelve records can be twelve
+  near-identical sequences in one bin — and the approximation would read as the metric.
+  *Re-running the A2 searches with sequence output inside A3.2.* That is a second corpus pass
+  with its own cost and its own pre-registered depth, which is a task.
+  *Quietly dropping M3 and reporting two metrics as the headline.* The specification is frozen
+  and names three; a headline silently missing one of them is the kind of gap `AGENTS.md`
+  requires to be visible as a named commitment rather than forgotten.

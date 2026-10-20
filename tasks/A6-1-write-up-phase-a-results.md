@@ -4,7 +4,7 @@ title: Write up Phase A results
 phase: A
 status: blocked
 gate: false
-depends_on: [A0.4, A3.3, A4.1, A4.2, A4.3, A4.4]
+depends_on: [A0.4, A3.3, A3.4, A4.1, A4.2, A4.3, A4.4]
 blocks: [X2.1, X3.1]
 design_ref: "§6 weekend 2, §7"
 deliverable: null
