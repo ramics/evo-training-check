@@ -9629,3 +9629,47 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Alternatives rejected:** one coverage figure across the readings, which understates how
   much of the charitable reading the release cannot test, and does so in the direction that
   flatters the audit's ability to check the policy.
+
+### D-213 — A7.4's comparison key: contig accession primary, sequence digest on the disagreeing set, assembly accession for the genome-level claim
+- **Date:** 2026-10-20
+- **Task:** A7.4
+- **Context:** A7.4 asks whether OpenGenome2 contains the OpenGenome v1 GTDB subtree it says
+  it reuses "in its entirety". The two sides are published differently and the task's first
+  Done-when criterion is that the key be fixed before any count exists. Established by
+  reading the staged objects' structure, not assumed:
+
+  - **OpenGenome v1's `stage1_gtdb` is contigs.** The Parquet schema is two columns,
+    `record` and `text`; `record` is an INSDC contig accession (`JAHFAU010000168.1`) and
+    `text` is that contig's sequence. 118.5 GiB across shards.
+  - **OpenGenome2's reused side is genomes.** `fasta/gtdb_v220/v214/batch{1,2,3}.tar` hold one
+    member per assembly, named by assembly accession (`batch1/GCA_018384735.1.fasta.gz`),
+    each a gzipped multi-FASTA whose headers carry the contig accessions. 83.5 GB over three
+    tars, and `v220_update.tar` a further 25.6 GB.
+
+  So the two representations do not agree on what a record is, and no single key is natively
+  present on both sides.
+- **Decision:**
+  **The primary key is the INSDC contig accession.** It is the unit v1 publishes and it is
+  recoverable from the Evo 2 side's FASTA headers. The comparison is therefore
+  contig-to-contig, and genome-level agreement is derived from it rather than asserted.
+
+  **The sequence digest is computed in the same pass and used on the disagreeing set.** Not
+  as the primary key, because a digest cannot tell "absent" from "recorded differently" on
+  its own — but that distinction is exactly what §A7 asks every discrepancy to be classified
+  by, so a contig present on one side only is then looked up by digest before it is called
+  absent. SHA-256 over the uppercased sequence with every non-residue character removed, so a
+  line-wrapping or case difference is a representation difference and not a content one. It
+  costs no extra IO: the pass has to decompress both sides to read the headers anyway, and a
+  gzip stream cannot be read past its start without decompressing what precedes it.
+
+  **The 28,174 figure is checked at the assembly level, from tar member names alone.** It is
+  a claim about genomes added, so counting contigs to test it would be answering a different
+  question. Member names sit in the tar headers, and the header chain can be walked by ranged
+  reads of 512 bytes each — about 14 MB of transfer for the whole archive rather than 25.6
+  GB — so this half needs no instance and no decompression.
+- **Alternatives rejected:** the assembly accession as the primary key, which would make
+  "entirety" a claim about genome lists and could not see a genome present on both sides with
+  contigs missing; the sequence digest as the primary key, which conflates absence with
+  re-representation and cannot report either direction by accession; and contig-only
+  comparison with no digest, which would leave every discrepancy in the residual bucket the
+  Done-when forbids.
