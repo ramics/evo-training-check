@@ -8767,3 +8767,80 @@ decision has a threshold or parameter in it, the number goes in the entry.
   came back identical, so the loss was a durability failure and not a reproducibility failure.
   A1.6's caps figures now trace to an artefact again, which is the gap its review was left
   holding — under a new key, with the published measurement's loss stated beside it.
+
+### D-193 — Segmented virus families do survive in Evo 1's released viral component, and taxonomy could not have found them
+- **Date:** 2026-10-20
+- **Task:** A2.5
+- **Context:** A2.5's label-side census (D-187) reported **zero** segmented genomes in Evo 1's
+  surviving component — and reported, in the same artefact, that only **2.6%** of those records
+  carry a label at the family rank the category is keyed on. A zero over 2.6% of a corpus is a
+  statement about labels. D-190 fixed the family set and threshold and D-191 the depth ladder,
+  both pushed before anything was searched.
+- **Decision:** The result, over the hash span `[0, 0.10)` of Evo 1's surviving stage 2 — four
+  nested bands, assembled with the overlap-and-gap check in `tools/detect_segmented.py`:
+  **265,062 records, 5,005,711 genes, 1,128 Maa over 3.6 Gbp. 7 of 1,285 families, 57 hits.**
+  `estimate_kind: lower_bound`; family-level share 0.54% (0.26–1.12%, Wilson).
+
+  | family | records | ICTV family | genome |
+  |---|---|---|---|
+  | FAM000422 | **29** | Polydnaviriformidae | segmented dsDNA |
+  | FAM007500 | 6 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+  | FAM022414 | 2 | Nanoviridae (*Babuvirus*) | 6-segment ssDNA |
+  | FAM003906 | 1 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+  | FAM005477 | 1 | Geminiviridae (*Grablovirus*) | bipartite ssDNA |
+  | FAM023047 | 1 | Bromoviridae (*Ilarvirus*) | tripartite ssRNA |
+  | FAM033562 | 1 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+
+  **Five distinct ICTV segmented families, every one eukaryote-infecting**, in a component whose
+  host rule's published purpose is "to remove potential eukaryotic viruses" (D-110).
+
+  **Three independent things make this more than a threshold artefact**, and they are the reason
+  this entry states a finding rather than a count:
+  1. **FAM000422 appears in all four bands** — 5, 7, 8, 9 records. The bands are disjoint hash
+     samples, so an artefact of the cutoff would not distribute evenly across them.
+  2. **Three separately-built RVDB families converge on *Orthoreovirus*.** Independent
+     clusterings of the same genus hitting the same corpus corroborate each other in a way seven
+     unrelated singletons would not.
+  3. **The models are not all short.** FAM003906 is 310 residues from 613 sequences; FAM000422 is
+     170 from 102. Every hit also cleared 50% model coverage on top of the E-value.
+
+  **What is weak, named rather than averaged in.** FAM033562 (83-residue model, 7 sequences) and
+  FAM022414 (66 residues, 8) are short models and are the least safe of the seven; a short model
+  is where a spurious hit is most likely even at this coverage. The seven are not seven
+  equivalent findings and must not be quoted as such.
+
+  **Route is `unresolved` for all 265,062 records**, from `apply.route_for` over A1.4's manifest,
+  and **no table asserts a conformance failure** — §7 reserves that for A7.1. Eight records that
+  the reading removes were subtracted before anything was called, per band: 0, 3, 2, 3.
+
+  **The methodological point, which is the part that generalises.** §A2 opens by warning that an
+  audit using taxonomy reproduces the filter's blind spots. This is that warning measured: the
+  label-side arm and the sequence-side arm ran over the *same* records — band 1's 53,140 matches
+  A2.1's published figure exactly — and returned **zero** and **seven**. The difference is not
+  depth or threshold; it is that one arm reads a label 2.6% of records carry and the other reads
+  the sequence every record carries.
+- **Rejected:** *Reporting the seven as a fraction of "viral families".* The denominator is
+  D-190's segmented selection and nothing else; D-161's rule applies and the artefact carries the
+  restriction in-band.
+  *Buying the census.* The owner authorised it at ~$9.60, and it was then declined on the
+  measurement rather than the price: 2% took 55 minutes, so the remaining 90% is about 28
+  sequential runs inside this environment's two-hour cap — a scheduling cost, not a money one.
+  D-191 had also pre-registered that band 3 was conditional on the question still being open, and
+  after band 1 it was not. **A census would refine how much, not whether.** The route to it, if
+  anyone wants it, is one in-region instance rather than 28 session runs.
+  *Calling the satellite arm's zero a result.* It selects zero families by construction (D-190)
+  and is not run.
+- **Consequence:** **A2.5's segmented zero is withdrawn and replaced.** Its task file carries the
+  measured result, and D-187's sentence that "no marker pass can strengthen that category's zero"
+  is wrong as written — D-190 corrected it for the property-versus-families distinction and this
+  entry settles it with data. The surviving weak zeros in A2.5 are the two satellite categories,
+  for a reason that is now a named method limitation rather than an unexamined gap.
+  Two incidents on the way, both recorded because the second is mine twice over. **The container
+  restarted mid-ladder**: three completed bands were intact in object storage and the in-flight
+  band lost 50 minutes of compute and **no results** — the first real test of D-188's guard and of
+  banding, and both held. And **a scratch-directory probe of `--assemble` published to the real
+  prefix**, because `repro.run` derives `durable` from the task id and cannot see `--out`. The
+  file is honest and self-labelling and overwrote nothing, but it is permanent, and the fix is in
+  the tool: a run writing anywhere but the canonical directory declares `durable_exempt` and says
+  so. That is D-189's lesson arriving by a second route, which is the argument for putting such
+  guards in the code path rather than in a person's care.
