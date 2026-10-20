@@ -2,13 +2,13 @@
 id: X1.7
 title: Key durable results by commit
 phase: X
-status: ready
+status: in-progress
 gate: false
 depends_on: []
 blocks: []
 design_ref: "§7"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # X1.7 — Key durable results by commit
