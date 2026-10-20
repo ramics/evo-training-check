@@ -9408,3 +9408,38 @@ decision has a threshold or parameter in it, the number goes in the entry.
   them in one column.
   *Reporting a pooled coverage across families to escape the narrow intervals.* The frozen
   specification forbids it, and the fragility it would hide is the reason it is forbidden.
+
+### D-206 — "80% of the shorter sequence" is executed as 80% of both, and the bins are clustered per family
+- **Date:** 2026-10-20
+- **Task:** A3.4
+- **Context:** M3 is frozen as clustering a family's members at 50% amino-acid identity over
+  80% of the shorter sequence. Executing it needs two things the frozen text does not settle,
+  and both are fixed here before any coverage figure exists.
+- **Decision:**
+  **Coverage mode: `--cov-mode 0`, coverage of both sequences.** MMseqs2 offers coverage of
+  the query, of the target, of both, and two length ratios — and no mode for "the shorter
+  sequence". Requiring both is strictly harder to satisfy than requiring the shorter one
+  alone, so it can only split bins more finely. More bins is a larger denominator and a lower
+  `coverage(f)`, which **understates** how much of a family survived. That is the direction
+  that cannot flatter this audit's own finding, which is why it is the one taken. It is also
+  MMseqs2's default and the conventional protein-family clustering point `metrics/survival.md`
+  says the frozen values were chosen as.
+  **Clustering is per family, and the cheaper alternative was measured rather than assumed.**
+  The specification says to cluster the family's members, so each family is clustered alone,
+  single-threaded, which takes about seventy minutes across the 1,545 viral families with more
+  than one seed member. Clustering all 34,482 members in one pass and counting distinct
+  clusters per family takes eighteen seconds. On a seeded sample of 120 families the two
+  agreed exactly on 111; the nine differences were one to four bins on the largest families
+  and ran in **both** directions, which is greedy set-cover breaking ties against a different
+  candidate pool rather than families merging into one another. Small — but it is a different
+  operation from the one the frozen metric names, so the slow one runs and the comparison is
+  recorded here instead of the shortcut being taken quietly.
+  **One thread per family.** MMseqs2's set-cover can break ties differently across thread
+  counts, and a denominator that moves with the machine is not pinned.
+- **Rejected:** *`--cov-mode 1` or `2`.* Each covers one side only, so which sequence is the
+  query decides the answer; within a family that is arbitrary.
+  *`--cov-mode 5`.* It is a length-ratio prefilter, not an alignment coverage, so it does not
+  execute the sentence at all.
+  *The global clustering, on the strength of 111 out of 120.* Ninety-three per cent agreement
+  is a good reason to believe the shortcut is close, and not a reason to report a different
+  operation under a frozen metric's name.
