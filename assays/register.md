@@ -11,6 +11,16 @@ The pinned release was downloaded from `https://marks.hms.harvard.edu/proteingym
 - MIT is a software licence. Applying it to a data deposit is ordinary practice on Zenodo and it is the maintainers' own stated choice, but its effect on data is less settled than on code. Recorded as the grant relied on, not as a legal conclusion
 - the deposit's grant is the maintainers'. It does not reach back and relicense the studies that produced the assays, which is why each study's own terms are carried per assay below
 
+| pinned file | established as the deposit's bytes |
+|---|---|
+| `DMS_ProteinGym_substitutions.zip` | digest |
+| `DMS_substitutions.csv` | digest |
+| `DMS_substitutions_Spearman_DMS_level.csv` | not in the deposit |
+| `Summary_performance_DMS_substitutions_Spearman.csv` | not in the deposit |
+| `zero_shot_substitutions_scores.zip` | digest |
+
+A file the deposit does not carry is one this project holds only from the maintainers' own server, where no licence is stated. Nothing downstream redistributes those files, but a reader should know the deposit's grant has not been shown to cover them.
+
 ## What is published here, and what is not
 
 Published:

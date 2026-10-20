@@ -288,6 +288,14 @@ def markdown(reg: dict[str, Any]) -> str:
     lines += [f"- {limit}" for limit in lic["limits"]]
     lines += [
         "",
+        "| pinned file | established as the deposit's bytes |",
+        "|---|---|",
+        *[f"| `{row['file']}` | {row['match']} |" for row in lic["every_pinned_file"]],
+        "",
+        "A file the deposit does not carry is one this project holds only from the maintainers' "
+        "own server, where no licence is stated. Nothing downstream redistributes those files, "
+        "but a reader should know the deposit's grant has not been shown to cover them.",
+        "",
         "## What is published here, and what is not",
         "",
         "Published:",

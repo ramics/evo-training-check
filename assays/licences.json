@@ -107,6 +107,7 @@
    },
    {
     "name": "zero_shot_substitutions_scores.zip",
+    "sha256": "3fd7cdb5e78f1d43cabfabfeb6578c252b63af23ba2ab44db0094dc3a42de36d",
     "size": 1911045703
    }
   ],
@@ -142,11 +143,11 @@
    "match": "not in the deposit"
   },
   {
-   "caveat": "not hashed, so the deposit is the same file by name and size only",
-   "deposit_size": 1911045703,
+   "deposit_sha256": "3fd7cdb5e78f1d43cabfabfeb6578c252b63af23ba2ab44db0094dc3a42de36d",
    "file": "zero_shot_substitutions_scores.zip",
    "in_deposit": true,
-   "match": "size only"
+   "match": "digest",
+   "pinned_sha256": "3fd7cdb5e78f1d43cabfabfeb6578c252b63af23ba2ab44db0094dc3a42de36d"
   }
  ],
  "release": {
