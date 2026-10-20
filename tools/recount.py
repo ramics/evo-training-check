@@ -318,14 +318,6 @@ def main(argv: list[str] | None = None) -> int:
         help="row groups of the released Parquet to re-read; 0 skips the re-read",
     )
     parser.add_argument("--allow-dirty", action="store_true")
-    parser.add_argument(
-        "--local-only",
-        action="store_true",
-        help=(
-            "do not copy the outputs to the result store. For iteration only: the corpora "
-            "bucket has no DeleteObject, so a junk upload is permanent."
-        ),
-    )
     args = parser.parse_args(argv)
 
     outdir = Path(args.outdir)
@@ -337,12 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         outdir=outdir,
         allow_dirty=args.allow_dirty,
-        durable=None if args.local_only else objectstore.durable_results("a3-3"),
-        durable_exempt=(
-            "local iteration only; the run whose numbers are cited uploads to a3-3"
-            if args.local_only
-            else None
-        ),
+        durable=objectstore.durable_results("a3-3"),
         manifest_name="run-recount.json",
     ) as manifest:
         manifest.parameter("confidence_level", 0.95)
