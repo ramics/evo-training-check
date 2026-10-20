@@ -38,21 +38,13 @@ published. §7 makes this a precondition, not a nice-to-have.
 
 ## State — 2026-10-20
 
-`review`. **Branch `claude/a3-3-independent`, merged into `claude/project-thread-a3vch4`.**
+`review`. **Branch `claude/project-thread-a3vch4`.** The second method is written and run;
+the headline reproduces to the last printed digit, and the two divergences are investigated
+in `comparison.md` rather than reconciled away (D-210, D-211, D-212).
 
-**Done.** `src/amazebio/recount.py`, `tools/recount.py`, `tests/test_recount.py` (38 tests),
-and `corpora/results/a3-3/` holding `recount.json`, `comparison.md` and a `run-recount.json`
-pinning 62 inputs. Written from the frozen definitions alone by an implementer that had not
-read `survival.py`, `quantify.py`, `conformance.py` or the A3.2 and A7.1 tooling; the module
-imports nothing from them and derives its own Wilson interval from `metrics/survival.md`.
-Every M1 and conformance figure reproduces exactly; the two divergences are in per-route
-record counts and in a coverage fraction, neither of which the headline passes through.
-D-210 records the comparison, D-211 and D-212 the two calls it forced.
-
-**Waiting on the project owner: whether this gate opens.** The Done-when criteria are met —
-headline counts reproduced by an independent method, every material divergence explained in
-writing, the comparison published alongside. `AGENTS.md` reserves opening a gate to the
-project owner, so the task stays at `review` until that is recorded.
+**The gate is still HOLDING.** Asked whether to open it, the project owner chose to read the
+comparison first, on 2026-10-20. The comparison was given to him the same day. Until he says
+otherwise the gate holds and the Phase A write-up does not start.
 
 ## Notes
 
