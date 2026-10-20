@@ -1,0 +1,528 @@
+{
+ "deposit": {
+  "access_right": "open",
+  "doi": "10.5281/zenodo.15293562",
+  "files": [
+   {
+    "name": "DMS_ProteinGym_indels.zip",
+    "size": 6709750
+   },
+   {
+    "name": "DMS_ProteinGym_substitutions.zip",
+    "sha256": "3a83766254ac9ac9984ec25cb73c6e010ea4418f5e35f143933e6b6e6473b921",
+    "size": 43021128
+   },
+   {
+    "name": "DMS_indels.csv",
+    "size": 44542
+   },
+   {
+    "name": "DMS_msa_files.zip",
+    "size": 1504361305
+   },
+   {
+    "name": "DMS_msa_weights.zip",
+    "size": 45228459
+   },
+   {
+    "name": "DMS_substitutions.csv",
+    "sha256": "a8f498011532a74aa9fe556a50555a75e928c5837d19c06a87592ae04049b308",
+    "size": 208734
+   },
+   {
+    "name": "DMS_supervised_indels_scores.zip",
+    "size": 19191097
+   },
+   {
+    "name": "DMS_supervised_substitutions_scores.zip",
+    "size": 269797108
+   },
+   {
+    "name": "ProteinGym_AF2_structures.zip",
+    "size": 19173248
+   },
+   {
+    "name": "clinical_ProteinGym_indels.zip",
+    "size": 2147828
+   },
+   {
+    "name": "clinical_ProteinGym_substitutions.zip",
+    "size": 3356697
+   },
+   {
+    "name": "clinical_indels.csv",
+    "size": 1541599
+   },
+   {
+    "name": "clinical_msa_files.zip",
+    "size": 5891939445
+   },
+   {
+    "name": "clinical_msa_weights.zip",
+    "size": 31252367
+   },
+   {
+    "name": "clinical_substitutions.csv",
+    "size": 2191374
+   },
+   {
+    "name": "cv_folds_indels.zip",
+    "size": 8761981
+   },
+   {
+    "name": "cv_folds_multiples_substitutions.zip",
+    "size": 33967587
+   },
+   {
+    "name": "cv_folds_singles_substitutions.zip",
+    "size": 13412036
+   },
+   {
+    "name": "indels_raw_DMS.zip",
+    "size": 15865761
+   },
+   {
+    "name": "indels_raw_clinical.zip",
+    "size": 2231943
+   },
+   {
+    "name": "substitutions_raw_DMS.zip",
+    "size": 112249365
+   },
+   {
+    "name": "substitutions_raw_clinical.zip",
+    "size": 10660763
+   },
+   {
+    "name": "zero_shot_clinical_indels_scores.zip",
+    "size": 2772247
+   },
+   {
+    "name": "zero_shot_clinical_substitutions_scores.zip",
+    "size": 13241411
+   },
+   {
+    "name": "zero_shot_indels_scores.zip",
+    "size": 64782370
+   },
+   {
+    "name": "zero_shot_substitutions_scores.zip",
+    "sha256": "3fd7cdb5e78f1d43cabfabfeb6578c252b63af23ba2ab44db0094dc3a42de36d",
+    "size": 1911045703
+   }
+  ],
+  "license": "mit-license",
+  "publication_date": "2025-04-27",
+  "record": "15293562",
+  "title": "ProteinGym",
+  "url": "https://zenodo.org/records/15293562"
+ },
+ "deposit_match": [
+  {
+   "deposit_sha256": "3a83766254ac9ac9984ec25cb73c6e010ea4418f5e35f143933e6b6e6473b921",
+   "file": "DMS_ProteinGym_substitutions.zip",
+   "in_deposit": true,
+   "match": "digest",
+   "pinned_sha256": "3a83766254ac9ac9984ec25cb73c6e010ea4418f5e35f143933e6b6e6473b921"
+  },
+  {
+   "deposit_sha256": "a8f498011532a74aa9fe556a50555a75e928c5837d19c06a87592ae04049b308",
+   "file": "DMS_substitutions.csv",
+   "in_deposit": true,
+   "match": "digest",
+   "pinned_sha256": "a8f498011532a74aa9fe556a50555a75e928c5837d19c06a87592ae04049b308"
+  },
+  {
+   "file": "DMS_substitutions_Spearman_DMS_level.csv",
+   "in_deposit": false,
+   "match": "not in the deposit"
+  },
+  {
+   "file": "Summary_performance_DMS_substitutions_Spearman.csv",
+   "in_deposit": false,
+   "match": "not in the deposit"
+  },
+  {
+   "deposit_sha256": "3fd7cdb5e78f1d43cabfabfeb6578c252b63af23ba2ab44db0094dc3a42de36d",
+   "file": "zero_shot_substitutions_scores.zip",
+   "in_deposit": true,
+   "match": "digest",
+   "pinned_sha256": "3fd7cdb5e78f1d43cabfabfeb6578c252b63af23ba2ab44db0094dc3a42de36d"
+  }
+ ],
+ "release": {
+  "downloaded_from": "https://marks.hms.harvard.edu/proteingym/ProteinGym_v1.3",
+  "files": [
+   {
+    "name": "DMS_ProteinGym_substitutions.zip",
+    "sha256": "3a83766254ac9ac9984ec25cb73c6e010ea4418f5e35f143933e6b6e6473b921"
+   },
+   {
+    "name": "DMS_substitutions.csv",
+    "sha256": "a8f498011532a74aa9fe556a50555a75e928c5837d19c06a87592ae04049b308"
+   },
+   {
+    "name": "DMS_substitutions_Spearman_DMS_level.csv",
+    "sha256": "f432423b87f79ac9778dfac86e3d95be041d246bc618dc0a406b35b0b7466437"
+   },
+   {
+    "name": "Summary_performance_DMS_substitutions_Spearman.csv",
+    "sha256": "ee61a7c09efbfbd8d9a6c9355092c798032a578fa58c6f6256b5da8778555fd4"
+   },
+   {
+    "name": "zero_shot_substitutions_scores.zip",
+    "sha256": "3fd7cdb5e78f1d43cabfabfeb6578c252b63af23ba2ab44db0094dc3a42de36d"
+   }
+  ],
+  "name": "ProteinGym",
+  "note": "the pinned files were fetched from the maintainers' own server, which states no licence. The deposit above is the licensed publication of the same release; `deposit_match` is the evidence that they are the same bytes",
+  "version": "v1.3"
+ },
+ "retrieved_on": "2026-10-20",
+ "what_this_is": "licence evidence for B2.4, acquired by tools/assay_licences.py. The deposit block is the grant under which the pinned release reached this project; the works block is each source article's publisher-deposited licence, which is evidence about the article and not directly about the assay data it reports",
+ "works": [
+  {
+   "container": "Cell",
+   "doi": "10.1016/j.cell.2016.11.031",
+   "licenses": [
+    {
+     "content_version": "vor",
+     "url": "https://www.elsevier.com/open-access/userlicense/1.0/"
+    },
+    {
+     "content_version": "tdm",
+     "url": "https://www.elsevier.com/tdm/userlicense/1.0/"
+    }
+   ],
+   "publisher": "Elsevier BV",
+   "retrieved": true,
+   "title": "Functional Segregation of Overlapping Genes in HIV",
+   "year": 2016
+  },
+  {
+   "container": "Cell",
+   "doi": "10.1016/j.cell.2020.08.012",
+   "licenses": [
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "tdm",
+     "url": "https://www.elsevier.com/legal/tdmrep-license"
+    },
+    {
+     "content_version": "tdm",
+     "url": "https://www.elsevier.com/tdm/userlicense/1.0/"
+    }
+   ],
+   "publisher": "Elsevier BV",
+   "retrieved": true,
+   "title": "Deep Mutational Scanning of SARS-CoV-2 Receptor Binding Domain Reveals Constraints on Folding and ACE2 Binding",
+   "year": 2020
+  },
+  {
+   "container": "Journal of Molecular Biology",
+   "doi": "10.1016/j.jmb.2015.11.027",
+   "licenses": [
+    {
+     "content_version": "am",
+     "url": "http://www.elsevier.com/open-access/userlicense/1.0/"
+    },
+    {
+     "content_version": "tdm",
+     "url": "https://www.elsevier.com/legal/tdmrep-license"
+    },
+    {
+     "content_version": "tdm",
+     "url": "https://www.elsevier.com/tdm/userlicense/1.0/"
+    }
+   ],
+   "publisher": "Elsevier BV",
+   "retrieved": true,
+   "title": "A Balance between Inhibitor Binding and Substrate Processing Confers Influenza Drug Resistance",
+   "year": 2016
+  },
+  {
+   "container": "Nature Communications",
+   "doi": "10.1038/s41467-019-11735-3",
+   "licenses": [
+    {
+     "content_version": "tdm",
+     "url": "https://creativecommons.org/licenses/by/4.0"
+    },
+    {
+     "content_version": "vor",
+     "url": "https://creativecommons.org/licenses/by/4.0"
+    }
+   ],
+   "publisher": "Springer Science and Business Media LLC",
+   "retrieved": true,
+   "title": "Changes in gene expression predictably shift and switch genetic interactions",
+   "year": 2019
+  },
+  {
+   "container": "Nature",
+   "doi": "10.1038/s41586-023-06328-6",
+   "licenses": [
+    {
+     "content_version": "tdm",
+     "url": "https://creativecommons.org/licenses/by/4.0"
+    },
+    {
+     "content_version": "vor",
+     "url": "https://creativecommons.org/licenses/by/4.0"
+    }
+   ],
+   "publisher": "Springer Science and Business Media LLC",
+   "retrieved": true,
+   "title": "Mega-scale experimental analysis of protein folding stability in biology and design",
+   "year": 2023
+  },
+  {
+   "container": "Scientific Reports",
+   "doi": "10.1038/srep04942",
+   "licenses": [
+    {
+     "content_version": "tdm",
+     "url": "https://creativecommons.org/licenses/by/3.0/"
+    },
+    {
+     "content_version": "vor",
+     "url": "https://creativecommons.org/licenses/by/3.0/"
+    }
+   ],
+   "publisher": "Springer Science and Business Media LLC",
+   "retrieved": true,
+   "title": "High-throughput profiling of influenza A virus hemagglutinin gene at single-nucleotide resolution",
+   "year": 2014
+  },
+  {
+   "container": "Proceedings of the National Academy of Sciences",
+   "doi": "10.1073/pnas.1806133115",
+   "licenses": [
+    {
+     "content_version": "vor",
+     "url": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+    }
+   ],
+   "publisher": "National Academy of Sciences",
+   "retrieved": true,
+   "title": "Deep mutational scanning of hemagglutinin helps predict evolutionary fates of human H3N2 influenza variants",
+   "year": 2018
+  },
+  {
+   "container": "Molecular Biology and Evolution",
+   "doi": "10.1093/molbev/msv167",
+   "licenses": [],
+   "publisher": "Oxford University Press (OUP)",
+   "retrieved": true,
+   "title": "Site-Specific Amino Acid Preferences Are Mostly Conserved in Two Closely Related Protein Homologs",
+   "year": 2015
+  },
+  {
+   "container": null,
+   "doi": "10.1101/2021.04.16.440236",
+   "licenses": [
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "openRxiv",
+   "retrieved": true,
+   "title": "Generative AAV capsid diversification by latent interpolation",
+   "year": 2021
+  },
+  {
+   "container": null,
+   "doi": "10.1101/2023.03.07.531617",
+   "licenses": [],
+   "publisher": "openRxiv",
+   "retrieved": true,
+   "title": "Functional analysis of flavivirus replicase by deep mutational scanning of dengue NS5",
+   "year": 2023
+  },
+  {
+   "container": null,
+   "doi": "10.1101/2023.08.27.554986",
+   "licenses": [],
+   "publisher": "openRxiv",
+   "retrieved": true,
+   "title": "Deep mutational scanning reveals the functional constraints and evolutionary potential of the influenza A virus PB1 protein",
+   "year": 2023
+  },
+  {
+   "container": "Journal of Virology",
+   "doi": "10.1128/JVI.01291-19",
+   "licenses": [
+    {
+     "content_version": "tdm",
+     "url": "https://journals.asm.org/non-commercial-tdm-license"
+    }
+   ],
+   "publisher": "American Society for Microbiology",
+   "retrieved": true,
+   "title": "Deep Mutational Scanning Comprehensively Maps How Zika Envelope Protein Mutations Affect Viral Growth and Antibody Escape",
+   "year": 2019
+  },
+  {
+   "container": "PLOS Genetics",
+   "doi": "10.1371/journal.pgen.1005310",
+   "licenses": [
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "Public Library of Science (PLoS)",
+   "retrieved": true,
+   "title": "Functional Constraint Profiling of a Viral Protein Reveals Discordance of Evolutionary Conservation and Functionality",
+   "year": 2015
+  },
+  {
+   "container": "PLoS Pathogens",
+   "doi": "10.1371/journal.ppat.1004064",
+   "licenses": [
+    {
+     "content_version": "unspecified",
+     "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+    }
+   ],
+   "publisher": "Public Library of Science (PLoS)",
+   "retrieved": true,
+   "title": "A Quantitative High-Resolution Genetic Profile Rapidly Identifies Sequence Determinants of Hepatitis C Viral Fitness and Drug Sensitivity",
+   "year": 2014
+  },
+  {
+   "container": "PLOS Pathogens",
+   "doi": "10.1371/journal.ppat.1005988",
+   "licenses": [
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "Public Library of Science (PLoS)",
+   "retrieved": true,
+   "title": "Saturation Mutagenesis of the HIV-1 Envelope CD4 Binding Loop Reveals Residues Controlling Distinct Trimer Conformations",
+   "year": 2016
+  },
+  {
+   "container": "PLOS Pathogens",
+   "doi": "10.1371/journal.ppat.1006114",
+   "licenses": [
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "Public Library of Science (PLoS)",
+   "retrieved": true,
+   "title": "Experimental Estimation of the Effects of All Amino-Acid Mutations to HIV\u2019s Envelope Protein on Viral Replication in Cell Culture",
+   "year": 2016
+  },
+  {
+   "container": "Viruses",
+   "doi": "10.3390/v8060155",
+   "licenses": [
+    {
+     "content_version": "vor",
+     "url": "https://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "MDPI AG",
+   "retrieved": true,
+   "title": "Accurate Measurement of the Effects of All Amino-Acid Mutations on Influenza Hemagglutinin",
+   "year": 2016
+  },
+  {
+   "container": "eLife",
+   "doi": "10.7554/eLife.34420",
+   "licenses": [
+    {
+     "content_version": "am",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "tdm",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "eLife Sciences Publications, Ltd",
+   "retrieved": true,
+   "title": "Mapping mutational effects along the evolutionary landscape of HIV envelope",
+   "year": 2018
+  },
+  {
+   "container": "eLife",
+   "doi": "10.7554/eLife.45079",
+   "licenses": [
+    {
+     "content_version": "am",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "tdm",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "eLife Sciences Publications, Ltd",
+   "retrieved": true,
+   "title": "Comprehensive mapping of adaptation of the avian influenza polymerase protein PB2 to humans",
+   "year": 2019
+  },
+  {
+   "container": "eLife",
+   "doi": "10.7554/eLife.64256",
+   "licenses": [
+    {
+     "content_version": "am",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "tdm",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "eLife Sciences Publications, Ltd",
+   "retrieved": true,
+   "title": "Globally defining the effects of mutations in a picornavirus capsid",
+   "year": 2021
+  },
+  {
+   "container": "eLife",
+   "doi": "10.7554/eLife.77433",
+   "licenses": [
+    {
+     "content_version": "am",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "tdm",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+     "content_version": "vor",
+     "url": "http://creativecommons.org/licenses/by/4.0/"
+    }
+   ],
+   "publisher": "eLife Sciences Publications, Ltd",
+   "retrieved": true,
+   "title": "Comprehensive fitness landscape of SARS-CoV-2 Mpro reveals insights into viral resistance mechanisms",
+   "year": 2022
+  }
+ ]
+}

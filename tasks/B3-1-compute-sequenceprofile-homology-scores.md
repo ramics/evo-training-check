@@ -2,7 +2,7 @@
 id: B3.1
 title: Compute sequence-profile homology scores
 phase: B
-status: blocked
+status: ready
 gate: false
 depends_on: [A1.4, B2.4]
 blocks: [B3.5]

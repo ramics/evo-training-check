@@ -2,7 +2,7 @@
 id: B3.4
 title: Compute the MSA-depth covariate
 phase: B
-status: blocked
+status: ready
 gate: false
 depends_on: [B2.4]
 blocks: [B3.5]

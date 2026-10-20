@@ -2,13 +2,13 @@
 id: B4.1
 title: Implement the parameter-free baseline
 phase: B
-status: blocked
+status: in-progress
 gate: false
 depends_on: [B2.4]
 blocks: [B4.2]
 design_ref: "§B1, §B4"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # B4.1 — Implement the parameter-free baseline

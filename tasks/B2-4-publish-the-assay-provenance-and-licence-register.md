@@ -2,7 +2,7 @@
 id: B2.4
 title: Publish the assay provenance and licence register
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [B2.2, B2.3]
 blocks: [B3.1, B3.2, B3.3, B3.4, B4.1]
@@ -34,7 +34,7 @@ Ship the curated assay collection as a citable deliverable with full provenance 
 
 ## State — 2026-10-20
 
-`review`. **Branch `claude/project-thread-a3vch4`**, in
+`done`. **Branch `claude/project-thread-a3vch4`**, in
 [PR #31](https://github.com/ramics/amazebio/pull/31). Nothing is waiting on the project owner.
 
 **Finished.** `assays/register.json` and `assays/register.md` are the deliverable, committed
