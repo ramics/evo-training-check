@@ -70,6 +70,30 @@ COMPONENT = "stage2"
 RELEASE = "opengenome"
 
 
+#: The one directory whose output is the deliverable. A run pointed anywhere else is a probe,
+#: and `durable_for` refuses to publish it.
+CANONICAL_OUT = Path("artifacts/a2-5")
+
+
+def durable_for(out: Path) -> str | None:
+    """The durable destination, **or None for a run that is not the deliverable.**
+
+    `repro.run`'s `durable` is derived from the task id, so it does not know where the run was
+    told to write — and on 2026-10-19 that published a scratch-directory probe of `--assemble`
+    to `corpora/results/a2-5/segmented-assembled.json`, in a bucket with no `DeleteObject`. The
+    file was honest and self-labelling, but a probe's output landed where the deliverable
+    belongs. `--out` is the only signal available for the difference, so it is the one used:
+    publish from the canonical directory, and from nowhere else.
+    """
+    if out.resolve() == CANONICAL_OUT.resolve():
+        return objectstore.durable_results("a2-5")
+    print(
+        f"not publishing: --out {out} is not {CANONICAL_OUT}, so this run is a probe",
+        file=sys.stderr,
+    )
+    return None
+
+
 def load_selection(path: Path) -> tuple[set[str], dict[str, Any]]:
     """The D-190 family selection, as an artefact rather than a literal in this file."""
     payload = json.loads(path.read_text())
@@ -466,7 +490,10 @@ def main(argv: list[str] | None = None) -> int:
             outdir=args.out,
             allow_dirty=args.allow_dirty,
             manifest_name="run-segmented-assembled.json",
-            durable=objectstore.durable_results("a2-5"),
+            durable=durable_for(args.out),
+            durable_exempt=None
+            if durable_for(args.out)
+            else "probe run: --out is not the canonical directory",
         ) as m:
             m.parameter("decision", "D-191")
             m.parameter("bands_merged", merged["sample"]["bands_merged"])
@@ -499,7 +526,10 @@ def main(argv: list[str] | None = None) -> int:
         outdir=args.out,
         allow_dirty=args.allow_dirty,
         manifest_name=f"run-{stem}.json",
-        durable=objectstore.durable_results("a2-5"),
+        durable=durable_for(args.out),
+        durable_exempt=None
+        if durable_for(args.out)
+        else "probe run: --out is not the canonical directory",
     ) as m:
         m.parameter("decision", "D-190")
         m.parameter("band", {"lo": lo, "hi": hi})
