@@ -52,6 +52,12 @@ class TarMember:
     typeflag: str
 
     @property
+    def next_offset(self) -> int:
+        """Where this member's own header chain continues. Recorded by a caller that
+        checkpoints, so a killed walk resumes at a boundary rather than re-reading."""
+        return self.offset + ((self.size + BLOCK - 1) // BLOCK) * BLOCK
+
+    @property
     def is_file(self) -> bool:
         return self.typeflag in {"0", "\0", ""}
 
@@ -79,18 +85,21 @@ def _checksum_ok(header: bytes) -> bool:
     return stated in (sum(blanked), sum(bytearray(blanked)))
 
 
-def walk_members(read: Any, size: int) -> Iterator[TarMember]:
+def walk_members(read: Any, size: int, *, start: int = 0) -> Iterator[TarMember]:
     """Yield every member of a tar, reading only its headers.
 
     Args:
         read: `read(offset, length) -> bytes`, a ranged reader over the archive.
         size: the archive's length in bytes, which bounds the walk.
+        start: a header offset to begin from, for resuming a walk. It must be one this
+            reader produced — an arbitrary offset is not a header boundary, and the
+            checksum refusal is what catches a wrong one rather than a silent misread.
 
     Raises:
         TarIndexError: on a header that does not checksum, or on an extended-name format
             whose real name is in a body this reader does not read.
     """
-    offset = 0
+    offset = start
     seen = 0
     while offset + BLOCK <= size:
         header = read(offset, BLOCK)

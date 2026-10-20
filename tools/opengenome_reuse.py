@@ -108,7 +108,34 @@ class Progress:
             )
 
 
-def walk(archive: str, progress: Progress) -> dict[str, Any]:
+def _checkpoint_path(outdir: Path, archive: str) -> Path:
+    return outdir / f"members-{archive.replace('/', '-')}.jsonl"
+
+
+def _resume_from(path: Path) -> tuple[list[str], list[str], int, int]:
+    """What a previous run of this archive got through: names, members, next offset.
+
+    The checkpoint is append-only JSON lines, so a run killed mid-write leaves at most one
+    malformed trailing line. That line is dropped rather than parsed, and the walk restarts
+    from the last line that did parse — which costs at most one member, where the
+    alternative is two hours.
+    """
+    if not path.exists():
+        return [], [], 0, 0
+    accessions: list[str] = []
+    other: list[str] = []
+    members = offset = 0
+    for line in path.read_text().splitlines():
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        members, offset = row["members"], row["next_offset"]
+        (accessions if row["accession"] else other).append(row["accession"] or row["name"])
+    return accessions, other, members, offset
+
+
+def walk(archive: str, progress: Progress, *, outdir: Path, resume: bool) -> dict[str, Any]:
     client = objectstore.client()
     bucket = objectstore.CORPORA_BUCKET
     key = f"{PREFIX}/{archive}"
@@ -120,17 +147,36 @@ def walk(archive: str, progress: Progress) -> dict[str, Any]:
             "Body"
         ].read()
 
-    accessions: list[str] = []
-    other: list[str] = []
-    members = 0
-    for member in tarindex.walk_members(read, size):
-        members += 1
-        if not member.is_file:
-            continue
-        found = accession(member.name)
-        (accessions if found else other).append(found or member.name)
-        if members % HEARTBEAT == 0:
-            progress.update(archive, members, member.offset, size)
+    checkpoint = _checkpoint_path(outdir, archive)
+    accessions, other, members, start = (
+        _resume_from(checkpoint) if resume else ([], [], 0, 0)
+    )
+    if not resume and checkpoint.exists():
+        checkpoint.unlink()
+    if start:
+        print(f"{archive}: resuming at member {members:,}, byte {start:,}", flush=True)
+
+    with checkpoint.open("a") as log:
+        for member in tarindex.walk_members(read, size, start=start):
+            members += 1
+            if not member.is_file:
+                continue
+            found = accession(member.name)
+            (accessions if found else other).append(found or member.name)
+            log.write(
+                json.dumps(
+                    {
+                        "members": members,
+                        "next_offset": member.next_offset,
+                        "name": member.name,
+                        "accession": found,
+                    }
+                )
+                + "\n"
+            )
+            if members % HEARTBEAT == 0:
+                log.flush()
+                progress.update(archive, members, member.offset, size)
     progress.update(archive, members, size, size)
     return {
         "archive": archive,
@@ -145,9 +191,11 @@ def walk(archive: str, progress: Progress) -> dict[str, Any]:
     }
 
 
-def measure(workers: int, progress: Progress) -> dict[str, Any]:
+def measure(workers: int, progress: Progress, *, outdir: Path, resume: bool) -> dict[str, Any]:
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        results = list(pool.map(lambda a: walk(a, progress), ARCHIVES))
+        results = list(
+            pool.map(lambda a: walk(a, progress, outdir=outdir, resume=resume), ARCHIVES)
+        )
 
     by_side: dict[str, set[str]] = {"reused": set(), "added": set()}
     for result in results:
@@ -185,6 +233,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--workers", type=int, default=len(ARCHIVES))
     ap.add_argument("--outdir", type=Path, default=Path("artifacts/a7-4"))
     ap.add_argument("--allow-dirty", action="store_true")
+    ap.add_argument(
+        "--resume",
+        action="store_true",
+        help="continue each archive from its checkpoint rather than from the start",
+    )
     args = ap.parse_args(argv)
 
     args.outdir.mkdir(parents=True, exist_ok=True)
@@ -202,7 +255,10 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("archives", sorted(ARCHIVES))
             manifest.parameter("stated_added", STATED_ADDED)
             manifest.parameter("decisions", ["D-130", "D-213"])
-            document = measure(args.workers, progress)
+            manifest.parameter("resumed", args.resume)
+            document = measure(
+                args.workers, progress, outdir=args.outdir, resume=args.resume
+            )
             out = args.outdir / "genomes.json"
             out.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
             manifest.output_file(out, role="genome enumeration")
