@@ -2,7 +2,7 @@
 id: B2.3
 title: Assemble the within-study positive-control assay set
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [B2.2]
 blocks: [B2.4]
