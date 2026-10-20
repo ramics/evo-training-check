@@ -9806,3 +9806,25 @@ decision has a threshold or parameter in it, the number goes in the entry.
   cover everything written from today, which leaves every earlier object at one copy and any
   non-pipeline write uncovered. Ask for a delete permission instead so junk could be removed —
   the absence of delete is what makes a staged corpus un-rewritable and is deliberate (§A1).
+
+### D-219 — Versioning is on, and the recovery window is seven days
+
+- **Date:** 2026-10-20
+- **Task:** X1.7
+- **Context:** D-218 recorded the owner's choice to enable versioning on
+  `amazebio-corpora-897641797669` and that this session cannot make or read the change. He
+  enabled it the same day and set noncurrent versions to expire after seven days.
+- **Decision:** Record the window as part of the guarantee, because it bounds what versioning
+  recovers. An object replaced more than seven days ago has no predecessor to restore, so
+  versioning covers a mistake someone notices that week and nothing older. The commit-keyed
+  copies X1.7 added have no such window and remain the durable guarantee for anything a
+  result is cited from; versioning is the net under a mistake made outside a pipeline, not a
+  substitute for keying an output properly. Neither this session nor a later one can verify
+  the setting — `s3:GetBucketVersioning` is denied — so the state here rests on the owner's
+  word, which is the right place for it.
+- **Alternatives rejected:** Ask for the expiry to be removed so every version is kept
+  forever — the bucket has no delete, so permanent retention of every superseded copy grows
+  without bound and buys little over the commit-keyed copies. Treat the window as an
+  implementation detail and leave it out of the log — a later reader deciding whether a lost
+  object is recoverable needs the window, and it is exactly the kind of thing that is
+  expensive to rediscover.
