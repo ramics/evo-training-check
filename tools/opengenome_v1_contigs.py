@@ -28,6 +28,7 @@ import gzip
 import json
 import sys
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -107,23 +108,35 @@ def read_accessions(
 
 
 def measure(
-    client: Any, bucket: str, keys: list[str], *, verbose: bool = True
+    client: Any, bucket: str, keys: list[str], *, verbose: bool = True, workers: int = 1
 ) -> tuple[dict[str, Any], dict[str, list]]:
-    """Enumerate every shard and report what the accessions are, per split."""
+    """Enumerate every shard and report what the accessions are, per split.
+
+    Shards are read in parallel because the cost here is latency, not bandwidth: a shard's
+    thousand column chunks are fetched one small range at a time, about eight minutes a
+    shard from this container, and the fourteen in sequence are two hours for 104 MB. They
+    are merged in a fixed order afterwards, so the index does not depend on which finished
+    first.
+    """
+
+    def one(key: str) -> tuple[str, str, list[tuple[str, int]]]:
+        name = key.rsplit("/", 1)[-1].removesuffix(".parquet")
+
+        def progress(done: int, total: int, rows: int, name: str = name) -> None:
+            if verbose and done == total:
+                print(f"  {name}: {rows:,} rows", flush=True)
+
+        return name, split_of(name), read_accessions(client, bucket, key, progress=progress)
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        results = list(pool.map(one, keys))
+
     per_shard: list[dict[str, Any]] = []
     counts: Counter[str] = Counter()
     index: dict[str, list] = {}
     duplicates: Counter[str] = Counter()
 
-    for key in keys:
-        name = key.rsplit("/", 1)[-1].removesuffix(".parquet")
-        split = split_of(name)
-
-        def progress(done: int, total: int, rows: int, name: str = name) -> None:
-            if verbose and (done % 200 == 0 or done == total):
-                print(f"  {name}: row group {done}/{total}, {rows:,} rows", flush=True)
-
-        rows = read_accessions(client, bucket, key, progress=progress)
+    for name, split, rows in results:
         for accession, group in rows:
             if accession in index:
                 duplicates[accession] += 1
@@ -165,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--outdir", type=Path, default=Path("artifacts/a7-4"))
     ap.add_argument("--limit-shards", type=int, help="read only this many shards; a smoke test")
+    ap.add_argument("--workers", type=int, default=7, help="shards read at once; latency-bound")
     ap.add_argument("--allow-dirty", action="store_true")
     args = ap.parse_args(argv)
 
@@ -192,7 +206,8 @@ def main(argv: list[str] | None = None) -> int:
                 "Only the `record` column is read. Parquet stores columns apart, so this "
                 "moves about 77 MB of a 118.5 GiB tier and needs no in-region instance."
             )
-            document, index = measure(client, bucket, keys)
+            manifest.parameter("workers", args.workers)
+            document, index = measure(client, bucket, keys, workers=args.workers)
 
             table = args.outdir / "v1-contigs.jsonl.gz"
             with gzip.open(table, "wt", encoding="ascii") as handle:
