@@ -59,11 +59,27 @@ CENSUS_MULTIPLE = {"opengenome": 500, "opengenome2": 1000}
 #: is D-222's to report, not this launcher's to quietly resolve.
 REGISTRY = "pfam"
 
+#: What the account's policy actually permits, measured by dry run on 2026-10-20. The cap is
+#: eight vCPU: every `4xlarge` and larger tried — `m6i`, `c6i`, `r6i` — came back
+#: `UnauthorizedOperation`, which `AGENTS.md` warns reads exactly like having no permission
+#: at all. `--instance-type` is a choice rather than a string so the next person discovers
+#: this from `--help` instead of from a refusal.
+ALLOWED_TYPES = ("c6i.xlarge", "c6i.2xlarge", "m6i.xlarge", "m6i.2xlarge", "r6i.2xlarge")
+
+#: Memory, not cores, picks the type. Each worker holds its own copy of the Pfam profile
+#: set, so eight of them want tens of gigabytes; `r6i.2xlarge` has 64 GB against
+#: `c6i.2xlarge`'s 16, and at eight vCPU either way the cheaper machine would just be the
+#: one that dies. The two releases run as two instances because one is all eight cores.
+DEFAULT_INSTANCE_TYPE = "r6i.2xlarge"
+DEFAULT_WORKERS_PER_RELEASE = 8
+
 #: Measured 2026-10-20: gene calling 666 knt/s/core, Pfam search 1.50 ms/gene on OpenGenome
 #: and 2.19 ms on OpenGenome2, streaming 130 Mres/s. About 80 core-hours of real work, plus
-#: the re-read each band pays. Six hours on 16 vCPU with headroom; the timer is the ceiling,
-#: not the estimate.
-DEFAULT_HARD_STOP_MINUTES = 540
+#: the re-read each band pays. On eight cores per release that is five to seven hours of
+#: wall clock, not the six the 16-vCPU sizing promised, so the timer is fourteen hours. It
+#: is a ceiling, not an estimate: a timer that fires on the estimate turns a slow run into
+#: no run at all, and the instance terminates itself the moment the workers finish.
+DEFAULT_HARD_STOP_MINUTES = 840
 
 #: The code the instance needs. Derived from the tool's first-party import closure and
 #: checked by the test, because twice in this project a module was added to a tool's imports
@@ -260,11 +276,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "--instance-type",
-        default="m6i.4xlarge",
-        help="16 vCPU at $0.18/h spot, which prices the pass at about a dollar "
-        "(default: %(default)s)",
+        default=DEFAULT_INSTANCE_TYPE,
+        choices=ALLOWED_TYPES,
+        help="eight vCPU is the policy's ceiling; this one has the memory for eight "
+        "workers' profile sets (default: %(default)s)",
     )
-    ap.add_argument("--workers-per-release", type=int, default=7)
+    ap.add_argument("--workers-per-release", type=int, default=DEFAULT_WORKERS_PER_RELEASE)
     ap.add_argument(
         "--release",
         action="append",
@@ -284,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--hard-stop-minutes", type=int, default=DEFAULT_HARD_STOP_MINUTES)
     ap.add_argument("--spot", action="store_true")
-    ap.add_argument("--timeout-minutes", type=float, default=420.0)
+    ap.add_argument("--timeout-minutes", type=float, default=810.0)
     ap.add_argument("--poll-seconds", type=float, default=300.0)
     ap.add_argument("--attach", help="watch an already-running instance instead of launching")
     ap.add_argument("--allow-dirty", action="store_true")

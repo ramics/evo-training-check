@@ -182,9 +182,21 @@ class TestTheWorkers:
 
 class TestTheRunInstancesCall:
     def test_the_hard_stop_covers_the_estimate_with_room(self) -> None:
-        """Measured at about six hours. A timer that fires on the estimate turns a slow
-        run into no run at all."""
-        assert launcher.DEFAULT_HARD_STOP_MINUTES >= 8 * 60
+        """Eighty core-hours over eight cores is five to seven hours of wall clock. A
+        timer that fires on the estimate turns a slow run into no run at all."""
+        assert launcher.DEFAULT_HARD_STOP_MINUTES >= 12 * 60
+
+    def test_the_default_type_is_one_the_account_permits(self) -> None:
+        """Measured by dry run on 2026-10-20: every 4xlarge and larger is refused, and the
+        refusal is a bare UnauthorizedOperation that reads like having no permission at
+        all. The first sizing of this launcher was a 4xlarge and died on exactly that."""
+        assert launcher.DEFAULT_INSTANCE_TYPE in launcher.ALLOWED_TYPES
+        assert all(t.endswith((".xlarge", ".2xlarge")) for t in launcher.ALLOWED_TYPES)
+
+    def test_a_release_fits_on_one_permitted_machine(self) -> None:
+        """Eight vCPU is the ceiling, so a worker count above it would oversubscribe the
+        cores and the second release would wait on the first."""
+        assert launcher.DEFAULT_WORKERS_PER_RELEASE <= 8
 
     def test_the_manifests_come_from_the_store_not_the_payload(self) -> None:
         """A1.4's manifests say which records survive. Shipping a copy inside the tarball
