@@ -11,13 +11,29 @@ that the training format — the `json/` tree — carries the filtered set.
 `policies/evo.md` §7 is the reason this is live rather than paranoid: it records that
 the FASTA and JSON trees are not a strict mirror of one another.
 
-The check is a count, and it is decisive in one direction. The JSON records carry a bare
-`text` field with no accession and no lineage (see `amazebio.opengenome`'s docstring), so
-the two trees cannot be joined record by record. What they can be compared on is how much
-is there. If the JSON tree holds the same number of records and the same number of
-nucleotides as the FASTA tree, the FASTA is not a pre-filter artefact and the alternative
-is dead. If it holds about 264,570 records fewer, the alternative is alive and A7.3's
-headline is wrong as stated.
+The check is a count. The JSON records carry a bare `text` field with no accession and no
+lineage (see `amazebio.opengenome`'s docstring), so the two trees cannot be joined record
+by record. What they can be compared on is how much is there.
+
+**It came back confirmed, not refuted, and it is exact.** The JSON tree's distinct content
+— its four train chunks plus its test chunk — is 2,653,047 records and 36,236,025,613
+nucleotides, which is Evo 1's released viral component to the record and to the
+nucleotide, zero on both deltas. So the training format carries the filter's output
+unchanged, exactly as the version of record says the reused dataset was carried forward,
+and the FASTA tree carries 304,448 records and 2.64 billion nucleotides more than the
+training format, among them the 264,570 the published procedure removes.
+
+The alternative is therefore not an alternative to rule out but the finding itself, and
+A7.3's claim has to be restated around it: the filter did what it says on what was
+trained, and the published representation that carries the source accessions — the one a
+reader must use to trace provenance — is not that set.
+
+Two consequences for how the comparison is computed. The valid chunk holds the same 50
+records and the same 363,466 nucleotides as the test chunk, at a different sha256 (gzip
+metadata, not content), so summing all six files double-counts it; the distinct total is
+train plus test, and the duplicate is detected rather than assumed. And the comparison is
+a derivation over the per-file counts, so `--recompare` recomputes it from an existing
+artefact rather than re-reading 10.4 GB to change a verdict string.
 
 Two things about the shape of the work.
 
@@ -64,6 +80,12 @@ FASTA_SEQUENCE_CHARS = 38_877_282_216
 
 #: A7.2's forward-direction count: released records the published procedure removes.
 EVO2_FORWARD_MISMATCH = 264_570
+
+#: Evo 1's released viral component, from A7.1's scan of it
+#: (`corpora/results/a7-1/scan-opengenome-stage2.json`). This is the filter's own published
+#: output, and the thing the training format turns out to equal.
+EVO1_RELEASE_RECORDS = 2_653_047
+EVO1_RELEASE_SEQUENCE_CHARS = 36_236_025_613
 
 
 class _Raw(io.RawIOBase):
@@ -156,50 +178,134 @@ def count_file(
     }
 
 
-def compare(total_records: int, total_chars: int, *, partial: bool) -> dict[str, Any]:
-    """State what the two totals do and do not settle.
+def split_of(path: str) -> str:
+    """Which split a chunk belongs to, from its filename.
 
-    The verdict is three-valued for the same reason A0.4's is (D-207): "the counts match"
-    and "the counts differ by the mismatch" are both findings, and "they differ by
-    something else" is a third thing that must not be rounded into either.
+    The publisher's names are `data_imgvr_{train,valid,test}_chunkN.jsonl.gz`. Read from the
+    name rather than from the order the files come back in, because the comparison turns on
+    which chunks are the training set and an ordering assumption would be invisible if wrong.
+    """
+    stem = path.rsplit("/", 1)[-1]
+    for split in ("train", "valid", "test"):
+        if f"_{split}_" in stem:
+            return split
+    raise SystemExit(f"cannot tell which split {stem!r} belongs to")
+
+
+def duplicate_splits(by_split: dict[str, dict[str, int]]) -> list[tuple[str, str]]:
+    """Splits holding the same record count and nucleotide total as another split.
+
+    OpenGenome2 publishes `valid` and `test` with the same 50 records and the same 363,466
+    nucleotides at different sha256s — gzip metadata, not content. Summing all six files
+    therefore double-counts one of them. Detected rather than hardcoded, so the day a
+    publisher fixes it the artefact says so instead of silently subtracting 50 records that
+    are no longer duplicated.
+    """
+    seen: dict[tuple[int, int], str] = {}
+    dups: list[tuple[str, str]] = []
+    for split in sorted(by_split):
+        row = by_split[split]
+        key = (row["records"], row["sequence_chars"])
+        if key in seen and row["records"]:
+            dups.append((split, seen[key]))
+        else:
+            seen[key] = split
+    return dups
+
+
+def compare(files: dict[str, dict[str, Any]], *, partial: bool) -> dict[str, Any]:
+    """State what the counts settle, against both references.
+
+    There are two references and they answer different questions. Against Evo 2's own FASTA,
+    the question is whether the two representations of one component hold the same thing.
+    Against Evo 1's release, the question is whether the training format is the filter's
+    published output carried forward. The verdict is multi-valued for the same reason A0.4's
+    is (D-207): several of these outcomes are findings and none may be rounded into another.
     """
     if partial:
         return {
             "verdict": "not_measured",
             "why": "a bounded read; a smoke run is never a result",
         }
-    record_delta = FASTA_RECORDS - total_records
-    char_delta = FASTA_SEQUENCE_CHARS - total_chars
-    if record_delta == 0 and char_delta == 0:
+
+    by_split: dict[str, dict[str, int]] = {}
+    for path, row in files.items():
+        acc = by_split.setdefault(split_of(path), {"records": 0, "sequence_chars": 0, "files": 0})
+        acc["records"] += row["records"]
+        acc["sequence_chars"] += row["sequence_chars"]
+        acc["files"] += 1
+
+    dups = duplicate_splits(by_split)
+    counted = {s: r for s, r in by_split.items() if s not in {d[0] for d in dups}}
+    distinct_records = sum(r["records"] for r in counted.values())
+    distinct_chars = sum(r["sequence_chars"] for r in counted.values())
+
+    vs_fasta_records = FASTA_RECORDS - distinct_records
+    vs_fasta_chars = FASTA_SEQUENCE_CHARS - distinct_chars
+    vs_evo1_records = distinct_records - EVO1_RELEASE_RECORDS
+    vs_evo1_chars = distinct_chars - EVO1_RELEASE_SEQUENCE_CHARS
+
+    matches_evo1 = vs_evo1_records == 0 and vs_evo1_chars == 0
+    matches_fasta = vs_fasta_records == 0 and vs_fasta_chars == 0
+
+    if matches_fasta:
         verdict = "same_content"
         why = (
-            "the JSON tree holds the same records and the same nucleotides as the FASTA "
-            "tree, so the FASTA is not a pre-filter staging artefact and the alternative "
-            "that the filter was applied further down the pipeline is ruled out"
+            "the training format holds the same records and the same nucleotides as the "
+            "FASTA, so the FASTA is not a pre-filter staging artefact"
         )
-    elif record_delta == EVO2_FORWARD_MISMATCH:
+    elif matches_evo1:
+        verdict = "training_format_is_evo1s_release"
+        why = (
+            "the training format is Evo 1's released viral component to the record and to "
+            "the nucleotide, so the filter's output was carried forward unchanged and the "
+            "FASTA representation is a superset of what was trained on; the records the "
+            "published procedure removes are in the FASTA and not in the training set"
+        )
+    elif vs_fasta_records == EVO2_FORWARD_MISMATCH:
         verdict = "filtered_downstream"
         why = (
-            "the JSON tree holds exactly the forward mismatch fewer records than the FASTA "
-            "tree, which is what a filter applied between the two representations would "
-            "look like; A7.3's headline does not stand as stated"
+            "the training format holds exactly the forward mismatch fewer records than the "
+            "FASTA, which is what a filter applied between the two representations would "
+            "look like, but it does not equal Evo 1's release either"
         )
     else:
         verdict = "differs_otherwise"
         why = (
-            "the two representations differ by an amount that is neither zero nor the "
-            "forward mismatch, so neither reading is supported and the difference is "
-            "itself the thing to explain"
+            "the counts match neither reference, so no reading here is supported and the "
+            "difference is itself the thing to explain"
         )
+
     return {
         "verdict": verdict,
         "why": why,
-        "fasta_records": FASTA_RECORDS,
-        "json_records": total_records,
-        "record_delta": record_delta,
-        "fasta_sequence_chars": FASTA_SEQUENCE_CHARS,
-        "json_sequence_chars": total_chars,
-        "sequence_char_delta": char_delta,
+        "by_split": by_split,
+        "duplicate_splits": [
+            {
+                "split": a,
+                "duplicates": b,
+                "note": "same record count and nucleotide total; excluded from the "
+                "distinct total so it is not counted twice",
+            }
+            for a, b in dups
+        ],
+        "splits_counted": sorted(counted),
+        "distinct_records": distinct_records,
+        "distinct_sequence_chars": distinct_chars,
+        "against_evo2_fasta": {
+            "fasta_records": FASTA_RECORDS,
+            "record_delta": vs_fasta_records,
+            "fasta_sequence_chars": FASTA_SEQUENCE_CHARS,
+            "sequence_char_delta": vs_fasta_chars,
+            "equal": matches_fasta,
+        },
+        "against_evo1_release": {
+            "evo1_records": EVO1_RELEASE_RECORDS,
+            "record_delta": vs_evo1_records,
+            "evo1_sequence_chars": EVO1_RELEASE_SEQUENCE_CHARS,
+            "sequence_char_delta": vs_evo1_chars,
+            "equal": matches_evo1,
+        },
         "forward_mismatch_for_reference": EVO2_FORWARD_MISMATCH,
     }
 
@@ -218,8 +324,27 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--progress", type=float, default=120.0)
+    ap.add_argument(
+        "--recompare",
+        metavar="PATH",
+        default=None,
+        help="recompute the comparison from an existing artefact's per-file counts and "
+        "rewrite it in place. The counts are the measurement and the comparison is a "
+        "derivation over them, so changing how the derivation reads is not a reason to "
+        "re-read 10.4 GB.",
+    )
     ap.add_argument("--allow-dirty", action="store_true")
     args = ap.parse_args(argv)
+
+    if args.recompare:
+        path = Path(args.recompare)
+        report = json.loads(path.read_text())
+        if any(row.get("partial") for row in report["files"].values()):
+            raise SystemExit(f"{path} is a partial read; it settles nothing and is not recompared")
+        report["comparison"] = compare(report["files"], partial=False)
+        path.write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")
+        print(json.dumps(report["comparison"], indent=1))
+        return 0
 
     outdir = Path(args.outdir)
     release = og.RELEASES["opengenome2"]
@@ -298,7 +423,7 @@ def main(argv: list[str] | None = None) -> int:
                 "files": len(per_file),
                 "bytes": sum(r["bytes"] for r in per_file.values()),
             },
-            "comparison": compare(total_records, total_chars, partial=args.max_records is not None),
+            "comparison": compare(per_file, partial=args.max_records is not None),
         }
         out = outdir / "json-tree.json"
         out.write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")

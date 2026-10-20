@@ -91,27 +91,110 @@ class TestCountingOneFile:
         assert jt.count_file("https://example/x.gz", 0)["length_buckets"] == {"2": 1, "4": 2}
 
 
+def _files(**splits: tuple[int, int]) -> dict[str, dict[str, int]]:
+    """Per-file rows keyed by the publisher's own path shape."""
+    return {
+        f"{jt.JSON_PREFIX}data_imgvr_{split}_chunk1.jsonl.gz": {
+            "records": records,
+            "sequence_chars": chars,
+        }
+        for split, (records, chars) in splits.items()
+    }
+
+
+class TestReadingTheSplitFromTheName:
+    def test_each_split_is_named_rather_than_inferred_from_order(self):
+        assert jt.split_of("a/b/data_imgvr_train_chunk3.jsonl.gz") == "train"
+        assert jt.split_of("a/b/data_imgvr_valid_chunk1.jsonl.gz") == "valid"
+        assert jt.split_of("a/b/data_imgvr_test_chunk1.jsonl.gz") == "test"
+
+    def test_an_unrecognised_name_stops_the_pass_rather_than_guessing(self):
+        with pytest.raises(SystemExit, match="cannot tell which split"):
+            jt.split_of("a/b/data_imgvr_holdout_chunk1.jsonl.gz")
+
+
+class TestFindingADuplicatedSplit:
+    def test_two_splits_with_the_same_totals_are_reported_as_one(self):
+        dups = jt.duplicate_splits(
+            {
+                "train": {"records": 10, "sequence_chars": 100},
+                "test": {"records": 2, "sequence_chars": 20},
+                "valid": {"records": 2, "sequence_chars": 20},
+            }
+        )
+        assert dups == [("valid", "test")]
+
+    def test_splits_that_merely_look_similar_are_not_duplicates(self):
+        dups = jt.duplicate_splits(
+            {
+                "test": {"records": 2, "sequence_chars": 20},
+                "valid": {"records": 2, "sequence_chars": 21},
+            }
+        )
+        assert dups == []
+
+    def test_two_empty_splits_are_not_called_duplicates_of_each_other(self):
+        dups = jt.duplicate_splits(
+            {
+                "test": {"records": 0, "sequence_chars": 0},
+                "valid": {"records": 0, "sequence_chars": 0},
+            }
+        )
+        assert dups == []
+
+
 class TestWhatTheComparisonMaySay:
-    def test_identical_totals_rule_the_alternative_out(self):
-        verdict = jt.compare(jt.FASTA_RECORDS, jt.FASTA_SEQUENCE_CHARS, partial=False)
+    def test_totals_equal_to_the_fasta_rule_the_alternative_out(self):
+        verdict = jt.compare(
+            _files(train=(jt.FASTA_RECORDS, jt.FASTA_SEQUENCE_CHARS)), partial=False
+        )
         assert verdict["verdict"] == "same_content"
-        assert verdict["record_delta"] == 0
+
+    def test_totals_equal_to_evo1s_release_are_the_finding_rather_than_a_near_miss(self):
+        verdict = jt.compare(
+            _files(train=(jt.EVO1_RELEASE_RECORDS, jt.EVO1_RELEASE_SEQUENCE_CHARS)),
+            partial=False,
+        )
+        assert verdict["verdict"] == "training_format_is_evo1s_release"
+        assert verdict["against_evo1_release"]["equal"] is True
+        assert verdict["against_evo2_fasta"]["equal"] is False
+
+    def test_the_duplicated_split_is_excluded_from_the_distinct_total(self):
+        """Summing all six published files double-counts `valid`, by 50 records."""
+        verdict = jt.compare(
+            _files(
+                train=(jt.EVO1_RELEASE_RECORDS - 50, jt.EVO1_RELEASE_SEQUENCE_CHARS - 363_466),
+                test=(50, 363_466),
+                valid=(50, 363_466),
+            ),
+            partial=False,
+        )
+        assert verdict["distinct_records"] == jt.EVO1_RELEASE_RECORDS
+        assert verdict["splits_counted"] == ["test", "train"]
+        assert verdict["duplicate_splits"][0]["split"] == "valid"
+        assert verdict["verdict"] == "training_format_is_evo1s_release"
 
     def test_a_shortfall_of_exactly_the_forward_mismatch_is_its_own_verdict(self):
-        verdict = jt.compare(jt.FASTA_RECORDS - jt.EVO2_FORWARD_MISMATCH, 1, partial=False)
+        verdict = jt.compare(
+            _files(train=(jt.FASTA_RECORDS - jt.EVO2_FORWARD_MISMATCH, 1)), partial=False
+        )
         assert verdict["verdict"] == "filtered_downstream"
 
     def test_any_other_shortfall_is_neither_and_says_so(self):
-        verdict = jt.compare(jt.FASTA_RECORDS - 17, 1, partial=False)
+        verdict = jt.compare(_files(train=(jt.FASTA_RECORDS - 17, 1)), partial=False)
         assert verdict["verdict"] == "differs_otherwise"
 
     def test_matching_records_but_not_nucleotides_is_not_a_match(self):
         """The record count alone would call this `same_content`, and it is not."""
-        verdict = jt.compare(jt.FASTA_RECORDS, jt.FASTA_SEQUENCE_CHARS - 1, partial=False)
+        verdict = jt.compare(
+            _files(train=(jt.FASTA_RECORDS, jt.FASTA_SEQUENCE_CHARS - 1)), partial=False
+        )
         assert verdict["verdict"] == "differs_otherwise"
 
     def test_a_smoke_run_settles_nothing_however_the_numbers_fall(self):
-        verdict = jt.compare(jt.FASTA_RECORDS, jt.FASTA_SEQUENCE_CHARS, partial=True)
+        verdict = jt.compare(
+            _files(train=(jt.FASTA_RECORDS, jt.FASTA_SEQUENCE_CHARS)), partial=True
+        )
         assert verdict["verdict"] == "not_measured"
 
 
