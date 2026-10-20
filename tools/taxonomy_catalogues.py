@@ -347,7 +347,7 @@ def report(scanned: dict[str, Any], denylist: Denylist, *, vmr: ictv.VMRRelease)
             row["benchmarkable"] = "only at a depth that cannot carry a rate"
             row["why"] = (
                 f"{n_ref} of {n:,} hits carry independent ground truth "
-                f"({bound.estimate:.4%}, 95% CI [{bound.low:.4%}, {bound.high:.4%}]). An error "
+                f"({bound.point:.4%}, 95% CI [{bound.lower:.4%}, {bound.upper:.4%}]). An error "
                 "rate over that many records has an interval spanning most of the range, and "
                 "D-091 asks for a figure that covers the removals, not one that is precise "
                 "about a handful of them."
