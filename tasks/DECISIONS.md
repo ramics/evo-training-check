@@ -8685,3 +8685,162 @@ decision has a threshold or parameter in it, the number goes in the entry.
   A2.1's, and the ladder above it is costed. Whatever band the ladder stops at, the artefact
   states its own depth and interval, so no reader has to know how far it got to read it
   correctly.
+
+### D-192 — The three lost measurements re-ran and every published figure reproduced; two defects in the tools that produce them did not
+- **Date:** 2026-10-19
+- **Task:** X1.6
+- **Context:** D-188 and D-189 left three measurements with no machine-readable artefact: A2.1's
+  profile detection tables, A4.2's misassignment benchmark, and A1.6's caps measurement. Their
+  figures survived only as prose in the task files, which under `AGENTS.md`'s "artefacts before
+  prose" is a gap in three deliverables rather than a cosmetic one. This entry records what the
+  re-runs found, because it is the first occasion on which any of these numbers could be checked
+  against the committed code at all.
+  **Every figure reproduced, and most of them exactly.** Nothing was adjusted to match; the
+  comparison is in X1.6's own file in full.
+  *A2.1, at the pre-registered shallow depth.* Pfam 470 and RVDB 572 on Evo 1, 492 and 1,456 on
+  Evo 2 — all four identical to the published first pass, across all three readings, with
+  `esm3-proxy` correctly `not_searched`. The registries re-staged to their pinned digests and
+  both denominators reproduced: Pfam viral 1,719 of 30,134, RVDB-prot 13,679 counted against
+  13,679 stated. 32 objects, 40 MB, with run manifests.
+  *A4.2.* The evaluation set rebuilt from the pinned VMR to exactly 3,149 sequences, 1,507 in
+  scope across 44 families, 1,642 controls across 189. Escape 546/1,507 = 36.23% (33.80-38.72%)
+  and spurious removal 50/1,642 = 3.05% (2.27-4.00%), identical to the digit including intervals,
+  with the cause split unchanged at 344 unclassified, 119 shallower than the rule, 52 misassigned
+  order, 28 absent at the rule's ranks, 3 misassigned family. The dependency pass reproduced
+  15,677,623 records, 181,530 denylist hits and 38.5573% geNomad-assigned, so the propagation
+  recomputed to 109,760 in scope and 39,767 (35,736-44,218) escaping.
+  *A1.6's caps measurement, under the new key `cap-measurement-rerun-20261019.json`.* All six
+  cells, against a query and target identical to the published run's (31,381 seeds, 417 M
+  residues). Record-loss fractions agree to two decimals — 0.88/2.28% relaxed and 3.31/9.72%
+  filtered, against the published 0.9/2.3% and 3.3/9.7% — and wall clocks within 0.5-3.5%. The
+  hit-count figures are identical: max 5,078 hits/seed relaxed and 1,444 filtered against a
+  100,000 cap, and the reading-1 agreement check at 32,644 post-filtered against 32,374 from the
+  aligner, 270 found only by the post-filter and none only by the aligner. Relaxed coverage costs
+  1.476x filtered, against the 1.47x published. So all four of A1.6's findings stand, and this
+  run also wrote the `cap_summary` the published one ended too early to produce.
+- **Decision:** Two defects found while using the tools are fixed here rather than noted, because
+  both are in the path a re-measurement takes and one of them is the hazard X1.6 was written to
+  avoid.
+  **`detect_profiles.py --plan` was broken on `main`.** It passed one argument to a two-argument
+  `searched_sources` and indexed the result as a mapping, so the flag raised `TypeError`. The
+  search paths were never affected, which is why nothing caught it: a reporting path runs only
+  when somebody asks what a run *would* read, which is exactly the cheap pre-flight check before
+  a multi-hour search. The branch body moves into a tested `plan_lines`.
+  **`esm3_calibrate.py --artefact-name` moved the result and not its manifest.** The flag exists
+  so a re-measurement does not write a key whose figures are cited, and the caps re-run duly
+  wrote its measurement to a new name — then wrote its provenance to `run-calibration.json`, the
+  manifest key of the run it was replacing, in a bucket with no `DeleteObject`. Nothing citable
+  was lost, because D-189 records that object as already destroyed by the 15:18 test-fixture
+  writes, but the next use of the flag would have destroyed a live manifest. The manifest name
+  now follows the artefact name.
+  **Two corrections to D-189's accounting, both narrowing it.** `corpora/results/a1-6/viral-seeds.faa`
+  no longer holds test fixtures: the caps re-run re-published it at 1,249,029,570 bytes, the same
+  length as the canonical copy under `corpora/samples/`, derived from a staged sample the tool
+  verified against its manifest digests on load ("verified 9 objects"). It was not re-derived by
+  a corpus pass, so A1.6's "do not rebuild it" was not violated, but the upload was a write this
+  session did not predict from reading the tool and should have. And `run-calibration.json` now
+  holds the re-run's provenance rather than test junk — honest content under a name that does not
+  say which run it describes, which is what the fix above prevents repeating. Of D-189's four
+  damaged keys, two now hold genuine content and `band.json` and `cap-measurement.json` still
+  hold fixtures.
+- **Rejected:** *Deepening A2.1 to D-099's ten-fold depth in the same sitting.* The shallow pass
+  is a superset relationship and a backed artefact in two hours; the deepening is about eighteen
+  more and a separate decision, which is how X1.6 framed it and how the project owner chose it.
+  *Re-measuring A1.6's caps at two target sizes.* `--cap-shard-points 1` reproduces exactly the
+  six cells the published run completed, and the published run "ended before the second target
+  size" so there was never a linearity check to compare against. Paying for a second size would
+  have measured something new under cover of restoring something old.
+  *Writing the caps result to `cap-measurement.json`.* A1.6 and D-189 both rejected this twice
+  already; the new key is the whole point.
+  *Patching the caps heartbeat.* In caps mode `_progress` is written once before a reading's
+  slack cell and the interval heartbeat covers only the corpus-pass reader, so during a
+  35-minute cell the heartbeat does not move — `written_at` stood at 18:46 while the run was
+  plainly alive at 19:43. `AGENTS.md` cites this tool as the worked example for writing "a
+  heartbeat to object storage on an interval", and for this mode that is not what it does. It
+  cost nothing here because the artefact itself grows as each cell publishes, which is the other
+  half of the same instruction and does work. Recorded rather than fixed, so it is a named gap
+  for whoever needs a long caps cell to be observable rather than a change made in passing to a
+  tool this task was only using.
+- **Consequence:** A2.1, A4.2 and A1.6's caps measurement each have an artefact in object storage
+  with a run manifest, so the Phase A write-up can cite them. X1.2 and X1.3 are unblocked. The
+  wider result is the reassuring one: nine tasks lost their tables and the three expensive ones
+  came back identical, so the loss was a durability failure and not a reproducibility failure.
+  A1.6's caps figures now trace to an artefact again, which is the gap its review was left
+  holding — under a new key, with the published measurement's loss stated beside it.
+
+### D-193 — Segmented virus families do survive in Evo 1's released viral component, and taxonomy could not have found them
+- **Date:** 2026-10-20
+- **Task:** A2.5
+- **Context:** A2.5's label-side census (D-187) reported **zero** segmented genomes in Evo 1's
+  surviving component — and reported, in the same artefact, that only **2.6%** of those records
+  carry a label at the family rank the category is keyed on. A zero over 2.6% of a corpus is a
+  statement about labels. D-190 fixed the family set and threshold and D-191 the depth ladder,
+  both pushed before anything was searched.
+- **Decision:** The result, over the hash span `[0, 0.10)` of Evo 1's surviving stage 2 — four
+  nested bands, assembled with the overlap-and-gap check in `tools/detect_segmented.py`:
+  **265,062 records, 5,005,711 genes, 1,128 Maa over 3.6 Gbp. 7 of 1,285 families, 57 hits.**
+  `estimate_kind: lower_bound`; family-level share 0.54% (0.26–1.12%, Wilson).
+
+  | family | records | ICTV family | genome |
+  |---|---|---|---|
+  | FAM000422 | **29** | Polydnaviriformidae | segmented dsDNA |
+  | FAM007500 | 6 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+  | FAM022414 | 2 | Nanoviridae (*Babuvirus*) | 6-segment ssDNA |
+  | FAM003906 | 1 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+  | FAM005477 | 1 | Geminiviridae (*Grablovirus*) | bipartite ssDNA |
+  | FAM023047 | 1 | Bromoviridae (*Ilarvirus*) | tripartite ssRNA |
+  | FAM033562 | 1 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+
+  **Five distinct ICTV segmented families, every one eukaryote-infecting**, in a component whose
+  host rule's published purpose is "to remove potential eukaryotic viruses" (D-110).
+
+  **Three independent things make this more than a threshold artefact**, and they are the reason
+  this entry states a finding rather than a count:
+  1. **FAM000422 appears in all four bands** — 5, 7, 8, 9 records. The bands are disjoint hash
+     samples, so an artefact of the cutoff would not distribute evenly across them.
+  2. **Three separately-built RVDB families converge on *Orthoreovirus*.** Independent
+     clusterings of the same genus hitting the same corpus corroborate each other in a way seven
+     unrelated singletons would not.
+  3. **The models are not all short.** FAM003906 is 310 residues from 613 sequences; FAM000422 is
+     170 from 102. Every hit also cleared 50% model coverage on top of the E-value.
+
+  **What is weak, named rather than averaged in.** FAM033562 (83-residue model, 7 sequences) and
+  FAM022414 (66 residues, 8) are short models and are the least safe of the seven; a short model
+  is where a spurious hit is most likely even at this coverage. The seven are not seven
+  equivalent findings and must not be quoted as such.
+
+  **Route is `unresolved` for all 265,062 records**, from `apply.route_for` over A1.4's manifest,
+  and **no table asserts a conformance failure** — §7 reserves that for A7.1. Eight records that
+  the reading removes were subtracted before anything was called, per band: 0, 3, 2, 3.
+
+  **The methodological point, which is the part that generalises.** §A2 opens by warning that an
+  audit using taxonomy reproduces the filter's blind spots. This is that warning measured: the
+  label-side arm and the sequence-side arm ran over the *same* records — band 1's 53,140 matches
+  A2.1's published figure exactly — and returned **zero** and **seven**. The difference is not
+  depth or threshold; it is that one arm reads a label 2.6% of records carry and the other reads
+  the sequence every record carries.
+- **Rejected:** *Reporting the seven as a fraction of "viral families".* The denominator is
+  D-190's segmented selection and nothing else; D-161's rule applies and the artefact carries the
+  restriction in-band.
+  *Buying the census.* The owner authorised it at ~$9.60, and it was then declined on the
+  measurement rather than the price: 2% took 55 minutes, so the remaining 90% is about 28
+  sequential runs inside this environment's two-hour cap — a scheduling cost, not a money one.
+  D-191 had also pre-registered that band 3 was conditional on the question still being open, and
+  after band 1 it was not. **A census would refine how much, not whether.** The route to it, if
+  anyone wants it, is one in-region instance rather than 28 session runs.
+  *Calling the satellite arm's zero a result.* It selects zero families by construction (D-190)
+  and is not run.
+- **Consequence:** **A2.5's segmented zero is withdrawn and replaced.** Its task file carries the
+  measured result, and D-187's sentence that "no marker pass can strengthen that category's zero"
+  is wrong as written — D-190 corrected it for the property-versus-families distinction and this
+  entry settles it with data. The surviving weak zeros in A2.5 are the two satellite categories,
+  for a reason that is now a named method limitation rather than an unexamined gap.
+  Two incidents on the way, both recorded because the second is mine twice over. **The container
+  restarted mid-ladder**: three completed bands were intact in object storage and the in-flight
+  band lost 50 minutes of compute and **no results** — the first real test of D-188's guard and of
+  banding, and both held. And **a scratch-directory probe of `--assemble` published to the real
+  prefix**, because `repro.run` derives `durable` from the task id and cannot see `--out`. The
+  file is honest and self-labelling and overwrote nothing, but it is permanent, and the fix is in
+  the tool: a run writing anywhere but the canonical directory declares `durable_exempt` and says
+  so. That is D-189's lesson arriving by a second route, which is the argument for putting such
+  guards in the code path rather than in a person's care.

@@ -32,10 +32,13 @@ Check the specific categories §A2 names as known to defeat taxonomic filters.
 - New survival routes, if found, are added to the route taxonomy.
 - Results merged into the shared detection schema.
 
-## Result — 2026-10-19
+## Result — 2026-10-19, extended 2026-10-20
 
-`review`. Merged in PR #26; **nothing is on a branch.** Artefacts at `corpora/results/a2-5/` (and
-`artifacts/a2-5/`). Pre-registered as **D-187** before any count was taken.
+`review`. The label-side arm merged in PR #26. **The marker arm is on
+`claude/marker-throughput-a2-5`** (`tools/marker_throughput.py`, `tools/detect_segmented.py`).
+Artefacts at `corpora/results/a2-5/` (and `artifacts/a2-5/`). Pre-registered as **D-187** before any
+count was taken, **D-190** (family set and threshold) and **D-191** (depth ladder) before anything
+was searched.
 
 **This is the label-side arm, and that bound is in every table.** The categories are taxa, so the
 sweep reads the same evidence the filter acted on, and §A2 opens by warning that an audit using
@@ -100,6 +103,56 @@ can reach it however completely the record is labelled.** 633 Evo 2 records are 
 for exactly that reason, and Alphasatellitidae is unplaced above phylum too. That is §A2's
 problem-taxa concern demonstrated from the authority's own data rather than from a detection.
 
+### The marker arm: Evo 1's segmented zero is withdrawn — **D-193**
+
+**The label-side zero above is wrong, and the reason it is wrong is the point of the whole arm.**
+Searching sequence rather than labels over the same records, at 10% depth:
+**7 of 1,285 segmented virus families, 57 hits, in 265,062 records** (5,005,711 genes, 1,128 Maa
+over 3.6 Gbp). Family-level share 0.54% (0.26–1.12%, Wilson); `estimate_kind: lower_bound`.
+
+| family | records | ICTV family | genome |
+|---|---|---|---|
+| FAM000422 | **29** | Polydnaviriformidae | segmented dsDNA |
+| FAM007500 | 6 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+| FAM022414 | 2 | Nanoviridae (*Babuvirus*) | 6-segment ssDNA |
+| FAM003906 | 1 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+| FAM005477 | 1 | Geminiviridae (*Grablovirus*) | bipartite ssDNA |
+| FAM023047 | 1 | Bromoviridae (*Ilarvirus*) | tripartite ssRNA |
+| FAM033562 | 1 | Spinareoviridae (*Orthoreovirus*) | 10-segment dsRNA |
+
+**Five distinct ICTV segmented families, every one eukaryote-infecting**, in a component whose host
+rule's published purpose is "to remove potential eukaryotic viruses" (D-110).
+
+Three things make this more than a threshold artefact, and they are why D-193 states a finding
+rather than a count: **FAM000422 appears in all four bands** (5, 7, 8, 9) and the bands are disjoint
+hash samples; **three separately-built RVDB families converge on *Orthoreovirus***; and the models
+are not all short — FAM003906 is 310 residues from 613 sequences, FAM000422 is 170 from 102, and
+every hit cleared 50% model coverage on top of E≤1e-5.
+
+**What is weak is named rather than averaged in.** FAM033562 (83-residue model, 7 sequences) and
+FAM022414 (66 residues, 8) are the least safe of the seven. These are not seven equivalent findings
+and must not be quoted as such.
+
+Route is `unresolved` for all 265,062 records, and **no table asserts a conformance failure** — §7
+reserves that for A7.1. Eight records the reading removes were subtracted before anything was
+called. Bands `[0,0.02]`, `[0.02,0.05]`, `[0.05,0.08]`, `[0.08,0.1]`, assembled with an
+overlap-and-gap check; band 1's 53,140 records match A2.1's published figure exactly, which is what
+licenses comparing the two arms directly.
+
+**D-187's sentence that "no marker pass can strengthen that category's zero" is wrong as written.**
+It is true of segmentation as a *property* — a contig is not labelled segmented by a profile — and
+false of the *families*, which have perfectly ordinary protein markers. D-190 drew that distinction
+and D-193 settles it with data.
+
+**This is §A2's own warning, measured.** The two arms read the same records and returned **zero**
+and **seven**. The difference is not depth or threshold: one arm reads a label 2.6% of records
+carry, the other reads the sequence every record carries.
+
+**The satellite arm is unrunnable by the same route**, and that is a named limitation rather than an
+unexamined gap: D-190's selection returns zero families for both satellite categories, because
+satellite nucleic acids encode few or no proteins and RVDB has no family whose LCA sits inside them.
+Evo 1's satellite zeros stay weak.
+
 ### Done-when
 
 - *Every §A2 category has a recorded result per manifest* — **met.** Four categories across seven
@@ -121,11 +174,21 @@ stops the run.
 
 ### Outstanding, for the project owner
 
-**The label-independent arm has not run.** The standing decision of 2026-10-19 was to ship this
-census and then measure a small slice of a marker pass before committing to any of it. That
-measurement was not taken — the session was spent on D-188 and D-189 instead. It is what would turn
-Evo 1's weak segmented and satellite zeros into something stronger, and it is the one thing this
-task still owes.
+**The marker arm stopped at 10% by choice, and the choice was a schedule not a budget.** The
+owner authorised a full census at about $9.60 and it was then declined on the measurement: 2% took
+55 minutes, so the remaining 90% is roughly 28 sequential runs inside this environment's two-hour
+cap. D-191 had also pre-registered that deepening past band 2 was conditional on the question still
+being open, and after band 1 it was not. **A census would refine how much survives, not whether.**
+If anyone wants it, the route is one in-region EC2 instance rather than 28 session runs — that is a
+new task, not a widening of this one.
+
+**One permanent artefact is superseded.** `corpora/results/a2-5/segmented-assembled.json` written
+2026-10-19 21:28 was a scratch-directory probe of `--assemble` that published to the real prefix,
+because `repro.run` derives `durable` from the task id and cannot see `--out`. It overwrote nothing
+and is self-labelling, but the bucket has no delete, so it is permanent and the real assembled run
+superseded it in place. The fix is in `detect_segmented.py`: a run writing anywhere but the
+canonical directory declares `durable_exempt` and says so on stderr. D-189's lesson arriving by a
+second route, which is the argument for putting these guards in the code path.
 
 **Four faults found by testing rather than by reading**, each of which would have understated the
 result: a family-level label reported as `unlabelled` for a phylum-level category, hiding a
@@ -134,6 +197,11 @@ as a shallow label; a share computed from a non-iterable interval; and the zero-
 prefixed record labels against bare member names, which listed every category member as undetected
 even where it had been detected. A fifth was caught before it cost anything: the sweep read stage 2
 once per reading rather than once per source, which is D-046's tripled read repeated.
+
+**The marker arm's one unplanned event is a result about the design rather than about viruses.** The
+container restarted mid-ladder. Three completed bands were intact in object storage; the in-flight
+band lost 50 minutes of compute and **no results**. That is the first real test of D-188's
+durability guard and of publishing each band as it completes, and both held.
 
 ## Notes
 
