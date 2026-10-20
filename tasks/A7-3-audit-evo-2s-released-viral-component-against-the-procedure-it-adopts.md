@@ -2,7 +2,7 @@
 id: A7.3
 title: Audit Evo 2's released viral component against the procedure it adopts
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A7.2]
 blocks: []

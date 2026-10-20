@@ -2,7 +2,7 @@
 id: X1.6
 title: Re-run the three lost measurements
 phase: X
-status: review
+status: done
 gate: false
 depends_on: []
 blocks: [X1.2, X1.3]
@@ -163,3 +163,8 @@ the other half of that instruction, does work and is what made the run observabl
 key, with the published measurement's loss stated beside it.
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Closed — 2026-10-20
+
+`done`. The work is on `main` (pull request #30 merged, or earlier as the State block
+records). Every Done-when criterion is met.

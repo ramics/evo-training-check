@@ -2,7 +2,7 @@
 id: A7.2
 title: Close the conformance gaps the releases could not answer
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.7]
 blocks: [A7.3]
@@ -238,3 +238,10 @@ green over a real inconsistency. It was remediated under A1.4 and `INPUT_RELEASE
 Recorded here because "every Done-when criterion is met except the last" was written before it
 was found, and a reader checking this task's history should see that the sentence did not hold at
 the time it was written.
+
+## Closed — 2026-10-20
+
+`done`. The work is on `main` (pull request #30 merged, or earlier as the State block
+records). Every Done-when criterion is met.
+
+The last Done-when criterion was the A3.3 gate. It opened on 2026-10-20 (D-215).

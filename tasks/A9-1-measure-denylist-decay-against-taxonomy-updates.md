@@ -2,7 +2,7 @@
 id: A9.1
 title: Measure denylist decay against taxonomy updates
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A0.3]
 blocks: []
@@ -73,3 +73,8 @@ curve at the wrong place.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Closed — 2026-10-20
+
+`done`. The work is on `main` (pull request #30 merged, or earlier as the State block
+records). Every Done-when criterion is met.

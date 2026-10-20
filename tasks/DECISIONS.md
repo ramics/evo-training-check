@@ -9735,3 +9735,29 @@ decision has a threshold or parameter in it, the number goes in the entry.
   single number.* They are not errors to reconcile — one is an approximation A3.2 declares and
   the recount improves on, the other a denominator that should differ between readings — and
   collapsing them would discard the finding the second method was run to produce.
+
+### D-216 — A durable result key that omits the commit is overwritten on re-run
+
+- **Date:** 2026-10-20
+- **Task:** X1.7
+- **Context:** An audit of every artefact this session produced found all of them present in
+  the durable store and byte-identical to their local copies. It also found that
+  `corpora/results/a3-4/bins-pfam-38.2.json` was written twice under the same key — 2,446 bytes
+  at 10:42 from a partial run, 215,098 bytes at 12:16 from the full one. The corpus bucket's
+  un-rewritability rests on the absence of `s3:DeleteObject`, which does not prevent an
+  overwrite. Only the EC2 tools key their outputs by commit (D-126); every in-container
+  pipeline writes to a fixed name, so re-running one replaces its own earlier result. Whether
+  the replaced object survives is not visible from here: `get_bucket_versioning` and
+  `list_object_versions` are both AccessDenied.
+- **Decision:** Treat this as a defect in the durable-write path, not in the a3-4 run, and fix
+  it in its own task (X1.7) rather than inside whichever pipeline next trips it. Nothing was
+  lost on 2026-10-20 — the object that was replaced was a partial run superseded by the full
+  one — so no artefact needs recovering and no result is in doubt. Until X1.7 lands, a pipeline
+  re-run silently replaces its predecessor's durable copy, and a result cited from the store is
+  traceable to a commit only through the `run.json` beside it.
+- **Alternatives rejected:** Make `repro` refuse to write a key that already exists — it would
+  turn every legitimate re-run into a failure and push people to `--allow-dirty` paths.
+  Ask the project owner to enable bucket versioning — the right answer eventually, but it is an
+  account change that cannot be made or verified from this container, and it does not make a
+  key traceable to a commit. Fold the fix into X1.5's durability audit — `AGENTS.md` forbids
+  widening a task to absorb an adjacent problem.

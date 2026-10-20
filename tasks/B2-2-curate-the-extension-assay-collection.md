@@ -2,7 +2,7 @@
 id: B2.2
 title: Curate the extension assay collection
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [B2.1]
 blocks: [B2.3, B2.4]
@@ -63,3 +63,8 @@ cannot be frozen as drafted — see D-197's consequence.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Closed — 2026-10-20
+
+`done`. The work is on `main` (pull request #30 merged, or earlier as the State block
+records). Every Done-when criterion is met.

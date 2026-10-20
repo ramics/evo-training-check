@@ -2,7 +2,7 @@
 id: A5.1
 title: Package the filter-audit tool
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4, A3.2, A4.1, A4.2]
 blocks: [X1.2]
@@ -51,3 +51,8 @@ convenience, not a criterion, and it belongs to whoever next needs it.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Closed — 2026-10-20
+
+`done`. The work is on `main` (pull request #30 merged, or earlier as the State block
+records). Every Done-when criterion is met.

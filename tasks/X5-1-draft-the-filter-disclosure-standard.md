@@ -2,7 +2,7 @@
 id: X5.1
 title: Draft the filter disclosure standard
 phase: X
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.1, A7.1]
 blocks: []

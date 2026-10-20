@@ -2,7 +2,7 @@
 id: A7.1
 title: Re-execute published predicates against released corpora
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A0.3, A1.1, A1.2]
 blocks: [X5.1]
@@ -135,3 +135,14 @@ zero below reproduced unchanged from the input side.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Closed — 2026-10-20
+
+`done`. The work is on `main` (pull request #30 merged, or earlier as the State block
+records). Every Done-when criterion is met.
+
+The condition this task set itself is discharged: A3.3's independent recount reproduces the
+95 conformance failures in all three readings. One difference travels to the write-up rather
+than against the result — A7.1 reports conformance coverage as 3/6, which is right for the
+literal and strict readings; the charitable reading has seven rules, so its coverage is 3/7.
+A3.3's gate opened on 2026-10-20 (D-215), under the two conditions that entry records.

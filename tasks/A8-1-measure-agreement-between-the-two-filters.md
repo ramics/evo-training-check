@@ -2,7 +2,7 @@
 id: A8.1
 title: Measure agreement between the two filters
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A0.3, A1.3]
 blocks: []
@@ -74,3 +74,8 @@ use, which run literally removes the whole viral corpus.
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Closed — 2026-10-20
+
+`done`. The work is on `main` (pull request #30 merged, or earlier as the State block
+records). Every Done-when criterion is met.

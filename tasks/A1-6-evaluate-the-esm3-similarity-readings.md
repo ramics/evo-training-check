@@ -2,7 +2,7 @@
 id: A1.6
 title: Evaluate the ESM3 similarity readings against the proxy corpus
 phase: A
-status: review
+status: in-progress
 gate: false
 depends_on: [A1.4, A1.5]
 blocks: []
