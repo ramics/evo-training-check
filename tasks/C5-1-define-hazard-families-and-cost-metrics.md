@@ -2,7 +2,7 @@
 id: C5.1
 title: Define hazard families and cost metrics
 phase: C
-status: in-progress
+status: review
 gate: false
 depends_on: [A0.3, A3.1]
 blocks: [C5.2]
@@ -45,8 +45,29 @@ threshold is.
 
 ## State — 2026-10-20
 
-`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the
-project owner.
+`review`. **Branch `claude/project-thread-a3vch4`, pull request #30.** Nothing is waiting on
+the project owner. Everything is fixed in **D-204** and written up in `metrics/costcurve.md`,
+which is the authoritative text; `src/amazebio/costcurve.py` is the first implementation and
+C6.3 reimplements the curves from the document.
+
+**Nothing was computed before the definitions were fixed**, which is the point of the task.
+
+- *Family set, both cost metrics, stringency axis and coverage metric reimplementable from the
+  text alone* — met. The set is Pfam 38.2 entered by three published nominations, curve
+  subjects being the virus-family and toxin strata; the organism stratum is counted and
+  carries no curve, because a regulation naming an organism nominates no protein family.
+- *The regime boundary is pre-registered before any computation* — met, and anchored to a
+  measured quantity rather than a round number: catastrophic is "costs at least as much
+  general biology as removing every virus", which is A8.1's 1.1154% of UniRef50 clusters.
+- *The output schema produces §4's aggregated view without recomputation* — met.
+  `published_view` aggregates by Pfam clan, pools clanless families, and withholds any class
+  that would hold fewer than three subjects, so no family is nameable from the published form.
+- *No metric requires training or running a model* — met. Every quantity is a count over
+  pinned databases or arithmetic on such counts.
+
+One input is dated rather than pinned and says so: UniProt's REST service serves the current
+release only, so the nomination step records the release it saw, as the select-agent count
+already does.
 
 ## Notes
 

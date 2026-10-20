@@ -9273,3 +9273,88 @@ decision has a threshold or parameter in it, the number goes in the entry.
   launcher to pass the commit into `UserData` so the instance's own manifest is traceable.
   *Leaving the inverted check to inspection.* That is what was already in place, and it is how
   a tool writing a cited result with no provenance went unnoticed through the D-188 conversion.
+
+### D-204 — Phase C's hazard family set, both cost metrics, the stringency axis, the coverage pair and the regime boundary, all fixed before any curve is computed
+- **Date:** 2026-10-20
+- **Task:** C5.1
+- **Context:** §C6 requires the regime boundary pre-registered, for the reason §B5
+  pre-registers its effect-size threshold: a boundary chosen after seeing the curves decides
+  the finding. The same applies to everything a curve's shape depends on, so the family set,
+  the unit, both metrics, the sweep and the coverage gate are fixed in the same breath.
+  `metrics/costcurve.md` is the authoritative text and is written to be reimplementable from
+  itself, because C6.3 reimplements the headline curves by a second method before publication.
+  **Nothing was computed before this entry was written.**
+- **Decision:**
+  **The unit is a UniRef50 cluster of the pinned 2023_02 release.** A count of records weighs
+  a family by how often its organism has been sequenced; a cluster at the publisher's own 50%
+  identity is one unit of diversity. UniRef90 clusters and records travel as conversions,
+  never as denominators.
+
+  **The family set is Pfam 38.2, entered only by published nomination, in three strata.**
+  **V**: families carrying a reviewed UniProt entry from a taxon in Evo 1's published exclusion
+  list — a laboratory's own statement of what it considered hazardous. **T**: families carrying
+  a reviewed entry whose protein name matches a toxin the Select Agents and Toxins List names,
+  under the reading pinned in D-137 — a regulation naming the protein. **S**: families carrying
+  a reviewed entry from a listed *organism*. **Curve subjects are V ∪ T.** S is counted and
+  reported and gets no curve, because a regulation listing an organism nominates no protein
+  family and picking one would be this project's judgement wearing a regulation's authority.
+  Reviewed entries only: an unreviewed family annotation is an automatic prediction, and a
+  hazard set built from predictions is a hazard set built from a model.
+
+  **`H(s)` is not trivially 1 because the seed set is not the family.** A filter knows what a
+  published list lets a developer label — the clusters containing the nominating entries — and
+  removes what is similar to that. `H(s)` is how much of the whole family that catches. Where
+  the nomination enumerated the family, no curve is reported rather than `H(s) = 1` everywhere.
+
+  **Hazard removed** is F's clusters removed over F's clusters. **Collateral removed** is
+  clusters removed that belong to no family in V ∪ T ∪ S, over all such clusters in the
+  release. Unannotated clusters stay in the collateral denominator — they are the majority of
+  UniRef50 and they are biology — with their share reported. `families_touched` travels beside
+  the two as a companion, not a third metric: §C6's "a large slice of general biology" is not
+  legible from a fraction alone. Every fraction ships with a Wilson interval.
+
+  **The sweep is sequence identity at ≥ 80% coverage of the shorter sequence** (M3's frozen
+  rule, unchanged so a Phase C identity means what a Phase A identity means), with MMseqs2
+  18.8cc5c as already pinned for A1.6: 0.95, 0.90, 0.80, 0.70, 0.60, 0.50, 0.40, 0.30. The
+  floor is 0.30 because below it an alignment stops distinguishing homology from chance at
+  protein length; a family still rising there is reported as unbounded below, which is a
+  finding rather than a missing value. UniRef90 and UniRef50 co-membership are computed as free
+  published anchors at 0.90 and 0.50 (D-198) and reported beside the aligner's own points;
+  a disagreement is a defect in the pipeline, not a result.
+
+  **Coverage is a pair and no curve ships without it** (§C7). Chao1 saturation over F's
+  UniRef50 clusters, with each cluster's UniRef90 sub-cluster count as its abundance; and the
+  sampling concentration — distinct genera, and the share from the most-represented one. A
+  family below 0.5 saturation or above 0.8 top-genus share gets **no regime label at all**,
+  because a caveat printed under a label is read as the label.
+
+  **The regime boundary is anchored to V = 0.011154**, the share of UniRef50 2023_02's
+  60,479,070 clusters that contain a viral seed — 674,571, measured by A8.1 (D-200). Let s\* be
+  the loosest stringency in the sweep still removing 90% of F's known diversity. **Cheap** when
+  `C(s*) ≤ V/100`, **catastrophic** when `C(s*) ≥ V`, intermediate between, and **unreachable**
+  when no stringency reaches 90%. The comparison uses the interval's conservative end against
+  each boundary, and a family whose interval straddles one is labelled straddling with both
+  names given.
+
+  **The published view is by Pfam clan and holds at least three subjects per class.** A class
+  of one republishes the per-family curve under another name and a class of two lets a reader
+  holding one value derive the other. Clanless families pool; a pooled class still below three
+  is withheld and reported as a bare count so the totals reconcile without naming anyone.
+  `costcurve.published_view` and `CurveSet.disclosure_view` are two functions rather than one
+  flag, so a consumer of the published numbers never touches the per-family records.
+- **Rejected:** *A round collateral threshold, such as 1%.* §C6's catastrophic label says
+  filtering *cannot* work for a family, which is too strong a claim to rest on this project's
+  taste in round numbers. Anchoring to V makes it mean "dearer than the thing two laboratories
+  already shipped", which a reviewer can check and argue with.
+  *Taking the family set from the organisms on the select-agent list.* It would be thousands of
+  Pfam families, most of them housekeeping, and the hazard nomination would be ours rather than
+  the regulation's. Kept as stratum S, defined and counted, so the write-up can state what the
+  method does not reach instead of the set quietly implying it does.
+  *Including unreviewed UniProt entries.* Their family annotation is itself a prediction.
+  *Sweeping structural similarity as a second axis.* §C5 permits either; a curve mixing two
+  incomparable stringency scales has no x-axis. A2.2's fold reference is a reporting axis here,
+  not a sweep.
+  *A point-estimate comparison against the boundary.* The regime label is the deliverable, and
+  a label produced by sampling noise is worse than no label.
+  *Dropping an under-sized class from the published view.* The counts would stop reconciling
+  with the per-family artefact and a reader could not tell a merge from a missing family.
