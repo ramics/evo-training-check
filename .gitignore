@@ -28,3 +28,4 @@ dist/
 # A second lockfile in the root invites resolving from the one that pins nothing. D-168.
 uv.lock
 .venv/
+.claude/worktrees/
