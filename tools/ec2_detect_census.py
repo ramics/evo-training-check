@@ -373,8 +373,9 @@ def main(argv: list[str] | None = None) -> int:
             registry=args.registry,
         ),
     )
-    if args.spot:
-        kwargs.update(ec2lib.market_options())
+    market = ec2lib.market_options(args.spot)
+    if market is not None:
+        kwargs["InstanceMarketOptions"] = market
 
     if args.dry_run:
         try:

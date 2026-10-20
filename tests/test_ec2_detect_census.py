@@ -191,3 +191,94 @@ class TestTheRunInstancesCall:
         would let the instance search a surviving set that `main` no longer agrees with."""
         assert "results/a1-4/" in rendered()
         assert not any("a1-4" in p for p in launcher.PAYLOAD_MODULES)
+
+
+class TestMainOnADryRun:
+    """The launcher's own `main` up to the authorization call.
+
+    The band arithmetic and the `UserData` are tested above as pure functions, which left
+    `main` itself — the assembly of the `run_instances` keywords — exercised by nothing. A
+    wrong argument there raises on the dry run, which is cheap, but only if someone runs
+    one; `market_options` was called with no argument and the mistake survived the whole
+    suite.
+    """
+
+    @staticmethod
+    def _boto3(monkeypatch, calls):
+        class S3:
+            def put_object(self, **kw):
+                calls.append(("put_object", kw))
+
+        class SSM:
+            def get_parameter(self, **kw):
+                return {"Parameter": {"Value": "ami-0123456789abcdef0"}}
+
+        class EC2:
+            def run_instances(self, **kw):
+                calls.append(("run_instances", kw))
+                if not kw.get("DryRun"):
+                    raise AssertionError("a dry run must not launch")
+                raise RuntimeError("DryRunOperation: Request would have succeeded")
+
+        class Boto3:
+            @staticmethod
+            def client(name, **kw):
+                return {"s3": S3(), "ec2": EC2(), "ssm": SSM()}[name]
+
+        monkeypatch.setitem(__import__("sys").modules, "boto3", Boto3)
+
+    def run(self, monkeypatch, *argv):
+        calls: list[tuple[str, dict]] = []
+        self._boto3(monkeypatch, calls)
+        assert (
+            launcher.main(
+                [
+                    "--s3-uri",
+                    "s3://bucket/corpora",
+                    "--allow-dirty",
+                    "--dry-run",
+                    *argv,
+                ]
+            )
+            == 0
+        )
+        return calls
+
+    def test_it_authorizes_without_raising(self, monkeypatch) -> None:
+        calls = self.run(monkeypatch)
+        assert [name for name, _ in calls] == ["run_instances"]
+
+    def test_spot_asks_for_a_one_time_request_that_terminates_on_reclaim(self, monkeypatch) -> None:
+        calls = self.run(monkeypatch, "--spot")
+        kw = dict(calls)["run_instances"]
+        market = kw["InstanceMarketOptions"]
+        assert market["MarketType"] == "spot"
+        assert market["SpotOptions"]["SpotInstanceType"] == "one-time"
+        assert market["SpotOptions"]["InstanceInterruptionBehavior"] == "terminate"
+
+    def test_on_demand_says_nothing_about_the_market(self, monkeypatch) -> None:
+        kw = dict(self.run(monkeypatch))["run_instances"]
+        assert "InstanceMarketOptions" not in kw
+
+    def test_a_dry_run_uploads_no_payload(self, monkeypatch) -> None:
+        """The corpus bucket has no delete, so a tarball put here for a launch that never
+        happens is permanent."""
+        assert "put_object" not in [name for name, _ in self.run(monkeypatch)]
+
+    def test_the_launch_carries_the_policys_tags_and_a_terminating_shutdown(
+        self, monkeypatch
+    ) -> None:
+        """Omit either tag and the refusal is a bare UnauthorizedOperation, which reads
+        exactly like having no permission at all."""
+        kw = dict(self.run(monkeypatch))["run_instances"]
+        tags = {t["Key"]: t["Value"] for t in kw["TagSpecifications"][0]["Tags"]}
+        assert tags["Project"] == "ClaudeSpike"
+        assert tags["Owner"]
+        assert tags["Task"] == "A2.6"
+        assert kw["InstanceInitiatedShutdownBehavior"] == "terminate"
+
+    def test_the_volume_is_within_what_the_policy_allows(self, monkeypatch) -> None:
+        kw = dict(self.run(monkeypatch))["run_instances"]
+        ebs = kw["BlockDeviceMappings"][0]["Ebs"]
+        assert ebs["VolumeType"] in {"gp2", "gp3"}
+        assert ebs["VolumeSize"] <= 200
