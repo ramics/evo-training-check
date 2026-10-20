@@ -9090,3 +9090,41 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Consequence:** This is the decay A9.1 measures, caught a task early and on a different
   axis: not a taxonomy that moved under a static list, but a static list that never matched the
   taxonomy a protein corpus is placed in. A9.1 should read this before choosing its baseline.
+
+### D-200 — A8.1's result: the disagreement is one-sided, and only its collateral moves with the threshold
+- **Date:** 2026-10-20
+- **Task:** A8.1
+- **Context:** D-198 fixed the method before the pass ran. The pass read UniRef 2023_02 at
+  both of the publisher's identities — 305 GB of the 90 tier and 231 GB of the 50 tier — and
+  cross-tabulated the two predicates over all 404,113,639 records.
+- **Decision:** Reported as follows, because the obvious summary of the table would be wrong
+  in two directions at once.
+  **Agreement is 62.43%, and the number means less than it looks.** Of the 5,405,462 records
+  Evo's taxon rules are in a position to judge, both filters remove 3,374,679 and the
+  similarity predicate alone removes the other 2,030,783. `neither` is empty and so is
+  `label_only`. The similarity predicate removes **every** viral record, because under the
+  reading in force every viral-annotated record is itself a seed; the taxon rules remove 62%
+  of them. So "62% agreement" is not two filters converging on a definition — it is one
+  filter being a strict subset of the other, and the 37.6% gap is entirely viral material no
+  rule in the published list names.
+  **Neither identity changes any of that.** Both tiers give the same five numbers on the
+  viral side, to the record, which follows from the seed set rather than from the data.
+  **What the threshold does change is the collateral.** Non-viral records sitting within the
+  tier's identity of a seed: **2,173,029 at 90%, 6,955,858 at 50%** — 3.2x for one step of
+  the threshold. That is the only quantity in the table the unpublished threshold moves, and
+  it is a quantity about the corpus the filter keeps rather than the material it removes.
+- **Rejected:** *Leading with the 62% figure.* On its own it reads as two labs roughly
+  agreeing. The structure underneath it — strict containment, one-sided gap — is the §A8
+  finding and the percentage is a consequence of it.
+  *Reporting the collateral as a filter error.* Nothing here says those 2.2M or 7.0M records
+  are not worth removing; a cellular homologue of a viral protein may be exactly what a
+  similarity filter should take. What the number settles is that the two mechanisms differ in
+  kind, not degree: one cannot touch a record the taxonomy calls cellular and the other
+  removes millions of them.
+  *Pooling the two tiers into one figure.* The viral side is identical and the collateral is
+  not, so a pooled number would hide the only thing that moved.
+- **Consequence:** §A8's question has an answer: the two filters do not denote the same
+  operation. One removes by what a record is called and reaches 62% of the viral corpus; the
+  other removes by what a record resembles, reaches all of it, and takes between 2.2 and 7.0
+  million non-viral records with it depending on where its unpublished threshold sits. The
+  write-up leads with the containment, not the percentage.
