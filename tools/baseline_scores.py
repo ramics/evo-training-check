@@ -62,6 +62,9 @@ REGISTER = REPO / "assays" / "register.json"
 PUBLISHED_COLUMN = "RSALOR"
 FLOOR_COLUMN = "Site_Independent"
 
+#: ProteinGym's AlphaFold models are single-chain, and the package needs one named.
+CHAIN = "A"
+
 #: D-229's parameters, repeated here so a run manifest records what was actually used rather
 #: than what a decision entry said. These are the package's defaults, which are the settings
 #: the published column was produced with.
@@ -69,8 +72,12 @@ PARAMETERS = {
     "theta_regularization": 0.01,
     "n_regularization": 0.0,
     "count_target_sequence": True,
+    "remove_redundant_sequences": True,
     "seqid_weights": 0.80,
+    "min_seqid": 0.35,
+    "rsa_solver": "the package's own default",
     "rsa_factor": "1 - min(RSA, 100) / 100",
+    "chain": "A, the only chain in ProteinGym's AlphaFold models",
     "decision_ref": "D-229",
 }
 
@@ -172,11 +179,24 @@ def score_assay(
         plain_copy(alignment, ".a2m") as msa_path,
         structure_copy(STRUCTURES, row["pdb_file"]) as pdb_path,
     ):
-        msa = MSA(str(msa_path), str(pdb_path), row.get("pdb_chain") or "A", num_threads=threads)
+        # Every argument left at its default, which is what D-229 fixed and what the
+        # published column was produced with. Passing them explicitly would be the same
+        # values with an extra way to drift from the package.
+        msa = MSA(str(msa_path), str(pdb_path), CHAIN, num_threads=threads)
         records = msa.get_scores()
 
     key = score_key(records)
     combined = by_mutation(records, key)
+    # The two halves are kept beside the combined score. They cost nothing to carry and they
+    # are what makes a disagreement with the published column diagnosable: a difference in the
+    # structural half shows up as a per-position ratio, and one in the evolutionary half does
+    # not. Without them B4.2 would have to re-run all 31 assays to ask the question.
+    lor = by_mutation(records, "LOR")
+    rsa = {
+        str(row["mutation_fasta"])[1:-1]: float(row["RSA"])
+        for row in records
+        if row.get("mutation_fasta") is not None and row.get("RSA") is not None
+    }
 
     scored, unscored = {}, []
     for mutant in sorted(truth):
@@ -206,6 +226,15 @@ def score_assay(
         "variants_unscored": len(unscored),
         "unscored_examples": sorted(unscored)[:10],
         "scores": scored,
+        "components": {
+            "note": (
+                "the baseline's own two halves, in its sign convention and its alignment "
+                "coordinates, not negated and not translated. For diagnosing a disagreement "
+                "with the published column, not for analysis"
+            ),
+            "lor": lor,
+            "rsa_by_position": dict(sorted(rsa.items(), key=lambda kv: int(kv[0]))),
+        },
     }
 
 
