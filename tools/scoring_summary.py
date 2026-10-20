@@ -9,7 +9,9 @@ the pasted values `AGENTS.md` forbids.
 
 It reads what is on disk and says what is missing. A checkpoint named in the roster with no
 artefact is reported as not run, with the reason the roster gives, rather than omitted — a
-model quietly absent from a comparison is the failure this table is for.
+model quietly absent from a comparison is the failure this table is for. The same goes for a
+run with no reference block: ESM3-open's first pass had none, which read as "ProteinGym does
+not publish this model" when in fact it does and the run was invoked without `--published`.
 """
 
 from __future__ import annotations
