@@ -30,6 +30,7 @@ import concurrent.futures
 import json
 import os
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -138,17 +139,18 @@ def _lineage(classification: str) -> dict[str, str]:
     return conformance.parse_lineage_tag(classification).taxonomy
 
 
-def _scan_shard(
-    bucket: str,
-    key: str,
-    start: int,
-    end: int,
+def tally_rows(
+    lines: Iterable[str],
     header: list[str],
     families: frozenset[str],
     orders: frozenset[str],
     ratified: frozenset[str],
 ) -> dict[str, Any]:
-    """Tally one byte shard. Runs in a subprocess; returns counters, never rows."""
+    """Tally a stream of release rows into counters.
+
+    Separated from the shard reader so the counting rules can be tested against rows written
+    by hand rather than only against a 5 GB object nothing can assert about cheaply.
+    """
     idx = {role: header.index(name) for role, name in imgvr.SEQ_COLUMNS.items()}
     method_col = header.index("Taxonomic classification method")
     quality_col = header.index("MIUViG quality")
@@ -174,8 +176,7 @@ def _scan_shard(
     )
     counters: dict[str, collections.Counter] = {n: collections.Counter() for n in names}
     rows = rows_hc = malformed = hits = hits_hc = 0
-    client = objectstore.client()
-    for line in objectstore.shard_lines(client, bucket, key, start, end, skip_header=(start == 0)):
+    for line in lines:
         if not line:
             continue
         fields = line.split("\t")
@@ -218,6 +219,22 @@ def _scan_shard(
     out: dict[str, Any] = {n: dict(c) for n, c in counters.items()}
     out.update(rows=rows, rows_hc=rows_hc, malformed=malformed, hits=hits, hits_hc=hits_hc)
     return out
+
+
+def _scan_shard(
+    bucket: str,
+    key: str,
+    start: int,
+    end: int,
+    header: list[str],
+    families: frozenset[str],
+    orders: frozenset[str],
+    ratified: frozenset[str],
+) -> dict[str, Any]:
+    """Tally one byte shard. Runs in a subprocess; returns counters, never rows."""
+    client = objectstore.client()
+    lines = objectstore.shard_lines(client, bucket, key, start, end, skip_header=(start == 0))
+    return tally_rows(lines, header, families, orders, ratified)
 
 
 def _merge(shards: list[dict[str, Any]]) -> dict[str, Any]:
