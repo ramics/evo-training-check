@@ -9443,3 +9443,75 @@ decision has a threshold or parameter in it, the number goes in the entry.
   *The global clustering, on the strength of 111 out of 120.* Ninety-three per cent agreement
   is a good reason to believe the shortcut is close, and not a reason to report a different
   operation under a frozen metric's name.
+
+### D-207 — Evo's three readings are indistinguishable against its own releases, which is agreement over the corpus and not reproducibility
+- **Date:** 2026-10-20
+- **Task:** A0.4
+- **Context:** A0.3 wrote Evo 1's published filter three ways and A1.4 executed each against
+  both OpenGenome and OpenGenome2. A0.4 asks whether the choice of reading changes anything.
+- **Decision:**
+  A0.4 measured the spread between the literal, charitable and strict readings of Evo 1's
+  published filter (`tools/reading_spread.py`, `artifacts/a0-4/spread.json`), against both
+  OpenGenome and OpenGenome2.
+
+  **The measurement.** Identical wherever a count exists. The three readings remove the same 95
+  records from OpenGenome — Jaccard 1.0000 on every pair, all attributed to
+  `remove-taxonomically-unspecific` — and the same 0 records from OpenGenome2. M1 and M2 are
+  identical across readings in all six registry-and-release cells A3.2 reports.
+
+  **Where the spread actually is.** Two places, neither of which moves a count. *Scope*: the
+  strict reading claims the whole corpus, so two components on OpenGenome and nine on
+  OpenGenome2 move from `out_of_scope` to `retained_by_design` — the same records with a
+  different account of why they are still there. *Decidability*: the three rules that separate
+  the readings — `remove-eukaryotic-host-evidence`, `keep-prokaryotic-host-twice` and
+  `keep-only-exclusively-prokaryotic-hosts` — all read IMG/VR host metadata that neither release
+  carries.
+
+  **The reading taken, and the one rejected.** The tempting write-up is "Evo's policy is
+  reproducible: all three readings agree". Rejected, because the readings agree only because the
+  only corpus available for checking them cannot tell them apart. `spread.Verdict.reproducible`
+  is therefore three-valued — `agree`, `agree_on_the_corpus`, `readings_disagree` — and this case
+  reports `agree_on_the_corpus`. An ambiguity invisible against the published release is
+  unfalsifiable at that point, not absent, and §A0 counts that as the finding.
+
+  **ESM3-open's spread is not measurable.** One of its three readings has a corpus manifest and
+  that one evaluates to `undetermined`, because the matching threshold is unpublished (D-015);
+  the other two were deferred to A1.6 (D-043). Recorded as `not_measurable` rather than folded
+  into any agreement figure.
+
+### D-208 — the published-reference check is decided at the variant level, against a floor of 0.99, on the interval rather than the point estimate
+- **Date:** 2026-10-20
+- **Task:** B1.2
+- **Context:** B1.2's last step is to validate against a published reference number per model
+  where one exists. ProteinGym publishes two things that could serve: the per-variant zero-shot
+  scores for each model it evaluated, and the DMS-level Spearman computed from them. They are
+  different tests and they fail differently, so which one decides the verdict has to be fixed
+  before any score exists.
+- **Decision:**
+  **Both are computed; the verdict rests on the variant level.** Our scores against the
+  published scores for the same checkpoint on the same assay is the sharp test: two
+  implementations of one frozen model scoring the same variants should agree almost exactly.
+  Our Spearman against the DMS truth, next to the published Spearman, is the number a reader
+  recognises, and it is reported always — but it is forgiving. A systematic harness error, a
+  wrong offset or a mis-set mask token, can leave the headline Spearman close to the published
+  one while the per-variant ranking is plainly wrong. Deciding on the assay level would call
+  that validated.
+
+  **The floor is 0.99 Spearman, variant level.** Chosen for what it separates rather than
+  tuned to a result: every harness bug this check exists to catch lands far below it, and an
+  honest difference in numerical precision between two implementations lands far above it.
+  Fixed here, before the first score, as the non-negotiable on parameters requires.
+
+  **The verdict reads the interval, not the point estimate.** `reproduced` requires the lower
+  bound of the 95% bootstrap interval to clear the floor; `diverges` requires the upper bound
+  to fall below it; anything straddling reports `undetermined`, which is the honest answer and
+  is not allowed to read as either. Assays below 20 shared variants get `too_few_variants` and
+  no correlation interval at all.
+
+  **The resampling is paired.** Variant pairs are resampled together, so the interval is on
+  the difference as well as on each estimate. Two correlations over one assay have strongly
+  dependent errors, and an interval assembled from the two marginal ones would be wide enough
+  to call a real divergence inconclusive.
+- **Alternatives rejected:** deciding on the assay-level Spearman alone (hides the error class
+  the check exists for); a point-estimate threshold (a 0.991 with an interval reaching 0.97 is
+  not a reproduction); an unpaired bootstrap (destroys the correlation it measures).

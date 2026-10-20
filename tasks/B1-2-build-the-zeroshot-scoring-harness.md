@@ -35,8 +35,20 @@ Scope limits in §4 apply strictly.
 
 ## State — 2026-10-20
 
-`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the
-project owner yet; a priced GPU pass will be.
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
+owner.
+
+**Done.** The harness contract and its §4 refusals (`src/amazebio/scoring.py`), the weight
+loader split out so the refusals stay testable without a deep-learning stack
+(`src/amazebio/backends.py`), the published-reference check with paired bootstrap intervals
+(`src/amazebio/reference.py`, D-208), and the driver with a `--plan` mode that costs a pass
+without loading a model (`tools/score_variants.py`). 93 tests across
+`tests/test_scoring.py`, `tests/test_backends.py` and `tests/test_reference.py`.
+
+**Left.** The GPU launcher and one real pass per Tier-1 checkpoint on a common test set, which
+is what turns the plan into the reproduced reference numbers the Done-when asks for. The
+nucleotide arm (`evo2_7b`) refuses without a published coding sequence and is reported as not
+run rather than estimated.
 
 ## Notes
 
