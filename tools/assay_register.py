@@ -1,18 +1,26 @@
-#!/usr/bin/env python3
-"""B2.2 — the viral assay register, and whether its n is enough.
+"""B2.4 — the assay provenance and licence register, deliverable 2.
 
-D-010 narrowed this task to one question asked before any extension is curated: do the
-published collections already give sufficient n for §B5's homology regression? "Sufficient" is
-not a total; §B5's result *is* the interaction between homology and model-exclusion-status, so
-what has to be sufficient is both arms of that contrast, at every covariate level the plan
-adjusts for. A covariate level present in only one arm is not a small cell — within it the arm
-is determined, and the regression cannot separate the covariate from the effect being measured.
+One file that says, for every assay Phase B analyses: where it came from, which pinned bytes it
+was read out of, which study produced it, and under what terms any of that may be passed on.
+B2.2 settled which assays are in and which arm each falls in; B2.3 settled the control set. This
+consolidates both and adds the half neither covers, which is the licence position.
 
-So this pass builds the register, places every viral assay in the pinned taxonomy, decides
-each policy's verdict on it, and reports the cross-tabulation. It fixes nothing about the
-analysis and computes no score: it is the input B5.1 freezes its plan against.
+The register is committed rather than left in `artifacts/`, because "publish" and "citable" are
+what the deliverable asks for and a file in a git-ignored directory is neither. It carries no
+variant-level data — identifiers, taxonomy, counts and provenance only — so committing it is not
+redistribution of anybody's assay.
 
-    pixi run -e dev python tools/assay_register.py --show
+**The licence position has two halves and the register keeps them apart.** The operative grant
+is the one on the bytes this project actually read: the pinned ProteinGym release, whose Zenodo
+deposit is MIT and whose assay archive is digest-identical to the pinned copy. Each assay also
+carries its source article's publisher-deposited licence, which is evidence about the *article*
+and not a statement about the supplementary data the article reports. Collapsing the two would
+let a CC-BY article stand in for a licence the authors never granted over their data, and would
+equally let one restrictive article licence look like a bar on work the MIT deposit plainly
+permits. Both appear; the register says which one it relies on and why.
+
+`--check` validates the committed register and its evidence, and CI runs it. It is offline and
+reads nothing from `artifacts/`, because CI has no artifacts: the register is the record.
 """
 
 from __future__ import annotations
@@ -20,419 +28,414 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import urllib.error
-import urllib.request
-import zipfile
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "src"))
 
-from amazebio import assays, objectstore, policyspec, proteingym, seeds
-from amazebio.misassignment import Denylist
-from amazebio.repro import ReproError, run
+from amazebio import objectstore  # noqa: E402
+from amazebio.repro import run  # noqa: E402
 
-TASK = "B2.2"
+TASK = "B2.4"
 SEED = 20261020
+CANONICAL_OUT = REPO / "artifacts" / "b2-4"
 
-#: Policies whose verdict on an assay cannot be read from taxonomy, with the reason. ESM3-open
-#: removes by sequence similarity to a seed set, so no family name settles it: an assay's
-#: status there is a computation over the target sequence. Naming it here keeps the register
-#: from quietly reporting "not excluded" for a model whose filter it never evaluated.
-SIMILARITY_POLICIES: dict[str, str] = {
-    "esm3-open-literal": (
-        "removes by sequence similarity to a seed set, not by taxon, so an assay's exclusion "
-        "status is a computation over its target sequence and is not settled by its lineage"
-    ),
-    "esm3-open-charitable": "as esm3-open-literal",
-    "esm3-open-strict": "as esm3-open-literal",
-}
+ASSAYS = REPO / "assays"
+EVIDENCE = ASSAYS / "licences.json"
+REGISTER = ASSAYS / "register.json"
+REGISTER_MD = ASSAYS / "register.md"
 
-#: The inclusion criteria, fixed here before any assay was screened and reported in the
-#: artefact so the order is visible. §4 limits this project to published data on
-#: well-characterised proteins, zero-shot scoring only.
-INCLUSION_CRITERIA: tuple[dict[str, str], ...] = (
-    {
-        "criterion": "published, in a pinned release",
-        "rule": (
-            "the assay ships in ProteinGym v1.3, pinned by the digests in "
-            "`amazebio.proteingym.RELEASE`. No assay enters the register from a paper alone."
-        ),
-    },
-    {
-        "criterion": "viral, by the benchmark's own taxon label",
-        "rule": (
-            "the maintainers' `taxon` column reads `Virus`. Using their label rather than "
-            "ours keeps the subset comparable to the published leaderboard, which §B2 asks for."
-        ),
-    },
-    {
-        "criterion": "placeable in the pinned taxonomy",
-        "rule": (
-            "the target protein's organism resolves to an NCBI taxid, via UniProt or, where "
-            "UniProt has deleted the entry, via the benchmark's organism string. An assay that "
-            "cannot be placed is refused rather than defaulted into the retained arm."
-        ),
-    },
-    {
-        "criterion": "zero-shot scoreable, substitutions only",
-        "rule": (
-            "§4 permits zero-shot scoring and no fine-tuning, and the substitution benchmark is "
-            "what the published comparison D-010 cites used. Indels are out of scope."
-        ),
-    },
-)
+B2_2 = REPO / "artifacts" / "b2-2" / "register.json"
+B2_3 = REPO / "artifacts" / "b2-3" / "control-set.json"
 
-
-#: The systematic search D-010 calls for, run 2026-10-20 and recorded whatever it found. The
-#: register's own finding sets the specification: the binding constraint is not the total but
-#: the **retained arm** — the assays whose families no denylist names — and within it the
-#: readout type, which is what the §B5 plan adjusts for. So the search is for published viral
-#: DMS assays on families the denylists do not name, with a readout other than cDNA-display
-#: proteolysis on a small domain.
-EXTENSION_SEARCH: dict[str, Any] = {
-    "ran": "2026-10-20",
-    "specification": (
-        "published viral DMS assays whose protein's family is named by no denylist, with a "
-        "readout other than cDNA-display proteolysis, so that the retained arm carries more "
-        "than one readout class and more than one study"
-    ),
-    "sources_searched": [
-        {
-            "source": "ProteinGym v1.3",
-            "how": "the pinned reference file's own taxon labels",
-            "found": "31 viral assays, the set this register is built from",
-        },
-        {
-            "source": "MaveDB (api.mavedb.org score-set search)",
-            "how": "full-text queries 'phage', 'virus', 'viral'; 83 distinct score sets",
-            "found": (
-                "no viral assay outside the benchmark's own set that meets the "
-                "specification. The phage score sets are Escherichia phage lambda, T7, phage "
-                "434 and Lederbergvirus P22 — already in ProteinGym — plus Bruynoghevirus "
-                "LUZ24 gp4, Lactococcus virus P2 Mep2 and Xipdecavirus Xp10 p7, every one of "
-                "which is trypsin/chymotrypsin digestion from the same cDNA-display "
-                "proteolysis study. They would add three families to the retained arm and "
-                "**not one new readout class**."
-            ),
-        },
-        {
-            "source": "ViroGym (arXiv 2603.06740, NeurIPS 2026)",
-            "how": "web search for published viral DMS collections",
-            "found": (
-                "79 DMS assays over 552,065 mutated sequences with 7 phenotypic readouts, "
-                "stated as covering **eukaryotic viruses**. Those fall almost entirely inside "
-                "the denylisted families, so it would enlarge the excluded arm and leave the "
-                "retained arm as it is. Its data release and licence are not stated on the "
-                "arXiv landing page, so acquisition and §4 licence screening are unresolved."
-            ),
-            "status": "candidate — availability and licence to establish",
-        },
+#: What this project passes on, and what it does not. The distinction is the reason the register
+#: can be published at all: every artefact downstream of here is either metadata about an assay
+#: or a number this project computed, and neither is somebody else's measurement redistributed.
+REDISTRIBUTION = {
+    "published_by_this_project": [
+        "assay identifiers, organism and taxonomy, family and order, and the arm each assay "
+        "falls in under each reading of each filter policy",
+        "per-assay counts: variants and sequence length, as the pinned release states them",
+        "the DOI of the study that produced each assay",
+        "scores this project computed, per variant and per assay, and the rank correlations "
+        "derived from them",
     ],
-    "verdict": (
-        "The extension D-010 contemplated does not exist in the published record as it "
-        "stands. More assays are available, but every one of them enlarges an arm that is "
-        "already large or adds a family to the retained arm without adding a readout class. "
-        "The register's finding is therefore about the design and not about the curation "
-        "effort, and it is B5.1's to act on."
+    "not_published_by_this_project": [
+        "the measured fitness values themselves — the assay data stays in the pinned release "
+        "and is read from it, never re-hosted here",
+        "the benchmark's own published model scores, which are read from the pinned release "
+        "for the reference check and reported only as an agreement statistic",
+    ],
+    "why_it_matters": (
+        "a register of metadata and of this project's own numbers is publishable under the "
+        "deposit's grant whatever each source article's terms say. The source terms are carried "
+        "anyway, because a reader going back to an assay needs them"
     ),
 }
 
+#: Licence URLs that permit redistribution with attribution, and the ones that do not. A URL not
+#: listed is reported as unclassified rather than assumed either way.
+PERMISSIVE = {
+    "http://creativecommons.org/licenses/by/4.0/",
+    "https://creativecommons.org/licenses/by/4.0",
+    "https://creativecommons.org/licenses/by/4.0/",
+    "https://creativecommons.org/licenses/by/3.0/",
+    "https://creativecommons.org/publicdomain/zero/1.0/",
+}
+RESTRICTIVE = {
+    "https://creativecommons.org/licenses/by-nc-nd/4.0/": "no derivatives, non-commercial",
+    "https://journals.asm.org/non-commercial-tdm-license": "non-commercial, text and data "
+    "mining only",
+    "https://www.elsevier.com/tdm/userlicense/1.0/": "text and data mining only",
+    "http://www.elsevier.com/open-access/userlicense/1.0/": "publisher's own open-access terms, "
+    "not a standard public licence",
+    "https://www.elsevier.com/open-access/userlicense/1.0/": "publisher's own open-access terms, "
+    "not a standard public licence",
+    "https://www.elsevier.com/legal/tdmrep-license": "text and data mining only",
+}
 
-def _uniprot_organism(entry_name: str, *, timeout: int = 45) -> dict[str, Any] | None:
-    """The entry's own organism from UniProt, or None where UniProt no longer holds it."""
-    url = (
-        "https://rest.uniprot.org/uniprotkb/search?"
-        f"query=id:{entry_name}&fields=organism_id,organism_name,accession&size=3&format=json"
-    )
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as handle:
-            payload = json.load(handle)
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-        return None
-    live = [r for r in payload.get("results", []) if "organism" in r]
-    if len(live) != 1:
-        return None
-    organism = live[0]["organism"]
+
+def classify(urls: list[str]) -> dict[str, Any]:
+    """What the article's deposited licences permit, without resolving a disagreement silently.
+
+    A publisher may deposit several, for different versions of the work, and they can disagree —
+    an open-access CC-BY on the version of record beside a mining-only licence on the accepted
+    manuscript. Reporting the most permissive one would overstate it and the most restrictive
+    one would understate it, so both are named and the reader is told they differ.
+    """
+    if not urls:
+        return {
+            "position": "none deposited",
+            "permits_redistribution": None,
+            "note": "the publisher deposited no licence with Crossref, so the article's terms "
+            "are not established from this evidence",
+        }
+    permissive = sorted(u for u in urls if u in PERMISSIVE)
+    restrictive = sorted(u for u in urls if u in RESTRICTIVE)
+    unclassified = sorted(u for u in urls if u not in PERMISSIVE and u not in RESTRICTIVE)
+    if unclassified:
+        return {
+            "position": "unclassified",
+            "permits_redistribution": None,
+            "unclassified": unclassified,
+            "note": "a licence URL this register does not recognise; read it before relying on "
+            "the article's terms",
+        }
+    if permissive and restrictive:
+        return {
+            "position": "mixed",
+            "permits_redistribution": None,
+            "permissive": permissive,
+            "restrictive": {u: RESTRICTIVE[u] for u in restrictive},
+            "note": "the publisher deposited licences that disagree, usually across versions of "
+            "the work. Which applies depends on which version is used",
+        }
+    if restrictive:
+        return {
+            "position": "restrictive",
+            "permits_redistribution": False,
+            "restrictive": {u: RESTRICTIVE[u] for u in restrictive},
+        }
+    return {"position": "permissive", "permits_redistribution": True, "permissive": permissive}
+
+
+def deposit_position(evidence: dict[str, Any]) -> dict[str, Any]:
+    """The grant on the bytes this project read, and how firmly it is established."""
+    match = {row["file"]: row for row in evidence["deposit_match"]}
+    assay_archive = match.get("DMS_ProteinGym_substitutions.zip", {})
     return {
-        "taxid": int(organism["taxonId"]),
-        "name": organism["scientificName"],
-        "accession": live[0].get("primaryAccession"),
+        "licence": evidence["deposit"]["license"],
+        "deposit_doi": evidence["deposit"]["doi"],
+        "deposit_url": evidence["deposit"]["url"],
+        "downloaded_from": evidence["release"]["downloaded_from"],
+        "established_by": assay_archive.get("match"),
+        "assay_archive": assay_archive,
+        "every_pinned_file": evidence["deposit_match"],
+        "limits": [
+            "MIT is a software licence. Applying it to a data deposit is ordinary practice on "
+            "Zenodo and it is the maintainers' own stated choice, but its effect on data is less "
+            "settled than on code. Recorded as the grant relied on, not as a legal conclusion",
+            "the deposit's grant is the maintainers'. It does not reach back and relicense the "
+            "studies that produced the assays, which is why each study's own terms are carried "
+            "per assay below",
+        ],
     }
 
 
-def verify_pins(entry_names: list[str]) -> list[dict[str, Any]]:
-    """Re-resolve each pinned organism against UniProt and report any disagreement.
+def build(b2_2: dict[str, Any], b2_3: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
+    works = {w["doi"]: w for w in evidence["works"]}
+    control = {a["dms_id"]: a for a in b2_3["control_set"]["assays"]}
 
-    A silently changed taxid moves an assay between the arms of the contrast, so this refuses
-    rather than adopts: the pin is the record, and a genuine upstream change is a decision to
-    take deliberately, not one to absorb mid-run.
-    """
-    findings: list[dict[str, Any]] = []
-    for name in entry_names:
-        pinned = assays.VIRAL_ASSAY_ORGANISMS[name]
-        live = _uniprot_organism(name)
-        if live is None:
-            findings.append(
-                {
-                    "uniprot_id": name,
-                    "status": "not-in-uniprot",
-                    "pinned_taxid": pinned.taxid,
-                    "pinned_source": pinned.source,
-                }
-            )
-            continue
-        findings.append(
+    assays = []
+    for a in sorted(b2_2["assays"], key=lambda a: a["dms_id"]):
+        doi = a.get("doi")
+        work = works.get(doi, {"doi": doi, "retrieved": False, "blocker": "no DOI in B2.2"})
+        urls = [entry["url"] for entry in work.get("licenses", []) if entry.get("url")]
+        assays.append(
             {
-                "uniprot_id": name,
-                "status": "agrees" if live["taxid"] == pinned.taxid else "DISAGREES",
-                "pinned_taxid": pinned.taxid,
-                "live_taxid": live["taxid"],
-                "live_name": live["name"],
+                "dms_id": a["dms_id"],
+                "uniprot_id": a["uniprot_id"],
+                "organism": a["organism"],
+                "family": a["family"],
+                "order": a["order"],
+                "arm": {
+                    "excluded_by": a["excluded_by"],
+                    "undecidable_by": sorted(a["undecidable_by"]),
+                },
+                "within_study_positive_control": a["dms_id"] in control,
+                "control_because": control.get(a["dms_id"], {}).get("retained_because"),
+                "measurement": {
+                    "selection_type": a["selection_type"],
+                    "msa_depth_category": a.get("msa_depth_category"),
+                    "n_variants": a["n_variants"],
+                    "seq_len": a["seq_len"],
+                },
+                "provenance": {
+                    "collection": "ProteinGym",
+                    "version": evidence["release"]["version"],
+                    "read_from": "DMS_ProteinGym_substitutions.zip",
+                    "key": f"{a['dms_id']}.csv",
+                },
+                "source": {
+                    "doi": doi,
+                    "url": f"https://doi.org/{doi}" if doi else None,
+                    "publisher": work.get("publisher"),
+                    "container": work.get("container"),
+                    "title": work.get("title"),
+                    "year": work.get("year"),
+                    "deposited_licences": work.get("licenses", []),
+                    "article_terms": classify(urls),
+                },
             }
         )
-    return findings
 
-
-def lineages(taxids: set[int], taxdump: str | Path) -> dict[int, dict[str, str]]:
-    """Family and order for each taxid, from the pinned NCBI dump."""
-    names: dict[int, str] = {}
-    parent: dict[int, int] = {}
-    rank: dict[int, str] = {}
-    with zipfile.ZipFile(Path(taxdump)) as archive:
-        with archive.open("names.dmp") as handle:
-            for raw in handle:
-                fields = [c.strip() for c in raw.decode("utf-8", "replace").split("\t|")]
-                if len(fields) > 3 and fields[3] == "scientific name":
-                    names[int(fields[0])] = fields[1]
-        with archive.open("nodes.dmp") as handle:
-            taxonomy = seeds.Taxonomy.from_nodes_dmp(handle)
-    parent, rank = taxonomy.parent, taxonomy.rank
-    del parent, rank
-
-    out: dict[int, dict[str, str]] = {}
-    for taxid in sorted(taxids):
-        placed: dict[str, str] = {}
-        for level in ("family", "order"):
-            node = taxonomy.ancestor_at_rank(taxid, level)
-            if node is not None:
-                placed[level] = names.get(node, str(node))
-        out[taxid] = placed
-    return out
-
-
-def build(
-    reference: str | Path,
-    taxdump: str | Path,
-    *,
-    specs: Path,
-    verify: bool,
-) -> dict[str, Any]:
-    all_assays = proteingym.load_reference(reference)
-    viral = [a for a in all_assays if a.is_viral]
-
-    denylists: dict[str, Denylist] = {}
-    for spec in sorted(specs.glob("*.yaml")):
-        if spec.stem in SIMILARITY_POLICIES:
-            continue
-        policy = policyspec.load_policy(str(spec))
-        denylists[spec.stem] = Denylist.from_policy(policy, name=spec.stem)
-
-    placed_lineage = lineages({o.taxid for o in assays.VIRAL_ASSAY_ORGANISMS.values()}, taxdump)
-    placements = [
-        assays.place(
-            a,
-            lineage=placed_lineage[assays.VIRAL_ASSAY_ORGANISMS[a.uniprot_id].taxid],
-            denylists=denylists,
-            similarity_policies=SIMILARITY_POLICIES,
-        )
-        for a in viral
-    ]
-
-    policies = sorted(denylists)
     return {
         "task": TASK,
-        "design_ref": "§B2, §7",
-        "question": (
-            "Do the published collections already give sufficient n for the §B5 homology "
-            "regression, or must the viral set be extended? (D-010)"
+        "design_ref": "§5 deliverable 2, §B2",
+        "what_this_is": (
+            "the provenance and licence register for every assay Phase B analyses. Generated by "
+            "tools/assay_register.py from B2.2's curation, B2.3's control set and the licence "
+            "evidence in assays/licences.json. Do not hand-edit"
         ),
-        "collection": {
-            "name": "ProteinGym",
-            "version": proteingym.RELEASE.version,
-            "reference_file": proteingym.RELEASE.reference_file,
-            "assays_total": len(all_assays),
-            "assays_viral": len(viral),
-            "licence": (
-                "ProteinGym ships under its maintainers' terms and each assay's underlying "
-                "data under its own publication's; the per-assay DOI is carried here and "
-                "B2.4 publishes the licence register."
-            ),
-        },
-        "inclusion_criteria": list(INCLUSION_CRITERIA),
-        "organism_resolution": {
-            "primary": "UniProt entry organism",
-            "fallback": "benchmark source_organism matched against the pinned NCBI taxonomy",
-            "taxonomy": {
-                "date": seeds.TAXDUMP_2023_04.date,
-                "sha256": seeds.TAXDUMP_2023_04.sha256,
-                "url": seeds.TAXDUMP_2023_04.url,
-            },
-            "deleted_from_uniprot": sorted(
-                name
-                for name, o in assays.VIRAL_ASSAY_ORGANISMS.items()
-                if o.source == "proteingym-name"
-            ),
-            "verification": verify_pins(sorted(assays.VIRAL_ASSAY_ORGANISMS)) if verify else [],
-        },
-        "policies_decidable_by_taxon": policies,
-        "policies_not_decidable_by_taxon": dict(sorted(SIMILARITY_POLICIES.items())),
-        "assays": [p.to_dict() for p in placements],
-        "extension_search": EXTENSION_SEARCH,
-        "n_assessment": {policy: assays.usable_n(placements, policy) for policy in policies},
-        "cross_tabs": {
-            policy: {
-                attribute: assays.cross_tab(placements, policy, attribute)
-                for attribute in ("selection_type", "msa_depth_category")
-            }
-            for policy in policies
-        },
+        "evidence_retrieved_on": evidence["retrieved_on"],
+        "redistribution": REDISTRIBUTION,
+        "licence_relied_on": deposit_position(evidence),
+        "coverage": coverage(assays),
+        "citation": citation(assays, evidence),
+        "assays": assays,
     }
 
 
-def summarise(doc: dict[str, Any]) -> str:
-    policy = doc["policies_decidable_by_taxon"][0]
-    n = doc["n_assessment"][policy]
-    col = doc["collection"]
+def coverage(assays: list[dict[str, Any]]) -> dict[str, Any]:
+    positions: dict[str, int] = {}
+    for a in assays:
+        key = a["source"]["article_terms"]["position"]
+        positions[key] = positions.get(key, 0) + 1
+    return {
+        "assays": len(assays),
+        "studies": len({a["source"]["doi"] for a in assays}),
+        "organisms": len({a["organism"]["taxid"] for a in assays}),
+        "controls": sum(1 for a in assays if a["within_study_positive_control"]),
+        "with_a_doi": sum(1 for a in assays if a["source"]["doi"]),
+        "article_terms": dict(sorted(positions.items())),
+        "note": (
+            "every assay is covered by the deposit's grant, which is what this project relies "
+            "on. The article-terms breakdown describes the source publications and is carried "
+            "for the reader, not as a constraint this project is operating under"
+        ),
+    }
+
+
+def citation(assays: list[dict[str, Any]], evidence: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "cite_all_three": [
+            "the collection: Notin et al., ProteinGym, Advances in Neural Information "
+            "Processing Systems 36 (2023)",
+            f"the pinned release as data: {evidence['deposit']['doi']} "
+            f"(ProteinGym {evidence['release']['version']}, {evidence['deposit']['url']})",
+            "the study that produced the assay, by the DOI carried on its entry below",
+        ],
+        "why": (
+            "citing only the collection drops the groups whose experiments the analysis rests "
+            "on, and citing only the studies loses the pinned release a result regenerates from"
+        ),
+        "this_register": (
+            "cite the register by its task id and the commit it was generated at, which the run "
+            "manifest in artifacts/b2-4 records"
+        ),
+    }
+
+
+def markdown(reg: dict[str, Any]) -> str:
+    cov, lic = reg["coverage"], reg["licence_relied_on"]
     lines = [
-        "# B2.2 — the viral assay register",
+        "# The assay provenance and licence register",
         "",
-        f"{col['name']} {col['version']}: {col['assays_total']} assays, "
-        f"**{col['assays_viral']} viral**. Organisms resolved against UniProt and the pinned "
-        f"NCBI taxonomy of {doc['organism_resolution']['taxonomy']['date']}.",
+        "Generated by `tools/assay_register.py`. Do not hand-edit.",
         "",
-        f"## The contrast §B5 needs, under `{policy}`",
+        f"{cov['assays']} assays, {cov['studies']} studies, {cov['organisms']} organisms, "
+        f"{cov['controls']} of them the within-study positive control.",
         "",
-        f"- excluded arm: **{n['excluded_arm']}** assays across "
-        f"{n['distinct_families_excluded']} families",
-        f"- retained arm: **{n['retained_arm']}** assays across "
-        f"{n['distinct_families_retained']} families",
+        "## The licence this project relies on",
         "",
-        "## Covariate overlap — what the design can and cannot identify",
-        "",
-    ]
-    for attribute, overlap in n["covariate_overlap"].items():
-        lines.append(f"**{attribute}**")
-        lines.append(f"- in both arms: {overlap['in_both_arms'] or 'none'}")
-        lines.append(f"- only in the excluded arm: {overlap['only_in_excluded_arm'] or 'none'}")
-        lines.append(f"- only in the retained arm: {overlap['only_in_retained_arm'] or 'none'}")
-        lines.append("")
-    lines += [
-        "## Models whose status this register cannot decide",
+        f"The pinned release was downloaded from `{lic['downloaded_from']}`, which states no "
+        f"licence. The same release is deposited at [{lic['deposit_doi']}]({lic['deposit_url']}) "
+        f"under **{lic['licence']}**, and the assay archive's digest there is identical to the "
+        f"pinned copy, so the deposit's grant is the grant on the bytes this project read.",
         "",
     ]
-    for name, why in doc["policies_not_decidable_by_taxon"].items():
-        lines.append(f"- **{name}** — {why}")
-    lines += ["## The extension search", ""]
-    for s in doc["extension_search"]["sources_searched"]:
-        lines.append(f"- **{s['source']}** ({s['how']}) — {s['found']}")
-    lines += ["", f"**Verdict.** {doc['extension_search']['verdict']}", ""]
-    deleted = doc["organism_resolution"]["deleted_from_uniprot"]
+    lines += [f"- {limit}" for limit in lic["limits"]]
     lines += [
         "",
-        "## Provenance notes",
+        "## What is published here, and what is not",
         "",
-        f"- {len(deleted)} of the benchmark's viral entries have been **deleted from UniProt** "
-        f'("not part of a reference proteome"): {", ".join(deleted)}. Their organisms come '
-        "from the benchmark's own string, matched against the pinned taxonomy.",
+        "Published:",
+        *[f"- {x}" for x in REDISTRIBUTION["published_by_this_project"]],
         "",
-        "| assay | family | order | readout | MSA depth | variants | DOI |",
-        "|---|---|---|---|---|---|---|",
+        "Not published:",
+        *[f"- {x}" for x in REDISTRIBUTION["not_published_by_this_project"]],
+        "",
+        "## The assays",
+        "",
+        "| assay | organism | family | arm | control | n | study | article terms |",
+        "|---|---|---|---|---|---:|---|---|",
     ]
-    for a in sorted(doc["assays"], key=lambda a: (a["family"], a["dms_id"])):
-        lines.append(
-            f"| {a['dms_id']} | {a['family']} | {a['order']} | {a['selection_type']} | "
-            f"{a['msa_depth_category']} | {a['n_variants']:,} | {a['doi']} |"
+    for a in reg["assays"]:
+        excluded = a["arm"]["excluded_by"]
+        arm = (
+            "excluded"
+            if all(excluded.values())
+            else "retained"
+            if not any(excluded.values())
+            else "readings disagree"
         )
-    return "\n".join(lines) + "\n"
+        doi = a["source"]["doi"] or "—"
+        lines.append(
+            f"| `{a['dms_id']}` | {a['organism']['name']} | {a['family']} | {arm} | "
+            f"{'yes' if a['within_study_positive_control'] else '—'} | "
+            f"{a['measurement']['n_variants']} | [{doi}](https://doi.org/{doi}) | "
+            f"{a['source']['article_terms']['position']} |"
+        )
+    lines += [
+        "",
+        "## Article terms, by position",
+        "",
+        *[f"- {k}: {v}" for k, v in reg["coverage"]["article_terms"].items()],
+        "",
+        reg["coverage"]["note"][0].upper() + reg["coverage"]["note"][1:] + ".",
+        "",
+        "## How to cite",
+        "",
+        *[f"{i + 1}. {x}" for i, x in enumerate(reg["citation"]["cite_all_three"])],
+        "",
+        reg["citation"]["why"][0].upper() + reg["citation"]["why"][1:] + ".",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def check(reg: dict[str, Any], evidence: dict[str, Any]) -> list[str]:
+    """Everything that would make the register wrong rather than merely incomplete."""
+    problems = []
+    if not reg["assays"]:
+        problems.append("the register has no assays")
+
+    seen: set[str] = set()
+    for a in reg["assays"]:
+        key = a["dms_id"]
+        if key in seen:
+            problems.append(f"{key}: listed twice")
+        seen.add(key)
+        if not a["source"]["doi"]:
+            problems.append(f"{key}: no source DOI, so the assay cannot be traced to a study")
+        if a["source"]["article_terms"]["position"] == "unclassified":
+            problems.append(
+                f"{key}: an unrecognised licence URL "
+                f"{a['source']['article_terms']['unclassified']}, which has to be read and "
+                f"classified rather than left for a reader to interpret"
+            )
+        if a["within_study_positive_control"] and not a["control_because"]:
+            problems.append(f"{key}: tagged a control with no reason recorded")
+
+    archive = next(
+        (r for r in evidence["deposit_match"] if r["file"] == "DMS_ProteinGym_substitutions.zip"),
+        None,
+    )
+    if archive is None:
+        problems.append("the licence evidence does not cover the assay archive")
+    elif archive["match"] != "digest":
+        problems.append(
+            "the assay archive is not established to be the deposit's bytes "
+            f"({archive['match']}), so the deposit's licence is not shown to apply to it. "
+            "Re-run tools/assay_licences.py with --verify DMS_ProteinGym_substitutions.zip"
+        )
+
+    if reg["licence_relied_on"]["licence"] != "mit-license":
+        problems.append(
+            f"the deposit's licence is now {reg['licence_relied_on']['licence']!r}, not the MIT "
+            "grant this register was written against. Re-read it before relying on the register"
+        )
+    unreadable = [w["doi"] for w in evidence["works"] if not w.get("retrieved")]
+    if unreadable:
+        problems.append(f"licence evidence unreadable for: {', '.join(unreadable)}")
+    return problems
+
+
+def durable_for(out: Path) -> str | None:
+    """The durable prefix, **or None for a run that is not the deliverable** (D-224)."""
+    if out.resolve() == CANONICAL_OUT.resolve():
+        return objectstore.durable_results("b2-4")
+    print(f"not publishing: --out {out} is not {CANONICAL_OUT}", file=sys.stderr)
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reference", default="data/proteingym/v1.3/DMS_substitutions.csv")
-    parser.add_argument("--taxdump", required=True, help="the pinned taxdmp_2023-04-01.zip")
-    parser.add_argument("--specs", default="policies/specs")
-    parser.add_argument("--outdir", default="artifacts/b2-2")
-    parser.add_argument(
-        "--no-verify",
-        action="store_true",
-        help="skip re-resolving the pinned organisms against UniProt (offline runs)",
-    )
-    parser.add_argument("--allow-dirty", action="store_true")
-    parser.add_argument("--show", action="store_true")
+    parser.add_argument("--check", action="store_true", help="validate the committed register")
+    parser.add_argument("--out", default=CANONICAL_OUT, type=Path)
+    parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     args = parser.parse_args(argv)
 
-    outdir = Path(args.outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
-    try:
-        with run(
-            TASK,
-            seed=SEED,
-            outdir=outdir,
-            allow_dirty=args.allow_dirty,
-            manifest_name="run-register.json",
-            durable=objectstore.durable_results("b2-2"),
-        ) as manifest:
-            manifest.parameter("proteingym_version", proteingym.RELEASE.version)
-            manifest.parameter("taxdump_date", seeds.TAXDUMP_2023_04.date)
-            manifest.parameter("similarity_policies", sorted(SIMILARITY_POLICIES))
-            manifest.input_file(args.reference, role="proteingym-reference")
-            manifest.input_file(args.taxdump, role="ncbi-taxdump")
-            for spec in sorted(Path(args.specs).glob("*.yaml")):
-                manifest.input_file(spec, role="policy-spec")
+    evidence = json.loads(EVIDENCE.read_text())
 
-            doc = build(
-                args.reference,
-                args.taxdump,
-                specs=Path(args.specs),
-                verify=not args.no_verify,
-            )
-            disagreements = [
-                f for f in doc["organism_resolution"]["verification"] if f["status"] == "DISAGREES"
-            ]
-            if disagreements:
-                print(
-                    "refused: UniProt now disagrees with the pinned organisms for "
-                    f"{[f['uniprot_id'] for f in disagreements]}. Settle it as a decision "
-                    "rather than adopting the new value mid-run.",
-                    file=sys.stderr,
-                )
-                return 2
+    if args.check:
+        if not REGISTER.exists():
+            print(f"{REGISTER} is missing; run tools/assay_register.py", file=sys.stderr)
+            return 1
+        problems = check(json.loads(REGISTER.read_text()), evidence)
+        for problem in problems:
+            print(f"problem: {problem}", file=sys.stderr)
+        print(f"checked {REGISTER.name}, {len(problems)} problems")
+        return 1 if problems else 0
 
-            path = outdir / "register.json"
-            path.write_text(json.dumps(doc, indent=1, sort_keys=False) + "\n")
-            manifest.output_file(path, role="assay-register")
+    reg = build(json.loads(B2_2.read_text()), json.loads(B2_3.read_text()), evidence)
+    out: Path = args.out
+    out.mkdir(parents=True, exist_ok=True)
+    destination = durable_for(out)
+    with run(
+        TASK,
+        seed=SEED,
+        outdir=out,
+        allow_dirty=args.allow_dirty,
+        repo=REPO,
+        manifest_name="run-register.json",
+        durable=destination,
+        durable_exempt=None if destination else "rehearsal: --out is not the canonical directory",
+    ) as m:
+        for path in (B2_2, B2_3, EVIDENCE):
+            m.input_file(path, role="input")
+        m.parameter("zenodo_record", evidence["deposit"]["record"])
+        REGISTER.write_text(json.dumps(reg, indent=1, sort_keys=True) + "\n")
+        REGISTER_MD.write_text(markdown(reg) + "\n")
+        m.output_file(REGISTER, role="register")
+        m.output_file(REGISTER_MD, role="register-markdown")
 
-            md = outdir / "register.md"
-            md.write_text(summarise(doc))
-            manifest.output_file(md, role="summary")
-
-            policy = doc["policies_decidable_by_taxon"][0]
-            n = doc["n_assessment"][policy]
-            manifest.note(
-                f"{doc['collection']['assays_viral']} viral assays: {n['excluded_arm']} in the "
-                f"excluded arm and {n['retained_arm']} in the retained arm under {policy}."
-            )
-    except ReproError as exc:
-        print(f"refused: {exc}", file=sys.stderr)
-        return 2
-    except assays.AssayRegisterError as exc:
-        print(f"refused: {exc}", file=sys.stderr)
-        return 2
-
-    if args.show:
-        print((outdir / "register.md").read_text())
-    return 0
+    problems = check(reg, evidence)
+    for problem in problems:
+        print(f"problem: {problem}", file=sys.stderr)
+    print(json.dumps(reg["coverage"], indent=1))
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":

@@ -269,6 +269,10 @@ specs-check = "python3 tools/specs.py"
 decisions-check = "python3 tools/decisions.py"
 # Validate the Phase B model inventory: every checkpoint's claims cite a retrieved source.
 models-check = "python3 tools/model_inventory.py --check"
+# Validate B2.4's assay provenance and licence register against its committed evidence: a
+# traceable DOI per assay, an unrecognised licence URL, and whether the deposit whose grant the
+# project relies on is still established to be the bytes it read. See assays/README.md.
+assays-check = "python3 tools/assay_register.py --check"
 # Render each policy as prose, for eyeballing a spec against its quoted source.
 specs = "python3 tools/specs.py --describe"
 lint = "ruff check ."
@@ -283,5 +287,6 @@ check = { depends-on = [
   "policies-check",
   "specs-check",
   "models-check",
+  "assays-check",
   "test",
 ] }

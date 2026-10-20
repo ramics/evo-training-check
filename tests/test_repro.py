@@ -425,6 +425,10 @@ class TestDurability:
 #: the local-only default visible. A legitimately exempt new tool goes here with a reason in
 #: the same commit, so adding one is a deliberate, reviewed act rather than a default.
 EXEMPT_CALL_SITES: set[str] = {
+    # B2.4's register, conditional on `--out` exactly as the three below are. The register is a
+    # committed file, so a rehearsal that published would put a draft of a deliverable under the
+    # real prefix permanently; pointing `--out` at `artifacts/b2-4` publishes as normal.
+    "assay_register.py",
     # A2.5's marker arm. The exemption is **conditional and is the fix for a real incident**,
     # not a carve-out for the deliverable: `durable_for` publishes only when `--out` is the
     # canonical `artifacts/a2-5`, and claims the exemption otherwise. A probe run from a scratch
@@ -580,6 +584,12 @@ NOT_PIPELINES: dict[str, str] = {
     "policies.py": "verifies the quotes in policies/ against their sources; writes nothing",
     "specquotes.py": "checks spec quotes against the captures; writes nothing",
     "specs.py": "validates the filter policy specs; writes nothing",
+    "assay_licences.py": (
+        "acquires B2.4's licence evidence into assays/licences.json, which is committed. It is "
+        "the one online step in B2.4 and is deliberately outside the guard: a run(...) block "
+        "fetching the web would make the register's inputs change under it, and the register "
+        "that does run under the guard reads this file offline"
+    ),
     # EC2 launchers. The measurement happens on the instance and is published to object
     # storage from there; the launcher only tars the payload and *downloads* finished
     # artefacts into `artifacts/`, which `metrics/` describes as a cache.

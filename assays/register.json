@@ -1,0 +1,2068 @@
+{
+ "assays": [
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "A0A140D2T1_ZIKV_Sourisseau_2019",
+   "family": "Flaviviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 9576,
+    "selection_type": "Growth",
+    "seq_len": 3423
+   },
+   "order": "Amarillovirales",
+   "organism": {
+    "accession": null,
+    "name": "Zika virus",
+    "note": "UniProt deleted A0A140D2T1",
+    "source": "proteingym-name",
+    "taxid": 64320
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "A0A140D2T1_ZIKV_Sourisseau_2019.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permits_redistribution": false,
+     "position": "restrictive",
+     "restrictive": {
+      "https://journals.asm.org/non-commercial-tdm-license": "non-commercial, text and data mining only"
+     }
+    },
+    "container": "Journal of Virology",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://journals.asm.org/non-commercial-tdm-license"
+     }
+    ],
+    "doi": "10.1128/JVI.01291-19",
+    "publisher": "American Society for Microbiology",
+    "title": "Deep Mutational Scanning Comprehensively Maps How Zika Envelope Protein Mutations Affect Viral Growth and Antibody Escape",
+    "url": "https://doi.org/10.1128/JVI.01291-19",
+    "year": 2019
+   },
+   "uniprot_id": "A0A140D2T1_ZIKV",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "A0A192B1T2_9HIV1_Haddox_2018",
+   "family": "Retroviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 12577,
+    "selection_type": "Growth",
+    "seq_len": 852
+   },
+   "order": "Ortervirales",
+   "organism": {
+    "accession": null,
+    "name": "Human immunodeficiency virus 1",
+    "note": "UniProt deleted A0A192B1T2",
+    "source": "proteingym-name",
+    "taxid": 11676
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "A0A192B1T2_9HIV1_Haddox_2018.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "eLife",
+    "deposited_licences": [
+     {
+      "content_version": "am",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.7554/eLife.34420",
+    "publisher": "eLife Sciences Publications, Ltd",
+    "title": "Mapping mutational effects along the evolutionary landscape of HIV envelope",
+    "url": "https://doi.org/10.7554/eLife.34420",
+    "year": 2018
+   },
+   "uniprot_id": "A0A192B1T2_9HIV1",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "A0A2Z5U3Z0_9INFA_Doud_2016",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 10715,
+    "selection_type": "Growth",
+    "seq_len": 565
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": null,
+    "name": "Influenza A virus (A/WSN/1933(H1N1))",
+    "note": "UniProt deleted A0A2Z5U3Z0",
+    "source": "proteingym-name",
+    "taxid": 382835
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "A0A2Z5U3Z0_9INFA_Doud_2016.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Viruses",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.3390/v8060155",
+    "publisher": "MDPI AG",
+    "title": "Accurate Measurement of the Effects of All Amino-Acid Mutations on Influenza Hemagglutinin",
+    "url": "https://doi.org/10.3390/v8060155",
+    "year": 2016
+   },
+   "uniprot_id": "A0A2Z5U3Z0_9INFA",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "A0A2Z5U3Z0_9INFA_Wu_2014",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 2350,
+    "selection_type": "Growth",
+    "seq_len": 565
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": null,
+    "name": "Influenza A virus (A/WSN/1933(H1N1))",
+    "note": "UniProt deleted A0A2Z5U3Z0",
+    "source": "proteingym-name",
+    "taxid": 382835
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "A0A2Z5U3Z0_9INFA_Wu_2014.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/3.0/",
+      "https://creativecommons.org/licenses/by/3.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Scientific Reports",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/3.0/"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/3.0/"
+     }
+    ],
+    "doi": "10.1038/srep04942",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "High-throughput profiling of influenza A virus hemagglutinin gene at single-nucleotide resolution",
+    "url": "https://doi.org/10.1038/srep04942",
+    "year": 2014
+   },
+   "uniprot_id": "A0A2Z5U3Z0_9INFA",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "A4D664_9INFA_Soh_2019",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 14421,
+    "selection_type": "Growth",
+    "seq_len": 759
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": null,
+    "name": "Influenza A virus (A/green-winged teal/Ohio/175/1986(H2N1))",
+    "note": "UniProt deleted A4D664",
+    "source": "proteingym-name",
+    "taxid": 370139
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "A4D664_9INFA_Soh_2019.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "eLife",
+    "deposited_licences": [
+     {
+      "content_version": "am",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.7554/eLife.45079",
+    "publisher": "eLife Sciences Publications, Ltd",
+    "title": "Comprehensive mapping of adaptation of the avian influenza polymerase protein PB2 to humans",
+    "url": "https://doi.org/10.7554/eLife.45079",
+    "year": 2019
+   },
+   "uniprot_id": "A4D664_9INFA",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "C6KNH7_9INFA_Lee_2018",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 10754,
+    "selection_type": "Growth",
+    "seq_len": 566
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": "C6KNH7",
+    "name": "Influenza A virus",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 654811
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "C6KNH7_9INFA_Lee_2018.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permits_redistribution": false,
+     "position": "restrictive",
+     "restrictive": {
+      "https://creativecommons.org/licenses/by-nc-nd/4.0/": "no derivatives, non-commercial"
+     }
+    },
+    "container": "Proceedings of the National Academy of Sciences",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+     }
+    ],
+    "doi": "10.1073/pnas.1806133115",
+    "publisher": "National Academy of Sciences",
+    "title": "Deep mutational scanning of hemagglutinin helps predict evolutionary fates of human H3N2 influenza variants",
+    "url": "https://doi.org/10.1073/pnas.1806133115",
+    "year": 2018
+   },
+   "uniprot_id": "C6KNH7_9INFA",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "CAPSD_AAV2S_Sinai_2021",
+   "family": "Parvoviridae",
+   "measurement": {
+    "msa_depth_category": "Low",
+    "n_variants": 42328,
+    "selection_type": "(not stated)",
+    "seq_len": 735
+   },
+   "order": "Piccovirales",
+   "organism": {
+    "accession": "P03135",
+    "name": "Adeno-associated virus 2 (isolate Srivastava/1982)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 648242
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "CAPSD_AAV2S_Sinai_2021.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": null,
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.1101/2021.04.16.440236",
+    "publisher": "openRxiv",
+    "title": "Generative AAV capsid diversification by latent interpolation",
+    "url": "https://doi.org/10.1101/2021.04.16.440236",
+    "year": 2021
+   },
+   "uniprot_id": "CAPSD_AAV2S",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "ENV_HV1B9_DuenasDecamp_2016",
+   "family": "Retroviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 375,
+    "selection_type": "Growth",
+    "seq_len": 853
+   },
+   "order": "Ortervirales",
+   "organism": {
+    "accession": "Q73372",
+    "name": "Human immunodeficiency virus type 1 group M subtype B (strain 89.6)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 401671
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "ENV_HV1B9_DuenasDecamp_2016.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "PLOS Pathogens",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.1371/journal.ppat.1005988",
+    "publisher": "Public Library of Science (PLoS)",
+    "title": "Saturation Mutagenesis of the HIV-1 Envelope CD4 Binding Loop Reveals Residues Controlling Distinct Trimer Conformations",
+    "url": "https://doi.org/10.1371/journal.ppat.1005988",
+    "year": 2016
+   },
+   "uniprot_id": "ENV_HV1B9",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "ENV_HV1BR_Haddox_2016",
+   "family": "Retroviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 12863,
+    "selection_type": "Growth",
+    "seq_len": 861
+   },
+   "order": "Ortervirales",
+   "organism": {
+    "accession": "P03377",
+    "name": "Human immunodeficiency virus type 1 group M subtype B (isolate BRU/LAI)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 11686
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "ENV_HV1BR_Haddox_2016.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "PLOS Pathogens",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.1371/journal.ppat.1006114",
+    "publisher": "Public Library of Science (PLoS)",
+    "title": "Experimental Estimation of the Effects of All Amino-Acid Mutations to HIV\u2019s Envelope Protein on Viral Replication in Cell Culture",
+    "url": "https://doi.org/10.1371/journal.ppat.1006114",
+    "year": 2016
+   },
+   "uniprot_id": "ENV_HV1BR",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": false,
+     "evo1-literal": false,
+     "evo1-strict": false
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": "no family node and no order node, so neither denylist rule can fire",
+   "dms_id": "HCP_LAMBD_Tsuboyama_2023_2L6Q",
+   "family": "(no node at this rank)",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 1040,
+    "selection_type": "cDNA display proteolysis",
+    "seq_len": 55
+   },
+   "order": "(no node at this rank)",
+   "organism": {
+    "accession": "P68660",
+    "name": "Escherichia phage lambda",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 2681611
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "HCP_LAMBD_Tsuboyama_2023_2L6Q.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0",
+      "https://creativecommons.org/licenses/by/4.0"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Nature",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     }
+    ],
+    "doi": "10.1038/s41586-023-06328-6",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "Mega-scale experimental analysis of protein folding stability in biology and design",
+    "url": "https://doi.org/10.1038/s41586-023-06328-6",
+    "year": 2023
+   },
+   "uniprot_id": "HCP_LAMBD",
+   "within_study_positive_control": true
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "I6TAH8_I68A0_Doud_2015",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 9462,
+    "selection_type": "Growth",
+    "seq_len": 498
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": "I6TAH8",
+    "name": "Influenza A virus (strain A/Aichi/2/1968 H3N2)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 387139
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "I6TAH8_I68A0_Doud_2015.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "note": "the publisher deposited no licence with Crossref, so the article's terms are not established from this evidence",
+     "permits_redistribution": null,
+     "position": "none deposited"
+    },
+    "container": "Molecular Biology and Evolution",
+    "deposited_licences": [],
+    "doi": "10.1093/molbev/msv167",
+    "publisher": "Oxford University Press (OUP)",
+    "title": "Site-Specific Amino Acid Preferences Are Mostly Conserved in Two Closely Related Protein Homologs",
+    "url": "https://doi.org/10.1093/molbev/msv167",
+    "year": 2015
+   },
+   "uniprot_id": "I6TAH8_I68A0",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "NCAP_I34A1_Doud_2015",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 9462,
+    "selection_type": "Growth",
+    "seq_len": 498
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": "P03466",
+    "name": "Influenza A virus (strain A/Puerto Rico/8/1934 H1N1)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 211044
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "NCAP_I34A1_Doud_2015.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "note": "the publisher deposited no licence with Crossref, so the article's terms are not established from this evidence",
+     "permits_redistribution": null,
+     "position": "none deposited"
+    },
+    "container": "Molecular Biology and Evolution",
+    "deposited_licences": [],
+    "doi": "10.1093/molbev/msv167",
+    "publisher": "Oxford University Press (OUP)",
+    "title": "Site-Specific Amino Acid Preferences Are Mostly Conserved in Two Closely Related Protein Homologs",
+    "url": "https://doi.org/10.1093/molbev/msv167",
+    "year": 2015
+   },
+   "uniprot_id": "NCAP_I34A1",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "NRAM_I33A0_Jiang_2016",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 298,
+    "selection_type": "Growth",
+    "seq_len": 453
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": "P03470",
+    "name": "Influenza A virus (strain A/Wilson-Smith/1933 H1N1)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 381518
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "NRAM_I33A0_Jiang_2016.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permits_redistribution": false,
+     "position": "restrictive",
+     "restrictive": {
+      "http://www.elsevier.com/open-access/userlicense/1.0/": "publisher's own open-access terms, not a standard public licence",
+      "https://www.elsevier.com/legal/tdmrep-license": "text and data mining only",
+      "https://www.elsevier.com/tdm/userlicense/1.0/": "text and data mining only"
+     }
+    },
+    "container": "Journal of Molecular Biology",
+    "deposited_licences": [
+     {
+      "content_version": "am",
+      "url": "http://www.elsevier.com/open-access/userlicense/1.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "https://www.elsevier.com/legal/tdmrep-license"
+     },
+     {
+      "content_version": "tdm",
+      "url": "https://www.elsevier.com/tdm/userlicense/1.0/"
+     }
+    ],
+    "doi": "10.1016/j.jmb.2015.11.027",
+    "publisher": "Elsevier BV",
+    "title": "A Balance between Inhibitor Binding and Substrate Processing Confers Influenza Drug Resistance",
+    "url": "https://doi.org/10.1016/j.jmb.2015.11.027",
+    "year": 2016
+   },
+   "uniprot_id": "NRAM_I33A0",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "PA_I34A1_Wu_2015",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 1820,
+    "selection_type": "Growth",
+    "seq_len": 716
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": "P03433",
+    "name": "Influenza A virus (strain A/Puerto Rico/8/1934 H1N1)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 211044
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "PA_I34A1_Wu_2015.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "PLOS Genetics",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.1371/journal.pgen.1005310",
+    "publisher": "Public Library of Science (PLoS)",
+    "title": "Functional Constraint Profiling of a Viral Protein Reveals Discordance of Evolutionary Conservation and Functionality",
+    "url": "https://doi.org/10.1371/journal.pgen.1005310",
+    "year": 2015
+   },
+   "uniprot_id": "PA_I34A1",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "POLG_CXB3N_Mattenberger_2021",
+   "family": "Picornaviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 15711,
+    "selection_type": "Growth",
+    "seq_len": 2185
+   },
+   "order": "Picornavirales",
+   "organism": {
+    "accession": "P03313",
+    "name": "Coxsackievirus B3 (strain Nancy)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 103903
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "POLG_CXB3N_Mattenberger_2021.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "eLife",
+    "deposited_licences": [
+     {
+      "content_version": "am",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.7554/eLife.64256",
+    "publisher": "eLife Sciences Publications, Ltd",
+    "title": "Globally defining the effects of mutations in a picornavirus capsid",
+    "url": "https://doi.org/10.7554/eLife.64256",
+    "year": 2021
+   },
+   "uniprot_id": "POLG_CXB3N",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "POLG_DEN26_Suphatrakul_2023",
+   "family": "Flaviviridae",
+   "measurement": {
+    "msa_depth_category": "Low",
+    "n_variants": 16897,
+    "selection_type": "Growth",
+    "seq_len": 900
+   },
+   "order": "Amarillovirales",
+   "organism": {
+    "accession": "P29990",
+    "name": "Dengue virus type 2 (strain Thailand/16681/1984)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 31634
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "POLG_DEN26_Suphatrakul_2023.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "note": "the publisher deposited no licence with Crossref, so the article's terms are not established from this evidence",
+     "permits_redistribution": null,
+     "position": "none deposited"
+    },
+    "container": null,
+    "deposited_licences": [],
+    "doi": "10.1101/2023.03.07.531617",
+    "publisher": "openRxiv",
+    "title": "Functional analysis of flavivirus replicase by deep mutational scanning of dengue NS5",
+    "url": "https://doi.org/10.1101/2023.03.07.531617",
+    "year": 2023
+   },
+   "uniprot_id": "POLG_DEN26",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "POLG_HCVJF_Qi_2014",
+   "family": "Flaviviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 1630,
+    "selection_type": "Growth",
+    "seq_len": 3033
+   },
+   "order": "Amarillovirales",
+   "organism": {
+    "accession": "Q99IB8",
+    "name": "Hepatitis C virus genotype 2a (isolate JFH-1)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 356411
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "POLG_HCVJF_Qi_2014.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/publicdomain/zero/1.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "PLoS Pathogens",
+    "deposited_licences": [
+     {
+      "content_version": "unspecified",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+     }
+    ],
+    "doi": "10.1371/journal.ppat.1004064",
+    "publisher": "Public Library of Science (PLoS)",
+    "title": "A Quantitative High-Resolution Genetic Profile Rapidly Identifies Sequence Determinants of Hepatitis C Viral Fitness and Drug Sensitivity",
+    "url": "https://doi.org/10.1371/journal.ppat.1004064",
+    "year": 2014
+   },
+   "uniprot_id": "POLG_HCVJF",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "POLG_PESV_Tsuboyama_2023_2MXD",
+   "family": "Caliciviridae",
+   "measurement": {
+    "msa_depth_category": "High",
+    "n_variants": 5130,
+    "selection_type": "cDNA display proteolysis",
+    "seq_len": 53
+   },
+   "order": "Picornavirales",
+   "organism": {
+    "accession": "Q9QEJ5",
+    "name": "Porcine enteric sapovirus (isolate Swine/United States/Cowden/1980)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 523795
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "POLG_PESV_Tsuboyama_2023_2MXD.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0",
+      "https://creativecommons.org/licenses/by/4.0"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Nature",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     }
+    ],
+    "doi": "10.1038/s41586-023-06328-6",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "Mega-scale experimental analysis of protein folding stability in biology and design",
+    "url": "https://doi.org/10.1038/s41586-023-06328-6",
+    "year": 2023
+   },
+   "uniprot_id": "POLG_PESV",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "Q2N0S5_9HIV1_Haddox_2018",
+   "family": "Retroviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 12729,
+    "selection_type": "Growth",
+    "seq_len": 860
+   },
+   "order": "Ortervirales",
+   "organism": {
+    "accession": "Q2N0S5",
+    "name": "Human immunodeficiency virus type 1",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 11676
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "Q2N0S5_9HIV1_Haddox_2018.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "eLife",
+    "deposited_licences": [
+     {
+      "content_version": "am",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.7554/eLife.34420",
+    "publisher": "eLife Sciences Publications, Ltd",
+    "title": "Mapping mutational effects along the evolutionary landscape of HIV envelope",
+    "url": "https://doi.org/10.7554/eLife.34420",
+    "year": 2018
+   },
+   "uniprot_id": "Q2N0S5_9HIV1",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "R1AB_SARS2_Flynn_2022",
+   "family": "Coronaviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 5725,
+    "selection_type": "(not stated)",
+    "seq_len": 306
+   },
+   "order": "Nidovirales",
+   "organism": {
+    "accession": "P0DTD1",
+    "name": "Severe acute respiratory syndrome coronavirus 2",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 2697049
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "R1AB_SARS2_Flynn_2022.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/",
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "eLife",
+    "deposited_licences": [
+     {
+      "content_version": "am",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     }
+    ],
+    "doi": "10.7554/eLife.77433",
+    "publisher": "eLife Sciences Publications, Ltd",
+    "title": "Comprehensive fitness landscape of SARS-CoV-2 Mpro reveals insights into viral resistance mechanisms",
+    "url": "https://doi.org/10.7554/eLife.77433",
+    "year": 2022
+   },
+   "uniprot_id": "R1AB_SARS2",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": false,
+     "evo1-literal": false,
+     "evo1-strict": false
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": "no family node and no order node, so neither denylist rule can fire",
+   "dms_id": "RCRO_LAMBD_Tsuboyama_2023_1ORC",
+   "family": "(no node at this rank)",
+   "measurement": {
+    "msa_depth_category": "High",
+    "n_variants": 2278,
+    "selection_type": "cDNA display proteolysis",
+    "seq_len": 63
+   },
+   "order": "(no node at this rank)",
+   "organism": {
+    "accession": "P03040",
+    "name": "Escherichia phage lambda",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 2681611
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "RCRO_LAMBD_Tsuboyama_2023_1ORC.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0",
+      "https://creativecommons.org/licenses/by/4.0"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Nature",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     }
+    ],
+    "doi": "10.1038/s41586-023-06328-6",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "Mega-scale experimental analysis of protein folding stability in biology and design",
+    "url": "https://doi.org/10.1038/s41586-023-06328-6",
+    "year": 2023
+   },
+   "uniprot_id": "RCRO_LAMBD",
+   "within_study_positive_control": true
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "RDRP_I33A0_Li_2023",
+   "family": "Orthomyxoviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 12003,
+    "selection_type": "Growth",
+    "seq_len": 757
+   },
+   "order": "Articulavirales",
+   "organism": {
+    "accession": "P03430",
+    "name": "Influenza A virus (strain A/Wilson-Smith/1933 H1N1)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 381518
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "RDRP_I33A0_Li_2023.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "note": "the publisher deposited no licence with Crossref, so the article's terms are not established from this evidence",
+     "permits_redistribution": null,
+     "position": "none deposited"
+    },
+    "container": null,
+    "deposited_licences": [],
+    "doi": "10.1101/2023.08.27.554986",
+    "publisher": "openRxiv",
+    "title": "Deep mutational scanning reveals the functional constraints and evolutionary potential of the influenza A virus PB1 protein",
+    "url": "https://doi.org/10.1101/2023.08.27.554986",
+    "year": 2023
+   },
+   "uniprot_id": "RDRP_I33A0",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "REV_HV1H2_Fernandes_2016",
+   "family": "Retroviridae",
+   "measurement": {
+    "msa_depth_category": "High",
+    "n_variants": 2147,
+    "selection_type": "Growth",
+    "seq_len": 116
+   },
+   "order": "Ortervirales",
+   "organism": {
+    "accession": "P04618",
+    "name": "Human immunodeficiency virus type 1 group M subtype B (isolate HXB2)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 11706
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "REV_HV1H2_Fernandes_2016.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permits_redistribution": false,
+     "position": "restrictive",
+     "restrictive": {
+      "https://www.elsevier.com/open-access/userlicense/1.0/": "publisher's own open-access terms, not a standard public licence",
+      "https://www.elsevier.com/tdm/userlicense/1.0/": "text and data mining only"
+     }
+    },
+    "container": "Cell",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "https://www.elsevier.com/open-access/userlicense/1.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "https://www.elsevier.com/tdm/userlicense/1.0/"
+     }
+    ],
+    "doi": "10.1016/j.cell.2016.11.031",
+    "publisher": "Elsevier BV",
+    "title": "Functional Segregation of Overlapping Genes in HIV",
+    "url": "https://doi.org/10.1016/j.cell.2016.11.031",
+    "year": 2016
+   },
+   "uniprot_id": "REV_HV1H2",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": false,
+     "evo1-literal": false,
+     "evo1-strict": false
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": "no family node and no order node, so neither denylist rule can fire",
+   "dms_id": "RPC1_BP434_Tsuboyama_2023_1R69",
+   "family": "(no node at this rank)",
+   "measurement": {
+    "msa_depth_category": "High",
+    "n_variants": 1459,
+    "selection_type": "cDNA display proteolysis",
+    "seq_len": 61
+   },
+   "order": "(no node at this rank)",
+   "organism": {
+    "accession": "P16117",
+    "name": "Enterobacteria phage 434",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 10712
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "RPC1_BP434_Tsuboyama_2023_1R69.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0",
+      "https://creativecommons.org/licenses/by/4.0"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Nature",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     }
+    ],
+    "doi": "10.1038/s41586-023-06328-6",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "Mega-scale experimental analysis of protein folding stability in biology and design",
+    "url": "https://doi.org/10.1038/s41586-023-06328-6",
+    "year": 2023
+   },
+   "uniprot_id": "RPC1_BP434",
+   "within_study_positive_control": true
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": false,
+     "evo1-literal": false,
+     "evo1-strict": false
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": "no family node and no order node, so neither denylist rule can fire",
+   "dms_id": "RPC1_LAMBD_Li_2019_high-expression",
+   "family": "(no node at this rank)",
+   "measurement": {
+    "msa_depth_category": "High",
+    "n_variants": 351,
+    "selection_type": "FACS",
+    "seq_len": 237
+   },
+   "order": "(no node at this rank)",
+   "organism": {
+    "accession": "P03034",
+    "name": "Escherichia phage lambda",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 2681611
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "RPC1_LAMBD_Li_2019_high-expression.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0",
+      "https://creativecommons.org/licenses/by/4.0"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Nature Communications",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     }
+    ],
+    "doi": "10.1038/s41467-019-11735-3",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "Changes in gene expression predictably shift and switch genetic interactions",
+    "url": "https://doi.org/10.1038/s41467-019-11735-3",
+    "year": 2019
+   },
+   "uniprot_id": "RPC1_LAMBD",
+   "within_study_positive_control": true
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": false,
+     "evo1-literal": false,
+     "evo1-strict": false
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": "no family node and no order node, so neither denylist rule can fire",
+   "dms_id": "RPC1_LAMBD_Li_2019_low-expression",
+   "family": "(no node at this rank)",
+   "measurement": {
+    "msa_depth_category": "High",
+    "n_variants": 351,
+    "selection_type": "FACS",
+    "seq_len": 237
+   },
+   "order": "(no node at this rank)",
+   "organism": {
+    "accession": "P03034",
+    "name": "Escherichia phage lambda",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 2681611
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "RPC1_LAMBD_Li_2019_low-expression.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0",
+      "https://creativecommons.org/licenses/by/4.0"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Nature Communications",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     }
+    ],
+    "doi": "10.1038/s41467-019-11735-3",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "Changes in gene expression predictably shift and switch genetic interactions",
+    "url": "https://doi.org/10.1038/s41467-019-11735-3",
+    "year": 2019
+   },
+   "uniprot_id": "RPC1_LAMBD",
+   "within_study_positive_control": true
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "SPIKE_SARS2_Starr_2020_binding",
+   "family": "Coronaviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 3802,
+    "selection_type": "Binding",
+    "seq_len": 1273
+   },
+   "order": "Nidovirales",
+   "organism": {
+    "accession": "P0DTC2",
+    "name": "Severe acute respiratory syndrome coronavirus 2",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 2697049
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "SPIKE_SARS2_Starr_2020_binding.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "note": "the publisher deposited licences that disagree, usually across versions of the work. Which applies depends on which version is used",
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": null,
+     "position": "mixed",
+     "restrictive": {
+      "https://www.elsevier.com/legal/tdmrep-license": "text and data mining only",
+      "https://www.elsevier.com/tdm/userlicense/1.0/": "text and data mining only"
+     }
+    },
+    "container": "Cell",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "https://www.elsevier.com/legal/tdmrep-license"
+     },
+     {
+      "content_version": "tdm",
+      "url": "https://www.elsevier.com/tdm/userlicense/1.0/"
+     }
+    ],
+    "doi": "10.1016/j.cell.2020.08.012",
+    "publisher": "Elsevier BV",
+    "title": "Deep Mutational Scanning of SARS-CoV-2 Receptor Binding Domain Reveals Constraints on Folding and ACE2 Binding",
+    "url": "https://doi.org/10.1016/j.cell.2020.08.012",
+    "year": 2020
+   },
+   "uniprot_id": "SPIKE_SARS2",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "SPIKE_SARS2_Starr_2020_expression",
+   "family": "Coronaviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 3798,
+    "selection_type": "Binding",
+    "seq_len": 1273
+   },
+   "order": "Nidovirales",
+   "organism": {
+    "accession": "P0DTC2",
+    "name": "Severe acute respiratory syndrome coronavirus 2",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 2697049
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "SPIKE_SARS2_Starr_2020_expression.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "note": "the publisher deposited licences that disagree, usually across versions of the work. Which applies depends on which version is used",
+     "permissive": [
+      "http://creativecommons.org/licenses/by/4.0/"
+     ],
+     "permits_redistribution": null,
+     "position": "mixed",
+     "restrictive": {
+      "https://www.elsevier.com/legal/tdmrep-license": "text and data mining only",
+      "https://www.elsevier.com/tdm/userlicense/1.0/": "text and data mining only"
+     }
+    },
+    "container": "Cell",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "https://www.elsevier.com/legal/tdmrep-license"
+     },
+     {
+      "content_version": "tdm",
+      "url": "https://www.elsevier.com/tdm/userlicense/1.0/"
+     }
+    ],
+    "doi": "10.1016/j.cell.2020.08.012",
+    "publisher": "Elsevier BV",
+    "title": "Deep Mutational Scanning of SARS-CoV-2 Receptor Binding Domain Reveals Constraints on Folding and ACE2 Binding",
+    "url": "https://doi.org/10.1016/j.cell.2020.08.012",
+    "year": 2020
+   },
+   "uniprot_id": "SPIKE_SARS2",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": true,
+     "evo1-literal": true,
+     "evo1-strict": true
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": null,
+   "dms_id": "TAT_HV1BR_Fernandes_2016",
+   "family": "Retroviridae",
+   "measurement": {
+    "msa_depth_category": "High",
+    "n_variants": 1577,
+    "selection_type": "Growth",
+    "seq_len": 86
+   },
+   "order": "Ortervirales",
+   "organism": {
+    "accession": "P04610",
+    "name": "Human immunodeficiency virus type 1 group M subtype B (isolate BRU/LAI)",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 11686
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "TAT_HV1BR_Fernandes_2016.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permits_redistribution": false,
+     "position": "restrictive",
+     "restrictive": {
+      "https://www.elsevier.com/open-access/userlicense/1.0/": "publisher's own open-access terms, not a standard public licence",
+      "https://www.elsevier.com/tdm/userlicense/1.0/": "text and data mining only"
+     }
+    },
+    "container": "Cell",
+    "deposited_licences": [
+     {
+      "content_version": "vor",
+      "url": "https://www.elsevier.com/open-access/userlicense/1.0/"
+     },
+     {
+      "content_version": "tdm",
+      "url": "https://www.elsevier.com/tdm/userlicense/1.0/"
+     }
+    ],
+    "doi": "10.1016/j.cell.2016.11.031",
+    "publisher": "Elsevier BV",
+    "title": "Functional Segregation of Overlapping Genes in HIV",
+    "url": "https://doi.org/10.1016/j.cell.2016.11.031",
+    "year": 2016
+   },
+   "uniprot_id": "TAT_HV1BR",
+   "within_study_positive_control": false
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": false,
+     "evo1-literal": false,
+     "evo1-strict": false
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": "no family node and no order node, so neither denylist rule can fire",
+   "dms_id": "VG08_BPP22_Tsuboyama_2023_2GP8",
+   "family": "(no node at this rank)",
+   "measurement": {
+    "msa_depth_category": "High",
+    "n_variants": 723,
+    "selection_type": "cDNA display proteolysis",
+    "seq_len": 40
+   },
+   "order": "(no node at this rank)",
+   "organism": {
+    "accession": "P26748",
+    "name": "Salmonella phage P22",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 10754
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "VG08_BPP22_Tsuboyama_2023_2GP8.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0",
+      "https://creativecommons.org/licenses/by/4.0"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Nature",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     }
+    ],
+    "doi": "10.1038/s41586-023-06328-6",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "Mega-scale experimental analysis of protein folding stability in biology and design",
+    "url": "https://doi.org/10.1038/s41586-023-06328-6",
+    "year": 2023
+   },
+   "uniprot_id": "VG08_BPP22",
+   "within_study_positive_control": true
+  },
+  {
+   "arm": {
+    "excluded_by": {
+     "evo1-charitable": false,
+     "evo1-literal": false,
+     "evo1-strict": false
+    },
+    "undecidable_by": [
+     "esm3-open-charitable",
+     "esm3-open-literal",
+     "esm3-open-strict"
+    ]
+   },
+   "control_because": "has family Autographiviridae, which no denylist names",
+   "dms_id": "VRPI_BPT7_Tsuboyama_2023_2WNM",
+   "family": "Autographiviridae",
+   "measurement": {
+    "msa_depth_category": "Medium",
+    "n_variants": 1047,
+    "selection_type": "cDNA display proteolysis",
+    "seq_len": 56
+   },
+   "order": "(no node at this rank)",
+   "organism": {
+    "accession": "P03704",
+    "name": "Escherichia phage T7",
+    "note": "",
+    "source": "uniprot",
+    "taxid": 10760
+   },
+   "provenance": {
+    "collection": "ProteinGym",
+    "key": "VRPI_BPT7_Tsuboyama_2023_2WNM.csv",
+    "read_from": "DMS_ProteinGym_substitutions.zip",
+    "version": "v1.3"
+   },
+   "source": {
+    "article_terms": {
+     "permissive": [
+      "https://creativecommons.org/licenses/by/4.0",
+      "https://creativecommons.org/licenses/by/4.0"
+     ],
+     "permits_redistribution": true,
+     "position": "permissive"
+    },
+    "container": "Nature",
+    "deposited_licences": [
+     {
+      "content_version": "tdm",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     },
+     {
+      "content_version": "vor",
+      "url": "https://creativecommons.org/licenses/by/4.0"
+     }
+    ],
+    "doi": "10.1038/s41586-023-06328-6",
+    "publisher": "Springer Science and Business Media LLC",
+    "title": "Mega-scale experimental analysis of protein folding stability in biology and design",
+    "url": "https://doi.org/10.1038/s41586-023-06328-6",
+    "year": 2023
+   },
+   "uniprot_id": "VRPI_BPT7",
+   "within_study_positive_control": true
+  }
+ ],
+ "citation": {
+  "cite_all_three": [
+   "the collection: Notin et al., ProteinGym, Advances in Neural Information Processing Systems 36 (2023)",
+   "the pinned release as data: 10.5281/zenodo.15293562 (ProteinGym v1.3, https://zenodo.org/records/15293562)",
+   "the study that produced the assay, by the DOI carried on its entry below"
+  ],
+  "this_register": "cite the register by its task id and the commit it was generated at, which the run manifest in artifacts/b2-4 records",
+  "why": "citing only the collection drops the groups whose experiments the analysis rests on, and citing only the studies loses the pinned release a result regenerates from"
+ },
+ "coverage": {
+  "article_terms": {
+   "mixed": 2,
+   "none deposited": 4,
+   "permissive": 20,
+   "restrictive": 5
+  },
+  "assays": 31,
+  "controls": 7,
+  "note": "every assay is covered by the deposit's grant, which is what this project relies on. The article-terms breakdown describes the source publications and is carried for the reader, not as a constraint this project is operating under",
+  "organisms": 21,
+  "studies": 21,
+  "with_a_doi": 31
+ },
+ "design_ref": "\u00a75 deliverable 2, \u00a7B2",
+ "evidence_retrieved_on": "2026-10-20",
+ "licence_relied_on": {
+  "assay_archive": {
+   "deposit_sha256": "3a83766254ac9ac9984ec25cb73c6e010ea4418f5e35f143933e6b6e6473b921",
+   "file": "DMS_ProteinGym_substitutions.zip",
+   "in_deposit": true,
+   "match": "digest",
+   "pinned_sha256": "3a83766254ac9ac9984ec25cb73c6e010ea4418f5e35f143933e6b6e6473b921"
+  },
+  "deposit_doi": "10.5281/zenodo.15293562",
+  "deposit_url": "https://zenodo.org/records/15293562",
+  "downloaded_from": "https://marks.hms.harvard.edu/proteingym/ProteinGym_v1.3",
+  "established_by": "digest",
+  "every_pinned_file": [
+   {
+    "deposit_sha256": "3a83766254ac9ac9984ec25cb73c6e010ea4418f5e35f143933e6b6e6473b921",
+    "file": "DMS_ProteinGym_substitutions.zip",
+    "in_deposit": true,
+    "match": "digest",
+    "pinned_sha256": "3a83766254ac9ac9984ec25cb73c6e010ea4418f5e35f143933e6b6e6473b921"
+   },
+   {
+    "deposit_sha256": "a8f498011532a74aa9fe556a50555a75e928c5837d19c06a87592ae04049b308",
+    "file": "DMS_substitutions.csv",
+    "in_deposit": true,
+    "match": "digest",
+    "pinned_sha256": "a8f498011532a74aa9fe556a50555a75e928c5837d19c06a87592ae04049b308"
+   },
+   {
+    "file": "DMS_substitutions_Spearman_DMS_level.csv",
+    "in_deposit": false,
+    "match": "not in the deposit"
+   },
+   {
+    "file": "Summary_performance_DMS_substitutions_Spearman.csv",
+    "in_deposit": false,
+    "match": "not in the deposit"
+   },
+   {
+    "caveat": "not hashed, so the deposit is the same file by name and size only",
+    "deposit_size": 1911045703,
+    "file": "zero_shot_substitutions_scores.zip",
+    "in_deposit": true,
+    "match": "size only"
+   }
+  ],
+  "licence": "mit-license",
+  "limits": [
+   "MIT is a software licence. Applying it to a data deposit is ordinary practice on Zenodo and it is the maintainers' own stated choice, but its effect on data is less settled than on code. Recorded as the grant relied on, not as a legal conclusion",
+   "the deposit's grant is the maintainers'. It does not reach back and relicense the studies that produced the assays, which is why each study's own terms are carried per assay below"
+  ]
+ },
+ "redistribution": {
+  "not_published_by_this_project": [
+   "the measured fitness values themselves \u2014 the assay data stays in the pinned release and is read from it, never re-hosted here",
+   "the benchmark's own published model scores, which are read from the pinned release for the reference check and reported only as an agreement statistic"
+  ],
+  "published_by_this_project": [
+   "assay identifiers, organism and taxonomy, family and order, and the arm each assay falls in under each reading of each filter policy",
+   "per-assay counts: variants and sequence length, as the pinned release states them",
+   "the DOI of the study that produced each assay",
+   "scores this project computed, per variant and per assay, and the rank correlations derived from them"
+  ],
+  "why_it_matters": "a register of metadata and of this project's own numbers is publishable under the deposit's grant whatever each source article's terms say. The source terms are carried anyway, because a reader going back to an assay needs them"
+ },
+ "task": "B2.4",
+ "what_this_is": "the provenance and licence register for every assay Phase B analyses. Generated by tools/assay_register.py from B2.2's curation, B2.3's control set and the licence evidence in assays/licences.json. Do not hand-edit"
+}
