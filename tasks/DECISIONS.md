@@ -9515,3 +9515,34 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Alternatives rejected:** deciding on the assay-level Spearman alone (hides the error class
   the check exists for); a point-estimate threshold (a 0.991 with an interval reaching 0.97 is
   not a reproduction); an unpaired bootstrap (destroys the correlation it measures).
+
+### D-209 — the shipped filter-audit tool delegates to Phase A's own functions rather than reimplementing them
+- **Date:** 2026-10-20
+- **Task:** A5.1
+- **Context:** §A5 asks Phase A to become a shippable tool, and the Done-when asks that the
+  refactor reproduce A3.2's results exactly. There are two ways to read that: write the
+  deliverable as a clean reimplementation and check it against A3.2, or make it a facade over
+  the same functions.
+- **Decision:**
+  **A facade.** `amazebio.filteraudit` calls `apply.resolve`, `quantify.merge_group` and
+  `quantify.quantify` — the functions that produced A3.2's headline — and defines no metric
+  arithmetic of its own. Two implementations behind one interface are two things to keep in
+  step, and the one that drifts is the one nobody is reading. Reimplementation is a real
+  requirement in this project, but it is §7's second-method requirement, it belongs to A3.3,
+  and its whole value is that it is written by someone who has not read the first. A
+  reimplementation written here, by the session that wrote the original, would satisfy
+  neither criterion.
+
+  **"By construction" is a claim about code, so it is also measured.**
+  `tools/filter_audit.py --verify` reads the detector documents A3.2's own headline names,
+  runs them through this interface, and diffs group by group. Run 2026-10-20: 21 of 21 groups
+  identical on M1, its interval, M2 and the per-route breakdown.
+
+  **Route limitations travel in the report, not in the write-up.** `ROUTE_LIMITATIONS` names
+  what each survival route cannot establish, `limitations_for` refuses a route that has no
+  entry, and every report carries the text for every route it mentions. A report is the thing
+  that gets quoted, and a count quoted without its route's limit says more than the audit
+  established.
+- **Alternatives rejected:** a clean-room reimplementation inside the deliverable (two
+  implementations to maintain, and it is not the independent second method §7 asks for);
+  limitations documented in `docs/` alone (the report travels and the document does not).
