@@ -9128,3 +9128,46 @@ decision has a threshold or parameter in it, the number goes in the entry.
   other removes by what a record resembles, reaches all of it, and takes between 2.2 and 7.0
   million non-viral records with it depending on where its unpublished threshold sits. The
   write-up leads with the containment, not the percentage.
+
+### D-201 — A9.1's replay window, cadence and what counts as decay, fixed before any of it is run
+- **Date:** 2026-10-20
+- **Task:** A9.1
+- **Context:** §A9 replays the frozen denylist against successive taxonomy releases. Every
+  number it produces depends on choices that would be easy to make after seeing the curve —
+  which releases, how far back, and what separates decay from renaming — so they are fixed
+  here first, per `AGENTS.md`'s rule on parameters.
+- **Decision:**
+  **Releases.** NCBI's `taxdump_archive` carries 144 monthly dumps from 2014-08-01 to
+  2026-10-01. The replay uses **quarterly dumps from 2020-01-01 to 2026-10-01**, 28 releases.
+  Quarterly because monthly costs five times the download for a curve nobody will read at
+  monthly resolution; from 2020 because the window has to start well before the denylist's own
+  vintage, or a rising curve could not be told apart from the taxonomy simply growing.
+  **Baseline.** 2023-04-01, the taxonomy already pinned by this project and roughly the vintage
+  of the corpora the filter was applied to. Releases before it are reported as the pre-vintage
+  rate, not as decay.
+  **Four quantities, per release.** (1) *Reach*: viral taxa the frozen names resolve to.
+  (2) *Unreachable names*: names in the list that are not a scientific name at the rank the
+  rule declares — `Reoviridae` is already one of these in the baseline itself (D-199), so the
+  curve starts at one, not zero. (3) *New diversity not named*: viral taxa absent from the
+  baseline, not reachable from it through `merged.dmp`, and outside the frozen names.
+  (4) *Nomenclature churn*: taxa present in both, same taxid or reachable through
+  `merged.dmp`, whose scientific name or rank changed.
+  **(3) and (4) are never added together**, which is the separation §A9 asks for: a rename that
+  moves no sequence is not decay, and pooling them would inflate the result by whatever the
+  ICTV happened to be renaming that quarter.
+  **The static-versus-computed contrast** is the frozen family and order list against the
+  specificity rule. The list is an enumeration fixed in 2024 prose; the specificity rule asks a
+  question each release answers for itself. Both are measured against the same viral taxa of
+  the same release, which is what makes the contrast a measurement rather than an argument.
+- **Rejected:** *Starting the window at the denylist's vintage.* With no pre-vintage stretch
+  there is no way to show the slope is the filter ageing rather than the taxonomy growing.
+  *Monthly resolution.* Five times the download and five times the parse for a curve reported
+  by year.
+  *Counting the realm-rank mismatch as decay.* `require_rank: realm` asks for a rank NCBI has
+  never used, in any release in the window (D-199). It is a vocabulary mismatch present from
+  the first day, not something that decayed, and it is reported separately so the curve is not
+  made to carry it.
+  *Measuring in-scope diversity by host.* §A9's "in scope by the policy's stated intent" means
+  eukaryote-infecting, and NCBI carries no host. The replay measures what the names reach
+  against what the taxonomy holds; the host-conditioned question stays with the charitable
+  reading's own rule and is named as not answered here.
