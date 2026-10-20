@@ -395,6 +395,12 @@ EXEMPT_CALL_SITES: set[str] = {
     # permanent (D-193). The deliverable path is still guarded — point `--out` at the canonical
     # directory and this tool names a durable destination like any other.
     "detect_segmented.py",
+    # A7.4's contig pass, for the same shape of reason. The full pass runs on an instance
+    # and always publishes; the exemption is claimed only by a run without `--upload-results`,
+    # which is how the tool is smoke-tested against a local tar or a `--limit` slice. A
+    # truncated table published under a commit's key would be permanent and would read
+    # exactly like a complete one, so `--limit` refuses to publish at all.
+    "opengenome_contigs.py",
 }
 
 
@@ -489,3 +495,72 @@ def test_a_test_run_never_reaches_the_real_object_store(tmp_path):
     assert manifest["uploaded"] == {}
     # And the output has no durable_uri, so nothing downstream can cite a copy that is not there.
     assert "durable_uri" not in manifest["outputs"][0]
+
+
+#: Scripts in `tools/` that produce no result of their own, and so legitimately run outside
+#: `repro.run`. This is X1.5's half of D-188's guard: the runtime refusal and the call-site
+#: check above both key on a `run(...)` block, so a tool with no block at all is invisible to
+#: them — which is exactly how `uniprot_denylist_count.py` came to write a cited count with no
+#: provenance. Like `EXEMPT_CALL_SITES`, this list may shrink but should not grow without a
+#: reason written here in the same commit.
+NOT_PIPELINES: dict[str, str] = {
+    # Repository validators and generators. Their output is either nothing or a git-tracked
+    # file, and git is the one store D-188 found was never at risk.
+    "board.py": "regenerates tasks/BOARD.md, which is committed",
+    "decisions.py": "validates D-NNN citations; writes nothing",
+    "policies.py": "verifies the quotes in policies/ against their sources; writes nothing",
+    "specquotes.py": "checks spec quotes against the captures; writes nothing",
+    "specs.py": "validates the filter policy specs; writes nothing",
+    # EC2 launchers. The measurement happens on the instance and is published to object
+    # storage from there; the launcher only tars the payload and *downloads* finished
+    # artefacts into `artifacts/`, which `metrics/` describes as a cache.
+    "ec2_agreement.py": "launcher; the instance publishes A8.1's cross-tab",
+    "ec2_count.py": "launcher; the instance publishes A1.3's cluster counts",
+    "ec2_exclusivity.py": "launcher; the instance publishes the seed-exclusivity pass",
+    "ec2_folds.py": "launcher; the instance publishes A2.2's fold detections",
+    "ec2_opengenome_contigs.py": "launcher; the instance publishes A7.4's contig tables",
+    "ec2_proviruses.py": "launcher; the instance publishes A2.4's provirus detections",
+    "ec2_select_agent_seeds.py": "launcher; the instance publishes A1.8's seed set",
+    "ec2_similarity.py": "launcher; the instance publishes A1.6's similarity pass",
+    "ec2_uniprot_count.py": "launcher; the instance publishes the UniProtKB staging and count",
+}
+
+
+def test_every_tool_either_runs_under_the_guard_or_says_why_not():
+    """The gap X1.5 closes: a writer with no `run(...)` block at all.
+
+    `test_every_run_call_site_in_tools_names_a_durable_destination` can only see tools that
+    already have a block, and `repro.run`'s own refusal only fires once a run is under way.
+    Neither sees a script that opens a file and writes a result straight out. So the inventory
+    is inverted here: every script in `tools/` runs under the guard unless it is written down
+    as producing no result, with the reason beside it.
+    """
+    import ast
+    import pathlib
+
+    tools = pathlib.Path(__file__).resolve().parent.parent / "tools"
+    outside = set()
+    for path in sorted(tools.glob("*.py")):
+        if any(
+            isinstance(node, ast.Call)
+            and (
+                (isinstance(node.func, ast.Name) and node.func.id == "run")
+                or (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "run"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "repro"
+                )
+            )
+            for node in ast.walk(ast.parse(path.read_text()))
+        ):
+            continue
+        outside.add(path.name)
+
+    assert outside == set(NOT_PIPELINES), (
+        "the set of tools running outside repro.run has changed. A new one that produces a "
+        "result belongs in a run(...) block with durable=; one that genuinely produces no "
+        "result goes in NOT_PIPELINES with its reason. Removed one? Delete its entry. "
+        f"unexpected={sorted(outside - set(NOT_PIPELINES))} "
+        f"stale={sorted(set(NOT_PIPELINES) - outside)}"
+    )

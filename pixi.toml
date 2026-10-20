@@ -184,6 +184,31 @@ platforms = ["linux-64"]
 [feature.foldseek.dependencies]
 foldseek = "==10.941cd33"
 
+# B1.2's scoring harness needs weights loaded, and weights need a tensor library. It is a
+# feature rather than a default dependency because pytorch and transformers are most of a
+# gigabyte and every other task in this project — the whole of Phase A — needs neither. The
+# split in the code mirrors the split here: `amazebio.scoring` and `amazebio.backends` are
+# torch-free so the §4 refusals stay testable in the default environment, and only
+# `tools/score_variants.py` reaches for this one, inside a single function.
+#
+# CPU, deliberately. Masked-marginal scoring is one forward pass per masked position, and for
+# the assays B1.2 validates against that is a few hundred passes over sequences of a few
+# hundred residues — minutes in the session container. AGENTS.md's test for launching an
+# instance is data movement that is free in-region, and this is not that. The GPU route stays
+# open for the full Phase B sweep, where the arithmetic changes.
+#
+# Its own solve group so a tensor library's pins cannot reach into the environment the Phase A
+# pipelines run in, but *with* the default feature, because the harness imports `amazebio` and
+# needs the project's own interpreter and numpy.
+[feature.score]
+platforms = ["linux-64"]
+
+[feature.score.dependencies]
+# The reference implementation for the ESM-2 checkpoints in B1.1's inventory, whose published
+# access route names `transformers.EsmForMaskedLM`.
+pytorch = ">=2.5,<3"
+transformers = ">=4.46,<6"
+
 [feature.dev.dependencies]
 pytest = ">=8.3,<9"
 ruff = ">=0.8,<0.9"
@@ -191,6 +216,8 @@ ruff = ">=0.8,<0.9"
 [environments]
 default = { features = [], solve-group = "main" }
 dev = { features = ["dev"], solve-group = "main" }
+# B1.2's scoring environment. See the comment on `feature.score.dependencies`.
+score = { features = ["score", "dev"], solve-group = "score" }
 # Its own solve group: see the comment on `feature.genomad.dependencies`.
 # `no-default-feature` because the project's `[dependencies]` pin python 3.12, and the
 # whole point of this environment is the interpreter geNomad 1.1.0 predates. It holds the

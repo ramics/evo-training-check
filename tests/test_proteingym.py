@@ -217,6 +217,7 @@ def _assay(filename: str = "TEST.csv") -> Assay:
         seq_len=10,
         n_singles=3,
         n_multiples=0,
+        target_sequence="MKTAYIAKQR",
         selection_assay="Growth",
         selection_type="Growth",
         msa_depth_category="Low",

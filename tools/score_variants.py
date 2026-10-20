@@ -23,6 +23,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -81,31 +83,58 @@ def plan(
     }
 
 
-def _forward_from_weights(
-    spec: backends.Recipe, weights: Path
-) -> backends.Forward:  # pragma: no cover - needs an accelerator
-    """Load the checkpoint and return its forward pass, frozen.
+def load_backend(
+    spec: backends.Recipe,
+    weights: str,
+    *,
+    batch_size: int,
+    progress: Callable[[int, int], None] | None = None,
+) -> backends.FrozenLM:  # pragma: no cover - loads weights
+    """Load the checkpoint and wrap it as a frozen backend.
 
     The only place in this repository that imports a deep-learning stack. It puts the model in
-    evaluation mode and disables gradients, which is belt and braces over the harness's own
-    refusals rather than a substitute for them: `scoring.enforce_scope` still runs, and still
-    rejects a backend that exposes a training entry point.
+    evaluation mode and clears every gradient flag, which is belt and braces over the
+    harness's own refusals rather than a substitute for them: `scoring.enforce_scope` still
+    runs against the object this returns, and still rejects a backend that exposes a training
+    entry point.
+
+    The vocabulary and the prefix length are read from the tokenizer rather than assumed. Both
+    are the kind of thing that is right on one checkpoint and silently wrong on the next, and
+    `FrozenLM` has no way to detect either: a one-token shift produces perfectly plausible
+    numbers.
     """
     import torch
+    from transformers import AutoTokenizer
 
     module, _, attribute = spec.loader.rpartition(".")
     loaded = getattr(__import__(module, fromlist=[attribute]), attribute)
-    model = loaded.from_pretrained(str(weights))
+    tokenizer = AutoTokenizer.from_pretrained(weights)
+    model = loaded.from_pretrained(weights)
     model.eval()
-    for parameter in model.parameters():
-        parameter.requires_grad_(False)
+    model.requires_grad_(False)
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    vocabulary = {r: tokenizer.convert_tokens_to_ids(r) for r in scoring.AMINO_ACIDS}
+    prefix = len(tokenizer("A")["input_ids"]) - 1 - int(tokenizer.eos_token_id is not None)
 
     def forward(rows):  # type: ignore[no-untyped-def]
         with torch.inference_mode():
-            out = model(torch.tensor(list(rows))).logits
-        return out.to(torch.float32).cpu().tolist()
+            out = model(input_ids=torch.tensor(list(rows))).logits
+        return out.to(torch.float64).cpu().tolist()
 
-    return forward
+    return backends.FrozenLM(
+        checkpoint_id=spec.checkpoint_id,
+        mode=spec.mode,
+        modality=spec.modality,
+        trainable_parameters=trainable,
+        vocabulary=vocabulary,
+        encoder=dict(vocabulary),
+        mask_token_id=int(tokenizer.mask_token_id),
+        prefix_tokens=prefix,
+        forward=forward,
+        batch_size=batch_size,
+        progress=progress,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -117,8 +146,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--reference", type=Path, required=True, help="DMS_substitutions.csv")
     ap.add_argument("--assays", type=Path, help="DMS_ProteinGym_substitutions.zip")
     ap.add_argument("--published", type=Path, help="zero_shot_substitutions_scores.zip")
-    ap.add_argument("--published-column", help="the model's column in the score archive")
-    ap.add_argument("--weights", type=Path, help="local checkpoint; omit for --plan")
+    ap.add_argument(
+        "--published-column",
+        help="override the column pinned on the recipe; normally omitted",
+    )
+    ap.add_argument("--weights", help="checkpoint path or hub id; omit for --plan")
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--plan", action="store_true", help="cost the pass; load nothing")
     ap.add_argument("--outdir", type=Path, default=Path("artifacts/b1-2"))
@@ -151,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("proteingym_release", proteingym.RELEASE.version)
             manifest.input_file(args.reference, role="proteingym reference")
 
+            out = args.outdir / f"{'plan' if args.plan else 'scores'}-{slug}.json"
             if args.plan:
                 mutants, source = _mutants(args, assay)
                 doc = plan(
@@ -161,12 +194,23 @@ def main(argv: list[str] | None = None) -> int:
                     variants_source=source,
                 )
             else:
-                doc = _score(args, assay, manifest)
+                doc = _score(
+                    args,
+                    assay,
+                    manifest,
+                    checkpoint=lambda partial: out.write_text(
+                        json.dumps(partial, indent=2, sort_keys=True) + "\n"
+                    ),
+                )
 
-            out = args.outdir / f"{'plan' if args.plan else 'scores'}-{slug}.json"
             out.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
             manifest.output_file(out, role="plan" if args.plan else "scores")
-    except (repro.ReproError, scoring.ScoringError, reference.ReferenceError) as exc:
+    except (
+        repro.ReproError,
+        scoring.ScoringError,
+        reference.ReferenceError,
+        proteingym.ProteinGymError,
+    ) as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(doc, indent=2, sort_keys=True)[:2000])
@@ -191,9 +235,33 @@ def _mutants(args: argparse.Namespace, assay: proteingym.Assay) -> tuple[list[st
     )
 
 
+def resolve_published_column(requested: str | None, spec: Any) -> str | None:
+    """Which published column this run checks itself against, or None for no check.
+
+    One line, and it has its own name because the bug it prevents cost a forty-minute
+    scoring pass on 2026-10-20: the resolved value was computed and then the unresolved one
+    was passed on, so a checkpoint whose column comes from its recipe looked for a column
+    named `None` and the whole run was discarded at the last step.
+    """
+    return requested or getattr(spec, "published_column", None)
+
+
 def _score(
-    args: argparse.Namespace, assay: proteingym.Assay, manifest: Any
+    args: argparse.Namespace,
+    assay: proteingym.Assay,
+    manifest: Any,
+    *,
+    checkpoint: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:  # pragma: no cover - needs an accelerator
+    """Score the assay's variants, then check them against the published column.
+
+    `checkpoint` is called with the scores the moment they exist and before the reference
+    check runs. The forward passes are the expensive part — three quarters of an hour for
+    one assay on a CPU — and the check that follows reads a file and can fail on it, as it
+    did on 2026-10-20 when a column name resolved to None. Losing the pass to a failure in
+    what verifies it is the wrong way round, so the scores are on disk before the check is
+    attempted and the failure is still raised.
+    """
     spec = backends.recipe(args.checkpoint)
     truth = proteingym.load_assay(args.assays, assay)
     request = scoring.ScoringRequest(
@@ -201,13 +269,19 @@ def _score(
         wild_type=assay.target_sequence,
         variants=scoring.variants_from_mutants(sorted(truth)),
     )
-    backend = backends.FrozenLM(
-        checkpoint_id=spec.checkpoint_id,
-        mode=spec.mode,
-        modality=spec.modality,
-        forward=_forward_from_weights(spec, args.weights),
-        batch_size=args.batch_size,
-    )
+    started = time.time()
+
+    def progress(done: int, total: int) -> None:
+        if done % 10 and done != total:
+            return
+        rate = done / max(time.time() - started, 1e-9)
+        print(
+            f"  {done}/{total} batches, {rate:.2f}/s, "
+            f"{(total - done) / max(rate, 1e-9) / 60:.1f} min left",
+            flush=True,
+        )
+
+    backend = load_backend(spec, str(args.weights), batch_size=args.batch_size, progress=progress)
     scoring.enforce_scope(backend)
     scores = scoring.score_request(backend, request)
     determinism = scoring.determinism_evidence(backend, request)
@@ -219,9 +293,13 @@ def _score(
         "determinism": determinism,
         "scores": scores,
     }
-    if args.published is not None and args.published_column:
+    if checkpoint is not None:
+        checkpoint(doc)
+
+    column = resolve_published_column(args.published_column, spec)
+    if args.published is not None and column:
         manifest.input_file(args.published, role="published zero-shot scores")
-        published = proteingym.load_model_scores(args.published, assay, args.published_column)
+        published = proteingym.load_model_scores(args.published, assay, column)
         doc["reference_check"] = reference.check_against_published(
             args.checkpoint,
             assay.dms_id,
@@ -230,6 +308,7 @@ def _score(
             truth,
             seed=SEED,
         ).to_dict()
+        doc["published_column"] = column
     return doc
 
 

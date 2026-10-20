@@ -706,7 +706,7 @@
    "status": "retrieved_not_stored",
    "sha256": "9f8efb1d7d934a659848db2c23f7dc83331e1046b1d8fdc78e6e1854795d90a5",
    "bytes": 6529173,
-   "note": "RVMT, the catalogue IMG/VR imported the taxonomy of. A4.2's dependency pass found it supplies 49.51% of the records Evo's denylist removes — more than geNomad — and the IMG/VR method field cites it by its preprint doi (10.1101/2022.02.15.480533). Retrieved 2026-10-15 for A4.4, which owns benchmarking it. Not stored because it is publisher content; the version of record was fetched from the UEA repository copy because biorxiv.org rate-limited. Re-fetch from url to verify."
+   "note": "RVMT, the catalogue IMG/VR imported the taxonomy of. A4.2's dependency pass found it supplies 49.51% of the records Evo's denylist removes — more than geNomad — and the IMG/VR method field cites it by its preprint doi (10.1101/2022.02.15.480533). Retrieved 2026-10-15 for A4.4, which owns benchmarking it. Not stored because it is publisher content; the version of record was fetched from the UEA repository copy because biorxiv.org rate-limited. Re-fetch from url to verify. Retrieved again 2026-10-20 by A4.4 and matched this digest byte for byte, from https://ueaeprints.uea.ac.uk/id/eprint/94613/1/1_s2.0_S0092867422011187_main.pdf, served unauthenticated. That exact URL is recorded because it is a route an agent in this container can take: biorxiv.org answers every request from here with a Cloudflare 1015, and the Cell version is not open access in Europe PMC. Still not stored, per the licence."
   },
   {
    "id": "S-UNIREF-2023-02-METALINK",

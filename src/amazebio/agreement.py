@@ -1,0 +1,484 @@
+"""Do the two filters mean the same thing by "viral"? — task A8.1, DESIGN.md §A8.
+
+Both filters under audit claim to remove viral sequence, by different machines: Evo's is a
+list of taxon names applied to records a virus database has already labelled, ESM3-open's is
+an alignment against a seed set. §A8 asks what happens when both are applied to the same
+records, because if the answer is "different things" then "we filtered viral data" does not
+denote a definite operation.
+
+**The common corpus is UniRef100 of the pinned release, read through UniRef90 and UniRef50.**
+That choice is what makes the pass affordable and it is also what bounds the claim. Three
+things follow from it and each is carried in the artefact rather than left to the write-up.
+
+**1. The similarity side is cluster co-membership, not an alignment we ran.** UniRef90 and
+UniRef50 are the publisher's own homology groupings at 90% and 50% identity over exactly
+these records. A record whose cluster holds a seed is within that identity of a seed, so the
+similarity predicate removes it. This is the same proxy `exclusivity.py` uses for a different
+question, and it has the same limit: it is co-membership at a fixed identity, not ESM3's
+alignment against the whole of UniProt. What it buys is a threshold that is the publisher's
+rather than ours — ESM3's own threshold is unpublished (D-015), and A1.6's banded curve is
+the sweep over *our* stated range. Both are reported; neither is presented as the other.
+
+**2. Only part of Evo's pipeline can run here.** Four of its six rules read IMG/VR metadata —
+a confidence label, a vOTU, a host count — that a protein corpus does not have. The two taxon
+rules and the taxonomic-specificity rule are the whole of what a protein record can be judged
+by, and `LabelPredicate.rules_not_runnable` names the rest so the artefact says what was left
+out rather than implying the pipeline ran.
+
+**3. A non-viral record is not a retained record.** Evo's filter runs over a virus database:
+every record it sees is already asserted to be viral, and the taxon rules say nothing at all
+about a bacterial protein. Scoring one as "retained by the label filter" would manufacture
+agreement out of a question that was never asked. So the label side has three states — removed,
+retained, out of scope — and the cross-tab is 3x2, not 2x2. This is `survival.py`'s
+`out_of_scope` route one corpus over.
+
+**What the pass can prove before it runs, and why it runs anyway.** Every record Evo's taxon
+rules remove is viral by NCBI taxonomy, and the strict reading's seed set is every
+viral-annotated record (D-156), so such a record is itself a seed and its own cluster covers
+it. `label_only` is therefore empty by construction, and `check_dominance` asserts it rather
+than hoping. The disagreement is one-sided and the measurement is of its size and its
+composition: how much material the similarity filter removes that no taxon rule would reach,
+split by whether it is viral at all.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+
+from amazebio.exclusivity import iter_member_blocks
+from amazebio.seeds import VIRAL_ROOT
+
+__all__ = [
+    "CELLS",
+    "CELL_BOTH",
+    "CELL_LABEL_ONLY",
+    "CELL_NEITHER",
+    "CELL_OUT_OF_SCOPE",
+    "CELL_OUT_OF_SCOPE_REMOVED",
+    "CELL_SIMILARITY_ONLY",
+    "ICTV_REALMS",
+    "KINDS",
+    "LABEL_RANKS",
+    "AgreementConfig",
+    "AgreementCounts",
+    "ClusterAgreement",
+    "LabelPredicate",
+    "build_predicate",
+    "check_dominance",
+    "reduce_cluster",
+]
+
+#: Both filters remove the record.
+CELL_BOTH = "both"
+#: The label rules remove it and the similarity predicate does not.
+CELL_LABEL_ONLY = "label_only"
+#: The similarity predicate removes it and the label rules, having seen it, do not.
+CELL_SIMILARITY_ONLY = "similarity_only"
+#: Neither removes it, the label rules having seen it.
+CELL_NEITHER = "neither"
+#: The label rules were never in a position to judge it: it is not viral, so Evo's filter —
+#: which runs over a virus database — would never have been handed it. Reported as its own
+#: cell and never folded into `neither`, which would read as agreement.
+CELL_OUT_OF_SCOPE = "out_of_scope_kept"
+#: Out of the label filter's scope and removed by the similarity filter anyway: a record the
+#: taxonomy does not call viral, sitting within the tier's identity of something it does.
+#: Split from `out_of_scope_kept` because this cell is the collateral the similarity
+#: mechanism takes and the other cell is the corpus it leaves alone; one number pooling both
+#: would answer neither question.
+CELL_OUT_OF_SCOPE_REMOVED = "out_of_scope_removed"
+
+#: Reporting order, fixed so every artefact and table lists the cells the same way.
+CELLS: tuple[str, ...] = (
+    CELL_BOTH,
+    CELL_LABEL_ONLY,
+    CELL_SIMILARITY_ONLY,
+    CELL_NEITHER,
+    CELL_OUT_OF_SCOPE_REMOVED,
+    CELL_OUT_OF_SCOPE,
+)
+
+#: What kind of sequence a record is, independent of either verdict. §A8's third step asks
+#: what falls in the gap, and this is the axis that answers it.
+KIND_VIRAL_DENYLISTED = "viral_denylisted"
+KIND_VIRAL_UNSPECIFIC = "viral_unspecific"
+KIND_VIRAL_OTHER = "viral_other"
+KIND_CELLULAR = "cellular"
+KIND_UNPLACED = "unplaced"
+KINDS: tuple[str, ...] = (
+    KIND_VIRAL_DENYLISTED,
+    KIND_VIRAL_UNSPECIFIC,
+    KIND_VIRAL_OTHER,
+    KIND_CELLULAR,
+    KIND_UNPLACED,
+)
+
+#: Which of the two taxon rules reached a removed record. A removal on `order` alone is a
+#: coarser claim than one on `family`, and A4.4 found that distinction carries two thirds of
+#: one filter's removals, so it is never collapsed here either.
+LABEL_RANKS: tuple[str, ...] = ("family", "order", "unspecific")
+
+#: The realms, by name. Needed because Evo's specificity rule requires a rank NCBI does not
+#: use: in the pinned 2023-04-01 dump no node carries rank `realm`, and Riboviria — a realm
+#: in the ICTV scheme the rule is written against — is a `clade`. Executed literally against
+#: NCBI the rule removes every viral record, so `build_predicate` falls back to these names
+#: and says in its `resolution` that it had to. The list is ICTV's own, as of the pinned
+#: taxonomy; a dump that grows a seventh realm and is not reflected here under-removes, which
+#: is the decay A9.1 measures one rank up.
+ICTV_REALMS: tuple[str, ...] = (
+    "Adnaviria",
+    "Duplodnaviria",
+    "Monodnaviria",
+    "Riboviria",
+    "Ribozyviria",
+    "Varidnaviria",
+)
+
+_NCBI_TAXONOMY = re.compile(rb'type="NCBI taxonomy" value="(\d+)"')
+_ENTRY_ID = re.compile(rb'<entry id="([^"]+)"')
+
+
+@dataclass(frozen=True)
+class LabelPredicate:
+    """Evo's taxon rules as a verdict on one taxid, with what it cannot run declared.
+
+    Built once, in the parent process, from a policy spec and the pinned taxonomy; shipped to
+    the workers as plain frozensets because a worker that had to climb a lineage per member
+    would pay for the climb a quarter of a billion times.
+
+    `by_family` and `by_order` are each the full descendant closure of that rule's named
+    taxa, so membership is one hash lookup. They can overlap — a family sits inside an order —
+    and `rank_of` resolves that the way the rules themselves do: the family rule is the more
+    specific claim, so it is reported as the reason.
+    """
+
+    viral: frozenset[int]
+    by_family: frozenset[int]
+    by_order: frozenset[int]
+    unspecific: frozenset[int]
+    family_names: tuple[str, ...] = ()
+    order_names: tuple[str, ...] = ()
+    rules_not_runnable: tuple[tuple[str, str], ...] = ()
+    #: One entry per name the rules cite, saying how the pinned taxonomy answered it. A name
+    #: the dump carries only as a synonym, or at a rank the rule did not declare, is in here
+    #: and **not** in the sets above. See `build_predicate`.
+    resolution: tuple[tuple[str, str, str], ...] = ()
+    #: Taxa a looser reading of the names would reach and this one does not. Counted against
+    #: the corpus so the artefact can say what the reading is worth, never folded into a cell.
+    loose_only: frozenset[int] = frozenset()
+
+    @property
+    def removed(self) -> frozenset[int]:
+        return self.by_family | self.by_order | self.unspecific
+
+    def kind_of(self, taxid: int | None) -> str:
+        """What the record is, before any verdict."""
+        if taxid is None:
+            return KIND_UNPLACED
+        if taxid not in self.viral:
+            return KIND_CELLULAR
+        if taxid in self.by_family or taxid in self.by_order:
+            return KIND_VIRAL_DENYLISTED
+        if taxid in self.unspecific:
+            return KIND_VIRAL_UNSPECIFIC
+        return KIND_VIRAL_OTHER
+
+    def rank_of(self, taxid: int) -> str | None:
+        """Which rule removed it, or `None` if none did."""
+        if taxid in self.by_family:
+            return "family"
+        if taxid in self.by_order:
+            return "order"
+        if taxid in self.unspecific:
+            return "unspecific"
+        return None
+
+
+def _taxid(piece: bytes) -> int | None:
+    found = _NCBI_TAXONOMY.search(piece)
+    return int(found.group(1)) if found is not None else None
+
+
+@dataclass(frozen=True)
+class ClusterAgreement:
+    """One cluster's contribution: whether it covers a seed, and its members' taxids.
+
+    Kept as a reduction rather than a row per member because the deliverable is a table of
+    counts and the corpus has a quarter of a billion members. `covers_seed` is a property of
+    the whole cluster and has to be known before any member can be scored, which is why the
+    reduction is per cluster and not per member.
+    """
+
+    covers_seed: bool
+    taxids: tuple[int | None, ...]
+
+
+def reduce_cluster(block: bytes, viral: frozenset[int]) -> ClusterAgreement | None:
+    """Read one cluster block, or `None` if it is not an entry at all.
+
+    The seed set is every viral-annotated record (the strict reading, D-156), so a cluster
+    covers a seed exactly when one of its members carries a viral taxid. That is the same
+    test `exclusivity.cluster_rows` makes, for the opposite purpose: there it asks what else
+    is in a seed's cluster, here it asks what a seed's cluster drags in.
+    """
+    if _ENTRY_ID.search(block) is None:
+        return None
+    taxids = tuple(_taxid(piece) for piece in iter_member_blocks(block))
+    covers = any(t is not None and t in viral for t in taxids)
+    return ClusterAgreement(covers_seed=covers, taxids=taxids)
+
+
+@dataclass
+class AgreementCounts:
+    """The cross-tab, and the two breakdowns §A8 asks for.
+
+    `cells` is the headline. `kind_by_cell` is what kind of sequence falls in each cell, which
+    is the third step of §A8 and the only part that says anything about *what* the two filters
+    disagree about. `rank_by_cell` records which taxon rule reached a label removal, kept
+    separate because a removal on an order is a coarser claim than one on a family.
+    """
+
+    clusters: int = 0
+    covering_clusters: int = 0
+    members: int = 0
+    #: Records a looser reading of the rules' own names would have removed and this one does
+    #: not. Carried beside the table, never inside it: the table is the rules as written.
+    loose_only_members: int = 0
+    cells: dict[str, int] = field(default_factory=lambda: dict.fromkeys(CELLS, 0))
+    kind_by_cell: dict[str, dict[str, int]] = field(
+        default_factory=lambda: {c: dict.fromkeys(KINDS, 0) for c in CELLS}
+    )
+    rank_by_cell: dict[str, dict[str, int]] = field(
+        default_factory=lambda: {c: dict.fromkeys(LABEL_RANKS, 0) for c in CELLS}
+    )
+
+    def observe(self, reduction: ClusterAgreement, predicate: LabelPredicate) -> None:
+        self.clusters += 1
+        if reduction.covers_seed:
+            self.covering_clusters += 1
+        for taxid in reduction.taxids:
+            self.members += 1
+            kind = predicate.kind_of(taxid)
+            rank = None if taxid is None else predicate.rank_of(taxid)
+            if taxid is not None and taxid in predicate.loose_only:
+                self.loose_only_members += 1
+            if kind in (KIND_CELLULAR, KIND_UNPLACED):
+                # Evo's filter never sees it, so it has no verdict to agree or disagree with.
+                cell = CELL_OUT_OF_SCOPE_REMOVED if reduction.covers_seed else CELL_OUT_OF_SCOPE
+            elif rank is not None:
+                cell = CELL_BOTH if reduction.covers_seed else CELL_LABEL_ONLY
+            else:
+                cell = CELL_SIMILARITY_ONLY if reduction.covers_seed else CELL_NEITHER
+            self.cells[cell] += 1
+            self.kind_by_cell[cell][kind] += 1
+            if rank is not None:
+                self.rank_by_cell[cell][rank] += 1
+
+    def merge(self, other: AgreementCounts) -> None:
+        self.clusters += other.clusters
+        self.covering_clusters += other.covering_clusters
+        self.members += other.members
+        self.loose_only_members += other.loose_only_members
+        for cell in CELLS:
+            self.cells[cell] += other.cells[cell]
+            for kind in KINDS:
+                self.kind_by_cell[cell][kind] += other.kind_by_cell[cell][kind]
+            for rank in LABEL_RANKS:
+                self.rank_by_cell[cell][rank] += other.rank_by_cell[cell][rank]
+
+    def to_dict(self) -> dict[str, object]:
+        out_of_scope = self.cells[CELL_OUT_OF_SCOPE] + self.cells[CELL_OUT_OF_SCOPE_REMOVED]
+        judged = self.members - out_of_scope
+        agreed = self.cells[CELL_BOTH] + self.cells[CELL_NEITHER]
+        return {
+            "clusters": self.clusters,
+            "covering_clusters": self.covering_clusters,
+            "members": self.members,
+            "loose_only_members": self.loose_only_members,
+            "cells": dict(self.cells),
+            "out_of_scope_members": out_of_scope,
+            "judged_members": judged,
+            "agreement": (agreed / judged if judged else None),
+            "kind_by_cell": {c: dict(self.kind_by_cell[c]) for c in CELLS},
+            "rank_by_cell": {c: dict(self.rank_by_cell[c]) for c in CELLS},
+        }
+
+
+def check_dominance(counts: AgreementCounts) -> None:
+    """Refuse a result where the label filter removed something the similarity filter did not.
+
+    Not a sanity check on arithmetic — it is the structural claim this task rests on. Evo's
+    taxon rules only ever fire on a viral-annotated record, and every viral-annotated record
+    is a seed under the reading in force, so such a record's own cluster covers a seed. A
+    non-empty `label_only` means one of those three premises is false — the seed set is not
+    annotation-only, the tier's hierarchy does not hold, or a denylisted taxon is not under
+    the viral root — and each of those changes what the number means. Better to stop than to
+    publish a one-sided table with an unexplained cell in it.
+    """
+    stray = counts.cells[CELL_LABEL_ONLY]
+    if stray:
+        raise ValueError(
+            f"{stray:,} records were removed by the taxon rules but sit in no cluster with a "
+            "seed; under an annotation-only seed set that is impossible, so either the seed "
+            "set, the tier hierarchy or the denylist closure is not what this pass assumed"
+        )
+
+
+@dataclass(frozen=True)
+class AgreementConfig:
+    """What a worker needs. Shaped like `seeds.ScanConfig` so `seeds.scan_parallel` drives it.
+
+    The whole predicate travels to each worker, which is a few million ints rather than the
+    seed FASTA's gigabyte; the alternative — climbing each member's lineage in the worker —
+    does the same ancestry walk once per member instead of once per taxid.
+    """
+
+    predicate: LabelPredicate
+
+    def scan(self, blocks: Iterable[bytes]) -> AgreementCounts:
+        counts = AgreementCounts()
+        for block in blocks:
+            reduced = reduce_cluster(block, self.predicate.viral)
+            if reduced is None:
+                continue
+            counts.observe(reduced, self.predicate)
+        return counts
+
+
+def build_predicate(
+    *,
+    taxonomy: object,
+    names: Mapping[int, str],
+    family_names: Sequence[str],
+    order_names: Sequence[str],
+    stop_taxa: Sequence[str],
+    require_rank: str,
+    ranks: Sequence[str],
+    rules_not_runnable: Sequence[tuple[str, str]] = (),
+    synonyms: Mapping[str, Sequence[int]] | None = None,
+    realm_names: Sequence[str] = ICTV_REALMS,
+) -> LabelPredicate:
+    """Close the rules' named taxa over the pinned taxonomy.
+
+    `taxonomy` is an `amazebio.seeds.Taxonomy`, typed loosely for the same reason
+    `exclusivity.FamilyIndex.build` does it: the predicate's logic is testable on synthetic
+    taxa and should not drag a taxdump into the test suite.
+
+    **A name the taxonomy does not carry at the rank the rule declares is a finding, not a
+    zero and not a crash.** It happens: `Reoviridae`, one of the nineteen families Evo names,
+    is not a scientific name in the pinned 2023-04-01 dump at all. The dump carries it as a
+    synonym of `Reovirales`, which is an *order*. So the family rule, read as written, matches
+    nothing — and read as "whatever the dump can resolve the word to" it removes an entire
+    order instead. The two readings differ by a whole rank, which is not a detail to settle
+    silently.
+
+    What this does: the removal sets are built from scientific names at the declared rank
+    only, which is the rule read as written. Every name is recorded in `resolution` with how
+    the dump answered it, and anything a looser reading would have reached goes in
+    `loose_only`, which the cross-tab counts against the corpus and never folds into a cell.
+    A name the dump does not carry under *any* class is still an error, because that is a
+    dump too old or too new to be the one the rule was written against.
+    """
+    index: dict[str, list[int]] = {}
+    for taxid, name in names.items():
+        index.setdefault(name, []).append(taxid)
+    other = {k: list(v) for k, v in (synonyms or {}).items()}
+    rank_of = taxonomy.rank  # type: ignore[attr-defined]
+    resolution: list[tuple[str, str, str]] = []
+    loose: set[int] = set()
+
+    def close(wanted: Sequence[str], rank: str, what: str) -> frozenset[int]:
+        out: set[int] = set()
+        for name in wanted:
+            exact = [t for t in index.get(name, ()) if rank_of.get(t) == rank]
+            if exact:
+                resolution.append((name, "scientific name", rank))
+                for taxid in exact:
+                    out |= taxonomy.descendants(taxid)  # type: ignore[attr-defined]
+                continue
+            loose_hits = [*index.get(name, ()), *other.get(name, ())]
+            if not loose_hits:
+                raise ValueError(
+                    f"{what} {name!r} is not a name in the pinned taxonomy under any class; "
+                    "a rule whose taxon the dump has never heard of is a dump that is not "
+                    "the one the rule was written against, not a rule that removes nothing"
+                )
+            for taxid in loose_hits:
+                found = rank_of.get(taxid, "no rank")
+                how = "scientific name" if taxid in index.get(name, ()) else "synonym"
+                resolution.append((name, f"{how} of a {found}, not a {rank}", found))
+                loose.update(taxonomy.descendants(taxid))  # type: ignore[attr-defined]
+        return frozenset(out)
+
+    viral = frozenset(taxonomy.descendants(VIRAL_ROOT))  # type: ignore[attr-defined]
+    by_family = close(family_names, "family", "denylisted family") & viral
+    by_order = close(order_names, "order", "denylisted order") & viral
+
+    # The stop taxa are matched as *assignments*, not as clades. "only assigned up to the
+    # level of Riboviria" means the record sits at Riboviria and nowhere finer; closing the
+    # eight over their descendants would make almost every RNA virus unspecific, which is the
+    # opposite of what the rule says. `policyspec.decide` resolves it by finest assigned rank
+    # and this reproduces that, one taxid at a time rather than one record at a time.
+    stop_names = set(stop_taxa)
+    for name in stop_names:
+        if name not in index:
+            raise ValueError(f"stop taxon {name!r} is not a scientific name in the taxonomy")
+    parent = taxonomy.parent  # type: ignore[attr-defined]
+    order = {rank: i for i, rank in enumerate(ranks)}
+
+    # **The required rank does not exist in this taxonomy.** Evo's rule says "no assigned
+    # realm at all", which is an ICTV rank; NCBI does not use it — in the pinned dump
+    # Riboviria's rank is `clade`, and no node anywhere carries `realm`. Executed as written
+    # against NCBI the rule removes every viral record, which is not a filter result but a
+    # unit mismatch. So the rank is resolved to the realms by name when the taxonomy has no
+    # such rank, and `resolution` records that it had to be.
+    if any(rank_of.get(t) == require_rank for t in viral):
+        realms: frozenset[int] = frozenset()
+    else:
+        resolution.append(
+            (
+                require_rank,
+                f"not a rank this taxonomy uses, so 'has a {require_rank}' is read as "
+                f"descent from one of the {len(realm_names)} named {require_rank}s",
+                "no rank",
+            )
+        )
+        realms = frozenset(t for name in realm_names for t in index.get(name, ()) if t in viral)
+        if not realms:
+            raise ValueError(
+                f"the taxonomy has no node of rank {require_rank!r} and none of "
+                f"{sorted(realm_names)} by name either; the specificity rule cannot be run "
+                "against it at all, and running it anyway would remove the whole corpus"
+            )
+
+    unspecific: set[int] = set()
+    for taxid in viral:
+        # One climb per taxid, not one per rank: the lineage is the same walk eight times
+        # over, and at this many taxa that is the difference between seconds and minutes.
+        node, seen, finest, best, has_required = taxid, set(), None, -1, False
+        while node not in seen:
+            seen.add(node)
+            rank = rank_of.get(node)
+            if rank == require_rank or node in realms:
+                has_required = True
+            place = order.get(rank)
+            if place is not None and place > best:
+                best, finest = place, node
+            par = parent.get(node)
+            if par is None or par == node:
+                break
+            node = par
+        if not has_required or (finest is not None and names.get(finest) in stop_names):
+            unspecific.add(taxid)
+    return LabelPredicate(
+        viral=viral,
+        by_family=by_family,
+        by_order=by_order,
+        unspecific=frozenset(unspecific) - by_family - by_order,
+        family_names=tuple(family_names),
+        order_names=tuple(order_names),
+        rules_not_runnable=tuple(rules_not_runnable),
+        resolution=tuple(resolution),
+        loose_only=frozenset(loose) & viral - by_family - by_order,
+    )
