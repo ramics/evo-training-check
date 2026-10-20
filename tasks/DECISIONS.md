@@ -9171,3 +9171,61 @@ decision has a threshold or parameter in it, the number goes in the entry.
   eukaryote-infecting, and NCBI carries no host. The replay measures what the names reach
   against what the taxonomy holds; the host-conditioned question stays with the charitable
   reading's own rule and is named as not answered here.
+
+### D-202 — A9.1's result: the list loses about three points of the viral taxonomy a year, and has done so since before it was written
+- **Date:** 2026-10-20
+- **Task:** A9.1
+- **Context:** The replay fixed in D-201 ran over all 28 quarterly dumps, 2020-01-01 to
+  2026-10-01, baseline 2023-04-01. Every dump carried a merge table, so no release had to
+  guess at renumbering. Artefacts: `artifacts/a9-1/decay.json` and `decay.md`, with each
+  dump's SHA-256 recorded in the first.
+- **Decision:** Record the following as A9.1's measured result, and report it as a property of
+  label-based filters rather than of these two models.
+
+  **Reach.** The 19 family and 12 order names resolve to 75.83% of the viral taxonomy at the
+  baseline and 65.17% at 2026-10-01. Over the whole window: 85.56% in 2020-01 to 65.17%.
+
+  **The slope is the same before and after the filter was written** — 3.00 points of the viral
+  taxonomy per year before the baseline, 3.05 after. That matters for how the finding is
+  worded. This is not a list that was accurate and then aged; it is a list of this shape
+  never reaching more than about three quarters of the taxonomy and losing a steady three
+  points a year to material erected outside it. The honest claim is about the construction,
+  not about elapsed time since publication.
+
+  **It is new diversity, not renaming.** 44,261 viral taxa exist at 2026-10-01 that the
+  baseline did not have, are not reachable from it through `merged.dmp`, and no frozen name
+  reaches — 15.18% of the current viral taxonomy. Against that: 787 renamed, 890 renumbered,
+  7,723 re-ranked, 0 reassigned into the viral root. Churn is under a fifth of the new
+  material and is never added to it.
+
+  **Three of the thirty-one names no longer resolve.** `Reoviridae` from 2023-01 (a synonym of
+  the order `Reovirales`), and from 2026-01 `Herpesviridae` (a synonym of the family
+  `Orthoherpesviridae`) and `Orthopolintovirales` (a synonym of the order `Amphintovirales`).
+  All three are the same failure and it is the one that reads as harmless: the word is still
+  in the release, the clade is still at the rank the rule declares, and the rule — which names
+  a *scientific* name — matches nothing. `Herpesviridae` is the case worth stating plainly: a
+  filter whose published text excludes herpesviruses by name stopped excluding any of them in
+  January 2026, and nothing in the filter's own output says so.
+
+  **The computed rule ages more slowly and is not immune.** Descent from an ICTV realm, asked
+  of each release, covers 96.57% at the baseline and 88.47% at 2026-10-01 — a relative decline
+  of 8.39% against the static list's 14.06%. Two caveats travel with that. The realm rule
+  *rose* across the pre-baseline stretch, 85.08% to 96.57%, because the realm framework was
+  itself still being populated after 2019; the comparison is only clean after the baseline.
+  And what it falls to is the taxonomy's own incompleteness: 11.5% of viral taxa at 2026-10
+  descend from no realm at all.
+
+  **Re-validation interval.** At the observed 4.34% of the viral taxonomy per year, holding
+  unnamed new material under 0.5% needs re-validation every 0.1 years, under 1% every 0.2
+  years, and under 5% every 1.2 years. Reported at three tolerances rather than one, with the
+  four assumptions stated in the artefact, so a reader picks the tolerance.
+- **Rejected:** *Reporting the fall from 2020 as decay of this filter.* The filter did not
+  exist in 2020. The pre-vintage stretch is reported because it establishes the slope is not a
+  post-publication effect, not as the filter's own history.
+  *Counting the re-ranked 7,723 as decay.* A taxon that changed rank is the same material in
+  the same place; the rule may stop naming it, which the reach number already carries, and
+  counting it again as lost diversity would double it.
+  *Converting taxa to sequence.* Every count here is of taxa. A family with one deposited
+  genome and one with ten thousand count the same, so this bounds how fast the list stops
+  naming things, not how much material escapes. That conversion needs the corpus and is not
+  claimed.
