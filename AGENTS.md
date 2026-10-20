@@ -363,6 +363,16 @@ passes, because the bands do tile. One reached the census prefix on 2026-10-20 a
 has no delete. Either refuse the pair in code, which is what was done, or redirect the durable
 destination for the probe.
 
+**Rehearse the shape the run will produce, not the shape the last run produced.** A2.6's
+assembly step failed twice in one day against the census's own shape, and both failures would
+have landed *after* the search, with the compute already spent: once because eight census parts
+do not fit in memory together where a sampled pass's did, and once because the assembler read
+the first pass's table for metadata and a census has no first pass — its bands start at the
+beginning and tile the whole rate. Neither is visible in a rehearsal that reuses the previous
+task's artefacts, which is what makes that rehearsal worse than none: it passes. Build the
+inputs the pending run will actually write — the right number of parts, the right bands, and
+nothing else present — and run the downstream step against them before launching.
+
 **A dry run authorizes; it does not execute.** `DryRun=True` checks permissions and parameters and
 returns `DryRunOperation` on success, which is worth doing. It runs no `UserData`, so it cannot
 catch a missing dependency, a wrong interpreter or a broken script. Those checks belong inside the
