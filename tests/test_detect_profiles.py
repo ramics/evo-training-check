@@ -501,3 +501,40 @@ class TestWhatParallelBandsMustNotShare:
         assert 'scope = f"{scope}-{band[0]:g}-{band[1]:g}"' in source
         assert 'manifest_name=f"run-{scope}.json"' in source
         assert "index-{scope}.json" in source
+
+
+class TestHowAManifestIsCited:
+    """`--manifests artifacts/a1-4` is what the census workers are given, because the
+    instance has no checkout at the repository root.
+
+    `Path.relative_to` raises on a path outside the root rather than giving up, and the
+    raise happened after the search: a worker would have read its whole band, searched it,
+    and died with nothing written. A smoke test on 400 records found it; the instance would
+    have found it six hours in.
+    """
+
+    def test_a_path_inside_the_repo_is_cited_relative_to_it(self) -> None:
+        inside = pathlib.Path(detect_profiles.REPO) / "artifacts" / "a1-4" / "m.json"
+        assert detect_profiles.manifest_ref_path(inside) == "artifacts/a1-4/m.json"
+
+    def test_a_relative_path_resolves_rather_than_raising(self, monkeypatch) -> None:
+        monkeypatch.chdir(detect_profiles.REPO)
+        assert (
+            detect_profiles.manifest_ref_path(pathlib.Path("artifacts/a1-4/m.json"))
+            == "artifacts/a1-4/m.json"
+        )
+
+    def test_a_path_outside_the_repo_is_cited_absolutely(self, tmp_path) -> None:
+        """The absolute path still says which file was read, and the digest beside it in
+        the table is what pins the content."""
+        outside = tmp_path / "a1-4" / "m.json"
+        assert detect_profiles.manifest_ref_path(outside) == str(outside.resolve())
+
+    def test_it_never_raises_on_any_shape_of_path(self, tmp_path) -> None:
+        for path in [
+            pathlib.Path("artifacts/a1-4/m.json"),
+            pathlib.Path("/opt/amazebio/artifacts/a1-4/m.json"),
+            tmp_path / "m.json",
+            pathlib.Path(detect_profiles.REPO) / "m.json",
+        ]:
+            assert detect_profiles.manifest_ref_path(path)

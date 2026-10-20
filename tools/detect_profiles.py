@@ -236,6 +236,23 @@ def hmm_path(reg: Registry) -> Path:
     return profilesearch.hmm_path(reg, DATA)
 
 
+def manifest_ref_path(path: Path) -> str:
+    """How a manifest is cited in a detection table: repo-relative where it can be.
+
+    `Path.relative_to` raises rather than giving up, and the path is whatever `--manifests`
+    was given — relative in the census workers, since the instance has no checkout at the
+    repository root. That raised *after* the search, so a worker would have spent its whole
+    pass and then died with nothing written. Outside the repo the absolute path is the
+    honest answer: it still says which file was read, and the digest beside it is what
+    actually pins the content.
+    """
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(REPO))
+    except ValueError:
+        return str(resolved)
+
+
 def call_genes(records: list[Any]) -> tuple[list[Any], dict[str, int]]:
     """A2.1's gene calling. Lives in `amazebio.profilesearch` so A2.4 calls the same one."""
     return profilesearch.call_genes(records)
@@ -1115,7 +1132,7 @@ def main(argv: list[str] | None = None) -> int:
                 ref = ManifestRef(
                     policy_id=manifest["policy"]["id"],
                     release=manifest["release"],
-                    path=str(entry["path"].relative_to(REPO)),
+                    path=manifest_ref_path(entry["path"]),
                     sha256=sha256_file(entry["path"]),
                     removed_records=manifest.get("removed", {}).get("records", 0),
                 )
