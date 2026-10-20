@@ -38,9 +38,13 @@ import numpy as np
 #: and not a parameter of the statistic.
 EXACT_BUDGET = 2.0e10
 
-#: Rows drawn for the sampled path. Large enough that the interval on these alignments is a
-#: couple of percent wide, small enough that the pass is a minute rather than an hour.
-SAMPLE_ROWS = 4000
+#: Rows drawn for the sampled path. The weights are skewed — most sequences sit in large
+#: near-identical groups and weigh almost nothing, while the sum is carried by the singletons —
+#: so the estimator needs a lot of rows to pin down. At 4,000 the interval on these alignments
+#: ran to 18% of the estimate, which is too loose for a covariate a regression leans on; the
+#: cost is linear in this number and the block index made each row cheap, so it buys the
+#: precision back directly.
+SAMPLE_ROWS = 20_000
 
 #: Resamples behind the reported interval.
 BOOTSTRAP = 2000
