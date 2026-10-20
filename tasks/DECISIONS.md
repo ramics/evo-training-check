@@ -9828,3 +9828,34 @@ decision has a threshold or parameter in it, the number goes in the entry.
   implementation detail and leave it out of the log — a later reader deciding whether a lost
   object is recoverable needs the window, and it is exactly the kind of thing that is
   expensive to rediscover.
+
+### D-220 — The scoring environment is pinned to what ESM3-open needs, and scores in float32
+
+- **Date:** 2026-10-20
+- **Task:** B1.2
+- **Context:** Two of the four Tier-1 protein checkpoints — ESM3-open, the test condition of
+  the whole audit, and ESM-C 600M — are not reachable through `transformers.EsmForMaskedLM`.
+  Their published access route is EvolutionaryScale's `esm` package, which `amazebio.backends`
+  records verbatim. That package was not in the scoring environment, and adding it forces
+  `torch` to 2.11 and `transformers` to 4.57, where the environment had resolved to 2.14 and
+  5.20. Separately, ESM3-open's released weights are bfloat16 and its forward mixes them with
+  float32 activations, which raises rather than casting.
+- **Decision:** Pin the scoring environment to `pytorch >=2.11,<2.12` and
+  `transformers >=4.57.6,<5`, add `esm >=3.4.1.post1,<4`, and cast an EvolutionaryScale model
+  to float32 before scoring. Substituting a route the authors did not name would make a
+  claim about their model that rests on this project's reading of it, which §B1 step 0
+  forbids for far smaller things. The float32 cast is the only dtype in which the forward
+  runs at all without reimplementing it, and it is the precision the published reference
+  scores are computed in, so it is also the comparable one.
+  **The one ESM-2 650M pass already run under the old pins is superseded**: it was produced
+  at torch 2.14 / transformers 5.20 and must be re-run here, so that a difference between two
+  checkpoints' numbers is the checkpoint rather than the stack. Its artefact stays, keyed by
+  the commit that produced it (D-216), and the re-run's determinism check is what establishes
+  the two agree.
+- **Alternatives rejected:** Load ESM-C through `transformers`, which does support it from
+  5.16 — it would hold the environment at transformers 5 and leave ESM3-open unreachable,
+  which is the wrong one of the two to drop. Keep two scoring environments, one per route —
+  it removes the shared tokenizer and vocabulary arithmetic that makes a difference between
+  two checkpoints' scores attributable to the checkpoint. Score ESM3-open in bfloat16 by
+  casting the activations instead — it would make its numbers incomparable with every other
+  checkpoint's and with the published reference.
