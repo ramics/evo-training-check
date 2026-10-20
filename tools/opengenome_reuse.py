@@ -115,6 +115,10 @@ def _checkpoint_path(outdir: Path, archive: str) -> Path:
 def _resume_from(path: Path) -> tuple[list[str], list[str], int, int]:
     """What a previous run of this archive got through: names, members, next offset.
 
+    Each line also carries the member's own offset and length, which is what lets the
+    contig-level pass read members in parallel: a gzip stream cannot be decompressed in
+    parallel, but one member is one stream, so the member list is the parallelism.
+
     The checkpoint is append-only JSON lines, so a run killed mid-write leaves at most one
     malformed trailing line. That line is dropped rather than parsed, and the walk restarts
     from the last line that did parse — which costs at most one member, where the
@@ -148,9 +152,7 @@ def walk(archive: str, progress: Progress, *, outdir: Path, resume: bool) -> dic
         ].read()
 
     checkpoint = _checkpoint_path(outdir, archive)
-    accessions, other, members, start = (
-        _resume_from(checkpoint) if resume else ([], [], 0, 0)
-    )
+    accessions, other, members, start = _resume_from(checkpoint) if resume else ([], [], 0, 0)
     if not resume and checkpoint.exists():
         checkpoint.unlink()
     if start:
@@ -168,6 +170,8 @@ def walk(archive: str, progress: Progress, *, outdir: Path, resume: bool) -> dic
                     {
                         "members": members,
                         "next_offset": member.next_offset,
+                        "offset": member.offset,
+                        "size": member.size,
                         "name": member.name,
                         "accession": found,
                     }
@@ -256,9 +260,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("stated_added", STATED_ADDED)
             manifest.parameter("decisions", ["D-130", "D-213"])
             manifest.parameter("resumed", args.resume)
-            document = measure(
-                args.workers, progress, outdir=args.outdir, resume=args.resume
-            )
+            document = measure(args.workers, progress, outdir=args.outdir, resume=args.resume)
             out = args.outdir / "genomes.json"
             out.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
             manifest.output_file(out, role="genome enumeration")
