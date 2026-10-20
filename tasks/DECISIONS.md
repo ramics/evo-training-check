@@ -9786,3 +9786,23 @@ decision has a threshold or parameter in it, the number goes in the entry.
   requires every discrepancy to carry a cause and forbids a residual bucket, and
   `undetermined` is explicitly not a cause. Call them `content` on the accession alone —
   that is the guess D-213 introduced the digest to avoid.
+
+### D-218 — Versioning on the corpus bucket, and who can turn it on
+
+- **Date:** 2026-10-20
+- **Task:** X1.7
+- **Context:** D-216 established that a durable key without a commit in it is replaced by the
+  next run of the same pipeline, and X1.7 fixed the pipeline side. Nothing in code reaches
+  objects written before that fix, or a mistake made outside a pipeline. S3 versioning would,
+  by retaining every replaced copy.
+- **Decision:** The project owner chose to turn it on (2026-10-20). This session cannot: the
+  account's `claude` user is denied `s3:PutBucketVersioning` and `s3:GetBucketVersioning` on
+  `amazebio-corpora-897641797669`, so the change is made in the console and cannot be read
+  back or verified from here either. Recorded as owner-held rather than done, and whoever
+  next needs to rely on it should confirm the bucket's state from an account that can read
+  it. Note that the bucket has no `s3:DeleteObject`, so every retained version is permanent
+  too; the storage cost is small and ongoing.
+- **Alternatives rejected:** Leave it off and rest on the commit-keyed copies alone — they
+  cover everything written from today, which leaves every earlier object at one copy and any
+  non-pipeline write uncovered. Ask for a delete permission instead so junk could be removed —
+  the absence of delete is what makes a staged corpus un-rewritable and is deliberate (§A1).

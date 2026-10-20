@@ -2,7 +2,7 @@
 id: X1.7
 title: Key durable results by commit
 phase: X
-status: in-progress
+status: review
 gate: false
 depends_on: []
 blocks: []
@@ -63,5 +63,24 @@ It is a defect in `amazebio.repro`'s durable-write path, shared by every pipelin
 
 Read with D-126, which put the commit in the EC2 result keys for this reason one tool at a
 time, and D-216, which is the general case.
+
+## State — 2026-10-20
+
+`review`. **Branch `claude/project-thread-a3vch4`.**
+
+Done. `amazebio.repro` now writes every durable output twice: to the stable key it has always
+used, so every reader keeps working, and to a twin under `by-commit/<commit>/` that a later
+run of the same pipeline cannot reach. The commit comes from the checkout, or from the
+`code_commit` parameter where there is no checkout, which is the EC2 case. Each object
+carries its sha256 and its commit as metadata. A run whose own commit has already published
+different bytes is refused before anything is uploaded, naming the object and both digests;
+`replace_durable='<reason>'` allows it and the reason lands in the manifest. Twelve tests,
+and the full suite is green.
+
+No existing key moved, so nothing is orphaned.
+
+**The versioning question is answered and is the owner's to act on** (D-218). He chose to
+turn it on; this session cannot, being denied both `s3:PutBucketVersioning` and
+`s3:GetBucketVersioning`, so it also cannot confirm the bucket's state afterwards.
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
