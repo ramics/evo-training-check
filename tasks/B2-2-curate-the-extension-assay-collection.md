@@ -2,7 +2,7 @@
 id: B2.2
 title: Curate the extension assay collection
 phase: B
-status: in-progress
+status: review
 gate: false
 depends_on: [B2.1]
 blocks: [B2.3, B2.4]
@@ -40,8 +40,25 @@ statistical threat. Published data on well-characterised proteins only, per §4.
 
 ## State — 2026-10-20
 
-`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
-owner yet.
+`review`. **Branch `claude/project-thread-a3vch4`**, in
+[PR #30](https://github.com/ramics/amazebio/pull/30) alongside A3.2 and A4.4.
+
+**Finished.** `src/amazebio/assays.py` places an assay in the pinned taxonomy and applies the
+denylists; `tools/assay_register.py` builds the register; `tests/test_assays.py` pins the
+arithmetic and the refusals. Artefacts at `corpora/results/b2-2/` —
+`artifacts/b2-2/register.json`, `register.md`, `run-register.json`.
+
+**Done-when verdict.** Inclusion criteria were fixed before screening and are in the artefact
+(`inclusion_criteria`); every included assay carries organism, taxid, accession, family, order,
+readout, variant count, length and DOI, with the source of each organism pin recorded. The third
+criterion — *materially increases usable n* — is **not met, and D-197 records why it cannot be**:
+the published collections do not give a usable design, and more assays do not fix it. Family is
+perfectly confounded with exclusion status by construction, the retained arm is 7 bacteriophage
+assays sharing one readout class from one study, and ESM3-open's exclusion status is a
+similarity computation rather than a taxonomic lookup.
+
+**Waiting on the project owner:** nothing. **Carried to B5.1:** §B5's pre-registered model
+cannot be frozen as drafted — see D-197's consequence.
 
 ## Notes
 
