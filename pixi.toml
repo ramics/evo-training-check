@@ -206,8 +206,16 @@ platforms = ["linux-64"]
 [feature.score.dependencies]
 # The reference implementation for the ESM-2 checkpoints in B1.1's inventory, whose published
 # access route names `transformers.EsmForMaskedLM`.
-pytorch = ">=2.5,<3"
-transformers = ">=4.46,<6"
+pytorch = ">=2.11,<2.12"
+transformers = ">=4.57.6,<5"
+
+# ESM3-open and ESM-C are not reachable through `transformers.EsmForMaskedLM`: their
+# published access route is EvolutionaryScale's own package, and `amazebio.backends`
+# records that verbatim rather than substituting a route the authors did not name. It is a
+# PyPI dependency because it is not packaged for conda-forge. ESM3-open is the test
+# condition of the whole audit, so this is not an optional extra.
+[feature.score.pypi-dependencies]
+esm = ">=3.4.1.post1,<4"
 
 [feature.dev.dependencies]
 pytest = ">=8.3,<9"

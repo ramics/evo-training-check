@@ -62,3 +62,32 @@ def test_the_scores_are_written_before_the_check_that_can_fail_on_them() -> None
     ]
     assert len(order) == 2, "expected one checkpoint call and one published-scores read"
     assert order[0] < order[1]
+
+
+class _Recipe:
+    def __init__(self, loader: str) -> None:
+        self.loader = loader
+
+
+def test_the_evolutionaryscale_route_is_chosen_by_the_published_access_route() -> None:
+    """Not by checkpoint name. The inventory records how each model's authors say to load
+    it, and a route this harness picked for itself would be a claim they did not make."""
+    assert tool.is_evolutionaryscale(_Recipe("esm.models.esm3.ESM3"))
+    assert tool.is_evolutionaryscale(_Recipe("esm.models.esmc.ESMC"))
+    assert not tool.is_evolutionaryscale(_Recipe("transformers.EsmForMaskedLM"))
+
+
+def test_each_route_reads_its_own_output_objects_sequence_logits() -> None:
+    """The two output objects name the same tensor differently, and reading the wrong
+    attribute on either is the kind of mistake that produces plausible numbers."""
+
+    class MaskedLM:
+        def __call__(self, *, input_ids):
+            return type("Out", (), {"logits": ("masked", input_ids)})()
+
+    class Multitrack:
+        def __call__(self, *, sequence_tokens):
+            return type("Out", (), {"sequence_logits": ("sequence", sequence_tokens)})()
+
+    assert tool._masked_lm_logits(MaskedLM(), "rows") == ("masked", "rows")
+    assert tool._sequence_logits(Multitrack(), "rows") == ("sequence", "rows")

@@ -83,6 +83,37 @@ def plan(
     }
 
 
+def is_evolutionaryscale(spec: backends.Recipe) -> bool:
+    """Whether this checkpoint loads through EvolutionaryScale's package rather than
+    `transformers`.
+
+    ESM3-open and ESM-C are not reachable as `transformers.EsmForMaskedLM`: their published
+    access route is the `esm` package, and `amazebio.backends` records that route verbatim
+    rather than substituting one the authors did not name. The two routes differ in how the
+    model is constructed and in what its output object calls the sequence logits, and in
+    nothing else — the tokenizer, the vocabulary and the prefix arithmetic are shared, so a
+    difference between two checkpoints' scores is the model and not the reader.
+    """
+    return spec.loader.startswith("esm.models.")
+
+
+def _masked_lm_logits(model, rows):  # type: ignore[no-untyped-def]
+    """Logits from a `transformers` masked language model."""
+    return model(input_ids=rows).logits
+
+
+def _sequence_logits(model, rows):  # type: ignore[no-untyped-def]
+    """Logits over the sequence track of an EvolutionaryScale model.
+
+    ESM3 is multi-track and generative; only the sequence track is read and only through
+    this one call. Nothing here hands the model itself to the harness — `FrozenLM` closes
+    over a forward function — so `scoring.enforce_scope` still has nothing to reject and
+    the generation entry points §4 forbids stay out of reach by construction, not by
+    agreement.
+    """
+    return model(sequence_tokens=rows).sequence_logits
+
+
 def load_backend(
     spec: backends.Recipe,
     weights: str,
@@ -104,12 +135,28 @@ def load_backend(
     numbers.
     """
     import torch
-    from transformers import AutoTokenizer
 
     module, _, attribute = spec.loader.rpartition(".")
     loaded = getattr(__import__(module, fromlist=[attribute]), attribute)
-    tokenizer = AutoTokenizer.from_pretrained(weights)
-    model = loaded.from_pretrained(weights)
+
+    if is_evolutionaryscale(spec):
+        from esm.tokenization import EsmSequenceTokenizer
+
+        tokenizer = EsmSequenceTokenizer()
+        extra = {} if attribute == "ESM3" else {"use_flash_attn": False}
+        model = loaded.from_pretrained(weights, device=torch.device("cpu"), **extra)
+        # The released weights are bfloat16 and the forward mixes them with float32
+        # activations, which raises rather than casting. Scoring in float32 is both what
+        # resolves that and what the published reference numbers are in (D-220).
+        model = model.to(torch.float32)
+        logits_of = _sequence_logits
+    else:
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(weights)
+        model = loaded.from_pretrained(weights)
+        logits_of = _masked_lm_logits
+
     model.eval()
     model.requires_grad_(False)
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -119,7 +166,7 @@ def load_backend(
 
     def forward(rows):  # type: ignore[no-untyped-def]
         with torch.inference_mode():
-            out = model(input_ids=torch.tensor(list(rows))).logits
+            out = logits_of(model, torch.tensor(list(rows)))
         return out.to(torch.float64).cpu().tolist()
 
     return backends.FrozenLM(
