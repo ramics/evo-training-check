@@ -9673,3 +9673,34 @@ decision has a threshold or parameter in it, the number goes in the entry.
   re-representation and cannot report either direction by accession; and contig-only
   comparison with no digest, which would leave every discrepancy in the residual bucket the
   Done-when forbids.
+
+### D-214 — M3's bins are computable; M3 itself is not, for most families
+
+- **Date:** 2026-10-20
+- **Task:** A3.4
+- **Context:** A3.2 split M3 out because detection records carry no sequence. A3.4 built the
+  bins the metric needs: every viral Pfam family's seed alignment clustered at 50% identity
+  and 80% coverage (D-205, D-206). 1,719 families, 34,482 seed members, 17,502 bins. The
+  shape of that distribution is the finding. The median family has four bins, 21.5% have
+  exactly one, and 57.8% have fewer than five. Taking the most favourable case — half the
+  bins surviving — and asking what `metrics/survival.md`'s interval would then be, the
+  median width is 0.700 and **1,348 families, 78.4%, come out wider than half the range**.
+  That is before any detection is placed in any bin: it is a property of how few members
+  Pfam's seed alignments hold, not of what the filter did.
+- **Decision:** A3.4 reports M3 per family **only for the 371 families whose interval can be
+  narrower than half the range**, and reports the rest as a named count of families whose
+  diversity coverage this corpus cannot measure, with the reason. Pooled M3 by homology
+  class is reported alongside, since pooling is what the sample size supports; per-assay
+  and per-family remain the default presentation everywhere they are informative, per
+  `AGENTS.md`. No point estimate is published without its interval, and no family is given
+  a coverage figure whose interval spans most of the range.
+- **Alternatives rejected:** *Report M3 for all 1,719 with intervals attached.* An interval
+  wider than half the range printed under a coverage number is read as the number; §A3's
+  whole point is a figure a reader can act on. *Rebuild the bins from Pfam's full
+  alignments rather than its seed alignments.* It would raise the member counts by orders
+  of magnitude and is the obvious fix, but full alignments are built by the same profile
+  the detection step uses, so the bins would no longer be independent of what is being
+  measured — the coverage denominator would inherit the detector's own recall. *Drop M3.*
+  §A3 names three metrics and a metric dropped because it is inconvenient is the kind of
+  omission §2 forbids; reported as not measurable, it is a result about what this corpus
+  can support.

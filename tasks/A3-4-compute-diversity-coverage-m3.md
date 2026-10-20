@@ -49,17 +49,15 @@ was never taken, so taking it is a corpus pass with its own cost and its own dec
 
 ## State — 2026-10-20
 
-`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
-owner; the bin-source question was answered on 2026-10-20 and is recorded in **D-205**.
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** The bins are built: 1,719 viral
+Pfam families, 34,482 seed members, 17,502 bins, at 50% identity and 80% coverage
+(D-205, D-206). The finding is in the shape of that distribution rather than in the count —
+78.4% of families cannot carry an informative M3 whatever the detections turn out to be,
+because Pfam's seed alignments hold too few members. D-214 fixes what is reported for them.
 
-The task has two halves and only the first is cheap. **Bins** come from Pfam's seed alignment,
-complete rather than sampled, and are computed here. **Placement** — putting each surviving
-detection into a bin of its family — needs the surviving sequence, which no A2 artefact
-carries (D-195), so it is a corpus pass whose depth is declared before it runs.
-
-D-205 also settles the other two registries: RVDB-prot publishes no sequence-to-family
-mapping, so M3 is not computable there from the published release, and Dfam is nucleotide, so
-the frozen amino-acid rule does not apply. Both are findings, not gaps to close here.
+Left: place the surviving detections into the bins, which needs a corpus pass at a declared
+depth, and report pooled M3 by homology class alongside the 371 families that can carry a
+per-family figure. Nothing is waiting on the project owner.
 
 ## Notes
 
