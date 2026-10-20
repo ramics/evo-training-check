@@ -459,6 +459,12 @@ EXEMPT_CALL_SITES: set[str] = {
     # names the census will use (D-224). `durable_for` now publishes only from the task's
     # canonical `artifacts/<task>` directory and claims the exemption otherwise.
     "detect_profiles.py",
+    # B2.3's control set, conditionally and for the same two reasons as the tools above: a
+    # run written outside the task's canonical directory is a rehearsal, and a `--max-rows`
+    # run has not seen the whole release. A bounded corpus-presence count is the dangerous
+    # one here — it looks exactly like a complete count and would understate presence, which
+    # is the direction that makes the control look weaker than it is.
+    "control_set.py",
 }
 
 
