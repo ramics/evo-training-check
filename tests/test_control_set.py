@@ -97,7 +97,14 @@ class TestWhatTheSetSpans:
 class TestReadingTheCorpus:
     def _served(self, monkeypatch, rows: list[str]):
         header = "\t".join(["UVIG", "vOTU", "Confidence", "Taxonomic classification"])
-        body = "".join(f"u\tv\thigh\t{r}\n" for r in rows)
+        body = "".join(
+            f"u{i}\t{v}\thigh\t{r}\n"
+            for i, (v, r) in enumerate(
+                rows
+                if rows and isinstance(rows[0], tuple)
+                else [(f"vot{j}", x) for j, x in enumerate(rows)]
+            )
+        )
         payload = (header + "\n" + body).encode()
 
         class _Fake:
@@ -124,7 +131,7 @@ class TestReadingTheCorpus:
         )
         out = cs.corpus_presence("b", "k", {"genus": {"Lambdavirus"}, "class": set()})
         assert out["counts"]["genus"] == {"Lambdavirus": 1}
-        assert out["rows"] == 2
+        assert out["uvig_rows"] == 2
 
     def test_a_name_in_the_wrong_rank_field_is_not_counted(self, monkeypatch):
         """A substring match on the whole line would count a species named after the genus."""
@@ -135,8 +142,19 @@ class TestReadingTheCorpus:
     def test_rows_with_no_classification_are_excluded_from_the_denominator(self, monkeypatch):
         self._served(monkeypatch, ["c__Caudoviricetes;;g__Lambdavirus;", ";;;", ";;;;"])
         out = cs.corpus_presence("b", "k", {"genus": {"Lambdavirus"}})
-        assert out["rows"] == 3
-        assert out["rows_with_a_classification"] == 1
+        assert out["uvig_rows"] == 3
+        assert out["uvig_rows_with_a_classification"] == 1
+
+    def test_many_contigs_of_one_votu_are_one_votu(self, monkeypatch):
+        """The table is one row per UViG and a vOTU gathers many. Counting rows would say a
+        genus is present 12 times when the corpus carries one record for it."""
+        self._served(
+            monkeypatch,
+            [("votuA", "c__Caudoviricetes;;g__Lambdavirus;")] * 12,
+        )
+        out = cs.corpus_presence("b", "k", {"genus": {"Lambdavirus"}})
+        assert out["counts"]["genus"] == {"Lambdavirus": 1}
+        assert out["uvig_counts"]["genus"] == {"Lambdavirus": 12}
 
     def test_a_bounded_scan_says_it_is_partial(self, monkeypatch):
         self._served(monkeypatch, ["c__Caudoviricetes;;g__Lambdavirus;"] * 10)
@@ -145,7 +163,13 @@ class TestReadingTheCorpus:
 
 class TestTheVerdictPerOrganism:
     def _presence(self, counts, classified=1000):
-        return {"rows": classified, "rows_with_a_classification": classified, "counts": counts}
+        return {
+            "uvig_rows": classified,
+            "uvig_rows_with_a_classification": classified,
+            "distinct_votus_with_a_classification": classified,
+            "counts": counts,
+            "uvig_counts": counts,
+        }
 
     def test_the_tightest_rank_with_anything_is_the_verdict(self):
         out = cs.premise(

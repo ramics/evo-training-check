@@ -215,18 +215,27 @@ def corpus_presence(
     max_rows: int | None = None,
     progress: int = 500_000,
 ) -> dict[str, Any]:
-    """Count high-confidence vOTUs whose lineage names each wanted taxon, by rank.
+    """Count how much of the corpus names each wanted taxon, by rank, in two units.
 
     One pass over the table, matching on the rank-prefixed fields rather than on the line, so
     a genus name that happens to be a substring of a species name cannot inflate a count.
+
+    **The unit matters more than the count.** This table has one row per UViG, and a vOTU
+    gathers many UViGs: 5.58 million rows over 2.92 million vOTUs. Evo's corpus carries one
+    record per surviving vOTU representative (A7.2), so the vOTU is the unit a presence claim
+    about the training data has to be in. UViGs are counted too, because the ratio between
+    them is informative, but the vOTU count is the one the verdict reads.
     """
     counts: dict[str, collections.Counter] = {r: collections.Counter() for r in wanted}
+    votus: dict[str, dict[str, set[bytes]]] = {r: collections.defaultdict(set) for r in wanted}
     rows = 0
     classified = 0
+    all_votus: set[bytes] = set()
     raw = objectstore.S3RandomRead(objectstore.client(), bucket, key)
     buf = b""
     header: list[bytes] | None = None
     column = None
+    votu_column = None
     for chunk in iter(lambda: raw.read(1 << 22), b""):
         buf += chunk
         *lines, buf = buf.split(b"\n")
@@ -234,6 +243,7 @@ def corpus_presence(
             if header is None:
                 header = line.split(b"\t")
                 column = header.index(imgvr.SEQ_COLUMNS["classification"].encode())
+                votu_column = header.index(imgvr.SEQ_COLUMNS["votu"].encode())
                 continue
             rows += 1
             fields = line.split(b"\t")
@@ -243,6 +253,12 @@ def corpus_presence(
             if not lineage.strip(b";"):
                 continue
             classified += 1
+            votu = (
+                fields[votu_column]
+                if votu_column is not None and len(fields) > votu_column
+                else b""
+            )
+            all_votus.add(votu)
             parts = lineage.split(b";")
             for rank, names in wanted.items():
                 prefix = RANK_PREFIX[rank]
@@ -251,6 +267,7 @@ def corpus_presence(
                         name = part[len(prefix) :].decode()
                         if name in names:
                             counts[rank][name] += 1
+                            votus[rank][name].add(votu)
                         break
             if max_rows is not None and rows >= max_rows:
                 buf = b""
@@ -260,10 +277,19 @@ def corpus_presence(
         if max_rows is not None and rows >= max_rows:
             break
     return {
-        "rows": rows,
-        "rows_with_a_classification": classified,
+        "uvig_rows": rows,
+        "uvig_rows_with_a_classification": classified,
+        "distinct_votus_with_a_classification": len(all_votus),
         "partial": max_rows is not None and rows >= max_rows,
-        "counts": {r: dict(sorted(c.items())) for r, c in counts.items()},
+        "uvig_counts": {r: dict(sorted(c.items())) for r, c in counts.items()},
+        "counts": {
+            r: {name: len(ids) for name, ids in sorted(by_name.items())}
+            for r, by_name in votus.items()
+        },
+        "unit": (
+            "`counts` is distinct vOTUs, which is the unit Evo's corpus carries one record "
+            "per. `uvig_counts` is rows, which is contigs and overstates presence"
+        ),
     }
 
 
@@ -279,7 +305,7 @@ def premise(
     strength depends on which one holds, so the rank is part of the answer rather than a
     footnote to it.
     """
-    denominator = presence["rows_with_a_classification"]
+    denominator = presence["distinct_votus_with_a_classification"]
     out = []
     for org in organisms:
         lineage = lineages.get(org["taxid"], {})
@@ -291,6 +317,7 @@ def premise(
             at_rank[rank] = {
                 "name": name,
                 "votus": presence["counts"].get(rank, {}).get(name, 0),
+                "uvigs": presence["uvig_counts"].get(rank, {}).get(name, 0),
             }
         tightest = next((r for r in PRESENCE_RANKS if at_rank.get(r, {}).get("votus", 0) > 0), None)
         out.append(
@@ -307,7 +334,7 @@ def premise(
     return {
         "denominator": {
             "votus_with_a_classification": denominator,
-            "votus_scanned": presence["rows"],
+            "uvig_rows_scanned": presence["uvig_rows"],
             "release": "IMG/VR v4.1, 2022-12-20, high-confidence table",
         },
         "by_organism": out,
