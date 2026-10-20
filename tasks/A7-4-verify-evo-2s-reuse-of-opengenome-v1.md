@@ -2,7 +2,7 @@
 id: A7.4
 title: Verify Evo 2's reuse of OpenGenome v1
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A1.2, A1.4]
 blocks: []
@@ -63,30 +63,37 @@ representations of a sequence set, and the two share no machinery beyond the obj
 
 ## State — 2026-10-20
 
-`in-progress`. **Branch `claude/project-thread-a3vch4`.** The comparison key and the record
-definition are fixed (D-213): contig accession primary, sequence digest on the set the
-accessions disagree about, assembly accession for the 28,174 claim.
+`review`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project owner.
 
-Built and tested: `amazebio.tarindex` and `tools/opengenome_reuse.py` for the genome half,
-which walks each archive's header chain for about 14 MB of transfer instead of 25.6 GB;
-`amazebio.contigs` for what an accession and a digest are, shared by both sides so a
-difference is in the data rather than in the readers; `tools/opengenome_v1_contigs.py`,
-which reads v1's accessions out of a 118.5 GiB tier for about 104 MB; `amazebio.reuse` and
-`tools/opengenome_compare.py` for the join and the closed set of causes; and
-`tools/opengenome_contigs.py` with `tools/ec2_opengenome_contigs.py` for the OpenGenome2
-contig pass.
+Both halves of Evo 2's claim hold, and the result is clean rather than mixed.
 
-Measured: OpenGenome v1's GTDB tier holds **11,986,857 contigs, every accession distinct**
-— 11,986,802 train, 50 test, 5 valid, no accession repeated across the fourteen shards. So
-on the v1 side a contig accession is a key rather than a label, which is what D-213's
-primary key needs it to be.
+**"Used in its entirety" is exact.** Every one of OpenGenome v1's 11,986,857 GTDB contigs is
+present in OpenGenome2's reused subtree — 0 only in v1, coverage 1.000000 [0.999999680,
+1.000000]. The in-region pass read all four archives in 25 minutes on one instance, 85,205
+genomes and 11,986,902 contigs on the reused side, 28,174 genomes and 5,421,257 contigs on the
+added side, with no unplaceable member in any archive.
 
-Running: the genome walk, in this container.
+**The 28,174 figure reconciles exactly**, with a difference of zero. It is a count of genomes,
+and the added archive holds exactly that many distinct assembly accessions.
 
-**Waiting on the project owner.** The OpenGenome2 contig pass reads 109 GB and has to run
-in `us-east-1`; the launch needs the owner's go-ahead and was asked for on 2026-10-20. Until
-it runs, the contig half of D-213's key has no data and the discrepancy classification
-cannot be completed.
+**Every discrepancy carries a cause and none is residual**: 48 `content`, 0 of the other three,
+0 `undetermined`. Two findings sit inside that 48, and neither contradicts the reuse claim:
+
+- 45 contigs the reused subtree has and v1 does not, all of one assembly, `GCA_023250385.1`.
+  v1 carries 158 contigs of its WGS project and OpenGenome2 carries 203; the 45 are short
+  (3.0–31.8 kb) and their residues are in none of v1's 158. So v1 held a truncated copy of
+  that genome. That is extra material in the reuse, not missing material, and it is why the
+  converse rate is reported separately: novelty 3.75e-06 [2.81e-06, 5.02e-06].
+- 3 contigs on the *added* side that v1 already carried — `NZ_CP091285.1`, `NZ_CP091287.1`,
+  `NZ_CP092365.1`. The stated selection rule takes species with no 214.1 genome, so it
+  predicts this rate to be zero; measured 5.53e-07 [1.88e-07, 1.63e-06].
+
+D-217 records how far a disputed contig's residues were looked for, and the artefact carries
+that scope beside the counts: a `content` call here means "not in the 158 v1 contigs of the
+same WGS project", not "not in v1".
+
+Artefacts: `comparison.json` and `discrepancies.jsonl.gz` under
+`corpora/results/a7-4/`, with the four per-archive contig tables and `run-compare.json`.
 
 ## Notes
 
