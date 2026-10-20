@@ -10032,3 +10032,50 @@ decision has a threshold or parameter in it, the number goes in the entry.
   by the recount that already exists. *A fresh reimplementation from the published spec alone.*
   The strongest option on paper and the right one if the 264,570 ever becomes a headline again;
   a day or more spent now on a supporting claim.
+
+### D-227 — A presence claim about a training corpus is in vOTUs, and on that unit the phage control sits in a tail of 36
+
+- **Date:** 2026-10-20
+- **Task:** B2.3
+- **Context:** `DESIGN.md` §B2 names phage as the within-study positive control, on the stated
+  ground that "phage is in Evo 2's training data". §B3 says Phase A now gives the surviving
+  corpus directly "rather than as an assumption", so B2.3 measured the premise instead of
+  inheriting it: resolve each control organism's lineage from the pinned NCBI taxonomy of
+  2023-04-01, and count the staged IMG/VR v4.1 high-confidence release at each rank.
+- **Decision — the unit.** The count is in **distinct vOTUs**, not in table rows. The
+  high-confidence table is one row per UViG and a vOTU gathers many: 5,576,197 rows over
+  2,904,176 classified vOTUs. Evo's corpus carries one record per surviving vOTU
+  representative (A7.2), so the vOTU is the unit a claim about the training data has to be in.
+  The first full pass counted rows and was published before the error was caught; the
+  difference is not cosmetic, and in the dangerous direction — for *Lambdavirus* it is 119
+  rows against **5** vOTUs, a twenty-four-fold overstatement of how present the control
+  organism is. Both counts ship, and the verdict reads the vOTU one.
+- **The measurement.** Four organisms carry the seven assays: *Escherichia* phage lambda
+  (four assays), Enterobacteria phage 434, *Salmonella* phage P22 and *Escherichia* phage T7.
+  At genus: *Lambdavirus* 5, *Lederbergvirus* 16, *Teseptimavirus* 15. At class:
+  *Caudoviricetes* 2,630,572, which is 90.6% of the corpus.
+- **Decision — what the control may be said to show.** The premise is true at the class and
+  nearly empty at the genus. All four organisms are therefore recorded as resting on **homology
+  to related corpus sequence** rather than on the organism being present, which is §B3's axis
+  and not something this set may assume. The artefact states it as a limit rather than leaving
+  a reader to derive it, and states the failure interpretation in the same place: a null on
+  this control does **not** show the filter had no effect — it shows this control cannot
+  separate the two explanations. §2 forbids a pipeline designed so a null is harder to see, and
+  that cuts both ways.
+- **Decision — retained by decision versus retained by absence.** Six of the seven assays sit
+  on organisms whose lineage carries **no family node and no order node**. Evo's rules name
+  families and orders, so there is nothing for either rule to test and the assay survives by
+  the absence of a node. Only T7 is retained by a named family (*Autographiviridae*) that the
+  denylist does not name. The register records which of the two applies per assay, because
+  reporting all seven as "retained" would overstate what the developer decided about phage.
+- **Decision — scope.** B2.3 does **not** acquire the MaveDB extension D-197 found. Those three
+  score sets add three families and not one new readout class, all from the same proteolysis
+  study, so they would lengthen the set without touching either constraint that limits it. They
+  stay registered as a candidate, not a source.
+- **Alternatives rejected:** *Report the row count, which is the larger and friendlier number.*
+  It is the wrong unit for the claim and overstates presence by up to twenty-four fold.
+  *Drop the control as unusable.* It is still the only within-study contrast available, and a
+  control with a stated limit is worth more than no control; what it cannot do is carry a null
+  on its own. *Count only at the class, where the premise plainly holds.* That is the reading
+  that makes the control look strongest and says least — *Caudoviricetes* is most of the corpus
+  and tells you nothing about these four organisms.
