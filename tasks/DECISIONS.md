@@ -10173,3 +10173,43 @@ decision has a threshold or parameter in it, the number goes in the entry.
   pinned like everything else; it goes in its own pixi environment and the lock file carries it.
   If the published column cannot be reproduced, that is a finding about the integration and is
   reported as one rather than worked around.
+
+### D-230 — The scoring harness never showed the models the end of the sequence
+
+- **Date:** 2026-10-20
+- **Task:** B1.2
+- **Context.** B1.2's Done-when requires the published reference reproduced where one exists.
+  ESM-C's first assay returned `undetermined` — the agreement interval straddling the 0.99
+  floor — which read like a near miss. Scoring five more assays to settle it showed it was not:
+  agreement ran from 0.936 to 0.996 and most assays fell short of the floor, and on one the
+  harness also underperformed the published column against the experiment by 0.065 Spearman
+  with the interval clear of zero.
+- **What it was.** `FrozenLM._encode` built a row as `[0] * prefix_tokens + residues`. The
+  opening token was encoded as a *count* and the row filled with zeros, and no closing token
+  was appended at all. These checkpoints are trained with both, so every protein score this
+  project had produced was computed on a sequence the model read as truncated. The opening id
+  happens to be zero on all of them, so the half that was guessed right concealed the half
+  that was dropped — and the loader was computing the prefix length by subtracting the
+  end-of-sequence token from the tokenised length, so the information was in hand and unused.
+- **How it was found, which is the part worth keeping.** Not by reading the encoder. The
+  per-assay agreement was regressed position by position against the published column, and the
+  disagreement was concentrated at the last few residues of every assay — positions 63, 62 and
+  61 of 63, positions 40 and 39 of 40 — and was worst overall on the shortest construct, where
+  the terminal positions are most of the protein. A truncation shows up as an error that is
+  largest at the end and decays inward. The signature named the cause.
+- **Decision.** The row's opening and closing tokens are read off the tokenizer's own output
+  for a single residue, rather than reconstructed from a count, and `FrozenLM` refuses a row
+  whose opening tokens and index arithmetic disagree. Every protein score already produced is
+  recomputed; none of the earlier ones is cited.
+- **The evidence it is the cause.** On the worst assay the fix moves agreement with the
+  published column from 0.9359 (95% CI 0.9201–0.9483) to 0.9994 (0.9992–0.9995), the verdict
+  from `diverges` to `reproduced`, and the performance gap against the experiment from −0.0084
+  to −0.0016 with the interval straddling zero.
+- **What this says about the reference check.** It earned its place. The check is not a
+  formality attached to a harness that was assumed correct — it is the only thing that found
+  this, and it found it in the one direction that mattered, because the error was largest
+  exactly where the phage control set sits. A project that had taken "the method is standard
+  masked marginals" as sufficient would have carried the fault into every Phase B comparison.
+- **Carried forward.** Any future backend states its boundary tokens the same way. A harness
+  whose agreement with a published reference sits persistently just below a floor is reporting
+  a defect, not noise, and the shape of the disagreement is where to look for it.
