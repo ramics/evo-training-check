@@ -8,9 +8,11 @@ the manifest from evidence into decoration.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import subprocess
+from typing import ClassVar
 
 import pytest
 
@@ -24,6 +26,39 @@ from amazebio.repro import (
     sha256_file,
     tool_version,
 )
+
+
+class _NotFound(Exception):
+    """What botocore raises for a `head_object` on a key that is not there."""
+
+    response: ClassVar[dict] = {
+        "Error": {"Code": "404"},
+        "ResponseMetadata": {"HTTPStatusCode": 404},
+    }
+
+
+def _missing():
+    return _NotFound()
+
+
+class Store:
+    """An object store that records what it was given, and refuses nothing.
+
+    `Metadata` is kept because the overwrite guard reads the published digest out of it:
+    a fake that dropped it would make the guard untestable and the test would pass.
+    """
+
+    def __init__(self, existing: dict[str, dict] | None = None) -> None:
+        self.objects: dict[str, dict] = dict(existing or {})
+
+    def put_object(self, *, Bucket, Key, Body, Metadata=None, **kw):
+        self.objects[f"s3://{Bucket}/{Key}"] = {"Body": Body, "Metadata": Metadata or {}}
+
+    def head_object(self, *, Bucket, Key):
+        found = self.objects.get(f"s3://{Bucket}/{Key}")
+        if found is None:
+            raise _missing()
+        return {"Metadata": found["Metadata"], "ContentLength": len(found["Body"])}
 
 
 def _git_repo(path):
@@ -342,8 +377,11 @@ class TestDurability:
         puts = {}
 
         class FakeClient:
-            def put_object(self, *, Bucket, Key, Body):
+            def put_object(self, *, Bucket, Key, Body, **kw):
                 puts[f"s3://{Bucket}/{Key}"] = Body
+
+            def head_object(self, *, Bucket, Key):
+                raise _missing()
 
         with run(
             "A9.9",
@@ -564,3 +602,182 @@ def test_every_tool_either_runs_under_the_guard_or_says_why_not():
         f"unexpected={sorted(outside - set(NOT_PIPELINES))} "
         f"stale={sorted(set(NOT_PIPELINES) - outside)}"
     )
+
+
+class TestTheCommitKeyedCopy:
+    """D-216. The bucket cannot delete, but it can be written over, and for most of this
+    project's life a re-run of a pipeline replaced its own earlier result in place."""
+
+    def _run(self, repo, store, *, body: str, replace=None):
+        outdir = repo / "artifacts" / "t"
+        with run(
+            "A9.9",
+            outdir=outdir,
+            repo=repo,
+            durable="s3://corpora-bucket/corpora/results/a9-9",
+            replace_durable=replace,
+            # The second run of a pair sees the first one's `artifacts/` as untracked.
+            # The commit is still recorded, which is all these tests read.
+            allow_dirty=True,
+            uploader=store,
+        ) as m:
+            (outdir / "table.json").write_text(body)
+            m.output_file(outdir / "table.json")
+        return outdir
+
+    def test_every_output_lands_under_its_commit_as_well_as_its_name(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        commit = git_state(repo)["commit"]
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        keyed = f"s3://corpora-bucket/corpora/results/a9-9/by-commit/{commit}/table.json"
+        assert stable in store.objects
+        assert keyed in store.objects
+        assert store.objects[stable]["Body"] == store.objects[keyed]["Body"]
+
+    def test_the_commit_keyed_copy_is_not_under_the_prefix_a_reader_globs(self, tmp_path):
+        """A tool listing `corpora/results/a9-9/*.json` must not start finding one result
+        once per commit that ever produced it."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        prefix = "s3://corpora-bucket/corpora/results/a9-9/"
+        alongside = [
+            k for k in store.objects if k.startswith(prefix) and "/" not in k[len(prefix) :]
+        ]
+        assert sorted(alongside) == [prefix + "run.json", prefix + "table.json"]
+
+    def test_two_commits_produce_two_objects(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        first = git_state(repo)["commit"]
+        (repo / "seed.txt").write_text("moved\n")
+        subprocess.run(["git", "commit", "-aqm", "second"], cwd=repo, check=True)
+        self._run(repo, store, body='{"x": 2}\n')
+        second = git_state(repo)["commit"]
+        assert first != second
+        base = "s3://corpora-bucket/corpora/results/a9-9/by-commit"
+        assert store.objects[f"{base}/{first}/table.json"]["Body"] == b'{"x": 1}\n'
+        assert store.objects[f"{base}/{second}/table.json"]["Body"] == b'{"x": 2}\n'
+        # The stable name holds the latest, as it always has.
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        assert store.objects[stable]["Body"] == b'{"x": 2}\n'
+
+    def test_rerunning_the_same_commit_over_the_same_bytes_is_a_no_op(self, tmp_path):
+        """Re-running a deterministic pipeline is a normal thing to do and must not be a
+        failure; what it writes is what is already there."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        self._run(repo, store, body='{"x": 1}\n')
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        assert store.objects[stable]["Body"] == b'{"x": 1}\n'
+
+    def test_the_same_commit_publishing_different_bytes_is_refused(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        with pytest.raises(ReproError, match="already published different bytes"):
+            self._run(repo, store, body='{"x": 999}\n')
+        # And the published copy is still the published copy.
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        assert store.objects[stable]["Body"] == b'{"x": 1}\n'
+
+    def test_the_refusal_names_the_object_and_both_digests(self, tmp_path):
+        """A refusal that does not say which object or how it differs sends whoever hits
+        it back to the console output of a run that has already finished."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        with pytest.raises(ReproError) as caught:
+            self._run(repo, store, body='{"x": 999}\n')
+        message = str(caught.value)
+        assert "by-commit" in message and "table.json" in message
+        was = hashlib.sha256(b'{"x": 1}\n').hexdigest()
+        now = hashlib.sha256(b'{"x": 999}\n').hexdigest()
+        assert was in message and now in message
+        assert "replace_durable" in message
+
+    def test_a_declared_reason_allows_the_replacement_and_is_recorded(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        outdir = self._run(repo, store, body='{"x": 999}\n', replace="D-216 test: input repinned")
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        assert store.objects[stable]["Body"] == b'{"x": 999}\n'
+        manifest = json.loads((outdir / MANIFEST_NAME).read_text())
+        assert manifest["replace_durable"] == "D-216 test: input repinned"
+
+    def test_the_manifest_points_at_the_copy_no_later_run_can_replace(self, tmp_path):
+        """The stable URI is the one a reader uses; the commit-keyed URI is the one a
+        citation needs, because it is the only one guaranteed to still hold these bytes."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        outdir = self._run(repo, store, body='{"x": 1}\n')
+        manifest = json.loads((outdir / MANIFEST_NAME).read_text())
+        entry = next(o for o in manifest["outputs"] if o["path"].endswith("table.json"))
+        assert entry["by_commit_uri"].endswith(f"/by-commit/{manifest['git']['commit']}/table.json")
+        assert manifest["by_commit"]
+
+    def test_a_published_digest_is_stored_beside_the_object(self, tmp_path):
+        """The guard compares digests rather than sizes, so the digest has to travel with
+        the object: two different results of the same shape are the case that matters."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        stable = store.objects["s3://corpora-bucket/corpora/results/a9-9/table.json"]
+        assert stable["Metadata"]["sha256"] == sha256_file(repo / "artifacts" / "t" / "table.json")
+        assert stable["Metadata"]["commit"] == git_state(repo)["commit"]
+
+    def test_a_run_with_no_commit_still_uploads_to_the_stable_key(self, tmp_path):
+        """On an EC2 instance there is no checkout. A tool that passes no `code_commit`
+        gets the old behaviour rather than no upload at all — the manifest already says
+        such a run cannot be traced, and losing the result as well helps nobody."""
+        store = Store()
+        outdir = tmp_path / "out"
+        with run(
+            "A9.9",
+            outdir=outdir,
+            repo=tmp_path,
+            allow_dirty=True,
+            durable="s3://corpora-bucket/corpora/results/a9-9",
+            uploader=store,
+        ) as m:
+            outdir.mkdir(parents=True, exist_ok=True)
+            (outdir / "table.json").write_text('{"x": 1}\n')
+            m.output_file(outdir / "table.json")
+        assert "s3://corpora-bucket/corpora/results/a9-9/table.json" in store.objects
+        assert not any("by-commit" in k for k in store.objects)
+
+    def test_a_code_commit_parameter_keys_the_copy_when_there_is_no_checkout(self, tmp_path):
+        """What the EC2 path actually does: the launcher knows the commit and passes it in."""
+        store = Store()
+        outdir = tmp_path / "out"
+        with run(
+            "A9.9",
+            outdir=outdir,
+            repo=tmp_path,
+            allow_dirty=True,
+            durable="s3://corpora-bucket/corpora/results/a9-9",
+            uploader=store,
+        ) as m:
+            m.parameter("code_commit", "deadbeef")
+            outdir.mkdir(parents=True, exist_ok=True)
+            (outdir / "table.json").write_text('{"x": 1}\n')
+            m.output_file(outdir / "table.json")
+        keyed = "s3://corpora-bucket/corpora/results/a9-9/by-commit/deadbeef/table.json"
+        assert keyed in store.objects
+
+    def test_a_head_failure_that_is_not_a_missing_key_is_raised(self, tmp_path):
+        """Treating every `head_object` error as absence would turn a denied permission
+        into a silent overwrite, which is the thing this guard exists to prevent."""
+        repo = _git_repo(tmp_path)
+
+        class Denied(Store):
+            def head_object(self, *, Bucket, Key):
+                raise RuntimeError("AccessDenied")
+
+        with pytest.raises(RuntimeError, match="AccessDenied"):
+            self._run(repo, Denied(), body='{"x": 1}\n')
