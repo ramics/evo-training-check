@@ -149,12 +149,29 @@ nowhere stated to be.
 
 ## The repeated accessions
 
-*Open. The pass (`tools/evo2_duplicates.py`) reads the released FASTA and joins each repeated
-accession's record lengths against IMG/VR's own `Length`. Three outcomes are distinguishable and
-are counted separately rather than one verdict being assigned to the population: every
-occurrence at IMG/VR's length, meaning the record is republished whole; the occurrences summing
-to it, meaning the record is published in parts; and neither, meaning the release and the input
-disagree. A7.1 and A7.2 both counted the 39,974 and neither read a base; this does.*
+**They are not repeated accessions, and there are not 39,974 of them.** A7.1 and A7.2 both
+reported "39,974 repeated accessions" and neither read a base. Reading the bases settles it
+(`tools/evo2_duplicates.py`, `duplicates.json`): the released FASTA carries **1,775** accessions
+that appear more than once, on **41,749** headers between them. 41,749 − 1,775 = 39,974. The
+figure both earlier tasks reported is the surplus of headers over accessions, and reporting it
+as a population of accessions overstates that population by a factor of twenty-three. The
+artefact publishes the subtraction and asserts that it reconciles, so the correction is
+checkable rather than claimed.
+
+What the 1,775 are is the more useful half. Every one is a giant-virus metagenome-assembled
+genome — IMG/VR's `GVMAG-` accession form — and every one, all 1,775, classifies as
+**published in parts**: its occurrences sum exactly to IMG/VR's own `Length` for that accession.
+One example carries 12 fragments totalling 267,319 bases; another carries 30. These are contigs
+of one assembly, not copies of one record.
+
+So the surplus records are **0** and the surplus nucleotides are **0**. The concern that
+motivated the check — that an undeclared duplication is an undeclared upsampling, a record the
+model sees more than once — does not arise here. The pass was built to count four outcomes
+separately rather than assign one verdict to the population, and three of the four came back
+empty: nothing republished whole, nothing disagreeing with the input, nothing missing from it.
+
+This is a correction to two `done` tasks' wording rather than to their arithmetic — both counted
+39,974 of something and the something was headers. Recorded in `tasks/DECISIONS.md`.
 
 ## Reconciliation against Evo 2's own published figures
 

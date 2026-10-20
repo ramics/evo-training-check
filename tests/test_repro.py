@@ -451,6 +451,14 @@ EXEMPT_CALL_SITES: set[str] = {
     # the read. A bounded read answers the question for a prefix of the release and would be
     # indistinguishable in the prefix from an answer for the whole of it.
     "evo2_duplicates.py",
+    # A2.1 and A2.6's profile search, conditionally, and for the same incident one task over.
+    # `detect_segmented.py`'s entry above describes the failure; on 2026-10-20 it happened
+    # again here, because the lesson was fixed in one tool rather than in the shape both
+    # share. An end-to-end rehearsal of `--assemble`, run from a scratch directory with three
+    # synthetic band parts, published six tables to `corpora/results/a2-6/` under the exact
+    # names the census will use (D-224). `durable_for` now publishes only from the task's
+    # canonical `artifacts/<task>` directory and claims the exemption otherwise.
+    "detect_profiles.py",
 }
 
 

@@ -182,3 +182,30 @@ class TestScanningTheRelease:
         assert list(lengths) == [8, 4]
         assert unpackable == {"IMGVR_UViG_GVMAG-M-3300000115-12_000001": [2]}
         assert meta["partial"] is False
+
+
+class TestReconcilingTheFigureTwoTasksReported:
+    """A7.1 and A7.2 each reported "39,974 repeated accessions". It is not a count of
+    accessions — it is the surplus of headers over accessions, and the population behind it
+    is 1,775. The artefact carries the arithmetic so the correction is checkable rather than
+    asserted."""
+
+    def test_the_surplus_is_headers_minus_accessions(self):
+        out = dup.classify({"a": [5, 5, 5], "b": [1, 2]}, {"a": 5, "b": 3})
+        assert out["surplus_headers"]["headers_on_a_repeated_accession"] == 5
+        assert out["surplus_headers"]["distinct_repeated_accessions"] == 2
+        assert out["surplus_headers"]["surplus"] == 3
+
+    def test_it_says_whether_it_reconciles_rather_than_leaving_it_to_a_reader(self):
+        occurrences = {"a": [1] * (dup.EXPECTED_SURPLUS_HEADERS + 1)}
+        out = dup.classify(occurrences, {})
+        assert out["surplus_headers"]["reconciles"] is True
+
+    def test_a_population_that_does_not_reconcile_says_so(self):
+        out = dup.classify({"a": [1, 2]}, {})
+        assert out["surplus_headers"]["reconciles"] is False
+
+    def test_the_constant_is_the_surplus_and_not_the_population(self):
+        """Renamed on 2026-10-20: the old name asserted the reading that turned out wrong."""
+        assert not hasattr(dup, "EXPECTED_REPEATED_ACCESSIONS")
+        assert dup.EXPECTED_SURPLUS_HEADERS == 39_974

@@ -61,8 +61,10 @@ IMGVR_KEY = "corpora/imgvr/2022-12-20/IMGVR_all_Sequence_information-high_confid
 IMGVR_UVIG_COLUMN = 0
 IMGVR_LENGTH_COLUMN = 6
 
-#: What A7.1 and A7.2 both measured and neither explained.
-EXPECTED_REPEATED_ACCESSIONS = 39_974
+#: What A7.1 and A7.2 both measured and neither explained. Named for what it turned out to
+#: be: the number of headers *in excess of one per accession*, not a number of accessions.
+#: Both earlier tasks reported it as "39,974 repeated accessions"; the population is 1,775.
+EXPECTED_SURPLUS_HEADERS = 39_974
 
 
 def unpack(packed: int) -> str:
@@ -225,8 +227,21 @@ def classify(occurrences: dict[str, list[int]], published: dict[str, int]) -> di
                 {"accession": accession, "lengths": lengths, "imgvr_length": want}
             )
 
+    headers = sum(len(v) for v in occurrences.values())
     return {
         "repeated_accessions": len(occurrences),
+        "surplus_headers": {
+            "headers_on_a_repeated_accession": headers,
+            "distinct_repeated_accessions": len(occurrences),
+            "surplus": headers - len(occurrences),
+            "what_a7_1_and_a7_2_counted": EXPECTED_SURPLUS_HEADERS,
+            "reconciles": headers - len(occurrences) == EXPECTED_SURPLUS_HEADERS,
+            "why_it_matters": (
+                "the figure both earlier tasks reported is this surplus, not a count of "
+                "accessions; reporting it as accessions overstates the population by a "
+                "factor of about twenty-three"
+            ),
+        },
         "by_outcome": dict(sorted(counts.items())),
         "occurrences_per_accession": dict(sorted(occurrence_histogram.items())),
         "republished_whole": {
@@ -273,7 +288,7 @@ def main(argv: list[str] | None = None) -> int:
         m.input_url(f"s3://{bucket}/{RELEASE_KEY}", role="evo2-released-viral", verified=True)
         m.input_url(f"s3://{bucket}/{IMGVR_KEY}", role="imgvr-sequence-information", verified=True)
         m.parameter("max_headers", args.max_headers)
-        m.parameter("expected_repeated_accessions", EXPECTED_REPEATED_ACCESSIONS)
+        m.parameter("expected_surplus_headers", EXPECTED_SURPLUS_HEADERS)
         m.note(
             "Reads a base, which A7.2 deliberately did not. The three outcomes are counted "
             "separately; no verdict is assigned to the population from a majority."
@@ -299,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
             "imgvr_key": IMGVR_KEY,
             "records_read": scan_meta["headers"],
             "partial": scan_meta["partial"],
-            "expected_repeated_accessions": EXPECTED_REPEATED_ACCESSIONS,
+            "expected_surplus_headers": EXPECTED_SURPLUS_HEADERS,
             "unpackable_accessions_repeated": len(unpackable_repeated),
             "result": classify(occurrences, published),
         }

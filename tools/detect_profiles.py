@@ -114,9 +114,34 @@ def rate_ceiling(task: str, component: str) -> float:
     return DEEP_RATES[component]
 
 
-def durable_for_task(task: str) -> str:
-    """The durable prefix for a task id: `A2.6` -> `.../results/a2-6`."""
-    return objectstore.durable_results(task.lower().replace(".", "-"))
+def task_slug(task: str) -> str:
+    """A task id as it appears in a path: `A2.6` -> `a2-6`."""
+    return task.lower().replace(".", "-")
+
+
+def canonical_out(task: str) -> Path:
+    """Where a run that is the deliverable for `task` writes: `artifacts/a2-6` for A2.6."""
+    return REPO / "artifacts" / task_slug(task)
+
+
+def durable_for(task: str, out: Path) -> str | None:
+    """The durable prefix for `task`, **or None for a run that is not its deliverable.**
+
+    The prefix follows from the task id, which does not say where the run was told to write.
+    On 2026-10-20 that published an end-to-end rehearsal of `--assemble` — real tables plus
+    three synthetic band parts, written to a scratch directory — to `corpora/results/a2-6/`,
+    under the exact names the census itself will use, in a bucket with no `DeleteObject`.
+    `detect_segmented.py` had already learned this (D-193) and the lesson did not travel; it
+    travels now. `--out` is the only signal that separates a rehearsal from the deliverable,
+    so it is the one used: publish from the task's canonical directory, and from nowhere else.
+    """
+    if out.resolve() == canonical_out(task).resolve():
+        return objectstore.durable_results(task_slug(task))
+    print(
+        f"not publishing: --out {out} is not {canonical_out(task)}, so this run is a rehearsal",
+        file=sys.stderr,
+    )
+    return None
 
 
 SEED = 20261015
@@ -711,7 +736,7 @@ def assemble(
         initial_dir.mkdir(parents=True)
         for path in sorted(out.glob("detections-*.json*")):
             shutil.copy2(path, initial_dir / path.name)
-        print(f"  kept the initial pass in {initial_dir.relative_to(REPO)}", flush=True)
+        print(f"  kept the initial pass in {manifest_ref_path(initial_dir)}", flush=True)
 
     with run(
         TASK,
@@ -720,7 +745,10 @@ def assemble(
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name="run-assemble.json",
-        durable=durable_for_task(TASK),
+        durable=durable_for(TASK, out),
+        durable_exempt=None
+        if durable_for(TASK, out)
+        else "rehearsal: --out is not the task's canonical directory",
     ) as m:
         m.parameter("assembled_parts", [part["band_multiple"] for part in parts])
         m.parameter("sample_seed", SEED)
@@ -982,7 +1010,10 @@ def main(argv: list[str] | None = None) -> int:
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name=f"run-{scope}.json",
-        durable=durable_for_task(TASK),
+        durable=durable_for(TASK, out),
+        durable_exempt=None
+        if durable_for(TASK, out)
+        else "rehearsal: --out is not the task's canonical directory",
     ) as m:
         m.parameter("registries", [r.key for r in regs])
         m.parameter("sample_seed", SEED)

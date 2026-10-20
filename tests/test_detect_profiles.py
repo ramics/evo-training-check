@@ -282,11 +282,27 @@ class TestTheTaskTheRunBelongsTo:
     may land on the other's key."""
 
     def test_the_durable_prefix_follows_the_task(self) -> None:
-        assert detect_profiles.durable_for_task("A2.1").endswith("/results/a2-1")
-        assert detect_profiles.durable_for_task("A2.6").endswith("/results/a2-6")
+        for task in ("A2.1", "A2.6"):
+            out = detect_profiles.canonical_out(task)
+            assert detect_profiles.durable_for(task, out).endswith(
+                f"/results/{detect_profiles.task_slug(task)}"
+            )
 
     def test_the_two_tasks_do_not_share_a_prefix(self) -> None:
-        assert detect_profiles.durable_for_task("A2.1") != detect_profiles.durable_for_task("A2.6")
+        one = detect_profiles.durable_for("A2.1", detect_profiles.canonical_out("A2.1"))
+        six = detect_profiles.durable_for("A2.6", detect_profiles.canonical_out("A2.6"))
+        assert one != six
+
+    def test_a_run_written_somewhere_else_publishes_nothing(self, tmp_path) -> None:
+        """On 2026-10-20 a rehearsal of `--assemble` wrote six synthetic tables to the real
+        census prefix, in a bucket with no delete. `--out` is what tells the two apart."""
+        assert detect_profiles.durable_for("A2.6", tmp_path) is None
+
+    def test_a_relative_canonical_path_still_publishes(self, monkeypatch) -> None:
+        """The comparison is on resolved paths, so `--out artifacts/a2-6` from the repo root
+        is the canonical directory and not a rehearsal."""
+        monkeypatch.chdir(detect_profiles.REPO)
+        assert detect_profiles.durable_for("A2.6", pathlib.Path("artifacts/a2-6")) is not None
 
     def test_the_default_is_the_task_that_owns_this_tool(self) -> None:
         """A run that forgets `--task` writes where it always did, rather than somewhere
