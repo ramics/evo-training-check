@@ -465,6 +465,11 @@ EXEMPT_CALL_SITES: set[str] = {
     # one here — it looks exactly like a complete count and would understate presence, which
     # is the direction that makes the control look weaker than it is.
     "control_set.py",
+    # B1.2's reference-check table, conditionally: it reads the score artefacts already on
+    # disk and writes a summary of them, so a run pointed at a scratch directory is a
+    # rehearsal over whatever happens to be there. From the canonical directory it publishes
+    # like any other result.
+    "scoring_summary.py",
 }
 
 
