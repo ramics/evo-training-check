@@ -304,6 +304,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--timeout-minutes", type=float, default=810.0)
     ap.add_argument("--poll-seconds", type=float, default=300.0)
     ap.add_argument("--attach", help="watch an already-running instance instead of launching")
+    ap.add_argument(
+        "--detach",
+        action="store_true",
+        help="launch, print the id and stop watching; the instance is then held only "
+        "by its own timer, so use it when the watcher cannot outlive the run",
+    )
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
     ap.add_argument("--print-user-data", action="store_true", help="print it and stop")
@@ -403,6 +409,22 @@ def main(argv: list[str] | None = None) -> int:
 
     instance_id = ec2.run_instances(**kwargs)["Instances"][0]["InstanceId"]
     print(f"launched {instance_id}", flush=True)
+
+    if args.detach:
+        # The launcher's `finally` is the net under a `UserData` that fails before its own
+        # shutdown, and detaching gives it up. That is only acceptable where the watcher
+        # cannot outlive the run — this session's background jobs are capped at two hours
+        # against a seven-hour pass, and a watcher killed mid-`_watch` would fire that
+        # `finally` and terminate a healthy instance. So the boot timer is the net instead,
+        # and the id is printed because `--attach` is now the only way back to the run.
+        print(
+            f"detached: {instance_id} is held only by its own {args.hard_stop_minutes}-minute\n"
+            f"  timer and its workers' own shutdown. Watch it with --attach {instance_id},\n"
+            "  and terminate it explicitly if it has to stop early.",
+            flush=True,
+        )
+        return 0
+
     try:
         return _watch(ec2, instance_id, args)
     finally:

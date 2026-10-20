@@ -294,3 +294,71 @@ class TestMainOnADryRun:
         ebs = kw["BlockDeviceMappings"][0]["Ebs"]
         assert ebs["VolumeType"] in {"gp2", "gp3"}
         assert ebs["VolumeSize"] <= 200
+
+
+class TestDetaching:
+    """`--detach` gives up the launcher's own `finally` terminate, so the two things that
+    replace it have to hold: the boot timer, and a printed id that `--attach` can use."""
+
+    @staticmethod
+    def _run(monkeypatch, *argv):
+        calls: list[tuple[str, dict]] = []
+        printed: list[str] = []
+
+        class S3:
+            def put_object(self, **kw):
+                calls.append(("put_object", kw))
+
+        class SSM:
+            def get_parameter(self, **kw):
+                return {"Parameter": {"Value": "ami-0123456789abcdef0"}}
+
+        class EC2:
+            def run_instances(self, **kw):
+                calls.append(("run_instances", kw))
+                return {"Instances": [{"InstanceId": "i-0deadbeef0000001"}]}
+
+            def describe_instances(self, **kw):
+                raise AssertionError("a detached launcher does not watch")
+
+            def terminate_instances(self, **kw):
+                calls.append(("terminate_instances", kw))
+
+        class Boto3:
+            @staticmethod
+            def client(name, **kw):
+                return {"s3": S3(), "ec2": EC2(), "ssm": SSM()}[name]
+
+        monkeypatch.setitem(__import__("sys").modules, "boto3", Boto3)
+        monkeypatch.setattr(
+            "builtins.print", lambda *a, **kw: printed.append(" ".join(map(str, a)))
+        )
+        code = launcher.main(
+            ["--s3-uri", "s3://bucket/corpora", "--allow-dirty", "--detach", *argv]
+        )
+        return code, calls, "\n".join(printed)
+
+    def test_it_launches_and_does_not_terminate(self, monkeypatch) -> None:
+        code, calls, _ = self._run(monkeypatch)
+        assert code == 0
+        names = [n for n, _ in calls]
+        assert "run_instances" in names
+        assert "terminate_instances" not in names
+
+    def test_it_prints_the_id_the_way_back_in(self, monkeypatch) -> None:
+        """Detached, the id is the only handle on a running instance, and there is no
+        shell on it to ask."""
+        _, _, out = self._run(monkeypatch)
+        assert "i-0deadbeef0000001" in out
+        assert "--attach i-0deadbeef0000001" in out
+
+    def test_the_boot_timer_is_what_is_left_holding_it(self, monkeypatch) -> None:
+        _, calls, out = self._run(monkeypatch)
+        kw = dict(calls)["run_instances"]
+        assert f"shutdown -h +{launcher.DEFAULT_HARD_STOP_MINUTES}" in kw["UserData"]
+        assert kw["InstanceInitiatedShutdownBehavior"] == "terminate"
+        assert str(launcher.DEFAULT_HARD_STOP_MINUTES) in out
+
+    def test_it_still_uploads_the_payload(self, monkeypatch) -> None:
+        _, calls, _ = self._run(monkeypatch)
+        assert "put_object" in [n for n, _ in calls]
