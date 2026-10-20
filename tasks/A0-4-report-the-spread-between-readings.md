@@ -2,13 +2,13 @@
 id: A0.4
 title: Report the spread between readings
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A0.3, A3.2]
 blocks: [A6.1]
 design_ref: "§A0"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # A0.4 — Report the spread between readings
@@ -32,6 +32,11 @@ finding.
 - Spread is quantified per model and per metric.
 - Write-up states plainly whether each policy as published is reproducible.
 - No claim exceeds what the measurement supports.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the
+project owner.
 
 ## Notes
 
