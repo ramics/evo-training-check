@@ -9912,3 +9912,24 @@ decision has a threshold or parameter in it, the number goes in the entry.
   survive the write-up. Buy the RVDB census at the same time — fifteen times the cost for a
   registry whose metric needs no bins, and it can be bought later if the asymmetry proves
   awkward.
+
+### D-223 — Score ESM-2 against the disclosure standard, though it carries no safety filter
+
+- **Date:** 2026-10-20
+- **Task:** X5.1
+- **Context:** The standard's scoring table needs a column per model, and ESM-2 is this
+  audit's positive control precisely because it states no biosecurity exclusion. Most of the
+  fourteen items then have no subject and score `n/a`. But ESM-2 is not unfiltered: its
+  de-novo filter is exclusion-based data filtering with a stated purpose, and about 6.6M of
+  the 6.9M clusters separating the release from the training set fall to one unquantified
+  step (`policies/esm2.md` §6). Leaving the column empty would read as "nothing to disclose",
+  which is the claim the control exists to avoid making.
+- **Decision:** ESM-2 is scored, with `n/a` for the items a hazard-driven filter would answer
+  and a real score for the two that its own filter engages (E1 and E2, both met), plus a note
+  that its unquantified step fails D1. The write-up says in the same breath that a document
+  calling ESM-2 unfiltered would be wrong.
+- **Alternatives rejected:** Omit the column — it implies the standard only bites on filters
+  built for safety, and the ESM-2 case is the cleanest demonstration that it does not. Score
+  every item against the de-novo filter — it would put a generalisation filter and a
+  biosecurity filter in the same table as though they made the same claim, which is the
+  category error §A0 warns about.
