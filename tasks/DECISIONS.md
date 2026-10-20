@@ -9704,3 +9704,34 @@ decision has a threshold or parameter in it, the number goes in the entry.
   §A3 names three metrics and a metric dropped because it is inconvenient is the kind of
   omission §2 forbids; reported as not measurable, it is a result about what this corpus
   can support.
+
+### D-215 — the A3.3 gate is open
+
+- **Date:** 2026-10-20
+- **Task:** A3.3
+- **Context:** §7 requires the Phase A headline counts reproduced by an independent
+  implementation before publication, and A3.3 carries `gate: true` holding the Phase A
+  write-up and the preprint. The second method is written and run: `src/amazebio/recount.py`
+  imports nothing from `amazebio`, derives its own Wilson interval from `metrics/survival.md`,
+  and was written by a worker that was given the specifications and an explicit list of the
+  first implementation's files it must not open. 334 numbers were compared. Every M1 figure
+  agrees to the last printed digit in all sixteen groups that report one, the five withheld
+  groups are the same five, the overall M2 distributions agree, and the conformance arm
+  reproduces from the policy YAML rather than from this project's evaluator. Twenty-two cells
+  diverge, none of them in the headline: twenty-one are per-route record counts in the
+  `opengenome2` groups, where A3.2 apportions a multi-route family's records across routes and
+  the recount counts distinct records directly (D-211), and the twenty-second is a conformance
+  coverage fraction that is 3/7 under the charitable reading rather than 3/6 (D-212).
+- **Decision:** The gate is open. `AGENTS.md` makes opening a gate the project owner's call
+  recorded here and never a judgement made inside the task; the owner was given
+  `comparison.md`, asked to read it before deciding, and opened the gate on 2026-10-20 having
+  read it. A3.3 moves to `done` and the Phase A write-up may begin. Two conditions travel with
+  it, both already logged: a per-route *record* count for an `opengenome2` group quotes the
+  recount's figure or labels the apportioned one as apportioned, and conformance coverage is
+  quoted per reading.
+- **Alternatives rejected:** *Open it without the owner reading the comparison.* The gate
+  exists so that a commitment cannot be walked past by accident, and a session opening its own
+  gate on its own evidence is the accident. *Hold it until the divergences were reconciled to a
+  single number.* They are not errors to reconcile — one is an approximation A3.2 declares and
+  the recount improves on, the other a denominator that should differ between readings — and
+  collapsing them would discard the finding the second method was run to produce.

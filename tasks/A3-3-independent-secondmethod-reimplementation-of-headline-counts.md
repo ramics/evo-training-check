@@ -2,7 +2,7 @@
 id: A3.3
 title: Independent second-method reimplementation of headline counts
 phase: A
-status: review
+status: done
 gate: true
 depends_on: [A3.2]
 blocks: [A6.1, X4.1]
@@ -38,13 +38,18 @@ published. §7 makes this a precondition, not a nice-to-have.
 
 ## State — 2026-10-20
 
-`review`. **Branch `claude/project-thread-a3vch4`.** The second method is written and run;
-the headline reproduces to the last printed digit, and the two divergences are investigated
-in `comparison.md` rather than reconciled away (D-210, D-211, D-212).
+`done`. **The gate is open** — the project owner read `comparison.md` and opened it on
+2026-10-20, recorded in D-215. The Phase A write-up (A6.1) may begin once its other
+dependencies clear.
 
-**The gate is still HOLDING.** Asked whether to open it, the project owner chose to read the
-comparison first, on 2026-10-20. The comparison was given to him the same day. Until he says
-otherwise the gate holds and the Phase A write-up does not start.
+The work is on branch `claude/project-thread-a3vch4` and lands on `main` through that
+branch's pull request. Artefacts are at `corpora/results/a3-3/`: `recount.json`,
+`comparison.md` and `run-recount.json`, 62 pinned inputs, 10,000 resamples at seed
+20261020.
+
+Two conditions travel into the write-up, both logged: a per-route record count for an
+`opengenome2` group quotes the recount's figure or labels the apportioned one as
+apportioned (D-211), and conformance coverage is quoted per reading (D-212).
 
 ## Notes
 
