@@ -9933,3 +9933,73 @@ decision has a threshold or parameter in it, the number goes in the entry.
   every item against the de-novo filter — it would put a generalisation filter and a
   biosecurity filter in the same table as though they made the same claim, which is the
   category error §A0 warns about.
+
+### D-224
+
+**2026-10-20 — A2.6 · A rehearsal published to the real census prefix, and the guard that was
+supposed to stop it existed in one tool instead of in the shape both tools share.**
+
+- **What happened.** `detect_profiles.py --assemble --task A2.6` was run end to end as a
+  rehearsal before the census parts land, against A2.1's real tables plus three synthetic band
+  parts, writing to a scratch directory. It published six detection tables and
+  `run-assemble.json` to `corpora/results/a2-6/` at 20:13, plus `by-commit/b8f0833…/` copies of
+  each. The bucket has no `s3:DeleteObject`, so they are permanent. The tables carry synthetic
+  counts under the exact names the census itself will use.
+- **Why it happened.** `repro.run`'s `durable` is derived from the task id, which cannot see
+  where the run was told to write. **This is D-193 exactly, one task over.** A2.5 hit it on
+  2026-10-19 and the fix went into `detect_segmented.py` — the tool that had just failed —
+  rather than into every tool with the same shape. One tool was guarded and four were not.
+- **Decision.** `detect_profiles.durable_for(task, out)` publishes only when `--out` resolves to
+  the task's canonical `artifacts/<slug>` directory, and claims `durable_exempt` otherwise, with
+  the reason printed. Tested four ways, including that a relative canonical path still
+  publishes. `detect_profiles.py` is in `EXEMPT_CALL_SITES` with this entry as its reason.
+- **What the stray objects mean, stated rather than assumed.** Versioning is on with a seven-day
+  expiry (D-218, D-219), so when the census assembly writes the same stable keys the real bytes
+  become current and the synthetic ones age out. The commit-keyed copies under
+  `by-commit/b8f0833…/` are permanent and will never be superseded, because that commit will not
+  produce the real census tables. They are not a collision risk for the real run — D-216's
+  `_check_commit_keys` keys on the publishing commit, and the census will publish from a later
+  one — but they are a permanent artefact of a rehearsal sitting in a results prefix, and anyone
+  reading `by-commit/` as a history of results must know they are there. **Recorded here because
+  it cannot be fixed, only known.**
+- **The general lesson, which is the expensive half.** A fix applied to the tool that failed is
+  not a fix. Four tools now carry conditional exemptions of this shape
+  (`detect_segmented.py`, `opengenome_contigs.py`, `evo2_json_tree.py`, `evo2_duplicates.py`,
+  and now `detect_profiles.py`); the pattern should move into `repro` itself, so a tool declares
+  its canonical directory once and the refusal is the library's rather than each tool's. That is
+  a task, not this decision, and it is not done.
+- **Alternatives rejected.** Leave it and rely on versioning — it covers the stable keys and not
+  the commit-keyed ones, and it fixes nothing for the next tool. Make `--assemble` refuse
+  synthetic parts — the parts were honest and self-labelling; the rehearsal was the right thing
+  to run and `--out` was the thing that should have been read.
+
+### D-225
+
+**2026-10-20 — A7.1, A7.2, A7.3 · The 39,974 "repeated accessions" are 39,974 surplus headers
+on 1,775 accessions, and none of them is a duplicate.**
+
+- **What both earlier tasks reported.** A7.1 and A7.2 each counted 39,974 and each described it
+  as repeated accessions. Neither read a base, because a FASTA header cannot distinguish a
+  record published twice from a record published in parts.
+- **What reading the bases shows** (`tools/evo2_duplicates.py`, `artifacts/a7-3/duplicates.json`).
+  The released FASTA carries **1,775** accessions appearing more than once, on **41,749** headers
+  between them. 41,749 − 1,775 = 39,974. The reported figure is the surplus of headers over
+  accessions; read as a population of accessions it overstates it twenty-three fold.
+- **What the 1,775 are.** Every one is a giant-virus metagenome-assembled genome (IMG/VR's
+  `GVMAG-` accession form), and every one — 1,775 of 1,775 — has occurrences summing exactly to
+  IMG/VR's own `Length` for that accession. They are contigs of one assembly. Surplus records: 0.
+  Surplus nucleotides: 0.
+- **Decision.** The concern that motivated the check — an undeclared duplication is an
+  undeclared upsampling — **does not arise for this corpus**, and A7.3's write-up says so
+  positively rather than leaving it open. The pass counted four outcomes separately rather than
+  assigning one verdict to the population; three came back empty, and that is the result, not a
+  reason to simplify the reporting. The constant is renamed `EXPECTED_SURPLUS_HEADERS`, because
+  the old name asserted the reading that turned out wrong, and the artefact publishes the
+  subtraction with a flag saying whether it reconciles.
+- **This corrects two `done` tasks' wording, not their arithmetic.** Both counted 39,974 of
+  something; the something was headers. Their task files are not reopened — the figure is right
+  and only its noun was wrong — but any write-up quoting either must use this entry's wording.
+- **Alternatives rejected.** Report "1,775 repeated accessions" and drop the 39,974 — it loses
+  the bridge to two published counts and makes the correction unfindable. Call the GVMAG records
+  duplicates anyway on the grounds that the accession repeats — the bases say otherwise, and
+  deciding this by header was the original error.

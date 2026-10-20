@@ -136,9 +136,14 @@ Done:
 - The reconciliation against Evo 2's published figures: not possible, and that is the finding.
   The only published figure for the component is a training-mix percentage.
 
-Left: the repeated-accession pass is running over the full release; on a bounded prefix the
-1,775 giant-virus MAG accessions already come out as one record published in parts rather than
-as duplicates. Then the second-method run, then `review`.
+- The repeated accessions, resolved (D-225). They are not repeated accessions: the release
+  carries 1,775 accessions on 41,749 headers, and 41,749 - 1,775 = 39,974, which is the figure
+  A7.1 and A7.2 each reported as a population. Every one of the 1,775 is a giant-virus MAG
+  whose occurrences sum exactly to IMG/VR's own length for it, so the surplus records and
+  surplus nucleotides are both zero and the undeclared-upsampling concern does not arise.
+
+Left: the second-method recount and the duplicates artefact are both re-running to pick up the
+published reconciliation; then `review`.
 
 **For review.** This task's Done-when says the 264,570 figure is reproduced by a second method
 *under A3.3*. A3.3 is `done` and its gate is open (D-215), and its conformance arm reimplemented
