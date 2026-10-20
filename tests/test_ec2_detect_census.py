@@ -557,3 +557,47 @@ class TestWhatAWorkerLeavesBehind:
             chunk=1234,
         )
         assert "--chunk-records 1234" in text
+
+
+class TestTheWheels:
+    """A deferred import is still a dependency.
+
+    `policyspec` imports `yaml` inside `load_policy_dir` rather than at module scope, so
+    the payload imported cleanly on the instance and died on the first policy read. The
+    import-closure test walks `from amazebio` lines and could never have seen it; this
+    walks every import in the shipped sources instead.
+    """
+
+    @staticmethod
+    def _third_party() -> set[str]:
+        import ast
+        import sys
+
+        root = _PATH.parent.parent
+        names: set[str] = set()
+        for rel in launcher.PAYLOAD_MODULES:
+            path = root / rel
+            if path.is_dir() or path.suffix != ".py":
+                continue
+            for node in ast.walk(ast.parse(path.read_text())):
+                if isinstance(node, ast.Import):
+                    names |= {a.name.split(".")[0] for a in node.names}
+                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                    names.add(node.module.split(".")[0])
+        return {
+            n for n in names if n not in sys.stdlib_module_names and n not in {"amazebio", "tools"}
+        }
+
+    def test_every_third_party_import_has_a_wheel(self) -> None:
+        missing = sorted(n for n in self._third_party() if n not in launcher.WHEEL_IMPORTS)
+        assert not missing, f"imported by the payload, not mapped to a wheel: {missing}"
+
+    def test_every_mapped_wheel_is_installed_on_the_instance(self) -> None:
+        for name in sorted(set(launcher.WHEEL_IMPORTS.values())):
+            assert name in launcher.WHEELS, name
+
+    def test_yaml_is_among_them(self) -> None:
+        """Named, because this is the one that cost the launch and the one a reader will
+        not expect: nothing imports it at module scope."""
+        assert launcher.WHEEL_IMPORTS["yaml"] == "pyyaml"
+        assert "pyyaml" in launcher.WHEELS

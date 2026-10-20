@@ -118,12 +118,35 @@ PAYLOAD_MODULES = (
 )
 
 #: Wheels the instance needs. `pyhmmer` and `pyrodigal` are the search and the gene caller;
-#: `pyarrow` reads OpenGenome's Parquet; `boto3` is the only way results come back.
-WHEELS = "boto3 pyarrow 'pyhmmer>=0.11' 'pyrodigal>=3.7,<4' requests"
+#: `pyarrow` reads OpenGenome's Parquet; `boto3` is the only way results come back; `pyyaml`
+#: parses the policy specs, and its absence cost a launch — `policyspec` imports it inside
+#: `load_policy_dir` rather than at module scope, so the payload imported cleanly and failed
+#: on the first policy read. `WHEEL_IMPORTS` maps these to the names the sources import, and
+#: a test checks the shipped closure against it.
+WHEELS = "boto3 numpy pyarrow 'pyhmmer>=0.11' 'pyrodigal>=3.7,<4' pyyaml requests"
+
+#: Import name -> the wheel that provides it, for every third party the payload uses. A
+#: deferred import is still a dependency; this is what makes one visible to a test.
+WHEEL_IMPORTS = {
+    "boto3": "boto3",
+    "botocore": "boto3",
+    # pyarrow would pull it in anyway; named so the payload does not depend on
+    # which transitive dependency happens to carry it.
+    "numpy": "numpy",
+    "pyarrow": "pyarrow",
+    "pyhmmer": "pyhmmer",
+    "pyrodigal": "pyrodigal",
+    "requests": "requests",
+    "yaml": "pyyaml",
+}
 
 USER_DATA = """#!/bin/bash
 set -xeuo pipefail
-exec > >(tee /dev/console) 2>&1
+mkdir -p /opt/amazebio
+# Everything the script says, to a file as well as the console. Four launches were
+# diagnosed from `GetConsoleOutput` and it truncated or came back empty every time;
+# `die` uploads this, so the record of a failed run does not depend on it.
+exec > >(tee /dev/console /opt/amazebio/log-userdata.txt) 2>&1
 echo "=== amazebio a2-6 census starting $(date -Is) ==="
 
 # A dead man's switch, armed before anything that can fail. The launcher's own terminate in
@@ -144,6 +167,7 @@ die() {{
   aws s3 cp /tmp/why.txt \
     "s3://{bucket}/{prefix}/results/a2-6/exit-$iid-$(date +%s).txt" \
     --region {region} || true
+  sync || true
   aws s3 cp /opt/amazebio/ "s3://{bucket}/{prefix}/results/a2-6/logs-$iid/" \
     --recursive --exclude "*" --include "log-*.txt" --region {region} || true
   shutdown -c || true
