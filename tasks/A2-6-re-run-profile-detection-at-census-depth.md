@@ -2,13 +2,13 @@
 id: A2.6
 title: Re-run profile detection at census depth
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A2.1]
 blocks: [A3.4]
 design_ref: "§A2"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A2.6 — Re-run profile detection at census depth
