@@ -2,13 +2,13 @@
 id: X1.5
 title: Close out the durability audit
 phase: X
-status: ready
+status: in-progress
 gate: false
 depends_on: []
 blocks: []
 design_ref: "§7"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # X1.5 — Close out the durability audit
@@ -47,6 +47,11 @@ after them, and neither task depends on the other.
 
 - No tool writes a result the durability guard cannot see.
 - `metrics/manifests.md` states where a consumer finds the durable copy.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
+owner.
 
 ## Notes
 
