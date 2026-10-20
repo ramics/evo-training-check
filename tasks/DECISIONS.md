@@ -10001,3 +10001,34 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the bridge to two published counts and makes the correction unfindable. Call the GVMAG records
   duplicates anyway on the grounds that the accession repeats — the bases say otherwise, and
   deciding this by header was the original error.
+
+### D-226 — A7.3's own recount satisfies §7's second-method requirement; A3.3 is not extended to Evo 2
+
+- **Date:** 2026-10-20
+- **Task:** A7.3 (bearing on A3.3)
+- **Context:** §7 requires a headline count independently reimplemented before publication, and
+  A3.3 is the gate that enforces it. A3.3's conformance arm reimplemented **Evo 1's** 95-record
+  figure. It never covered Evo 2, because when it ran, A7.3's headline was the 264,570 figure
+  rather than the one the task now makes. A7.3's Done-when, written at that time, names A3.3 as
+  the second method, so the criterion was not met as written.
+- **Decision:** The project owner chose to accept A7.3's own recount. A7.3 moves to `done`.
+  A3.3 stays `done` and is not reopened.
+- **What is and is not independently recounted, stated precisely, because this entry is what a
+  later reader will rely on.** A7.3's headline — that OpenGenome2's JSON training tree holds
+  2,653,047 records and 36,236,025,613 nucleotides, which is Evo 1's released viral component
+  exactly — **is** independently recounted. The second method (`--second-method`,
+  `json-tree-second.json`) never decodes and never parses: it counts newlines in the gzip stream
+  as bytes and subtracts a fixed per-record wrapper cost, with a premise check that refuses the
+  subtraction if the wrapper is not what it assumes. The two methods share the socket and the
+  gzip member and nothing else. Zero record delta, zero sequence-character delta, across all six
+  files, no premise failure.
+  The **264,570 figure is not** independently reimplemented. It is A7.2's re-execution of the
+  published predicates, reproduced in A7.3 from pinned intermediates by the same code. It is a
+  supporting claim in the write-up rather than its headline, which is why the owner's acceptance
+  reaches it; any later document that promotes it back to a headline needs a second method
+  first, and this sentence is the reason.
+- **Alternatives rejected:** *Reopen A3.3 to cover Evo 2's arm.* Half a day, and it would
+  reimplement a figure that is no longer the headline while leaving the actual headline covered
+  by the recount that already exists. *A fresh reimplementation from the published spec alone.*
+  The strongest option on paper and the right one if the 264,570 ever becomes a headline again;
+  a day or more spent now on a supporting claim.

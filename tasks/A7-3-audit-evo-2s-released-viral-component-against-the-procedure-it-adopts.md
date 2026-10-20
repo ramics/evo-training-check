@@ -2,7 +2,7 @@
 id: A7.3
 title: Audit Evo 2's released viral component against the procedure it adopts
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A7.2]
 blocks: []
@@ -149,12 +149,12 @@ Done:
 
 Nothing is left. The task is `review`.
 
-**For review.** This task's Done-when says the 264,570 figure is reproduced by a second method
-*under A3.3*. A3.3 is `done` and its gate is open (D-215), and its conformance arm reimplemented
-Evo 1's 95 and not Evo 2's 264,570 — so that criterion is not met as written, and the figure is
-no longer this task's headline either. A7.3 supplies a second method for the headline it does
-have. Whether that satisfies §7 for this result, or whether A3.3's scope should be extended to
-Evo 2's arm before the Phase A write-up cites it, is the project owner's call.
+**Resolved (D-226).** This task's Done-when names A3.3 as the second method for the 264,570
+figure. A3.3 reimplemented Evo 1's 95 and not Evo 2's figure, and the figure is no longer this
+task's headline. The project owner accepted A7.3's own recount, which covers the headline the
+task actually makes. D-226 states precisely what is and is not independently recounted: the
+JSON-tree headline is, the 264,570 is not, and it is a supporting claim rather than a headline.
+A3.3 is not reopened.
 
 ## Notes
 
@@ -164,3 +164,8 @@ task consumes its artefacts; it becomes `ready` when A7.2 reaches `done`, which 
 gate.
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## Closed — 2026-10-20
+
+`done`. Every Done-when criterion is met, with the second-method criterion resolved by D-226.
+The work is on branch `claude/project-thread-a3vch4`.
