@@ -395,6 +395,12 @@ EXEMPT_CALL_SITES: set[str] = {
     # permanent (D-193). The deliverable path is still guarded — point `--out` at the canonical
     # directory and this tool names a durable destination like any other.
     "detect_segmented.py",
+    # A7.4's contig pass, for the same shape of reason. The full pass runs on an instance
+    # and always publishes; the exemption is claimed only by a run without `--upload-results`,
+    # which is how the tool is smoke-tested against a local tar or a `--limit` slice. A
+    # truncated table published under a commit's key would be permanent and would read
+    # exactly like a complete one, so `--limit` refuses to publish at all.
+    "opengenome_contigs.py",
 }
 
 
@@ -512,6 +518,7 @@ NOT_PIPELINES: dict[str, str] = {
     "ec2_count.py": "launcher; the instance publishes A1.3's cluster counts",
     "ec2_exclusivity.py": "launcher; the instance publishes the seed-exclusivity pass",
     "ec2_folds.py": "launcher; the instance publishes A2.2's fold detections",
+    "ec2_opengenome_contigs.py": "launcher; the instance publishes A7.4's contig tables",
     "ec2_proviruses.py": "launcher; the instance publishes A2.4's provirus detections",
     "ec2_select_agent_seeds.py": "launcher; the instance publishes A1.8's seed set",
     "ec2_similarity.py": "launcher; the instance publishes A1.6's similarity pass",
