@@ -442,3 +442,82 @@ def test_a_spot_refusal_is_explained_rather_than_raised_raw(monkeypatch) -> None
     message = str(caught.value)
     assert "quota" in message
     assert "nothing launched" in message
+
+
+class TestWhatTheImportClosureCannotSee:
+    """Two of the three things a worker needs are read at runtime, not imported.
+
+    The policy specs are one of them, and leaving them out cost a launch: eight workers
+    started, each died on `no policy specs found in .../policies/specs`, and the instance
+    was down six minutes later having read nothing. An import-closure check cannot catch
+    that by construction, so these are named explicitly and the precheck loads them.
+    """
+
+    def test_the_policy_specs_ship(self) -> None:
+        assert "policies/specs" in launcher.PAYLOAD_MODULES
+
+    def test_they_are_actually_in_the_tarball(self, tmp_path) -> None:
+        import io
+        import tarfile
+
+        root = _PATH.parent.parent
+        with tarfile.open(fileobj=io.BytesIO(launcher.build_payload(root)), mode="r:gz") as tar:
+            names = tar.getnames()
+        specs = [n for n in names if n.startswith("policies/specs/") and n.endswith(".yaml")]
+        assert specs, names[:20]
+        # Every reading the census resolves routes against, not just one of them.
+        assert any("evo1-literal" in n for n in specs)
+        assert any("evo1-strict" in n for n in specs)
+        assert any("evo1-charitable" in n for n in specs)
+
+    def test_the_precheck_loads_them_rather_than_only_importing(self) -> None:
+        text = rendered()
+        assert "load_policy_dir" in text
+        assert "load_manifests" in text
+        assert text.index("load_policy_dir") < text.index("tools/detect_profiles.py --task")
+
+    def test_the_precheck_loads_the_manifests_too(self) -> None:
+        """The other runtime read. A copy that brought nothing is checked for existence
+        earlier; this checks the files parse."""
+        assert "load_manifests" in rendered()
+
+
+def test_the_payload_alone_imports_and_loads_its_policies(tmp_path) -> None:
+    """The payload unpacked on its own, as the instance has it: no checkout, no `src` on
+    the path but its own, nothing else.
+
+    This is the check the import-closure test cannot be. Three launches were spent on
+    things an import closure cannot see — a module missing from the list, then the policy
+    specs, which are read at runtime — and each cost an instance and most of an hour. Here
+    it costs a second, and it fails for the same reasons.
+    """
+    import io
+    import json
+    import subprocess
+    import sys
+    import tarfile
+
+    root = _PATH.parent.parent
+    with tarfile.open(fileobj=io.BytesIO(launcher.build_payload(root)), mode="r:gz") as tar:
+        tar.extractall(tmp_path, filter="data")
+
+    probe = """
+import importlib.util, json, sys
+sys.path.insert(0, "src")
+spec = importlib.util.spec_from_file_location("worker", "tools/detect_profiles.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+from amazebio.policyspec import load_policy_dir
+print(json.dumps(sorted(load_policy_dir(module.SPECS))))
+"""
+    done = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stderr[-2000:]
+    loaded = json.loads(done.stdout.strip().splitlines()[-1])
+    assert "evo1-literal" in loaded
+    assert "evo1-strict" in loaded
+    assert "evo1-charitable" in loaded

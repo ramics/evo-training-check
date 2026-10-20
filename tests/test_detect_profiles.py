@@ -538,3 +538,41 @@ class TestHowAManifestIsCited:
             pathlib.Path(detect_profiles.REPO) / "m.json",
         ]:
             assert detect_profiles.manifest_ref_path(path)
+
+
+class TestWhatAProbeMayNotPublish:
+    """`--limit-records` with `--band` is refused.
+
+    A band run publishes a part, and `--assemble` reads a part as *the* result for that
+    band. A part made from twenty records claims the whole band, so the merge understates
+    every family in it while the coverage check still passes — the bands tile correctly,
+    which is all that check can see. This pair published a 20-record part into the census
+    prefix once; the store has no delete.
+    """
+
+    def _main(self, *argv):
+        return detect_profiles.main(["--manifests", "artifacts/a1-4", "--registry", "pfam", *argv])
+
+    def test_a_limited_band_run_is_refused(self) -> None:
+        with pytest.raises(SystemExit) as caught:
+            self._main("--band", "1:2", "--limit-records", "20")
+        assert "claiming the whole band" in str(caught.value)
+
+    def test_the_refusal_says_what_to_do_instead(self) -> None:
+        with pytest.raises(SystemExit) as caught:
+            self._main("--band", "1:2", "--limit-records", "20")
+        message = str(caught.value)
+        assert "without --band" in message
+        assert "durable" in message
+
+    def test_a_limited_collect_is_allowed(self) -> None:
+        """`--collect` searches nothing and writes no part, so there is nothing to
+        misread; probing the read path is exactly what it is for."""
+        with pytest.raises(SystemExit) as caught:
+            self._main("--band", "1:2", "--limit-records", "20", "--collect", "--release", "nope")
+        assert "no manifests selected" in str(caught.value)
+
+    def test_an_unlimited_band_run_is_untouched(self) -> None:
+        with pytest.raises(SystemExit) as caught:
+            self._main("--band", "1:2", "--release", "nope")
+        assert "no manifests selected" in str(caught.value)

@@ -101,6 +101,11 @@ PAYLOAD_MODULES = (
     "src/amazebio/uniref.py",
     "tools/detect_profiles.py",
     "tools/stage_profiles.py",
+    # Not code, and still a dependency: the tool resolves every hit's route against these,
+    # so without them a worker dies on `no policy specs found` before reading anything. The
+    # import closure cannot find it, because it is read at runtime rather than imported —
+    # which is why PRECHECK now loads them rather than only importing the module.
+    "policies/specs",
 )
 
 #: Wheels the instance needs. `pyhmmer` and `pyrodigal` are the search and the gene caller;
@@ -176,6 +181,17 @@ spec = importlib.util.spec_from_file_location("worker", "tools/detect_profiles.p
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 print("=== payload imports cleanly ===")
+
+# Importing is not enough. Two of the three things a worker needs are read at runtime, so
+# an import closure cannot see them, and both have cost a launch: the policy specs, which
+# every route resolution goes through, and the manifests, which say what survives. Load
+# them here, where the failure costs a minute.
+from amazebio.policyspec import load_policy_dir
+
+policies = load_policy_dir(module.SPECS)
+print(f"=== {{len(policies)}} policy spec(s) load ===")
+manifests = module.load_manifests(module.Path("artifacts/a1-4"))
+print(f"=== {{len(manifests)}} manifest(s) load ===")
 PRECHECK
 
 export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"

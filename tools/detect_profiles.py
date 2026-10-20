@@ -829,6 +829,18 @@ def main(argv: list[str] | None = None) -> int:
         # component against the declared deep rate, which is what bounds it.
         if not 0 <= band[0] < band[1]:
             raise SystemExit(f"--band {args.band} is not a half-open band with LO < HI")
+        if args.limit_records and not args.collect:
+            # A band run publishes a part, and `--assemble` reads a part as *the* result for
+            # that band. A part produced under `--limit-records` covers a few records and
+            # claims the whole band, so merging it understates every family in it while the
+            # coverage check still passes — the bands tile correctly. The guard is here
+            # rather than in review because this exact pair, a 20-record probe of band
+            # 1:126, published a part into the census prefix on 2026-10-20.
+            raise SystemExit(
+                "--limit-records with --band would publish a part covering a few records "
+                "and claiming the whole band; --assemble cannot tell the difference. Probe "
+                "without --band, or redirect the durable destination."
+            )
     manifests = load_manifests(args.manifests)
     if args.release:
         manifests = [m for m in manifests if m["manifest"]["release"] in args.release]
