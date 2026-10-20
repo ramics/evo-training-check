@@ -2,7 +2,7 @@
 id: X5.1
 title: Draft the filter disclosure standard
 phase: X
-status: in-progress
+status: review
 gate: false
 depends_on: [A0.1, A7.1]
 blocks: []
@@ -42,12 +42,19 @@ then retro-fit it to all four models and report what is missing against each.
 
 ## State — 2026-10-20
 
-Branch: `claude/project-thread-a3vch4`. Picked up while A2.6's census runs; nothing is
-waiting on the project owner.
+Branch: `claude/project-thread-a3vch4`, commit `fb91506`. Nothing is waiting on the project
+owner.
 
-Done: nothing yet.
+Done: all four Done-when criteria. `docs/disclosure-standard.md` holds the checklist — fourteen
+items in five groups, each with the audit obstacle that produced it and what compliance costs —
+the scoring of all four models with every cell traceable to `policies/`, this project's own
+filter specifications scored in the same format, and the comparison against five existing
+frameworks, each read from its primary text. D-223 records the ESM-2 scoping call.
 
-Left: all of it.
+Left: review. Two things a reviewer should look at first. Our own D2 is scored `~` and stays
+there until A3.3 opens, so the self-scoring column is not complete and says so. And the
+framework comparison rests on five frameworks; if a sixth belongs in it, the one most likely to
+is a sector instrument this search did not surface.
 
 ## Notes
 
