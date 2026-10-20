@@ -217,6 +217,23 @@ transformers = ">=4.57.6,<5"
 [feature.score.pypi-dependencies]
 esm = ">=3.4.1.post1,<4"
 
+# B4.1's non-neural baseline. The method has no free parameters, but it has several specified
+# procedures — notably a sequence-weighting step that clusters the alignment at 80% identity and
+# is quadratic in its depth, which is why the authors ship a C++ backend. D-229 records the
+# choice to integrate their MIT-licensed implementation rather than reimplement it, so the
+# baseline is theirs rather than this project's reading of their paper. PyPI because it is not
+# packaged for conda-forge; the compiler is needed to build its extension.
+[feature.baseline]
+platforms = ["linux-64"]
+
+[feature.baseline.dependencies]
+cxx-compiler = ">=1.8,<2"
+biopython = ">=1.84,<2"
+numpy = ">=2,<3"
+
+[feature.baseline.pypi-dependencies]
+rsalor = ">=1.1,<2"
+
 [feature.dev.dependencies]
 pytest = ">=8.3,<9"
 ruff = ">=0.8,<0.9"
@@ -226,6 +243,9 @@ default = { features = [], solve-group = "main" }
 dev = { features = ["dev"], solve-group = "main" }
 # B1.2's scoring environment. See the comment on `feature.score.dependencies`.
 score = { features = ["score", "dev"], solve-group = "score" }
+# B4.1's baseline environment. Its own solve group: `rsalor` builds a C++ extension and pins
+# numpy, and resolving that beside the scoring stack would drag the whole main group.
+baseline = { features = ["baseline", "dev"], solve-group = "baseline" }
 # Its own solve group: see the comment on `feature.genomad.dependencies`.
 # `no-default-feature` because the project's `[dependencies]` pin python 3.12, and the
 # whole point of this environment is the interpreter geNomad 1.1.0 predates. It holds the

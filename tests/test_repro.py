@@ -425,6 +425,10 @@ class TestDurability:
 #: the local-only default visible. A legitimately exempt new tool goes here with a reason in
 #: the same commit, so adding one is a deliberate, reviewed act rather than a default.
 EXEMPT_CALL_SITES: set[str] = {
+    # B4.1's baseline, conditional on `--out` like the others here. `--assay` makes a rehearsal
+    # over one assay cheap, and a one-assay table published under the deliverable's key would
+    # read exactly like the full 31.
+    "baseline_scores.py",
     # B2.4's register, conditional on `--out` exactly as the three below are. The register is a
     # committed file, so a rehearsal that published would put a draft of a deliverable under the
     # real prefix permanently; pointing `--out` at `artifacts/b2-4` publishes as normal.
@@ -584,6 +588,11 @@ NOT_PIPELINES: dict[str, str] = {
     "policies.py": "verifies the quotes in policies/ against their sources; writes nothing",
     "specquotes.py": "checks spec quotes against the captures; writes nothing",
     "specs.py": "validates the filter policy specs; writes nothing",
+    "stage_assay_msas.py": (
+        "pulls B4.1's alignments and structures out of the published archives into data/, "
+        "which `metrics/` describes as a cache of pinned inputs rather than a result. It "
+        "writes a digest manifest beside them; nothing it produces is a measurement"
+    ),
     "assay_licences.py": (
         "acquires B2.4's licence evidence into assays/licences.json, which is committed. It is "
         "the one online step in B2.4 and is deliberately outside the guard: a run(...) block "
