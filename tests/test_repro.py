@@ -439,6 +439,13 @@ EXEMPT_CALL_SITES: set[str] = {
     # truncated table published under a commit's key would be permanent and would read
     # exactly like a complete one, so `--limit` refuses to publish at all.
     "opengenome_contigs.py",
+    # A7.3's JSON-tree count, conditional on the same principle. The full pass publishes to
+    # `corpora/results/a7-3/` like any other result; the exemption is claimed only when
+    # `--max-records` bounds the read, which marks the artefact `partial` and the verdict
+    # `not_measured`. A bounded read that reached the durable prefix would be permanent and
+    # would sit beside the real count looking exactly like it — which is how a 20-record part
+    # landed in A2.6's census prefix on 2026-10-20.
+    "evo2_json_tree.py",
 }
 
 
