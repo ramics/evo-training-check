@@ -9478,3 +9478,40 @@ decision has a threshold or parameter in it, the number goes in the entry.
   that one evaluates to `undetermined`, because the matching threshold is unpublished (D-015);
   the other two were deferred to A1.6 (D-043). Recorded as `not_measurable` rather than folded
   into any agreement figure.
+
+### D-208 — the published-reference check is decided at the variant level, against a floor of 0.99, on the interval rather than the point estimate
+- **Date:** 2026-10-20
+- **Task:** B1.2
+- **Context:** B1.2's last step is to validate against a published reference number per model
+  where one exists. ProteinGym publishes two things that could serve: the per-variant zero-shot
+  scores for each model it evaluated, and the DMS-level Spearman computed from them. They are
+  different tests and they fail differently, so which one decides the verdict has to be fixed
+  before any score exists.
+- **Decision:**
+  **Both are computed; the verdict rests on the variant level.** Our scores against the
+  published scores for the same checkpoint on the same assay is the sharp test: two
+  implementations of one frozen model scoring the same variants should agree almost exactly.
+  Our Spearman against the DMS truth, next to the published Spearman, is the number a reader
+  recognises, and it is reported always — but it is forgiving. A systematic harness error, a
+  wrong offset or a mis-set mask token, can leave the headline Spearman close to the published
+  one while the per-variant ranking is plainly wrong. Deciding on the assay level would call
+  that validated.
+
+  **The floor is 0.99 Spearman, variant level.** Chosen for what it separates rather than
+  tuned to a result: every harness bug this check exists to catch lands far below it, and an
+  honest difference in numerical precision between two implementations lands far above it.
+  Fixed here, before the first score, as the non-negotiable on parameters requires.
+
+  **The verdict reads the interval, not the point estimate.** `reproduced` requires the lower
+  bound of the 95% bootstrap interval to clear the floor; `diverges` requires the upper bound
+  to fall below it; anything straddling reports `undetermined`, which is the honest answer and
+  is not allowed to read as either. Assays below 20 shared variants get `too_few_variants` and
+  no correlation interval at all.
+
+  **The resampling is paired.** Variant pairs are resampled together, so the interval is on
+  the difference as well as on each estimate. Two correlations over one assay have strongly
+  dependent errors, and an interval assembled from the two marginal ones would be wide enough
+  to call a real divergence inconclusive.
+- **Alternatives rejected:** deciding on the assay-level Spearman alone (hides the error class
+  the check exists for); a point-estimate threshold (a 0.991 with an interval reaching 0.97 is
+  not a reproduction); an unpaired bootstrap (destroys the correlation it measures).
