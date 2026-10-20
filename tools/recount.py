@@ -85,8 +85,10 @@ recount reaches that by executing all three rather than by assuming it.
 
 ### The one divergence, and why the recount's number is the better one
 
-Twenty-one cells differ, all of one kind: **per-route record counts in the four `opengenome2`
-groups**, and the per-route maximum that follows from them. Overall M2 agrees exactly in every
+Twenty-two cells differ. Twenty-one are of one kind: **per-route record counts in the six
+`opengenome2` groups** — three readings over two protein registries — and the per-route maximum
+that follows from them. (The twenty-second is a coverage string, below.) Overall M2 agrees
+exactly in every
 group — for Pfam against Evo 2's release both implementations report 7,521 surviving records —
 and the divergence is entirely in how that total is split between `out_of_scope` and
 `unresolved` (or, under the strict reading, `retained_by_design` and `unresolved`): 1,291 /
@@ -115,6 +117,17 @@ split at all, and overall M2 agrees. Where a per-route *record* count is quoted 
 `opengenome2` group, the exact figures here should be preferred to the apportioned ones, or the
 apportioned ones labelled as apportioned. Per-route **detection** counts, and every per-route
 M1, are unaffected.
+
+### The twenty-second cell: coverage under the charitable reading is 3/7, not 3/6
+
+A7.1 reports conformance coverage as `3/6`, and that is right for the literal and strict
+readings, which publish six rules each. The charitable reading publishes **seven** — it adds
+`remove-eukaryotic-host-evidence`, which reads IMG/VR host metadata the release withholds — so
+the same three executable rules are three of seven there. This recount derives the denominator
+from each spec's own rule list rather than carrying one number across all three readings, which
+is what the A7.1 criterion asks for ("the restriction derived mechanically from the specs rather
+than chosen"). Nothing about the 95 or the zero changes; the fraction describing how much of the
+policy could be tested does, and it should be quoted per reading.
 
 ### What this check does not establish
 
