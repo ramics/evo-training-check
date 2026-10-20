@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import itertools
 import json
 import os
 import shutil
@@ -86,6 +87,12 @@ OUTDIR = REPO / "artifacts" / "a2-1"
 #: the run rather than a constant — the alternative is two copies of this tool drifting apart.
 TASK_DEFAULT = "A2.1"
 TASK = TASK_DEFAULT
+
+#: Records gene-called and searched at a time. Chosen so a worker's peak stays in single-digit
+#: gigabytes with eight of them on one machine: at A2.1's measured 1.50 ms per gene this is a
+#: search of a couple of minutes, which is also short enough that a chunk's progress line is a
+#: real heartbeat rather than silence (AGENTS.md).
+CHUNK_RECORDS = 20_000
 
 
 #: The deepest rate each task may read, by component. D-099 made the declared rate a
@@ -232,6 +239,36 @@ def hmm_path(reg: Registry) -> Path:
 def call_genes(records: list[Any]) -> tuple[list[Any], dict[str, int]]:
     """A2.1's gene calling. Lives in `amazebio.profilesearch` so A2.4 calls the same one."""
     return profilesearch.call_genes(records)
+
+
+def search_batch(
+    regs: list[Registry],
+    views: dict[str, Any],
+    proteins: list[Any],
+    *,
+    source: Any,
+    hits: dict[str, list[dict[str, Any]]],
+    search_seconds: dict[str, float],
+) -> set[str]:
+    """Search one batch of called proteins against every registry, in place.
+
+    Returns the record ids that hit something, because those are the only records the route
+    resolution downstream looks up. At census depth, keeping the rest is the difference
+    between a pass that fits in memory and one that does not.
+    """
+    touched: set[str] = set()
+    if not proteins:
+        return touched
+    for reg in regs:
+        t0 = time.time()
+        found = search(reg, proteins, restrict_to=views[reg.id].restrict_to)
+        search_seconds[reg.id] += time.time() - t0
+        for row_hit in found:
+            row_hit["component"] = source.component
+            row_hit["corpus_component"] = source.corpus_component
+            touched.add(row_hit["record_id"])
+        hits[reg.id].extend(found)
+    return touched
 
 
 def search(reg: Registry, proteins: list[Any], *, restrict_to: set[str] | None) -> list[Any]:
@@ -393,7 +430,9 @@ def cache_dir(release: str, *, root: Path | None = None) -> Path:
 CACHE_FORMAT = 2
 
 
-def cache_stem(component: str, object_name: str, lo: float, hi: float) -> str:
+def cache_stem(
+    component: str, object_name: str, lo: float, hi: float, *, chunk: int | None = None
+) -> str:
     """The cache's filename stem for one staged object and band.
 
     The *object* is in the key, not just the component, because Evo 1 publishes stage 2 as three
@@ -402,7 +441,10 @@ def cache_stem(component: str, object_name: str, lo: float, hi: float) -> str:
     full one. Suffixes are concatenated rather than applied with `Path.with_suffix`, which would
     read the `.02` of a band bound as the suffix to replace.
     """
-    return f"{component}--{object_name}--{lo:g}-{hi:g}"
+    stem = f"{component}--{object_name}--{lo:g}-{hi:g}"
+    # A chunked collect writes one file per chunk. `read_cache` globs the object's files
+    # and de-duplicates by record id, so the set reads back as one cache.
+    return stem if chunk is None else f"{stem}--{chunk:05d}"
 
 
 def write_cache(
@@ -706,6 +748,16 @@ def main(argv: list[str] | None = None) -> int:
         "the result (D-222). (default: %(default)s)",
     )
     parser.add_argument(
+        "--chunk-records",
+        type=int,
+        default=CHUNK_RECORDS,
+        help="how many records to gene-call and search at a time. A band is read as a "
+        "stream of chunks rather than one list, because at census depth a single staged "
+        "object is the whole release: OpenGenome's stage-2 split holds 2,652,947 "
+        "records. The chunk size changes no result, only the peak memory "
+        "(default: %(default)s)",
+    )
+    parser.add_argument(
         "--band",
         help=(
             "hash band to search, as LO:HI in multiples of the component's own initial rate — "
@@ -877,6 +929,8 @@ def main(argv: list[str] | None = None) -> int:
                     flush=True,
                 )
                 started = time.time()
+                search_seconds: dict[str, float] = {r.id: 0.0 for r in regs}
+                hits_before = {r.id: len(hits[r.id]) for r in regs}
                 if args.from_cache:
                     proteins, cached_records, stats = read_cache(
                         cache_dir(release, root=args.cache_dir),
@@ -910,35 +964,88 @@ def main(argv: list[str] | None = None) -> int:
                         f"{stats['residues']:,} residues)",
                         flush=True,
                     )
-                else:
-                    batch: list[Any] = []
-                    for sampled in stream_source(client, source, lo=lo, hi=hi):
-                        batch.append(sampled)
-                        sampled_records[sampled.id] = sampled.record
-                        if args.limit_records and len(batch) >= args.limit_records:
-                            break
-                    read_seconds = time.time() - started
-                    print(
-                        f"  {len(batch):,} records sampled in {read_seconds / 60:.1f} min; "
-                        "calling genes",
-                        flush=True,
-                    )
-                    proteins, stats = call_genes(batch)
-                    records_here = {s.id: s.record for s in batch}
-                    del batch
-                    if args.collect:
-                        written_to = write_cache(
-                            cache_dir(release, root=args.cache_dir),
-                            cache_stem(source.corpus_component, Path(source.key).name, lo, hi),
+                    if not args.collect:
+                        search_batch(
+                            regs,
+                            views,
                             proteins,
-                            records_here,
-                            band=(lo, hi),
+                            source=source,
+                            hits=hits,
+                            search_seconds=search_seconds,
                         )
+                    del proteins
+                else:
+                    # Chunked, not accumulated. The band used to be read into one list and
+                    # gene-called in a single call, which is fine at the pre-registered rate
+                    # and impossible at census depth: OpenGenome's stage-2 split is one
+                    # object of 2,652,947 records, so the whole release arrives as a single
+                    # source and the list is the corpus. Searching in chunks changes no
+                    # result — the detections are a union over records and every threshold
+                    # is per protein — and it is what makes the census fit a machine the
+                    # account permits instead of one it does not (AGENTS.md: check whether
+                    # the work can be split before concluding it needs a bigger machine).
+                    stats = Counter(
+                        {"records": 0, "genes": 0, "residues": 0, "records_without_genes": 0}
+                    )
+                    read_seconds = 0.0
+                    stream = stream_source(client, source, lo=lo, hi=hi)
+                    chunk_index = 0
+                    while True:
+                        if args.limit_records and stats["records"] >= args.limit_records:
+                            break
+                        want = args.chunk_records
+                        if args.limit_records:
+                            want = min(want, args.limit_records - stats["records"])
+                        t_read = time.time()
+                        batch = list(itertools.islice(stream, want))
+                        read_seconds += time.time() - t_read
+                        if not batch:
+                            break
+                        records_here = {s.id: s.record for s in batch}
+                        proteins, chunk_stats = call_genes(batch)
+                        del batch
+                        stats.update(chunk_stats)
                         print(
-                            f"  cached {stats['genes']:,} genes "
-                            f"({stats['residues']:,} residues) to {written_to}",
+                            f"  chunk {chunk_index}: {chunk_stats['records']:,} records, "
+                            f"{chunk_stats['genes']:,} genes "
+                            f"({stats['records']:,} records read so far in "
+                            f"{read_seconds / 60:.1f} min)",
                             flush=True,
                         )
+                        if args.collect:
+                            # One cache file per chunk. `read_cache` globs the object's files
+                            # and de-duplicates by record id, so several are read as one.
+                            written_to = write_cache(
+                                cache_dir(release, root=args.cache_dir),
+                                cache_stem(
+                                    source.corpus_component,
+                                    Path(source.key).name,
+                                    lo,
+                                    hi,
+                                    chunk=chunk_index,
+                                ),
+                                proteins,
+                                records_here,
+                                band=(lo, hi),
+                            )
+                            print(f"    cached to {written_to}", flush=True)
+                        else:
+                            found_any = search_batch(
+                                regs,
+                                views,
+                                proteins,
+                                source=source,
+                                hits=hits,
+                                search_seconds=search_seconds,
+                            )
+                            # Only the records a hit points at are kept. Downstream reads
+                            # `sampled_records` to resolve a hit's route, and nothing else;
+                            # keeping every record read would put the census back in memory
+                            # by another door.
+                            for record_id in found_any:
+                                sampled_records[record_id] = records_here[record_id]
+                        del proteins, records_here
+                        chunk_index += 1
                 print(
                     f"  {stats['genes']:,} genes, {stats['residues']:,} residues "
                     f"({stats['records_without_genes']:,} records with no gene called)",
@@ -954,35 +1061,22 @@ def main(argv: list[str] | None = None) -> int:
                     "records_in_source": row.get("records"),
                     **stats,
                     "read_seconds": round(read_seconds, 1),
-                    "search_seconds": {},
+                    # A source the sample drew nothing from still costs a full pass over the
+                    # profile file — 418 MB for Pfam, 2.7 GB for RVDB — to search nothing.
+                    # Evo 1's test and valid splits are under a megabyte each, so at the
+                    # pre-registered rate they are expected to be empty, and the zero is
+                    # recorded rather than searched for.
+                    "search_seconds": {r.id: round(search_seconds[r.id], 1) for r in regs},
                 }
                 if args.collect:
-                    del proteins
                     continue
                 for reg in regs:
-                    if not proteins:
-                        # A source the sample drew nothing from still costs a full pass over
-                        # the profile file — 418 MB for Pfam, 2.7 GB for RVDB — to search
-                        # nothing. Evo 1's test and valid splits are under a megabyte each, so
-                        # at the pre-registered rate they are expected to be empty, and the
-                        # zero is recorded rather than searched for.
-                        source_row["search_seconds"][reg.id] = 0.0
-                        continue
-                    t0 = time.time()
-                    found = search(reg, proteins, restrict_to=views[reg.id].restrict_to)
-                    source_row["search_seconds"][reg.id] = round(time.time() - t0, 1)
-                    for row_hit in found:
-                        row_hit["component"] = source.component
-                        row_hit["corpus_component"] = source.corpus_component
-                    hits[reg.id].extend(found)
                     print(
-                        f"  {reg.key}: {len(found):,} hits above threshold in "
-                        f"{source_row['search_seconds'][reg.id] / 60:.1f} min",
+                        f"  {reg.key}: {len(hits[reg.id]) - hits_before[reg.id]:,} hits "
+                        f"above threshold in {search_seconds[reg.id] / 60:.1f} min",
                         flush=True,
                     )
-                del proteins
                 per_source.append(source_row)
-
             if per_source and not args.collect and not dump.exists():
                 write_hits_dump(dump, hits=hits, per_source=per_source, records=sampled_records)
                 print(f"  parked the search in {dump}", flush=True)

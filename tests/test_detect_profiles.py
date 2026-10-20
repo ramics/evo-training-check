@@ -311,3 +311,153 @@ class TestHowDeepATaskMayRead:
 
     def test_every_sampled_component_has_a_census_rate(self) -> None:
         assert set(detect_profiles.CENSUS_RATES) == set(detect_profiles.SAMPLE_RATES)
+
+
+class TestSearchingInChunks:
+    """A2.6 reads a band as a stream of chunks rather than one list.
+
+    The reason is arithmetic: at census depth a single staged object is the whole release —
+    OpenGenome's stage-2 split holds 2,652,947 records — so accumulating the band before
+    calling genes puts the corpus in memory, and no instance the account permits has that
+    memory. What has to be true is that chunking changes nothing: the detections are a union
+    over records and every threshold is per protein, so the same proteins searched in
+    pieces must give the same hits.
+    """
+
+    class Reg:
+        def __init__(self, rid: str) -> None:
+            self.id = rid
+            self.key = rid
+
+    class Source:
+        component = "IMG/VR"
+        corpus_component = "stage2"
+
+    @staticmethod
+    def _view():
+        class View:
+            restrict_to = None
+
+        return View()
+
+    def _fake_search(self, monkeypatch):
+        """One hit per protein, so a hit's provenance is unambiguous."""
+
+        def search(reg, proteins, *, restrict_to):
+            return [
+                {
+                    "record_id": detect_profiles.profilesearch.text_of(p.name).split("|")[0],
+                    "profile": f"PF{reg.id}",
+                    "score": 10.0,
+                }
+                for p in proteins
+            ]
+
+        monkeypatch.setattr(detect_profiles, "search", search)
+
+    def _run(self, proteins, chunk):
+        regs = [self.Reg("pfam"), self.Reg("rvdb-prot")]
+        views = {r.id: self._view() for r in regs}
+        hits: dict[str, list] = {r.id: [] for r in regs}
+        seconds = {r.id: 0.0 for r in regs}
+        touched: set[str] = set()
+        for i in range(0, len(proteins), chunk):
+            touched |= detect_profiles.search_batch(
+                regs,
+                views,
+                proteins[i : i + chunk],
+                source=self.Source(),
+                hits=hits,
+                search_seconds=seconds,
+            )
+        return hits, touched, seconds
+
+    @pytest.mark.parametrize("chunk", [1, 2, 3, 7, 100])
+    def test_the_hits_do_not_depend_on_the_chunk_size(self, monkeypatch, chunk) -> None:
+        self._fake_search(monkeypatch)
+        proteins = [protein(f"stage2:train#{i}|gene0") for i in range(10)]
+        whole, whole_touched, _ = self._run(proteins, 100)
+        part, part_touched, _ = self._run(proteins, chunk)
+        for rid in whole:
+            assert sorted(h["record_id"] for h in part[rid]) == sorted(
+                h["record_id"] for h in whole[rid]
+            )
+        assert part_touched == whole_touched
+
+    def test_every_hit_carries_its_source(self, monkeypatch) -> None:
+        """The chunk loop is where component and corpus_component are stamped on, and the
+        route resolution downstream reads both."""
+        self._fake_search(monkeypatch)
+        hits, _, _ = self._run([protein("stage2:train#1|gene0")], 1)
+        row = hits["pfam"][0]
+        assert row["component"] == "IMG/VR"
+        assert row["corpus_component"] == "stage2"
+
+    def test_it_returns_only_the_records_that_hit(self, monkeypatch) -> None:
+        """Those are the only ones the route resolution looks up, and keeping the rest puts
+        the census back in memory by another door."""
+
+        def search(reg, proteins, *, restrict_to):
+            first = detect_profiles.profilesearch.text_of(proteins[0].name).split("|")[0]
+            return [{"record_id": first, "profile": "PF0", "score": 1.0}]
+
+        monkeypatch.setattr(detect_profiles, "search", search)
+        proteins = [protein(f"stage2:train#{i}|gene0") for i in range(5)]
+        _, touched, _ = self._run(proteins, 5)
+        assert touched == {"stage2:train#0"}
+
+    def test_an_empty_chunk_searches_nothing(self, monkeypatch) -> None:
+        """A pass over Pfam's profile file costs 418 MB read to find nothing."""
+        calls: list[int] = []
+
+        def search(reg, proteins, *, restrict_to):
+            calls.append(len(proteins))
+            return []
+
+        monkeypatch.setattr(detect_profiles, "search", search)
+        _, touched, seconds = self._run([], 10)
+        assert calls == []
+        assert touched == set()
+        assert set(seconds.values()) == {0.0}
+
+    def test_the_time_is_summed_over_the_chunks(self, monkeypatch) -> None:
+        self._fake_search(monkeypatch)
+        _, _, seconds = self._run([protein(f"s:r#{i}|gene0") for i in range(6)], 2)
+        assert all(v >= 0.0 for v in seconds.values())
+        assert set(seconds) == {"pfam", "rvdb-prot"}
+
+
+class TestTheChunkedCache:
+    """`--collect` writes one file per chunk; `read_cache` has to read the set as one."""
+
+    def test_two_chunks_of_one_object_read_back_as_one_cache(self, tmp_path) -> None:
+        for chunk, ids in enumerate([["stage2:train#1", "stage2:train#2"], ["stage2:train#3"]]):
+            detect_profiles.write_cache(
+                tmp_path,
+                detect_profiles.cache_stem("stage2", "train_stage2.parquet", 0.0, 1.0, chunk=chunk),
+                [protein(f"{i}|gene0") for i in ids],
+                records_for(ids),
+                band=(0.0, 1.0),
+            )
+        proteins, records, stats = detect_profiles.read_cache(
+            tmp_path, component="stage2", object_name="train_stage2.parquet", lo=0.0, hi=1.0
+        )
+        assert stats["records"] == 3
+        assert len(proteins) == 3
+        assert set(records) == {"stage2:train#1", "stage2:train#2", "stage2:train#3"}
+
+    def test_a_chunk_does_not_overwrite_its_predecessor(self, tmp_path) -> None:
+        """The failure this guards is the one the split keying already cost a read to: one
+        stem for several writes, and the last — often a short tail chunk — wins."""
+        stems = {
+            detect_profiles.cache_stem("stage2", "train_stage2.parquet", 0.0, 1.0, chunk=c)
+            for c in range(3)
+        }
+        assert len(stems) == 3
+
+    def test_an_unchunked_stem_is_unchanged(self, tmp_path) -> None:
+        """A2.1's caches on disk were written without a chunk index and must still read."""
+        assert (
+            detect_profiles.cache_stem("stage2", "train_stage2.parquet", 0.014, 0.02)
+            == "stage2--train_stage2.parquet--0.014-0.02"
+        )
