@@ -2,13 +2,13 @@
 id: A3.2
 title: Compute survival quantification by route
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A3.1, A2.1, A2.2, A2.3, A2.4, A2.5]
 blocks: [A0.4, A3.3, A5.1, X1.3]
 design_ref: "§A3"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A3.2 — Compute survival quantification by route
@@ -33,6 +33,11 @@ Merge all detection outputs into the headline quantification, broken down by sur
 - Full metric tables exist per model × reading, with route breakdown.
 - De-duplication rules documented and tested.
 - Results reproducible from pinned inputs and seeds.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`** carries the work; `main` has only this
+file. Nothing is waiting on the project owner.
 
 ## Notes
 
