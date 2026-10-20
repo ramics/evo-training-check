@@ -45,6 +45,7 @@ import sys
 import tempfile
 import time
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -624,6 +625,63 @@ def _merge_source_rows(parts: list[list[dict[str, Any]]]) -> list[dict[str, Any]
     return list(merged.values())
 
 
+def _shelve_parts(
+    part_paths: list[Path], out: Path
+) -> tuple[list[dict[str, Any]], dict[str, Path]]:
+    """Read each part once, keeping its counts and spilling its rows to one file per key.
+
+    The counts are kilobytes and are needed by every table; the rows are gigabytes and are
+    needed by exactly one. Parsing one part at a time and appending its rows as JSON lines
+    means peak memory is one part rather than all of them, and the rows are then read back a
+    line at a time by a generator that never holds the file.
+
+    Returns the per-part counts in path order, and the shelf: table key to the file holding
+    that key's rows from every part, in part order.
+    """
+    shelf_dir = out / ".assemble"
+    if shelf_dir.exists():
+        shutil.rmtree(shelf_dir)
+    shelf_dir.mkdir(parents=True)
+    counts: list[dict[str, Any]] = []
+    shelf: dict[str, Path] = {}
+    handles: dict[str, Any] = {}
+    try:
+        for path in part_paths:
+            part = json.loads(path.read_text())
+            counts.append(
+                {
+                    "release": part["release"],
+                    "band_multiple": part["band_multiple"],
+                    "sources": part["sources"],
+                }
+            )
+            for key, rows in part.get("tables", {}).items():
+                if key not in handles:
+                    # The key carries a `|`, which is fine in a filename but reads badly; the
+                    # shelf is internal and deleted, so the name only has to be unique.
+                    shelf[key] = shelf_dir / (key.replace("|", "__") + ".jsonl")
+                    handles[key] = shelf[key].open("w")
+                handle = handles[key]
+                for row in rows:
+                    handle.write(json.dumps(row) + "\n")
+            del part
+    finally:
+        for handle in handles.values():
+            handle.close()
+    return counts, shelf
+
+
+def _shelved_rows(shelf: dict[str, Path], key: str) -> Iterator[dict[str, Any]]:
+    """Every shelved row for one table key, one line at a time."""
+    path = shelf.get(key)
+    if path is None:
+        return
+    with path.open() as fh:
+        for line in fh:
+            if line.strip():
+                yield json.loads(line)
+
+
 def assemble(
     args: argparse.Namespace, regs: list[Registry], manifests: list[dict[str, Any]]
 ) -> int:
@@ -638,7 +696,12 @@ def assemble(
     out = args.out
     views = {r.id: family_universe(r) for r in regs}
     parts_dir = out / "parts"
-    parts = [json.loads(path.read_text()) for path in sorted(parts_dir.glob("part-*.json"))]
+    part_paths = sorted(parts_dir.glob("part-*.json"))
+    # Only the small half of each part — the band and the per-source counts — is held. The
+    # detection rows are the large half and are shelved to one file per table key, because at
+    # A2.6's census depth a part carries about one row per record searched and eight of them
+    # parsed at once do not fit the container (D-099 sized the search, not the assembly).
+    parts, shelf = _shelve_parts(part_paths, out)
     print(f"assembling {len(parts)} band part(s) with the initial tables", flush=True)
 
     # Keep the first pass's tables as written, once, before anything overwrites them. They are
@@ -671,20 +734,33 @@ def assemble(
                 view = views[reg.id]
                 stem = f"detections-{reg.id}-{policy_id}-{release}"
                 initial_table = json.loads((initial_dir / f"{stem}.json").read_text())
-                rows: list[dict[str, Any]] = []
                 initial_jsonl = initial_dir / f"{stem}.jsonl"
-                if initial_jsonl.exists():
-                    rows += [
-                        json.loads(line) for line in initial_jsonl.read_text().splitlines() if line
-                    ]
                 source_rows = [initial_table["sources"]]
                 for part in parts:
                     if part["release"] != release:
                         continue
-                    rows += part["tables"].get(f"{policy_id}|{reg.id}", [])
                     source_rows.append(part["sources"])
 
-                detections = [_detection_from_row(row) for row in rows]
+                def _rows(
+                    initial_jsonl: Path = initial_jsonl, key: str = f"{policy_id}|{reg.id}"
+                ) -> Iterator[dict[str, Any]]:
+                    """The initial pass's rows, then every shelved band row, streamed.
+
+                    Bound as defaults rather than closed over, because this is defined inside
+                    two loops and a late-binding closure would hand every table the last
+                    table's key — the kind of bug that produces a complete-looking artefact.
+                    """
+                    if initial_jsonl.exists():
+                        with initial_jsonl.open() as fh:
+                            for line in fh:
+                                if line.strip():
+                                    yield json.loads(line)
+                    yield from _shelved_rows(shelf, key)
+
+                # `build_rows` folds its argument into per-family counters, so it never needs
+                # the detections as a list; generating them keeps the raw rows and the
+                # Detection objects from being alive at the same time.
+                detections = (_detection_from_row(row) for row in _rows())
                 sources = _merge_source_rows(source_rows)
                 searched = [s for s in sources if s.get("searched")]
                 bands = sorted({tuple(b) for s in searched for b in s.get("bands", [])})
@@ -729,12 +805,22 @@ def assemble(
                     )
                 table.write(out / f"{stem}.json")
                 m.output_file(out / f"{stem}.json", role="per-family hit table (assembled)")
-                if detections:
-                    jsonl = out / f"{stem}.jsonl"
-                    jsonl.write_text(
-                        "\n".join(detection_rows(detections, extra={"manifest": policy_id})) + "\n"
-                    )
+                # The generator above is spent, so the record-level file streams a fresh pass
+                # rather than a retained list: joining millions of rows into one string to
+                # write it would cost more memory than holding the detections did.
+                jsonl = out / f"{stem}.jsonl"
+                written = 0
+                with jsonl.open("w") as fh:
+                    for line in detection_rows(
+                        (_detection_from_row(row) for row in _rows()),
+                        extra={"manifest": policy_id},
+                    ):
+                        fh.write(line + "\n")
+                        written += 1
+                if written:
                     m.output_file(jsonl, role="record-level detections (assembled)")
+                else:
+                    jsonl.unlink()
                 survival = table.survival()
                 print(
                     f"  {stem}: {survival['families_with_a_hit']:,} of "
@@ -742,6 +828,11 @@ def assemble(
                     f"({survival['estimate_kind']})",
                     flush=True,
                 )
+    # The shelf is an intermediate, and at census depth it is as large as the parts it came
+    # from. The parts are the durable copy; this is scratch and goes.
+    shelf_dir = out / ".assemble"
+    if shelf_dir.exists():
+        shutil.rmtree(shelf_dir)
     return 0
 
 
