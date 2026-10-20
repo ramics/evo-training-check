@@ -15,7 +15,8 @@ travels with the number rather than being an implementation detail:
   distinct rows. Hashing, no pairs.
 * **exact** — identical rows are collapsed and carried as multiplicities, and the deduplicated
   rows are compared against each other. Exact, and affordable when the deduplicated alignment
-  is small.
+  is small, or when the threshold is tight enough that the pigeonhole principle finds the
+  candidate pairs without comparing everything to everything.
 * **sampled** — rows are drawn and each is compared against the whole alignment. The mean
   reciprocal neighbour count times the alignment's size is an unbiased estimator of the same
   sum, and it comes back with a bootstrap interval, never as a bare point estimate.
@@ -24,7 +25,9 @@ travels with the number rather than being an implementation detail:
 from __future__ import annotations
 
 import collections
+import itertools
 import math
+import string
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -45,6 +48,16 @@ BOOTSTRAP = 2000
 #: Rows of the alignment held against the query block at once. Bounds the working set; it
 #: changes nothing about the result.
 DB_BLOCK = 20_000
+
+#: Element comparisons the block-narrowed sum over every row may cost before the sampled path
+#: takes over. Measured against this container: the deepest alignment that fits runs a few
+#: minutes. Like `EXACT_BUDGET` this moves an alignment between two routes to the same number,
+#: and is not a parameter of the statistic.
+VERIFY_BUDGET = 4.0e10
+
+
+#: The characters a2m uses for an insertion, which are not part of any column.
+_INSERTIONS = str.maketrans("", "", string.ascii_lowercase + ".")
 
 
 class DepthError(RuntimeError):
@@ -93,8 +106,12 @@ def match_columns(sequence: str) -> str:
 
     a2m writes an insertion as a lowercase residue or a `.`, and those columns exist only for
     the rows that have them. Comparing rows on them would compare different positions.
+
+    Done by translation table rather than by a comprehension because it runs over every
+    character of every row of alignments with hundreds of thousands of them, where the
+    per-character Python call is most of the wall clock.
     """
-    return "".join(c for c in sequence if not c.islower() and c != ".")
+    return sequence.translate(_INSERTIONS)
 
 
 def neighbour_floor(columns: int, threshold: float, *, inclusive: bool) -> int:
@@ -153,6 +170,78 @@ def _neighbours(
     return total
 
 
+class Blocks:
+    """The alignment cut into column blocks, with its rows bucketed by each block's content.
+
+    Two rows within `columns - floor` mismatches must match exactly on at least one whole
+    block when the alignment is cut into that many plus one of them: there are more blocks
+    than mismatches to go round. So a row's possible neighbours are the rows it shares a
+    bucket with somewhere, and at the thresholds these alignments were reweighted at that is a
+    small fraction of the alignment rather than all of it.
+
+    The same structure serves both of the paths that need it. Asking it for every row's
+    candidates gives the exact sum; asking it for a sample's gives an unbiased estimate of the
+    same sum at a fraction of the cost, and the per-row answer is exact either way.
+    """
+
+    def __init__(self, codes: np.ndarray, floor: int) -> None:
+        self.codes = codes
+        self.floor = floor
+        self.rows, self.columns = codes.shape
+        count = self.columns - floor + 1
+        self.usable = count <= self.columns
+        self.blocks: list[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = []
+        if not self.usable:
+            return
+        edges = np.linspace(0, self.columns, count + 1).astype(int)
+        for start, stop in itertools.pairwise(edges):
+            if stop <= start:
+                self.usable = False
+                self.blocks = []
+                return
+            block = np.ascontiguousarray(codes[:, start:stop])
+            _, inverse, sizes = np.unique(
+                block.view([("", block.dtype)] * block.shape[1]).ravel(),
+                return_inverse=True,
+                return_counts=True,
+            )
+            order = np.argsort(inverse, kind="stable").astype(np.int32)
+            ends = np.cumsum(sizes)
+            self.blocks.append((inverse.astype(np.int32), order, ends - sizes, ends))
+
+    def upper_bound_on_pairs(self) -> float:
+        """How many candidate pairs the blocks hold, counted before any are built."""
+        total = 0.0
+        for _, _, starts, ends in self.blocks:
+            sizes = (ends - starts).astype(np.float64)
+            total += float((sizes * (sizes - 1) / 2).sum())
+        return total
+
+    def candidates(self, row: int) -> np.ndarray:
+        """Every row that could be a neighbour of `row`, itself included."""
+        found = [
+            order[starts[inverse[row]] : ends[inverse[row]]]
+            for inverse, order, starts, ends in self.blocks
+        ]
+        return np.unique(np.concatenate(found))
+
+
+def _counts_by_blocks(
+    codes: np.ndarray,
+    multiplicity: np.ndarray,
+    floor: int,
+    queries: np.ndarray,
+    blocks: Blocks,
+) -> np.ndarray:
+    """Neighbour counts for `queries`, exact, using the blocks to skip the hopeless pairs."""
+    counts = np.zeros(len(queries), dtype=np.int64)
+    for position, row in enumerate(queries):
+        candidates = blocks.candidates(int(row))
+        matches = (codes[candidates] == codes[row]).sum(axis=1)
+        counts[position] = int(multiplicity[candidates[matches >= floor]].sum())
+    return counts
+
+
 def _bootstrap(
     weights: np.ndarray, sequences: int, rng: np.random.Generator, resamples: int
 ) -> tuple[float, float]:
@@ -168,6 +257,7 @@ def depth(
     inclusive: bool = True,
     seed: int,
     budget: float = EXACT_BUDGET,
+    verify_budget: float = VERIFY_BUDGET,
     sample_rows: int = SAMPLE_ROWS,
     resamples: int = BOOTSTRAP,
 ) -> Depth:
@@ -202,13 +292,34 @@ def depth(
             raise DepthError("a row is not its own neighbour; the comparison is wrong")
         return Depth(**common, method="exact", neff=float((multiplicity / counts).sum()))
 
+    blocks = Blocks(codes, floor)
+    if blocks.usable and blocks.upper_bound_on_pairs() * columns <= verify_budget:
+        counts = _counts_by_blocks(codes, multiplicity, floor, np.arange(distinct), blocks)
+        if (counts <= 0).any():
+            raise DepthError("a row is not its own neighbour; the comparison is wrong")
+        return Depth(
+            **common,
+            method="exact",
+            neff=float((multiplicity / counts).sum()),
+            notes=[
+                "too deep to compare against itself, but the threshold is tight enough that "
+                "the pigeonhole principle narrows each row's possible neighbours to the rows "
+                "it matches a whole column block with"
+            ],
+        )
+
     rng = np.random.default_rng(seed)
     draw = min(sample_rows, sequences)
     # Sampled from the alignment, not from the distinct rows: the estimator is the mean weight
     # of a sequence, and a sequence in a large identical group must be as likely to be drawn as
     # a singleton or the mean is of the wrong population.
     picks = rng.choice(distinct, size=draw, replace=True, p=multiplicity / sequences)
-    counts = _neighbours(codes[picks], codes, multiplicity, floor)
+    if blocks.usable:
+        counts = _counts_by_blocks(codes, multiplicity, floor, picks, blocks)
+        how = "each row's neighbours found exactly through the column blocks"
+    else:
+        counts = _neighbours(codes[picks], codes, multiplicity, floor)
+        how = "each row compared against the whole alignment"
     if (counts <= 0).any():
         raise DepthError("a sampled row is not its own neighbour; the comparison is wrong")
     weights = 1.0 / counts
@@ -219,7 +330,7 @@ def depth(
         interval=_bootstrap(weights, sequences, rng, resamples),
         sample=draw,
         notes=[
-            "too deep to compare against itself within the budget, so the sum is estimated "
-            "from sampled rows, each compared against the whole alignment"
+            "too deep to sum over every row within the budget, so the sum is estimated from "
+            f"sampled rows, {how}"
         ],
     )

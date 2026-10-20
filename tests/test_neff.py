@@ -121,7 +121,9 @@ class TestTheSampledEstimatorAgreesWithTheExactSum:
     def test_the_estimate_brackets_the_exact_sum(self):
         rows = self._alignment()
         exact = neff.depth(rows, 0.8, seed=11)
-        estimated = neff.depth(rows, 0.8, seed=11, budget=0.0, sample_rows=600, resamples=400)
+        estimated = neff.depth(
+            rows, 0.8, seed=11, budget=0.0, verify_budget=0.0, sample_rows=600, resamples=400
+        )
         assert exact.method == "exact"
         assert estimated.method == "sampled"
         low, high = estimated.interval
@@ -129,17 +131,69 @@ class TestTheSampledEstimatorAgreesWithTheExactSum:
         assert estimated.neff == pytest.approx(exact.neff, rel=0.1)
 
     def test_an_estimate_never_ships_without_an_interval(self):
-        d = neff.depth(self._alignment(), 0.8, seed=3, budget=0.0, sample_rows=200, resamples=200)
+        d = neff.depth(
+            self._alignment(),
+            0.8,
+            seed=3,
+            budget=0.0,
+            verify_budget=0.0,
+            sample_rows=200,
+            resamples=200,
+        )
         assert d.interval is not None
         assert d.sample == 200
         assert d.as_dict()["interval"][0] < d.as_dict()["interval"][1]
 
     def test_the_same_seed_gives_the_same_estimate(self):
         rows = self._alignment()
-        first = neff.depth(rows, 0.8, seed=5, budget=0.0, sample_rows=300, resamples=200)
-        second = neff.depth(rows, 0.8, seed=5, budget=0.0, sample_rows=300, resamples=200)
+        first = neff.depth(
+            rows, 0.8, seed=5, budget=0.0, verify_budget=0.0, sample_rows=300, resamples=200
+        )
+        second = neff.depth(
+            rows, 0.8, seed=5, budget=0.0, verify_budget=0.0, sample_rows=300, resamples=200
+        )
         assert first.neff == second.neff
         assert first.interval == second.interval
+
+
+class TestThePigeonholePathAgreesWithTheDirectOne:
+    """The prefilter is an optimisation, so the only thing that matters is that it changes
+    nothing. It is exercised by forcing the direct comparison off its budget."""
+
+    def _alignment(self, seed: int = 4, rows: int = 500, columns: int = 40) -> list[str]:
+        rng = np.random.default_rng(seed)
+        alphabet = np.array(list("ACDEFGHIKLMNPQ"))
+        centres = rng.choice(alphabet, size=(30, columns))
+        out = []
+        for _ in range(rows):
+            row = centres[rng.integers(0, len(centres))].copy()
+            for position in rng.choice(columns, size=rng.integers(0, 3), replace=False):
+                row[position] = rng.choice(alphabet)
+            out.append("".join(row))
+        return out
+
+    def test_it_gives_the_same_sum_as_comparing_every_pair(self):
+        rows = self._alignment()
+        direct = neff.depth(rows, 0.95, seed=1)
+        prefiltered = neff.depth(rows, 0.95, seed=1, budget=0.0)
+        assert direct.method == "exact"
+        assert prefiltered.method == "exact"
+        assert prefiltered.neff == pytest.approx(direct.neff)
+        assert prefiltered.notes and "pigeonhole" in prefiltered.notes[0]
+
+    def test_it_stands_aside_rather_than_spending_more_than_its_budget(self):
+        rows = self._alignment()
+        # A loose threshold makes the blocks a couple of columns wide and every row collides
+        # with every other, so the candidate set approaches the whole product. Where that costs
+        # more than the budget allows, the sampled path takes over rather than the prefilter
+        # quietly doing the expensive thing.
+        got = neff.depth(rows, 0.3, seed=1, budget=0.0, verify_budget=1e3, resamples=200)
+        assert got.method == "sampled"
+        assert got.interval is not None
+
+    def test_an_alignment_whose_rows_share_no_block_has_no_candidate_pairs(self):
+        rows = ["ACDEFGHIKL", "MNPQRSTVWY"]
+        assert neff.depth(rows, 0.9, seed=1, budget=0.0).neff == pytest.approx(2.0)
 
 
 class TestWhatTheArtefactCarries:
