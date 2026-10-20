@@ -344,6 +344,24 @@ def _score(
         checkpoint(doc)
 
     column = resolve_published_column(args.published_column, spec)
+    # A missing `reference_check` used to be indistinguishable from a check that was skipped
+    # by accident, and one of the four Tier-1 checkpoints has no published column at all —
+    # ESM3-open is not in ProteinGym's released score table. "No reference exists" is a
+    # finding under §A0 and belongs in the artefact, so the absence is stated with its reason
+    # rather than left as a missing key.
+    if args.published is None or not column:
+        doc["reference_check"] = {
+            "checkpoint": args.checkpoint,
+            "assay": assay.dms_id,
+            "compared": False,
+            "why_not": (
+                "no published zero-shot scores were supplied for this run"
+                if args.published is None
+                else f"{args.checkpoint} has no column in the published score table, so there "
+                "is no reference to reproduce"
+            ),
+        }
+        doc["published_column"] = column
     if args.published is not None and column:
         manifest.input_file(args.published, role="published zero-shot scores")
         published = proteingym.load_model_scores(args.published, assay, column)
