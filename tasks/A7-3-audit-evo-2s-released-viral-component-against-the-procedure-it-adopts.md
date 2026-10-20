@@ -2,7 +2,7 @@
 id: A7.3
 title: Audit Evo 2's released viral component against the procedure it adopts
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A7.2]
 blocks: []
@@ -142,8 +142,12 @@ Done:
   whose occurrences sum exactly to IMG/VR's own length for it, so the surplus records and
   surplus nucleotides are both zero and the undeclared-upsampling concern does not arise.
 
-Left: the second-method recount and the duplicates artefact are both re-running to pick up the
-published reconciliation; then `review`.
+- The headline recounted by a second method (`json-tree-second.json`): newline counting and
+  byte arithmetic over the gzip stream as bytes, never decoding and never parsing, with a
+  premise check guarding the subtraction. Zero record delta and zero sequence-character delta
+  across all six files, no premise failure.
+
+Nothing is left. The task is `review`.
 
 **For review.** This task's Done-when says the 264,570 figure is reproduced by a second method
 *under A3.3*. A3.3 is `done` and its gate is open (D-215), and its conformance arm reimplemented
