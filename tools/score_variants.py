@@ -183,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("proteingym_release", proteingym.RELEASE.version)
             manifest.input_file(args.reference, role="proteingym reference")
 
+            out = args.outdir / f"{'plan' if args.plan else 'scores'}-{slug}.json"
             if args.plan:
                 mutants, source = _mutants(args, assay)
                 doc = plan(
@@ -193,12 +194,23 @@ def main(argv: list[str] | None = None) -> int:
                     variants_source=source,
                 )
             else:
-                doc = _score(args, assay, manifest)
+                doc = _score(
+                    args,
+                    assay,
+                    manifest,
+                    checkpoint=lambda partial: out.write_text(
+                        json.dumps(partial, indent=2, sort_keys=True) + "\n"
+                    ),
+                )
 
-            out = args.outdir / f"{'plan' if args.plan else 'scores'}-{slug}.json"
             out.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
             manifest.output_file(out, role="plan" if args.plan else "scores")
-    except (repro.ReproError, scoring.ScoringError, reference.ReferenceError) as exc:
+    except (
+        repro.ReproError,
+        scoring.ScoringError,
+        reference.ReferenceError,
+        proteingym.ProteinGymError,
+    ) as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(doc, indent=2, sort_keys=True)[:2000])
@@ -223,9 +235,33 @@ def _mutants(args: argparse.Namespace, assay: proteingym.Assay) -> tuple[list[st
     )
 
 
+def resolve_published_column(requested: str | None, spec: Any) -> str | None:
+    """Which published column this run checks itself against, or None for no check.
+
+    One line, and it has its own name because the bug it prevents cost a forty-minute
+    scoring pass on 2026-10-20: the resolved value was computed and then the unresolved one
+    was passed on, so a checkpoint whose column comes from its recipe looked for a column
+    named `None` and the whole run was discarded at the last step.
+    """
+    return requested or getattr(spec, "published_column", None)
+
+
 def _score(
-    args: argparse.Namespace, assay: proteingym.Assay, manifest: Any
+    args: argparse.Namespace,
+    assay: proteingym.Assay,
+    manifest: Any,
+    *,
+    checkpoint: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:  # pragma: no cover - needs an accelerator
+    """Score the assay's variants, then check them against the published column.
+
+    `checkpoint` is called with the scores the moment they exist and before the reference
+    check runs. The forward passes are the expensive part — three quarters of an hour for
+    one assay on a CPU — and the check that follows reads a file and can fail on it, as it
+    did on 2026-10-20 when a column name resolved to None. Losing the pass to a failure in
+    what verifies it is the wrong way round, so the scores are on disk before the check is
+    attempted and the failure is still raised.
+    """
     spec = backends.recipe(args.checkpoint)
     truth = proteingym.load_assay(args.assays, assay)
     request = scoring.ScoringRequest(
@@ -257,10 +293,13 @@ def _score(
         "determinism": determinism,
         "scores": scores,
     }
-    column = args.published_column or spec.published_column
+    if checkpoint is not None:
+        checkpoint(doc)
+
+    column = resolve_published_column(args.published_column, spec)
     if args.published is not None and column:
         manifest.input_file(args.published, role="published zero-shot scores")
-        published = proteingym.load_model_scores(args.published, assay, args.published_column)
+        published = proteingym.load_model_scores(args.published, assay, column)
         doc["reference_check"] = reference.check_against_published(
             args.checkpoint,
             assay.dms_id,
