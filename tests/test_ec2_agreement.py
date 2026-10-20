@@ -176,3 +176,13 @@ def test_the_interpreter_is_picked_by_name_not_trusted() -> None:
     body = _user_data()
     assert "python3.12" in body
     assert 'if [ -z "$PYBIN" ]' in body
+
+
+def test_only_restricts_the_tiers_the_instance_runs() -> None:
+    """A spot reclaim publishes one tier and loses the other, and the bucket has no delete.
+
+    Re-running both would write a second object under the same commit's key, which cannot be
+    removed, so the re-run has to be able to name the tier that is actually missing.
+    """
+    assert "for tier in uniref50" in _user_data(tiers="uniref50")
+    assert "uniref90" not in _user_data(tiers="uniref50").split("for tier in")[1]

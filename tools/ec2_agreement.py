@@ -212,6 +212,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
     ap.add_argument("--volume-size", type=int, default=30, help="GB, gp3; this pass streams")
     ap.add_argument("--workers", type=int, default=7)
+    ap.add_argument(
+        "--only",
+        action="append",
+        choices=TIERS,
+        help="run just this tier, repeatable. A spot reclaim mid-run leaves the published "
+        "tier published and the other missing; this is how the rest is re-run without "
+        "paying for the one already in the bucket (its key is keyed by commit, so a "
+        "re-run would write a second object that can never be deleted)",
+    )
     ap.add_argument("--spot", action="store_true")
     ap.add_argument("--hard-stop-minutes", type=int, default=None)
     ap.add_argument("--timeout-minutes", type=float, default=120.0)
@@ -262,7 +271,7 @@ def main(argv: list[str] | None = None) -> int:
         code_key=code_key,
         region=REGION,
         release=args.release,
-        tiers=" ".join(TIERS),
+        tiers=" ".join(args.only or TIERS),
         workers=args.workers,
         commit=commit,
         hard_stop_minutes=args.hard_stop_minutes or DEFAULT_HARD_STOP_MINUTES,
@@ -370,6 +379,8 @@ def _watch(
     so, and unable to tell a process that has died from one printing nothing.
     """
     wanted = result_keys(prefix, args.release, commit)
+    if getattr(args, "only", None):
+        wanted = {k: v for k, v in wanted.items() if k in args.only}
     seen: set[str] = set()
     deadline = time.monotonic() + args.timeout_minutes * 60
     console_len = 0
