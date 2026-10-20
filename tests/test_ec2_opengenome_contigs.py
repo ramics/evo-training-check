@@ -153,7 +153,15 @@ def test_every_archive_runs_and_each_gets_its_own_worker() -> None:
     # Backgrounded and waited on: four single-core workers, which is the whole of the
     # available parallelism because a gzip stream cannot be split.
     assert ") &" in body
-    assert "\nwait\n" in body
+    assert 'pids="$pids $!"' in body
+
+
+def test_a_failed_worker_is_not_announced_as_a_clean_run() -> None:
+    """`wait` with no arguments reports 0 whatever the jobs did."""
+    body = _user_data()
+    assert "\nwait\n" not in body
+    assert 'wait "$pid" || rc=$?' in body
+    assert 'die "run complete" "$rc"' in body
 
 
 def test_only_restricts_the_archives_the_instance_reads() -> None:

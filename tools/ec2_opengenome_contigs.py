@@ -113,6 +113,7 @@ export AMAZEBIO_S3_URI="s3://{bucket}/{prefix}"
 # One worker per archive. A gzip stream cannot be split and a member is one stream, so this
 # is the whole of the available parallelism; the archives differ in size so they end apart.
 rc=0
+pids=""
 for archive in {archives}; do
   slug="${{archive//\\//-}}"
   ( "$PYBIN" tools/opengenome_contigs.py \
@@ -120,12 +121,16 @@ for archive in {archives}; do
       --outdir "/opt/amazebio/out-$slug" \
       --upload-results --allow-dirty --code-commit {commit} \
       --heartbeat-seconds {heartbeat} ; echo "=== $archive exited $? ===" ) &
+  pids="$pids $!"
 done
-# `set -e` would abort the loop on the first non-zero worker and skip `die`, leaving the
-# instance to idle until the boot timer. Collect the codes instead.
+# `wait` with no arguments reports 0 whatever the jobs did, so a failed worker would be
+# announced as a clean run. Waiting on each pid in turn is what makes the exit code mean
+# something; `set +e` is needed because a non-zero wait would otherwise abort the script
+# before `die` and leave the instance idling until the boot timer.
 set +e
-wait
-rc=$?
+for pid in $pids; do
+  wait "$pid" || rc=$?
+done
 set -e
 
 echo "=== amazebio a7-4 contigs finished $(date -Is) ==="
