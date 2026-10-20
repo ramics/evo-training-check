@@ -10079,3 +10079,43 @@ decision has a threshold or parameter in it, the number goes in the entry.
   on its own. *Count only at the class, where the premise plainly holds.* That is the reading
   that makes the control look strongest and says least — *Caudoviricetes* is most of the corpus
   and tells you nothing about these four organisms.
+
+### D-228 — The licence B2.4 relies on is the deposit's, and an article's licence is not a licence on its data
+
+- **Date:** 2026-10-20
+- **Task:** B2.4
+- **Context.** B2.4 asks for every assay's licence position to be verified and unclear cases
+  resolved or removed. The obvious reading — look up each of the 21 source publications and
+  record its licence — produces a register that is confidently wrong, because an article's
+  licence governs the article. A CC-BY on a paper is not a grant over the supplementary table
+  the authors deposited, and treating it as one would have this project asserting permissions
+  nobody gave.
+- **Decision.** The register states two things separately. The operative grant is the one on
+  the bytes Phase B actually reads: the pinned ProteinGym release. Those were downloaded from
+  `marks.hms.harvard.edu`, which states no licence, so `tools/assay_licences.py --verify`
+  downloads the Zenodo deposit of the same release — MIT, DOI 10.5281/zenodo.15293562 — and
+  hashes its assay archive. The digest is identical to the pinned copy, so the deposit's grant
+  is demonstrably the grant on our bytes rather than an inference from matching file sizes, and
+  `assays-check` fails if that ever stops holding. Each assay separately carries its source
+  article's publisher-deposited licence, labelled as evidence about the article.
+- **What this resolves, and how.** "Unclear cases resolved or removed" is met by resolution,
+  not removal, and the resolution is a scope fact rather than a licence finding: this project
+  redistributes no assay data. The register, and everything downstream, carries identifiers,
+  taxonomy, arm membership, counts, DOIs and scores this project computed; the measured fitness
+  values and the benchmark's own published model scores are read from the pinned release at run
+  time and never re-hosted. So the five restrictive article licences and the two whose deposits
+  disagree with each other bar nothing here, and the four studies whose publishers deposited no
+  licence at all leave no gap — recorded as "none deposited", which is not the same claim as
+  permissive and is never collapsed into it.
+- **Alternatives rejected.** *Taking the article licence as the assay's licence* — wrong, as
+  above, and wrong in both directions: it would overstate permission for the CC-BY majority and
+  understate it for the restrictive few. *Dropping the five restrictive and four unlicensed
+  studies* — would remove nine assays from a set of 31 to solve a problem the project does not
+  have, and §B2's n is already thin. *Relying on ProteinGym's MIT repository licence* — that
+  covers the code in the GitHub repository; the data is a separate Zenodo artefact and the
+  deposit is where its licence is actually stated.
+- **Limit carried forward.** MIT is a software licence and its application to a data deposit is
+  ordinary Zenodo practice rather than a settled legal question. The register records it as the
+  grant relied on with that caveat attached, which is a statement of the evidence and not a
+  legal opinion. If the project ever does redistribute assay data, this entry does not cover it
+  and the question is open again.
