@@ -8965,3 +8965,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   license is the generalisable point for §10: a filter that inherits taxonomy from catalogues
   that publish no error rate cannot be audited for taxonomic error by anyone, including its
   authors.
+
+### D-197 — Phase B's limit is the design, not the assay count: the retained arm is seven phage assays and family is confounded with exclusion status by construction
+- **Date:** 2026-10-20
+- **Task:** B2.2
+- **Context:** D-010 narrowed B2.2 to one question asked before any curation: do published
+  collections already give sufficient n for §B5's homology regression? "Sufficient" is not a
+  total. §B5's result *is* the interaction between homology and model-exclusion-status, with
+  random effects for assay and protein family and covariates for Neff, readout type, length
+  and variant count. What has to be sufficient is therefore both arms of that contrast at
+  every level the plan adjusts for.
+  B2.2 placed all 31 of ProteinGym v1.3's viral assays in the pinned NCBI taxonomy of
+  2023-04-01 — via UniProt, or, for four entries UniProt has since **deleted** as "not part of
+  a reference proteome", via the benchmark's own organism string — and applied the Evo
+  denylists.
+- **Decision:** B2.2 reports that the published collections do **not** give a usable design,
+  and that curating more assays does not fix it. Three findings, each fixed before any score
+  was computed:
+  **Family is perfectly confounded with exclusion status, by construction.** The denylist *is*
+  a family rule, so no family can appear in both arms — and §B5 pre-registers a random effect
+  for protein family alongside a fixed exclusion term. Those two cannot both be estimated. No
+  amount of curation changes this; it follows from what exclusion means.
+  **The retained arm is seven assays and nearly one readout.** 24 excluded against 7 retained,
+  and the seven are all bacteriophage: five cDNA-display proteolysis assays on 40–63-residue
+  domains from a single study, and two FACS assays on one repressor. The excluded arm is 20
+  Growth assays, 2 Binding and 1 proteolysis. Only `cDNA display proteolysis` occurs in both
+  arms, at 5 against 1. Readout type is a covariate the plan adjusts for and it is very nearly
+  determined by the arm.
+  **Exclusion status is not one variable.** Evo's policies remove by taxon, so the register
+  settles them. ESM3-open's remove by similarity to a seed set, so no family name settles an
+  assay's status there and the register refuses to report one. §B5's single interaction term
+  covers two differently-derived quantities and B5.1 must say which it means.
+  **The extension search is recorded whatever it found** (`extension_search` in the artefact).
+  MaveDB's full-text search over 83 score sets yields Bruynoghevirus LUZ24, Lactococcus virus
+  P2 and Xipdecavirus Xp10 — three more families for the retained arm and **not one new readout
+  class**, all from the same proteolysis study. ViroGym (arXiv 2603.06740) has 79 assays with 7
+  readouts but states them as eukaryotic viruses, which enlarges the arm that is already large;
+  its release and licence are unstated and it is registered as a candidate, not a source.
+- **Rejected:** *Curating an extension anyway, to raise n.* It would raise the excluded arm,
+  which is not the constraint, and spend the schedule on a design that still cannot identify
+  its own interaction term.
+  *Dropping the family random effect quietly so the model fits.* The confound is the finding
+  and must reach B5.1 as one; a model that runs is not a model that identifies anything.
+  *Treating the seven phage assays as a sufficient positive control.* §B2 does intend phage as
+  the within-study control, which is B2.3's subject, but a control that shares no readout class
+  with the arm it is being compared to measures the readout as much as the exclusion.
+  *Reporting ESM3-open's assays as retained because no denylist names them.* Its filter was
+  never evaluated on them; "not excluded by a rule that was not run" is not a status.
+- **Consequence:** B5.1's pre-registration cannot be written against §B5 as drafted. What it
+  must settle is named here rather than left for the freeze: what replaces the family random
+  effect, whether readout type can be adjusted for at all, and whether the two models' exclusion
+  statuses are one term or two. B2.3 and B2.4 proceed on the register as it stands.
