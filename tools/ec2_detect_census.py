@@ -258,7 +258,7 @@ die "run complete" "$rc"
 
 WORKER_LINE = """( "$PYBIN" tools/detect_profiles.py --task {task} --manifests artifacts/a1-4 \
 --registry {registry} --release {release} --band {lo}:{hi} --out /opt/amazebio/out-{slug} \
---chunk-records {chunk} --allow-dirty > /opt/amazebio/log-{slug}.txt 2>&1 \
+--chunk-records {chunk} --allow-dirty --deliverable > /opt/amazebio/log-{slug}.txt 2>&1 \
 ; echo "=== {release} {lo}:{hi} exited $? ===" ) &
 pids="$pids $!"
 """

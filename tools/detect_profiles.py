@@ -124,7 +124,7 @@ def canonical_out(task: str) -> Path:
     return REPO / "artifacts" / task_slug(task)
 
 
-def durable_for(task: str, out: Path) -> str | None:
+def durable_for(task: str, out: Path, *, deliverable: bool = False) -> str | None:
     """The durable prefix for `task`, **or None for a run that is not its deliverable.**
 
     The prefix follows from the task id, which does not say where the run was told to write.
@@ -132,10 +132,16 @@ def durable_for(task: str, out: Path) -> str | None:
     three synthetic band parts, written to a scratch directory — to `corpora/results/a2-6/`,
     under the exact names the census itself will use, in a bucket with no `DeleteObject`.
     `detect_segmented.py` had already learned this (D-193) and the lesson did not travel; it
-    travels now. `--out` is the only signal that separates a rehearsal from the deliverable,
-    so it is the one used: publish from the task's canonical directory, and from nowhere else.
+    travels now. `--out` is the signal that separates a rehearsal from the deliverable, so it
+    is the one used: publish from the task's canonical directory, and from nowhere else.
+
+    The census workers are the exception that has to be declared rather than inferred. They
+    run on an instance with no checkout and write to `/opt/amazebio/out-<band>`, which is a
+    deliverable and is not the canonical directory. `--deliverable` says so explicitly, and
+    the launcher is the only caller that passes it: an opt-in keeps the default refusing,
+    which is the direction the incident says it must fail in.
     """
-    if out.resolve() == canonical_out(task).resolve():
+    if deliverable or out.resolve() == canonical_out(task).resolve():
         return objectstore.durable_results(task_slug(task))
     print(
         f"not publishing: --out {out} is not {canonical_out(task)}, so this run is a rehearsal",
@@ -745,9 +751,9 @@ def assemble(
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name="run-assemble.json",
-        durable=durable_for(TASK, out),
+        durable=durable_for(TASK, out, deliverable=args.deliverable),
         durable_exempt=None
-        if durable_for(TASK, out)
+        if durable_for(TASK, out, deliverable=args.deliverable)
         else "rehearsal: --out is not the task's canonical directory",
     ) as m:
         m.parameter("assembled_parts", [part["band_multiple"] for part in parts])
@@ -934,6 +940,12 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
+    parser.add_argument(
+        "--deliverable",
+        action="store_true",
+        help="publish even though --out is not the task's canonical directory. For the census "
+        "workers, which run on an instance with no checkout; never for a run by hand (D-224).",
+    )
     args = parser.parse_args(argv)
 
     global TASK
@@ -1010,9 +1022,9 @@ def main(argv: list[str] | None = None) -> int:
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name=f"run-{scope}.json",
-        durable=durable_for(TASK, out),
+        durable=durable_for(TASK, out, deliverable=args.deliverable),
         durable_exempt=None
-        if durable_for(TASK, out)
+        if durable_for(TASK, out, deliverable=args.deliverable)
         else "rehearsal: --out is not the task's canonical directory",
     ) as m:
         m.parameter("registries", [r.key for r in regs])

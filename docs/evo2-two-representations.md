@@ -210,5 +210,20 @@ to IMG/VR v4.1, and they do — all 2,917,521 accessions do, with zero absent. T
 IMG/VR had and Evo 1's procedure removed.
 
 **"The counts are ours, not the publisher's."** They are, which is why both passes are pinned,
-seeded, manifested through `amazebio.repro`, and published with their inputs' checksums, and why
-A3.3 reimplemented the headline by a second method before this document was written.
+seeded, manifested through `amazebio.repro`, and published with their inputs' checksums — and
+why the headline was recounted by a method sharing nothing with the first.
+
+The first method decompresses each file to text, parses every line as JSON and takes the length
+of the `text` field. The second (`--second-method`, `json-tree-second.json`) never decodes and
+never parses: it counts newlines in the gzip stream as bytes and subtracts a fixed per-record
+wrapper cost from the byte total, with a premise check that refuses the subtraction if the
+wrapper is not what it assumes. The two share the socket and the gzip member and nothing else, so
+a fault in the decode, the parser or the field lookup appears in one and not the other. Across
+all six files: **zero** record delta, **zero** sequence-character delta, no premise failure.
+
+One caveat stated rather than buried. This task's Done-when says the figure is reproduced by a
+second method *under A3.3*, and A3.3's conformance arm reimplemented Evo 1's 95 records, not
+anything of Evo 2's. That criterion is not met as written. The recount above is this task's own
+and covers the headline this document actually makes; whether §7 is satisfied by that, or whether
+A3.3's scope should extend to Evo 2's arm before the Phase A write-up cites this, is recorded in
+the task file as the one question for the project owner.

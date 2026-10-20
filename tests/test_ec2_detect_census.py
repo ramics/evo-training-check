@@ -601,3 +601,24 @@ class TestTheWheels:
         not expect: nothing imports it at module scope."""
         assert launcher.WHEEL_IMPORTS["yaml"] == "pyyaml"
         assert "pyyaml" in launcher.WHEELS
+
+
+class TestTheWorkersMaySaySoAndARehearsalMayNot:
+    """D-224. `detect_profiles` refuses to publish from a directory that is not the task's
+    canonical one, which is what stops a rehearsal reaching the census prefix. The workers
+    write to `/opt/amazebio/out-<band>` and are the deliverable, so the launcher has to say
+    so explicitly — and if it ever stops saying so, a whole census publishes nothing."""
+
+    def test_every_worker_line_declares_itself_the_deliverable(self) -> None:
+        assert "--deliverable" in launcher.WORKER_LINE
+
+    def test_the_declaration_reaches_every_worker_in_the_rendered_user_data(self) -> None:
+        workers = launcher.plan(("opengenome",), 8)
+        text = rendered(workers=workers)
+        assert text.count("--deliverable") == len(workers)
+
+    def test_a_workers_out_directory_would_otherwise_refuse_to_publish(self) -> None:
+        """The reason the flag has to exist, pinned so removing it fails here first."""
+        out = pathlib.Path("/opt/amazebio/out-opengenome-1-63")
+        assert detect_profiles.durable_for("A2.6", out) is None
+        assert detect_profiles.durable_for("A2.6", out, deliverable=True) is not None
