@@ -386,7 +386,16 @@ class TestDurability:
 #: result belongs in object storage, and the audit behind D-188 happened because nothing made
 #: the local-only default visible. A legitimately exempt new tool goes here with a reason in
 #: the same commit, so adding one is a deliberate, reviewed act rather than a default.
-EXEMPT_CALL_SITES: set[str] = set()
+EXEMPT_CALL_SITES: set[str] = {
+    # A2.5's marker arm. The exemption is **conditional and is the fix for a real incident**,
+    # not a carve-out for the deliverable: `durable_for` publishes only when `--out` is the
+    # canonical `artifacts/a2-5`, and claims the exemption otherwise. A probe run from a scratch
+    # directory published to the real prefix on 2026-10-19 because `run`'s `durable` is derived
+    # from the task id and cannot see `--out`; the corpus bucket has no delete, so that file is
+    # permanent (D-193). The deliverable path is still guarded — point `--out` at the canonical
+    # directory and this tool names a durable destination like any other.
+    "detect_segmented.py",
+}
 
 
 def test_no_tool_silently_writes_results_only_locally():
