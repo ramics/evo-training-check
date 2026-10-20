@@ -2,13 +2,13 @@
 id: A8.1
 title: Measure agreement between the two filters
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A0.3, A1.3]
 blocks: []
 design_ref: "§A8"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A8.1 — Measure agreement between the two filters
@@ -40,6 +40,11 @@ definite operation at all.
 - Results reported across a threshold range, not at a single assumed value.
 - The predicates-not-deployments confound is stated in the output, not only in the paper.
 - Reproducible from pinned inputs.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
+owner yet.
 
 ## Notes
 
