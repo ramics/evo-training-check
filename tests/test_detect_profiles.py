@@ -584,15 +584,21 @@ class TestWhatAProbeMayNotPublish:
 
     def test_a_limited_collect_is_allowed(self) -> None:
         """`--collect` searches nothing and writes no part, so there is nothing to
-        misread; probing the read path is exactly what it is for."""
+        misread; probing the read path is exactly what it is for.
+
+        The assertion is that the probe guard did **not** fire, not that some later step
+        did. Asserting the message of whatever stops the run next made this test depend on
+        whether `artifacts/a1-4` happens to exist in the working tree: it passed locally,
+        where it does, and failed in CI, where it does not.
+        """
         with pytest.raises(SystemExit) as caught:
             self._main("--band", "1:2", "--limit-records", "20", "--collect", "--release", "nope")
-        assert "no manifests selected" in str(caught.value)
+        assert "claiming the whole band" not in str(caught.value)
 
     def test_an_unlimited_band_run_is_untouched(self) -> None:
         with pytest.raises(SystemExit) as caught:
             self._main("--band", "1:2", "--release", "nope")
-        assert "no manifests selected" in str(caught.value)
+        assert "claiming the whole band" not in str(caught.value)
 
 
 class TestShelvingBandPartsForAssembly:
