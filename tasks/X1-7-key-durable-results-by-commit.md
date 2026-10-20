@@ -79,8 +79,10 @@ and the full suite is green.
 
 No existing key moved, so nothing is orphaned.
 
-**The versioning question is answered and is the owner's to act on** (D-218). He chose to
-turn it on; this session cannot, being denied both `s3:PutBucketVersioning` and
-`s3:GetBucketVersioning`, so it also cannot confirm the bucket's state afterwards.
+**Versioning is on** (D-218, D-219). The owner enabled it on 2026-10-20 and set noncurrent
+versions to expire after seven days, so it recovers a mistake someone notices that week and
+nothing older. This session can neither make nor read that setting — both calls are denied —
+so the state rests on his word. The commit-keyed copies have no such window and stay the
+guarantee anything cited relies on.
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
