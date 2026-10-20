@@ -9761,3 +9761,28 @@ decision has a threshold or parameter in it, the number goes in the entry.
   account change that cannot be made or verified from this container, and it does not make a
   key traceable to a commit. Fold the fix into X1.5's durability audit — `AGENTS.md` forbids
   widening a task to absorb an adjacent problem.
+
+### D-217 — How far to look for a contig's residues before calling it new content
+
+- **Date:** 2026-10-20
+- **Task:** A7.4
+- **Context:** The accession join leaves 45 contigs present in OpenGenome2's reused subtree
+  and absent from OpenGenome v1, and D-213's key says the sequence digest settles whatever
+  the accessions disagree about. Settling it in the strict sense — these residues are
+  nowhere in v1 — means digesting all 11,986,857 of v1's contigs, which is a full pass over
+  a 118.5 GiB tier for a question 45 records are party to. The other direction cost nothing:
+  v1 has no contig the reused subtree lacks, so no v1 record needed digesting at all.
+- **Decision:** Digest the v1 records that share a WGS project accession prefix with a
+  disputed contig, and no others. All 45 belong to one assembly, `GCA_023250385.1`, whose
+  project `JAHFAU01` has 158 contigs in v1 against 203 in OpenGenome2, so the comparison
+  that matters — did v1 hold these residues under another name — is answered inside that
+  project. A contig is called `content` only against that scope, and the report says so:
+  the claim is "not present in v1 under any accession of the same WGS project", not "not
+  present in v1". Residues shared with an unrelated genome under an unrelated accession
+  would not be found, and for a corpus keyed on INSDC accessions that is a remote case.
+- **Alternatives rejected:** Digest all of v1 — defensible but it buys certainty about 45
+  records out of twelve million with a full in-region pass, and the direction that bears on
+  "used in its entirety" is already answered exactly. Leave the 45 `undetermined` — §A7
+  requires every discrepancy to carry a cause and forbids a residual bucket, and
+  `undetermined` is explicitly not a cause. Call them `content` on the accession alone —
+  that is the guess D-213 introduced the digest to avoid.
