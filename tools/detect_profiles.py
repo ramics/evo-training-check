@@ -80,6 +80,19 @@ OUTDIR = REPO / "artifacts" / "a2-1"
 
 #: Seed for the sample. Pinned in D-078; the same value every run, so a wider pass extends the
 #: same sample rather than drawing a new one.
+#: Which task this run belongs to, and therefore which durable prefix its tables land under.
+#: A2.1 searched a hash sample; A2.6 re-runs the same search at census depth (D-222). They are
+#: separate measurements and neither may overwrite the other, so the task id is a parameter of
+#: the run rather than a constant — the alternative is two copies of this tool drifting apart.
+TASK_DEFAULT = "A2.1"
+TASK = TASK_DEFAULT
+
+
+def durable_for_task(task: str) -> str:
+    """The durable prefix for a task id: `A2.6` -> `.../results/a2-6`."""
+    return objectstore.durable_results(task.lower().replace(".", "-"))
+
+
 SEED = 20261015
 
 #: Per-source sample rates, fixed in D-078 before any hit was inspected. Keyed by the component
@@ -561,13 +574,13 @@ def assemble(
         print(f"  kept the initial pass in {initial_dir.relative_to(REPO)}", flush=True)
 
     with run(
-        "A2.1",
+        TASK,
         seed=SEED,
         outdir=out,
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name="run-assemble.json",
-        durable=objectstore.durable_results("a2-1"),
+        durable=durable_for_task(TASK),
     ) as m:
         m.parameter("assembled_parts", [part["band_multiple"] for part in parts])
         m.parameter("sample_seed", SEED)
@@ -610,7 +623,7 @@ def assemble(
                     else None
                 )
                 table = DetectionTable(
-                    task="A2.1",
+                    task=TASK,
                     detector="profile-hmmer",
                     registry=reg.id,
                     registry_version=reg.version,
@@ -667,6 +680,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--plan", action="store_true", help="print what would be read, then stop")
     parser.add_argument(
+        "--task",
+        default=TASK_DEFAULT,
+        help="the task this run belongs to, which chooses the durable prefix its tables "
+        "land under. A2.6's census pass must not write over A2.1's sampled tables: they "
+        "are two measurements at two depths and the comparison between them is part of "
+        "the result (D-222). (default: %(default)s)",
+    )
+    parser.add_argument(
         "--band",
         help=(
             "hash band to search, as LO:HI in multiples of the component's own initial rate — "
@@ -708,6 +729,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     args = parser.parse_args(argv)
+
+    global TASK
+    TASK = args.task
 
     regs = [registry(i) for i in (args.registry or sorted(REGISTRIES))]
     band: tuple[float, float] | None = None
@@ -754,13 +778,13 @@ def main(argv: list[str] | None = None) -> int:
     # the first one's provenance, which A1.5 hit with two staging passes at once.
     scope = "-".join(sorted(by_release)) if len(by_release) < 3 else "all"
     with run(
-        "A2.1",
+        TASK,
         seed=SEED,
         outdir=out,
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name=f"run-{scope}.json",
-        durable=objectstore.durable_results("a2-1"),
+        durable=durable_for_task(TASK),
     ) as m:
         m.parameter("registries", [r.key for r in regs])
         m.parameter("sample_seed", SEED)
@@ -1008,7 +1032,7 @@ def main(argv: list[str] | None = None) -> int:
                             )
                         )
                     table = DetectionTable(
-                        task="A2.1",
+                        task=TASK,
                         detector="profile-hmmer",
                         registry=reg.id,
                         registry_version=reg.version,
@@ -1097,7 +1121,7 @@ def main(argv: list[str] | None = None) -> int:
                 written.append(f"parts/{name}")
 
         index = {
-            "task": "A2.1",
+            "task": TASK,
             "detector": "profile-hmmer",
             "tables": sorted(written),
             "registries": [r.key for r in regs],

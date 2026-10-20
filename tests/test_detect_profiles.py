@@ -272,3 +272,21 @@ def test_the_plan_path_reports_unknown_rather_than_guessing_a_count():
     }
 
     assert all("unknown sampled" in line for line in detect_profiles.plan_lines(manifest, release))
+
+
+class TestTheTaskTheRunBelongsTo:
+    """D-222. A2.6 re-runs this search at census depth. Its tables and A2.1's sampled ones
+    are two measurements, and the comparison between them is part of the result, so neither
+    may land on the other's key."""
+
+    def test_the_durable_prefix_follows_the_task(self) -> None:
+        assert detect_profiles.durable_for_task("A2.1").endswith("/results/a2-1")
+        assert detect_profiles.durable_for_task("A2.6").endswith("/results/a2-6")
+
+    def test_the_two_tasks_do_not_share_a_prefix(self) -> None:
+        assert detect_profiles.durable_for_task("A2.1") != detect_profiles.durable_for_task("A2.6")
+
+    def test_the_default_is_the_task_that_owns_this_tool(self) -> None:
+        """A run that forgets `--task` writes where it always did, rather than somewhere
+        new and empty that nothing reads."""
+        assert detect_profiles.TASK_DEFAULT == "A2.1"
