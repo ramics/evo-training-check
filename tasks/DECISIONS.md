@@ -9016,3 +9016,77 @@ decision has a threshold or parameter in it, the number goes in the entry.
   must settle is named here rather than left for the freeze: what replaces the family random
   effect, whether readout type can be adjusted for at all, and whether the two models' exclusion
   statuses are one term or two. B2.3 and B2.4 proceed on the register as it stands.
+
+### D-198 — A8.1's common corpus is UniRef, and the similarity side is the publisher's own clustering
+- **Date:** 2026-10-20
+- **Task:** A8.1
+- **Context:** §A8 says to run both filters' predicates over the same records. The two
+  predicates are different machines: Evo's reads taxon labels, ESM3-open's reads alignment to
+  a seed set at a threshold its authors never published (D-015). Any common corpus has to be
+  one both can act on, and the similarity side has to be executable without inventing the
+  missing threshold.
+- **Decision:** The corpus is UniRef100 of the pinned 2023_02 release, read through UniRef90
+  and UniRef50. Four consequences, each declared in the artefact rather than left to the
+  write-up:
+  **The similarity predicate is cluster co-membership, and the tier is the threshold.**
+  UniRef90 and UniRef50 are the publisher's own homology groupings at 90% and 50% identity
+  over exactly these records, so a record whose cluster holds a seed is within that identity
+  of a seed. Running both tiers is §A8's "report across a range, not at one assumed value",
+  and the range is the publisher's rather than ours. A1.6's banded curve sweeps our stated
+  range; neither is presented as the other, and neither is ESM3's own threshold.
+  **Only Evo's taxon rules run.** Four of its six rules read IMG/VR metadata — a confidence
+  label, a vOTU, a host count — that a protein record does not carry. They are named in the
+  artefact's `rules_not_runnable` rather than silently skipped.
+  **A non-viral record is out of scope, not retained.** Evo's filter runs over a virus
+  database; the taxon rules say nothing about a bacterial protein, and scoring one as "neither
+  filter removed it" would manufacture agreement from a question never asked. The table is
+  therefore 3x2, with `out_of_scope_removed` split from `out_of_scope_kept` because the first
+  is the collateral the similarity mechanism takes and the second is the corpus it leaves
+  alone.
+  **`label_only` is empty before the pass, not as a result of it.** Every record the taxon
+  rules remove is viral by NCBI taxonomy; every viral-annotated record is a seed under the
+  reading in force (D-156); a seed's own cluster contains it. `check_dominance` refuses a
+  result where that cell is non-zero, because a stray record there means one of those three
+  premises is false and the number means something else.
+- **Rejected:** *Re-running the alignment to get ESM3's threshold properly.* A1.6's pass is
+  the worked example of what that costs, and it would still need a threshold nobody published.
+  *Using A1.6's banded artefacts instead of a new pass.* They carry per-stratum counts with no
+  stratum identity, so the corpus records removed by similarity cannot be joined to their
+  taxonomy at all — the same shape of gap D-195 found for M3.
+  *Treating the three Evo readings separately.* All three carry identical taxon rules and
+  differ only in rules this corpus cannot run, so on this corpus they are one predicate. The
+  pass verifies that from the specs at run time rather than asserting it here, because a later
+  spec edit would otherwise make the artefact quietly wrong about what it covers.
+- **Consequence:** The result measures the predicates, not the deployments — the two filters
+  were applied to different corpora in their original use — and that sentence travels in the
+  artefact, not only in the paper.
+
+### D-199 — Two of Evo's own rule names do not resolve against the pinned taxonomy as written
+- **Date:** 2026-10-20
+- **Task:** A8.1
+- **Context:** Executing the taxon rules against NCBI's 2023-04-01 dump, two of them do not
+  land. Both were found by a refusal rather than by reading the spec, which is the argument for
+  the refusal.
+  **`Reoviridae`**, one of the nineteen families the rule names, is not a scientific name in
+  that dump at all. It survives only as a synonym of **`Reovirales`**, which is an *order*.
+  **`require_rank: realm`** asks for a rank NCBI does not use. In the pinned dump no node
+  anywhere carries rank `realm`, and Riboviria — a realm in the ICTV scheme the rule is written
+  against — is a `clade`. Run literally, the specificity rule finds no realm on any record and
+  removes the entire viral corpus: 100% of 236,541 viral taxa, which is a unit mismatch
+  reported as a filter result.
+- **Decision:** The rules are executed as written and the gaps are reported, not patched over.
+  `Reoviridae` matches nothing, because the rule names a family and the dump carries no family
+  by that name; what a looser reading would have reached is counted separately as
+  `loose_only_members` and never folded into a cell. `require_rank: realm` is resolved to
+  descent from one of the six ICTV realms by name, because the alternative — removing every
+  viral record — measures the rank vocabulary and not the filter; the substitution is recorded
+  in the artefact's `name_resolution` beside the first.
+- **Rejected:** *Resolving `Reoviridae` through the synonym.* It would silently widen a family
+  rule into an order rule, and on this corpus that is 90,530 records at 90% identity.
+  *Dropping the specificity rule as not runnable.* It is runnable; it is the rank vocabulary
+  that does not match, and dropping the rule would understate what the filter removes.
+  *Updating the specs to the taxonomy's current names.* The specs record what the authors
+  published; correcting them would erase the finding.
+- **Consequence:** This is the decay A9.1 measures, caught a task early and on a different
+  axis: not a taxonomy that moved under a static list, but a static list that never matched the
+  taxonomy a protein corpus is placed in. A9.1 should read this before choosing its baseline.
