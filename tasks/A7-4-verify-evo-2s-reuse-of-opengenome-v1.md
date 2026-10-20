@@ -63,9 +63,25 @@ representations of a sequence set, and the two share no machinery beyond the obj
 
 ## State — 2026-10-20
 
-`in-progress`. **Branch `claude/project-thread-a3vch4`.** Fixing the comparison key and the
-record definition first, before any count exists, as the first Done-when criterion requires.
-Nothing is waiting on the project owner.
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** The comparison key and the record
+definition are fixed (D-213): contig accession primary, sequence digest on the set the
+accessions disagree about, assembly accession for the 28,174 claim.
+
+Built and tested: `amazebio.tarindex` and `tools/opengenome_reuse.py` for the genome half,
+which walks each archive's header chain for about 14 MB of transfer instead of 25.6 GB;
+`amazebio.contigs` for what an accession and a digest are, shared by both sides so a
+difference is in the data rather than in the readers; `tools/opengenome_v1_contigs.py`,
+which reads v1's accessions out of a 118.5 GiB tier for about 104 MB; `amazebio.reuse` and
+`tools/opengenome_compare.py` for the join and the closed set of causes; and
+`tools/opengenome_contigs.py` with `tools/ec2_opengenome_contigs.py` for the OpenGenome2
+contig pass.
+
+Running: the genome walk and the v1 accession enumeration, both in this container.
+
+**Waiting on the project owner.** The OpenGenome2 contig pass reads 109 GB and has to run
+in `us-east-1`; the launch needs the owner's go-ahead and was asked for on 2026-10-20. Until
+it runs, the contig half of D-213's key has no data and the discrepancy classification
+cannot be completed.
 
 ## Notes
 
