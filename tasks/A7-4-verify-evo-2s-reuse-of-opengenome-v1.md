@@ -76,7 +76,12 @@ which reads v1's accessions out of a 118.5 GiB tier for about 104 MB; `amazebio.
 `tools/opengenome_contigs.py` with `tools/ec2_opengenome_contigs.py` for the OpenGenome2
 contig pass.
 
-Running: the genome walk and the v1 accession enumeration, both in this container.
+Measured: OpenGenome v1's GTDB tier holds **11,986,857 contigs, every accession distinct**
+— 11,986,802 train, 50 test, 5 valid, no accession repeated across the fourteen shards. So
+on the v1 side a contig accession is a key rather than a label, which is what D-213's
+primary key needs it to be.
+
+Running: the genome walk, in this container.
 
 **Waiting on the project owner.** The OpenGenome2 contig pass reads 109 GB and has to run
 in `us-east-1`; the launch needs the owner's go-ahead and was asked for on 2026-10-20. Until
