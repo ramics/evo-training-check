@@ -38,12 +38,37 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from amazebio import selectagents  # noqa: E402
+from amazebio import objectstore, repro, selectagents  # noqa: E402
 
+TASK = "A1.8"
 ENDPOINT = "https://rest.uniprot.org/uniprotkb/search"
+
+#: The regulation captures the reading is parsed from, by the section each supplies.
+#: Named once so the run manifest records the same files the parse reads, rather than
+#: a second list that can drift from it.
+CAPTURES = {
+    "73.3": "cfr-title42-part73-2024-06-01.xml",
+    "73.4": "cfr-title42-part73-2024-06-01.xml",
+    "121.3": "cfr-title9-part121-2024-06-01.xml",
+    "331.3": "cfr-title7-part331-2024-06-01.xml",
+}
 
 #: D-106, from the version of record: 147K non-viral plus 40K additional viral.
 PUBLISHED_SEQUENCES = 187_000
+
+NOTE = (
+    "ESM3's stated select-agent denylist procedure executed against UniProtKB: 'all "
+    "sequences in UniProt belonging to organisms on the Select Agents and Toxins List' "
+    "(version of record, A.6.1 p47). This validates the reading in D-137, not A1.8's "
+    "UniRef100 seed set — see D-150 and this tool's docstring."
+)
+
+RELEASE_GAP = (
+    "ESM3's denylist was built against the UniProt release in force for its UniRef 2023_02 "
+    "component, which the paper does not state. UniProt's REST service serves the current "
+    "release only, so this count is at the release named above and not at the one the filter "
+    "saw. The gap is a limitation of the check, not a finding."
+)
 
 
 def query(taxid: int, *, attempts: int = 3, pause: float = 2.0) -> tuple[int, str, str]:
@@ -91,72 +116,92 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--toxin-producers", action="store_true")
     ap.add_argument("--alternatives", action="store_true")
+    ap.add_argument(
+        "--outdir",
+        type=Path,
+        default=ROOT / "artifacts" / "a1-8",
+        help="where this run's provenance manifest lands; the count itself goes to --out",
+    )
+    ap.add_argument("--allow-dirty", action="store_true")
     args = ap.parse_args(argv)
+    args.outdir.mkdir(parents=True, exist_ok=True)
 
-    entries = selectagents.parse_all(
-        (section, (args.captures / name).read_bytes())
-        for section, name in {
-            "73.3": "cfr-title42-part73-2024-06-01.xml",
-            "73.4": "cfr-title42-part73-2024-06-01.xml",
-            "121.3": "cfr-title9-part121-2024-06-01.xml",
-            "331.3": "cfr-title7-part331-2024-06-01.xml",
-        }.items()
-    )
-    mapping = selectagents.load_mapping(args.mapping)
-
-    by_entry: dict[str, int] = {}
-    release = release_date = "unknown"
-    for entry in entries:
-        mapped = mapping.get(entry.key)
-        if mapped is None:
-            raise SystemExit(f"no recorded reading for list entry: {entry.key!r}")
-        roots = mapped.producer_taxids if mapped.kind is selectagents.EntryKind.TOXIN else ()
-        if mapped.kind is not selectagents.EntryKind.TOXIN:
-            roots = (
-                mapped.alternative_taxids
-                if args.alternatives and mapped.alternative_taxids
-                else mapped.taxids
+    try:
+        with repro.run(
+            TASK,
+            seed=None,  # a count over a served release: nothing here is random
+            outdir=args.outdir,
+            allow_dirty=args.allow_dirty,
+            manifest_name="run-uniprot-denylist-count.json",
+            durable=objectstore.durable_results("a1-8"),
+        ) as manifest:
+            manifest.parameter("reading", "D-137")
+            manifest.parameter("list_as_of", "2024-06-01")
+            manifest.parameter("toxin_producers", args.toxin_producers)
+            manifest.parameter("alternatives", args.alternatives)
+            manifest.parameter("endpoint", ENDPOINT)
+            manifest.parameter("published_sequences", PUBLISHED_SEQUENCES)
+            manifest.input_file(args.mapping, role="select-agent reading")
+            for name in sorted(CAPTURES.values()):
+                manifest.input_file(args.captures / name, role="regulation capture")
+            entries = selectagents.parse_all(
+                (section, (args.captures / name).read_bytes()) for section, name in CAPTURES.items()
             )
-        elif not args.toxin_producers:
-            roots = ()
-        total = 0
-        for taxid in roots:
-            count, release, release_date = query(taxid)
-            total += count
-        by_entry[entry.key] = total
-        print(f"{entry.key[:58]:60s} {total:8,}", flush=True)
+            mapping = selectagents.load_mapping(args.mapping)
 
-    sequences = sum(by_entry.values())
-    payload: dict[str, Any] = {
-        "note": (
-            "ESM3's stated select-agent denylist procedure executed against UniProtKB: 'all "
-            "sequences in UniProt belonging to organisms on the Select Agents and Toxins "
-            "List' (version of record, A.6.1 p47). This validates the reading in D-137, not "
-            "A1.8's UniRef100 seed set — see D-150 and this tool's docstring."
-        ),
-        "uniprot_release": release,
-        "uniprot_release_date": release_date,
-        "release_gap": (
-            "ESM3's denylist was built against the UniProt release in force for its UniRef "
-            "2023_02 component, which the paper does not state. UniProt's REST service serves "
-            "the current release only, so this count is at the release named above and not at "
-            "the one the filter saw. The gap is a limitation of the check, not a finding."
-        ),
-        "reading": {"toxin_producers": args.toxin_producers, "alternatives": args.alternatives},
-        "list_as_of": "2024-06-01",
-        "published_sequences": PUBLISHED_SEQUENCES,
-        "published_source": "D-106, ESM3 version of record: 147K non-viral + 40K viral",
-        "sequences": sequences,
-        "delta": sequences - PUBLISHED_SEQUENCES,
-        "delta_share": (sequences - PUBLISHED_SEQUENCES) / PUBLISHED_SEQUENCES,
-        "by_entry": dict(sorted(by_entry.items(), key=lambda kv: (-kv[1], kv[0]))),
-    }
-    args.out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    print(
-        f"\n{sequences:,} UniProtKB sequences at release {release} "
-        f"against the published {PUBLISHED_SEQUENCES:,} "
-        f"({payload['delta']:+,}, {100 * payload['delta_share']:+.1f}%)"
-    )
+            by_entry: dict[str, int] = {}
+            release = release_date = "unknown"
+            for entry in entries:
+                mapped = mapping.get(entry.key)
+                if mapped is None:
+                    raise SystemExit(f"no recorded reading for list entry: {entry.key!r}")
+                roots = (
+                    mapped.producer_taxids if mapped.kind is selectagents.EntryKind.TOXIN else ()
+                )
+                if mapped.kind is not selectagents.EntryKind.TOXIN:
+                    roots = (
+                        mapped.alternative_taxids
+                        if args.alternatives and mapped.alternative_taxids
+                        else mapped.taxids
+                    )
+                elif not args.toxin_producers:
+                    roots = ()
+                total = 0
+                for taxid in roots:
+                    count, release, release_date = query(taxid)
+                    total += count
+                by_entry[entry.key] = total
+                print(f"{entry.key[:58]:60s} {total:8,}", flush=True)
+
+            sequences = sum(by_entry.values())
+            payload: dict[str, Any] = {
+                "note": NOTE,
+                "uniprot_release": release,
+                "uniprot_release_date": release_date,
+                "release_gap": RELEASE_GAP,
+                "reading": {
+                    "toxin_producers": args.toxin_producers,
+                    "alternatives": args.alternatives,
+                },
+                "list_as_of": "2024-06-01",
+                "published_sequences": PUBLISHED_SEQUENCES,
+                "published_source": "D-106, ESM3 version of record: 147K non-viral + 40K viral",
+                "sequences": sequences,
+                "delta": sequences - PUBLISHED_SEQUENCES,
+                "delta_share": (sequences - PUBLISHED_SEQUENCES) / PUBLISHED_SEQUENCES,
+                "by_entry": dict(sorted(by_entry.items(), key=lambda kv: (-kv[1], kv[0]))),
+            }
+            args.out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+            print(
+                f"\n{sequences:,} UniProtKB sequences at release {release} "
+                f"against the published {PUBLISHED_SEQUENCES:,} "
+                f"({payload['delta']:+,}, {100 * payload['delta_share']:+.1f}%)"
+            )
+            manifest.parameter("uniprot_release", release)
+            manifest.output_file(args.out, role="uniprot-counts")
+    except repro.ReproError as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 2
     print(f"wrote {args.out}")
     return 0
 

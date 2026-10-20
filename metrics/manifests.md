@@ -28,14 +28,27 @@ three of the filter's six published rules read.
 ## Files
 
 ```
-artifacts/a1-4/
-  index.json                              every manifest produced, with its totals
-  manifest-<policy-id>-<release>.json      the summary — read by a person
-  removed-<policy-id>-<release>.jsonl      the removed set — read by a pipeline, one JSON per line
-  run.json                                 provenance: seed, parameters, inputs, outputs, commit
+index.json                              every manifest produced, with its totals
+manifest-<policy-id>-<release>.json     the summary — read by a person
+removed-<policy-id>-<release>.jsonl     the removed set — read by a pipeline, one JSON per line
+run.json                                provenance: seed, parameters, inputs, outputs, commit
 ```
 
 The removed set is absent when a reading removes nothing. That is a result, not a missing file.
+
+## Where a consumer reads them
+
+**From `s3://<corpora bucket>/corpora/results/a1-4/`.** `tools/apply_policies.py` writes the
+set above into a local directory and `amazebio.repro.run(durable=...)` copies it there on a
+clean exit, `run.json` beside it — a durable copy with no provenance is not citable, which is
+why the two travel together. `amazebio.objectstore.durable_results("a1-4")` builds the
+destination, so the scheme is one function rather than a convention per tool.
+
+**A local `artifacts/a1-4/` directory is a cache of the last run in this container, and its
+absence says nothing about whether the manifests exist.** This file named that directory as
+the location until X1.5; `artifacts/` is git-ignored and session containers are reclaimed, so
+D-188 found nine finished tasks whose only copy had gone. A consumer sent to the local path is
+sent to the place that lost them.
 
 ### `index.json`
 
