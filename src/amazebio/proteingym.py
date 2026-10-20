@@ -155,6 +155,10 @@ class Assay:
     taxon: Taxon
     source_organism: str
     filename: str
+    #: The wild-type sequence the assay's mutants are stated against. Carried on the assay
+    #: because B1.2's scoring request needs it and reading it from the CSV a second time in
+    #: the harness would be a second chance to pair it with the wrong assay.
+    target_sequence: str
     seq_len: int
     n_singles: int
     n_multiples: int
@@ -213,6 +217,7 @@ def load_reference(path: str | Path) -> tuple[Assay, ...]:
                     taxon=taxon,
                     source_organism=row.get("source_organism", ""),
                     filename=row["DMS_filename"],
+                    target_sequence=(row.get("target_seq") or "").strip().upper(),
                     seq_len=_int(row, "seq_len"),
                     n_singles=_int(row, "DMS_number_single_mutants"),
                     n_multiples=_int(row, "DMS_number_multiple_mutants"),
