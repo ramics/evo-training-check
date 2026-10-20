@@ -2,7 +2,7 @@
 id: A3.3
 title: Independent second-method reimplementation of headline counts
 phase: A
-status: blocked
+status: ready
 gate: true
 depends_on: [A3.2]
 blocks: [A6.1, X4.1]

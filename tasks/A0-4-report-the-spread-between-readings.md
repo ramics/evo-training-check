@@ -2,7 +2,7 @@
 id: A0.4
 title: Report the spread between readings
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A0.3, A3.2]
 blocks: [A6.1]

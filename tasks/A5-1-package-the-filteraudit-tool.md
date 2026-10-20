@@ -2,7 +2,7 @@
 id: A5.1
 title: Package the filter-audit tool
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A1.4, A3.2, A4.1, A4.2]
 blocks: [X1.2]
