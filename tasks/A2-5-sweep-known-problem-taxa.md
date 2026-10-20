@@ -2,7 +2,7 @@
 id: A2.5
 title: Sweep known problem taxa
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
@@ -34,8 +34,8 @@ Check the specific categories §A2 names as known to defeat taxonomic filters.
 
 ## Result — 2026-10-19, extended 2026-10-20
 
-`review`. The label-side arm merged in PR #26. **The marker arm is on
-`claude/marker-throughput-a2-5`** (`tools/marker_throughput.py`, `tools/detect_segmented.py`).
+`done`. The label-side arm merged in PR #26 and the marker arm in PR #28
+(`tools/marker_throughput.py`, `tools/detect_segmented.py`); **nothing is on a branch.**
 Artefacts at `corpora/results/a2-5/` (and `artifacts/a2-5/`). Pre-registered as **D-187** before any
 count was taken, **D-190** (family set and threshold) and **D-191** (depth ladder) before anything
 was searched.
@@ -172,9 +172,11 @@ anything is classified, and the route is re-resolved per record with `amazebio.a
 checked against the manifest — a record resolving to `removed` while absent from the removed set
 stops the run.
 
-### Outstanding, for the project owner
+### Deliberately not done, for the record
 
-**The marker arm stopped at 10% by choice, and the choice was a schedule not a budget.** The
+**The marker arm stopped at 10% by choice, and the choice was a schedule not a budget.**
+Nothing here blocks the task: every Done-when criterion is met and these are named limits, which
+is the form `DESIGN.md` §A0 asks under-specification to take. The
 owner authorised a full census at about $9.60 and it was then declined on the measurement: 2% took
 55 minutes, so the remaining 90% is roughly 28 sequential runs inside this environment's two-hour
 cap. D-191 had also pre-registered that deepening past band 2 was conditional on the question still
