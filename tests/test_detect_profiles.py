@@ -675,6 +675,17 @@ class TestShelvingBandPartsForAssembly:
         assert shelf == {}
 
 
+#: The pinned Pfam registry is a staged input, not a checked-in one, so the assembly tests
+#: below cannot run on a bare checkout. They are the ones that exercise the real family
+#: universe end to end; the arithmetic they rest on is covered by the shelf tests above,
+#: which need nothing staged.
+needs_profiles = pytest.mark.skipif(
+    not (detect_profiles.DATA / "pfam").exists(),
+    reason="the pinned Pfam registry is not staged",
+)
+
+
+@needs_profiles
 class TestAssemblingACensusWithNoInitialPass:
     """A2.1 deepened a first pass; A2.6 is a census whose bands start at multiple 1 and tile
     the whole rate, so there is no first pass at all.
