@@ -521,3 +521,39 @@ print(json.dumps(sorted(load_policy_dir(module.SPECS))))
     assert "evo1-literal" in loaded
     assert "evo1-strict" in loaded
     assert "evo1-charitable" in loaded
+
+
+class TestWhatAWorkerLeavesBehind:
+    """Three launches were diagnosed from `GetConsoleOutput`, which truncated each time —
+    the third console ended mid-way through staging the profiles and said nothing about why
+    eight workers had failed. A worker's own output has to come back on its own."""
+
+    def test_each_worker_writes_its_own_log(self) -> None:
+        workers = launcher.plan(("opengenome",), 3)
+        lines = launcher.worker_lines(workers)
+        assert lines.count("> /opt/amazebio/log-") == len(workers)
+        assert len({w["slug"] for w in workers}) == len(workers)
+
+    def test_the_logs_are_uploaded_on_every_exit(self) -> None:
+        text = rendered()
+        die = text[text.index("die() {") : text.index("dnf install")]
+        assert 'include "log-*.txt"' in die
+        assert "results/a2-6/logs-" in die
+
+    def test_the_chunk_is_small_enough_for_eight_on_one_machine(self) -> None:
+        """Measured 2026-10-20: 20,000 stage-2 records peaked at 1.0 GB, and IMG/PR calls
+        three times the genes per record. Eight of those would not fit the 16 GB machine
+        the launcher can land on."""
+        assert launcher.CHUNK_RECORDS <= 8_000
+        assert f"--chunk-records {launcher.CHUNK_RECORDS}" in rendered()
+
+    def test_the_chunk_size_is_the_launchers_call_not_the_tools_default(self) -> None:
+        text = launcher.user_data(
+            bucket="b",
+            prefix="corpora",
+            code_key="k",
+            workers=launcher.plan(("opengenome",), 2),
+            hard_stop_minutes=540,
+            chunk=1234,
+        )
+        assert "--chunk-records 1234" in text

@@ -82,6 +82,15 @@ DEFAULT_WORKERS_PER_RELEASE = 8
 #: no run at all, and the instance terminates itself the moment the workers finish.
 DEFAULT_HARD_STOP_MINUTES = 840
 
+#: Records a worker holds at once. Smaller than the tool's own default because eight workers
+#: share one machine and the densest component is the one that sizes them: measured
+#: 2026-10-20, OpenGenome's stage 2 calls 20 genes per record and IMG/PR 66, so a chunk of
+#: IMG/PR costs about three times a chunk of stage 2. At 20,000 records a stage-2 worker
+#: peaked at 1.0 GB here, which puts eight IMG/PR workers near 24 GB — over a 16 GB machine
+#: and uncomfortable on a 32 GB one. This is a quarter of that, and the chunk size changes
+#: no result.
+CHUNK_RECORDS = 5_000
+
 #: The code the instance needs. Derived from the tool's first-party import closure and
 #: checked by the test, because twice in this project a module was added to a tool's imports
 #: and not to a list like this, and the instance died on an `ImportError` having read nothing.
@@ -135,6 +144,8 @@ die() {{
   aws s3 cp /tmp/why.txt \
     "s3://{bucket}/{prefix}/results/a2-6/exit-$iid-$(date +%s).txt" \
     --region {region} || true
+  aws s3 cp /opt/amazebio/ "s3://{bucket}/{prefix}/results/a2-6/logs-$iid/" \
+    --recursive --exclude "*" --include "log-*.txt" --region {region} || true
   shutdown -c || true
   shutdown -h now || systemctl --no-block poweroff || halt -p || true
   exit "${{2:-1}}"
@@ -223,7 +234,8 @@ die "run complete" "$rc"
 
 WORKER_LINE = """( "$PYBIN" tools/detect_profiles.py --task {task} --manifests artifacts/a1-4 \
 --registry {registry} --release {release} --band {lo}:{hi} --out /opt/amazebio/out-{slug} \
---allow-dirty ; echo "=== {release} {lo}:{hi} exited $? ===" ) &
+--chunk-records {chunk} --allow-dirty > /opt/amazebio/log-{slug}.txt 2>&1 \
+; echo "=== {release} {lo}:{hi} exited $? ===" ) &
 pids="$pids $!"
 """
 
@@ -254,8 +266,12 @@ def plan(releases: tuple[str, ...], workers_per_release: int) -> list[dict[str, 
     return out
 
 
-def worker_lines(workers: list[dict[str, Any]], *, registry: str = REGISTRY) -> str:
-    return "".join(WORKER_LINE.format(task=TASK, registry=registry, **w) for w in workers)
+def worker_lines(
+    workers: list[dict[str, Any]], *, registry: str = REGISTRY, chunk: int = CHUNK_RECORDS
+) -> str:
+    return "".join(
+        WORKER_LINE.format(task=TASK, registry=registry, chunk=chunk, **w) for w in workers
+    )
 
 
 def build_payload(root: Path) -> bytes:
@@ -275,6 +291,7 @@ def user_data(
     hard_stop_minutes: int,
     registry: str = REGISTRY,
     region: str = REGION,
+    chunk: int = CHUNK_RECORDS,
 ) -> str:
     return USER_DATA.format(
         bucket=bucket,
@@ -284,7 +301,7 @@ def user_data(
         registry=registry,
         wheels=WHEELS,
         hard_stop_minutes=hard_stop_minutes,
-        worker_lines=worker_lines(workers, registry=registry),
+        worker_lines=worker_lines(workers, registry=registry, chunk=chunk),
     )
 
 
@@ -321,6 +338,12 @@ def main(argv: list[str] | None = None) -> int:
         help="run just this release, repeatable; the default is both",
     )
     ap.add_argument("--registry", default=REGISTRY)
+    ap.add_argument(
+        "--chunk-records",
+        type=int,
+        default=CHUNK_RECORDS,
+        help="records a worker holds at once; eight share the machine (default: %(default)s)",
+    )
     ap.add_argument("--profile", default="AmazebioStager", help="instance profile name")
     ap.add_argument("--owner", default=os.environ.get("AMAZEBIO_OWNER", "claude"))
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
@@ -372,6 +395,7 @@ def main(argv: list[str] | None = None) -> int:
                 workers=workers,
                 hard_stop_minutes=args.hard_stop_minutes,
                 registry=args.registry,
+                chunk=args.chunk_records,
             )
         )
         return 0
@@ -430,6 +454,7 @@ def main(argv: list[str] | None = None) -> int:
             workers=workers,
             hard_stop_minutes=args.hard_stop_minutes,
             registry=args.registry,
+            chunk=args.chunk_records,
         ),
     )
     market = ec2lib.market_options(args.spot)
