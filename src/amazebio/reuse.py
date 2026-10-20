@@ -88,7 +88,9 @@ CAUSE_MEANING: Mapping[Cause, str] = {
     ),
     Cause.CONTENT: (
         "present on one side and its residues are not on the other at all. This is the "
-        "only cause that bears on 'used in its entirety'."
+        "only cause that bears on 'used in its entirety'. Each record's evidence names "
+        "what its residues were looked for in, which is not always the whole of the "
+        "other side — D-217."
     ),
     Cause.UNDETERMINED: (
         "the digest needed to separate a renaming from a real absence has not been read "
@@ -179,11 +181,16 @@ def join(
     )
 
 
+#: What `v1_digests` was read over, when it was read over all of OpenGenome v1.
+FULL_SCOPE = "v1"
+
+
 def classify(
     result: Join,
     *,
     og2_digests: Mapping[str, str],
     v1_digests: Mapping[str, str],
+    v1_scope: str = FULL_SCOPE,
 ) -> tuple[Discrepancy, ...]:
     """Give every discrepancy a cause, or mark it as waiting on evidence.
 
@@ -195,6 +202,10 @@ def classify(
             record missing here is `undetermined`, not absent — the distinction `A7.4`
             rests on, since a missing digest and a missing sequence look the same to a
             join and mean opposite things.
+        v1_scope: what `v1_digests` was read over, in words. It travels into the evidence
+            of every `content` call made against it, because "these residues are not in
+            v1" and "these residues are not in the 158 v1 contigs of the same WGS
+            project" are different claims and only one of them was checked. D-217.
 
     Raises:
         ValueError: if a discrepancy would fall outside the closed set of causes.
@@ -237,7 +248,11 @@ def classify(
         elif not v1_digests:
             out.append(Discrepancy(accession, "og2", Cause.UNDETERMINED, "no v1 digests read yet"))
         else:
-            out.append(Discrepancy(accession, "og2", Cause.CONTENT, "these residues are not in v1"))
+            out.append(
+                Discrepancy(
+                    accession, "og2", Cause.CONTENT, f"these residues are not in {v1_scope}"
+                )
+            )
 
     for accession in result.added_also_in_v1:
         out.append(

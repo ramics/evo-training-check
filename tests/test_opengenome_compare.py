@@ -134,3 +134,44 @@ def test_the_report_counts_the_two_sides_apart() -> None:
     assert document["og2_reused_contigs"] == 0
     assert document["shared_with_reused"] == 0
     assert document["og2_added_contigs"] == 1
+
+
+def test_the_siblings_of_a_disputed_contig_are_the_ones_sharing_its_wgs_project() -> None:
+    """D-217. Looking for a contig's residues across all of v1 is a pass over 118.5 GiB
+    for a question a few hundred rows answer."""
+    v1 = {
+        "JAHFAU010000004.1": ("shard_0", 3),
+        "JAHFAU010000005.1": ("shard_1", 9),
+        "AAAAAA010000001.1": ("shard_0", 1),
+    }
+    out = tool.sibling_records(v1, ["JAHFAU010000900.1"])
+    assert set(out) == {"JAHFAU010000004.1", "JAHFAU010000005.1"}
+
+
+def test_nothing_is_digested_when_nothing_is_disputed() -> None:
+    assert tool.sibling_records({"A010000001.1": ("s", 0)}, []) == {}
+
+
+def test_a_content_call_says_what_it_was_checked_against() -> None:
+    """'not in v1' and 'not in the v1 contigs of this genome' are different claims, and
+    a reader of the discrepancy table cannot tell them apart from the cause alone."""
+    from amazebio import reuse
+
+    result = reuse.join([], [("N.1", Side.REUSED)])
+    found = reuse.classify(
+        result,
+        og2_digests={"N.1": "n"},
+        v1_digests={"S.1": "s"},
+        v1_scope="the 158 v1 contigs of WGS project JAHFAU01",
+    )
+    assert found[0].cause is Cause.CONTENT
+    assert "WGS project JAHFAU01" in found[0].evidence
+
+
+def test_the_report_carries_the_scope_so_the_artefact_does_not_need_the_log() -> None:
+    from amazebio import reuse
+
+    result = reuse.join(["A.1"], [("A.1", Side.REUSED)])
+    document = tool.report(result, (), genomes={"reused": 1}, v1_digest_scope="a narrow scope")
+    assert document["v1_digest_scope"] == "a narrow scope"
+    assert any("D-217" in line for line in document["reading_this_file"])

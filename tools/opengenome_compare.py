@@ -28,6 +28,7 @@ import gzip
 import json
 import sys
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -114,11 +115,39 @@ def digest_v1(
     return out
 
 
+#: How many leading characters of an INSDC contig accession name its WGS project.
+#: `JAHFAU010000004.1` -> `JAHFAU01`. D-217 makes this the scope a disputed contig's
+#: residues are looked for in on the v1 side.
+PROJECT = 8
+
+
+def project_of(accession: str) -> str:
+    return accession[:PROJECT]
+
+
+def sibling_records(
+    v1: Mapping[str, tuple[str, int]], disputed: Iterable[str]
+) -> dict[str, tuple[str, int]]:
+    """The v1 records sharing a WGS project with a contig only OpenGenome2 has.
+
+    Deciding whether such a contig is new material means asking whether v1 held the same
+    residues under another accession. Asked of all of v1 that is a full pass over a
+    118.5 GiB tier; asked of the same WGS project it is a few hundred rows, and it is
+    where a renamed contig of the same genome would actually be. The restriction is
+    D-217's, and it travels into the evidence rather than being left implicit.
+    """
+    projects = {project_of(a) for a in disputed}
+    if not projects:
+        return {}
+    return {a: where for a, where in v1.items() if project_of(a) in projects}
+
+
 def report(
     result: reuse.Join,
     discrepancies: tuple[reuse.Discrepancy, ...],
     *,
     genomes: dict[str, int],
+    v1_digest_scope: str = reuse.FULL_SCOPE,
 ) -> dict[str, Any]:
     point, low, high = result.reused_coverage
     counts = reuse.tally(discrepancies)
@@ -136,6 +165,7 @@ def report(
         "only_in_reused": len(result.only_reused),
         "added_also_in_v1": len(result.added_also_in_v1),
         "discrepancies_by_cause": counts,
+        "v1_digest_scope": v1_digest_scope,
         "cause_meaning": {k.value: v for k, v in reuse.CAUSE_MEANING.items()},
         "added_genomes": genomes.get("added"),
         "stated_added": STATED_ADDED,
@@ -153,6 +183,8 @@ def report(
             "read, and it is never added to the other four.",
             "Only `content` bears on whether the corpus holds what its authors said; the "
             "other causes are differences in naming, in duplication, or in release date.",
+            "`v1_digest_scope` says what a contig only OpenGenome2 has was looked for in "
+            "on the v1 side. A `content` call is against that scope and no wider (D-217).",
         ],
     }
 
@@ -207,14 +239,29 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             v1_digests: dict[str, str] = {}
+            scope = reuse.FULL_SCOPE
             if args.digest:
                 wanted = {a: v1[a] for a in result.only_v1 if a in v1}
+                siblings = sibling_records(v1, result.only_reused)
+                wanted.update(siblings)
+                projects = sorted({project_of(a) for a in result.only_reused})
+                if projects:
+                    named = (
+                        f"WGS project {projects[0]}"
+                        if len(projects) == 1
+                        else f"{len(projects)} WGS projects"
+                    )
+                    scope = f"the {len(siblings):,} v1 contigs of {named}"
                 print(f"digesting {len(wanted):,} v1 records", flush=True)
                 v1_digests = digest_v1(objectstore.client(), wanted)
-                manifest.parameter("v1_records_digested", len(v1_digests))
+                manifest.parameter("v1_records_digested", len(wanted))
+                manifest.parameter("v1_digest_scope", scope)
+                manifest.parameter("sibling_projects", projects)
 
-            discrepancies = reuse.classify(result, og2_digests=og2_digests, v1_digests=v1_digests)
-            document = report(result, discrepancies, genomes=genomes)
+            discrepancies = reuse.classify(
+                result, og2_digests=og2_digests, v1_digests=v1_digests, v1_scope=scope
+            )
+            document = report(result, discrepancies, genomes=genomes, v1_digest_scope=scope)
 
             out = args.outdir / "comparison.json"
             out.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
