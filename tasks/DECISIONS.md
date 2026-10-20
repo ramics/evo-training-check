@@ -9229,3 +9229,47 @@ decision has a threshold or parameter in it, the number goes in the entry.
   genome and one with ten thousand count the same, so this bounds how fast the list stops
   naming things, not how much material escapes. That conversion needs the corpus and is not
   claimed.
+
+### D-203 — The durability guard gets an inverted inventory, and the UniProtKB count gets a run block
+- **Date:** 2026-10-20
+- **Task:** X1.5
+- **Context:** D-188's guard has two halves, and both key on a `run(...)` block: `repro.run`
+  refuses a local output with no durable destination at runtime, and a test parses `tools/`
+  so a call site missing `durable=` fails review. Neither can see a script that has no block
+  at all. X1.5 asked whether any such writer exists. One does.
+- **Decision:**
+  **`tools/uniprot_denylist_count.py` runs under `repro.run` as A1.8.** It executes ESM3's
+  stated select-agent procedure against UniProtKB and writes
+  `policies/specs/select-agents-2024-06-01-uniprot-counts.json`, which
+  `tools/select_agent_seeds.py` reads as a pinned input. The file is committed, so the bytes
+  were never at risk — but the run had no manifest, so nothing recorded which commit, which
+  reading or which UniProt release produced it. That matters more here than for most results:
+  UniProt's REST service serves the current release only, so the number cannot be regenerated
+  as it was. It now takes `--outdir` (default `artifacts/a1-8`), records the captures and the
+  mapping as inputs and the reading switches as parameters, and names
+  `objectstore.durable_results("a1-8")`, so the count has a dated, commit-bound copy beside
+  the git-tracked one.
+  **A new test inverts the inventory.** `test_every_tool_either_runs_under_the_guard_or_says_why_not`
+  asserts that every script in `tools/` uses `repro.run` unless it is written down in
+  `NOT_PIPELINES` with a reason. Thirteen are: five repository validators and generators whose
+  output is nothing or a git-tracked file, and eight EC2 launchers, whose measurement runs on
+  the instance and is published to object storage from there — the launcher only tars the
+  payload and downloads finished artefacts into `artifacts/`, which the metric contracts
+  already describe as a cache. Like `EXEMPT_CALL_SITES`, the list may shrink but should not
+  grow without a reason in the same commit.
+  **`metrics/manifests.md` now names the durable copy.** It gave `artifacts/a1-4/` as where a
+  consumer finds A1.4's manifests — the git-ignored directory D-188 found had lost nine tasks'
+  results. It now says the consumer reads
+  `s3://<corpora bucket>/corpora/results/a1-4/`, that `run.json` travels with the copy, and
+  that a local `artifacts/a1-4/` is a cache whose absence means nothing.
+  `metrics/detections.md` already said this and was the model.
+- **Rejected:** *Claiming `durable_exempt` for the UniProtKB count because its output is in
+  git.* True of the payload and false of the provenance, which is the part that was missing.
+  An exemption would have recorded the file as deliberately disposable, which is the opposite
+  of what it is.
+  *Converting the EC2 launchers to `repro.run`.* The launcher produces no measurement. Giving
+  it a run block would write a second manifest describing a run that happened on another
+  machine, under another commit, which is worse than none: `AGENTS.md` already requires the
+  launcher to pass the commit into `UserData` so the instance's own manifest is traceable.
+  *Leaving the inverted check to inspection.* That is what was already in place, and it is how
+  a tool writing a cited result with no provenance went unnoticed through the D-188 conversion.

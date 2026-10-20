@@ -2,7 +2,7 @@
 id: X1.5
 title: Close out the durability audit
 phase: X
-status: in-progress
+status: review
 gate: false
 depends_on: []
 blocks: []
@@ -50,8 +50,18 @@ after them, and neither task depends on the other.
 
 ## State — 2026-10-20
 
-`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
-owner.
+`review`. **Branch `claude/project-thread-a3vch4`, pull request #30.** Nothing is waiting on
+the project owner. Result in **D-203**.
+
+*No tool writes a result the guard cannot see* — the audit found one, `uniprot_denylist_count.py`,
+which wrote a cited count with no run block at all; it now runs under `repro.run` as A1.8 with
+its inputs, parameters and durable destination recorded. The check that found it is now a test:
+every script in `tools/` runs under the guard unless `NOT_PIPELINES` says why not, which is
+thirteen — five repository validators and eight EC2 launchers, each with its reason beside it.
+
+*`metrics/manifests.md` states where a consumer finds the durable copy* — it now sends a reader
+to `corpora/results/a1-4/` with `run.json` beside it, and says a local `artifacts/a1-4/` is a
+cache whose absence means nothing.
 
 ## Notes
 
