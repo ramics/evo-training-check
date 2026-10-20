@@ -9881,3 +9881,34 @@ decision has a threshold or parameter in it, the number goes in the entry.
   on a single arm of one sub-measurement, and `not_measurable` is a result §A0 asks for
   rather than a gap. Report the Jaccard agreement as reproducibility — it is the claim §A0
   exists to avoid, and an adversarial reader would find the missing metadata in a paragraph.
+
+### D-222 — Deepen the detection search to a census before computing M3
+
+- **Date:** 2026-10-20
+- **Task:** A3.4, A2.6
+- **Context:** A3.4's remaining half places surviving detections into diversity bins. The pass
+  is cheap — 35 GB to stream, under an hour, about twenty cents — but the detections it would
+  place come from A2.1's 0.2% sample of OpenGenome and 0.1% of OpenGenome2 (D-078), so M3
+  built on them is a lower bound. With a median of four bins per family, most families would
+  land at zero or one bin covered, and the 371 families that can carry an informative interval
+  are the ones with the most bins to miss. Costing measured 2026-10-20: gene calling at
+  666 knt/s/core is 24 core-hours over the full corpus, the Pfam search 54, streaming 2 — about
+  80 core-hours, six hours on an m6i.4xlarge at $0.18/h spot, roughly one dollar.
+- **Decision:** The project owner chose to deepen the search first rather than publish a lower
+  bound, and approved the spend. The census pass is **A2.6**, a new task rather than a widening
+  of A2.1, which is `done` and whose sampled tables stay as the record of what a sampled pass
+  found. A3.4 is `blocked` on it. **Pfam only**: RVDB-prot's search is roughly fifteen times
+  slower, about 815 core-hours and of the order of twelve dollars, and M3's bins are Pfam's.
+  The approved figure was the Pfam one.
+- **The asymmetry this creates is a reporting obligation, not a footnote.** After A2.6, Pfam's
+  M1 and M2 are population figures while RVDB-prot's remain lower bounds. The two registries
+  are already never pooled (D-022, D-161), but a reader comparing them across registries would
+  be comparing a census with a sample, so every table carrying both says so in its own
+  `reading_this_table`. Whether to buy RVDB's census is a further decision and is not assumed.
+- **Alternatives rejected:** Run M3 at the existing depth and label it a lower bound — it is
+  publishable and honest, but it spends the same engineering on a number that would mostly read
+  zero, and the owner judged a dollar well spent against that. Defer M3 entirely — §4 keeps a
+  declined commitment visible, but declining it to save a dollar is not a reason that would
+  survive the write-up. Buy the RVDB census at the same time — fifteen times the cost for a
+  registry whose metric needs no bins, and it can be bought later if the asymmetry proves
+  awkward.

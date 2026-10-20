@@ -2,9 +2,9 @@
 id: A3.4
 title: Compute diversity coverage (M3)
 phase: A
-status: in-progress
+status: blocked
 gate: false
-depends_on: [A3.2]
+depends_on: [A3.2, A2.6]
 blocks: [A6.1]
 design_ref: "§A3"
 deliverable: 1
@@ -55,9 +55,15 @@ Pfam families, 34,482 seed members, 17,502 bins, at 50% identity and 80% coverag
 78.4% of families cannot carry an informative M3 whatever the detections turn out to be,
 because Pfam's seed alignments hold too few members. D-214 fixes what is reported for them.
 
-Left: place the surviving detections into the bins, which needs a corpus pass at a declared
-depth, and report pooled M3 by homology class alongside the 371 families that can carry a
-per-family figure. Nothing is waiting on the project owner.
+**Blocked on A2.6, by the owner's choice on 2026-10-20 (D-222).** The placement pass itself
+is cheap — 35 GB to stream, under an hour, about twenty cents — but the detections it would
+place come from a 0.2% and a 0.1% sample, so M3 built on them would be a lower bound and
+most families would land at zero or one bin covered. Costed at
+`/mnt/project-files/a3-4/cost.md`; the owner chose to deepen the search first, which is A2.6.
+
+Left once A2.6 lands: place the surviving detections into the bins at census depth, and
+report pooled M3 by homology class alongside the 371 families that can carry a per-family
+figure. Nothing is waiting on the project owner.
 
 ## Notes
 
