@@ -2,13 +2,13 @@
 id: B2.2
 title: Curate the extension assay collection
 phase: B
-status: ready
+status: in-progress
 gate: false
 depends_on: [B2.1]
 blocks: [B2.3, B2.4]
 design_ref: "§B2, §7"
 deliverable: 2
-owner: unassigned
+owner: claude
 ---
 
 # B2.2 — Curate the extension assay collection
@@ -37,6 +37,11 @@ statistical threat. Published data on well-characterised proteins only, per §4.
 - Inclusion criteria were fixed before screening and are documented.
 - Every included assay carries complete provenance and licence metadata.
 - Collection materially increases usable n over the benchmark subset alone.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
+owner yet.
 
 ## Notes
 
