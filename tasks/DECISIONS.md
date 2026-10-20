@@ -9934,12 +9934,11 @@ decision has a threshold or parameter in it, the number goes in the entry.
   biosecurity filter in the same table as though they made the same claim, which is the
   category error §A0 warns about.
 
-### D-224
+### D-224 — A rehearsal published to the real census prefix, because the guard existed in one tool instead of in the shape five tools share
 
-**2026-10-20 — A2.6 · A rehearsal published to the real census prefix, and the guard that was
-supposed to stop it existed in one tool instead of in the shape both tools share.**
-
-- **What happened.** `detect_profiles.py --assemble --task A2.6` was run end to end as a
+- **Date:** 2026-10-20
+- **Task:** A2.6
+- **Context.** `detect_profiles.py --assemble --task A2.6` was run end to end as a
   rehearsal before the census parts land, against A2.1's real tables plus three synthetic band
   parts, writing to a scratch directory. It published six detection tables and
   `run-assemble.json` to `corpora/results/a2-6/` at 20:13, plus `by-commit/b8f0833…/` copies of
@@ -9973,12 +9972,11 @@ supposed to stop it existed in one tool instead of in the shape both tools share
   synthetic parts — the parts were honest and self-labelling; the rehearsal was the right thing
   to run and `--out` was the thing that should have been read.
 
-### D-225
+### D-225 — The 39,974 "repeated accessions" are 39,974 surplus headers on 1,775 accessions, and none is a duplicate
 
-**2026-10-20 — A7.1, A7.2, A7.3 · The 39,974 "repeated accessions" are 39,974 surplus headers
-on 1,775 accessions, and none of them is a duplicate.**
-
-- **What both earlier tasks reported.** A7.1 and A7.2 each counted 39,974 and each described it
+- **Date:** 2026-10-20
+- **Task:** A7.3 (correcting A7.1, A7.2)
+- **Context.** A7.1 and A7.2 each counted 39,974 and each described it
   as repeated accessions. Neither read a base, because a FASTA header cannot distinguish a
   record published twice from a record published in parts.
 - **What reading the bases shows** (`tools/evo2_duplicates.py`, `artifacts/a7-3/duplicates.json`).
