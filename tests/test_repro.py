@@ -433,6 +433,11 @@ EXEMPT_CALL_SITES: set[str] = {
     # committed file, so a rehearsal that published would put a draft of a deliverable under the
     # real prefix permanently; pointing `--out` at `artifacts/b2-4` publishes as normal.
     "assay_register.py",
+    # B3.4's depth covariate, conditional on `--out` like the rest. `--only` runs part of the
+    # alignment set, and a table covering three of 28 targets published under the deliverable's
+    # key would read exactly like the whole covariate — which is the one artefact B5 may not
+    # have a partial copy of.
+    "assay_depth.py",
     # A2.5's marker arm. The exemption is **conditional and is the fix for a real incident**,
     # not a carve-out for the deliverable: `durable_for` publishes only when `--out` is the
     # canonical `artifacts/a2-5`, and claims the exemption otherwise. A probe run from a scratch
