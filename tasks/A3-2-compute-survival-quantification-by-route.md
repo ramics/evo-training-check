@@ -2,7 +2,7 @@
 id: A3.2
 title: Compute survival quantification by route
 phase: A
-status: blocked
+status: ready
 gate: false
 depends_on: [A3.1, A2.1, A2.2, A2.3, A2.4, A2.5]
 blocks: [A0.4, A3.3, A5.1, X1.3]

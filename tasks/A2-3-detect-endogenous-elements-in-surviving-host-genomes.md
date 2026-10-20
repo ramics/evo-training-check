@@ -2,7 +2,7 @@
 id: A2.3
 title: Detect endogenous elements in surviving host genomes
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.4]
 blocks: [A3.2]
@@ -15,7 +15,8 @@ owner: claude
 
 **Design reference:** DESIGN.md §A2 · **Deliverable 1**
 
-**Branch:** `claude/fervent-hopper-8ht0h3`, pushed. Project management on `main` as usual.
+**Merged:** PR #27. Nothing is on a branch. Artefacts in `artifacts/a2-3/` locally and in
+the results store under `corpora/results/a2-3/` (19 objects, each with its run manifest).
 
 **Pre-registered before anything was searched:** D-182 (substrate and staging tier), D-183
 (registry, selection rule, threshold), D-186 (instrument and depth). D-184 records the measured
@@ -121,6 +122,15 @@ from the calibration's 256-model point; the shipped artefact, re-run after its p
 corrected, measures **4.670e-4** and projects 44,691 core-hours against the entry's 48,040. A 7%
 run-to-run difference on the same measurement, not a changed conclusion — the profile route is
 out of reach either way. The artefact is the citable figure.
+
+**What this unblocks.** A3.2 needs all five A2 detectors; A2.1, A2.4, A2.5 and now A2.3 are
+`done`, so **A2.2 is the last one**. Nothing else in Phase A is closer to the A3.3 gate.
+
+**For whoever picks up A3.2.** Read D-161 and D-173 before quoting any fraction from these
+tables, and `metrics/eve-detection.md` before reading a detection here as an integrated element:
+this arm establishes similarity to a family consensus above a declared cut, and the step from
+that to an element is the one it does not take. The tables carry both restrictions in-band, so
+neither depends on finding a file.
 
 **Waiting on the project owner:** nothing.
 
