@@ -107,13 +107,45 @@ output of all six.
 
 ## State — 2026-10-20
 
-Branch: `claude/project-thread-a3vch4`. Picked up after X5.1; nothing is waiting on the project
-owner. A3.3 is `done` and the gate is open (D-215), so the second-method criterion is reachable
-rather than blocking.
+Branch: `claude/project-thread-a3vch4`. Nothing is waiting on the project owner, but there is
+one question for review, below.
 
-Done: nothing yet.
+**The headline changed, and it got stronger.** The alternative this task was told to rule out —
+that the FASTA tree is a pre-filter staging artefact — came back confirmed. OpenGenome2's JSON
+training format is Evo 1's released viral component to the record and to the nucleotide, zero on
+both deltas. The FASTA representation holds 304,448 records and 2.64 billion nucleotides more,
+among them the 264,570 the published procedure removes. So the filter's output was carried
+forward unchanged into what was trained on, and the only representation carrying a source
+accession — the only one the filter can be checked against at all — is a superset of it. The
+earlier reading, that 264,570 records escaped the filter into the training data, is withdrawn in
+the write-up.
 
-Left: all of it. First the three alternative checks, each as a check rather than a sentence.
+Done:
+
+- `docs/evo2-two-representations.md` — the write-up, with each alternative recorded as a check
+  that was run and each claim graded by what the evidence carries.
+- `policies/evo.md` §10 — the measurement, and the version of record's data-curation paragraph,
+  which scopes the inheritance in a way the preprint does not. Two corrections there as well:
+  §8 said the two trees hold the same sequences, and §6's caveat 5 said the version of record
+  was unretrieved when it had been retrieved on 2026-10-17.
+- The denylist rules broken down at the taxon each names, with the order-dependence published
+  as a number: 2,102 family records under the published chain against 4,706 counting denylist
+  membership alone.
+- A second method for the headline count — newline counting and byte arithmetic, no decode and
+  no parse — with its own premise check.
+- The reconciliation against Evo 2's published figures: not possible, and that is the finding.
+  The only published figure for the component is a training-mix percentage.
+
+Left: the repeated-accession pass is running over the full release; on a bounded prefix the
+1,775 giant-virus MAG accessions already come out as one record published in parts rather than
+as duplicates. Then the second-method run, then `review`.
+
+**For review.** This task's Done-when says the 264,570 figure is reproduced by a second method
+*under A3.3*. A3.3 is `done` and its gate is open (D-215), and its conformance arm reimplemented
+Evo 1's 95 and not Evo 2's 264,570 — so that criterion is not met as written, and the figure is
+no longer this task's headline either. A7.3 supplies a second method for the headline it does
+have. Whether that satisfies §7 for this result, or whether A3.3's scope should be extended to
+Evo 2's arm before the Phase A write-up cites it, is the project owner's call.
 
 ## Notes
 
