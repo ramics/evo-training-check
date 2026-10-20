@@ -88,6 +88,24 @@ TASK_DEFAULT = "A2.1"
 TASK = TASK_DEFAULT
 
 
+#: The deepest rate each task may read, by component. D-099 made the declared rate a
+#: pre-registration rather than a flag, so reaching further is a decision recorded here in
+#: code and not an argument someone can pass. A2.6's census rate of 1.0 is D-222's.
+CENSUS_RATES = {"stage2": 1.0, "imgvr": 1.0, "imgpr": 1.0}
+
+
+def rate_ceiling(task: str, component: str) -> float:
+    """How deep `task` may read `component`, as a sampling rate.
+
+    A2.1 pre-registered a tenfold deepening and may not exceed it. A2.6 exists precisely to
+    read the rest, and its ceiling is the whole corpus; it is a separate task for that
+    reason, so neither can quietly acquire the other's licence.
+    """
+    if task == "A2.6":
+        return CENSUS_RATES[component]
+    return DEEP_RATES[component]
+
+
 def durable_for_task(task: str) -> str:
     """The durable prefix for a task id: `A2.6` -> `.../results/a2-6`."""
     return objectstore.durable_results(task.lower().replace(".", "-"))
@@ -842,15 +860,15 @@ def main(argv: list[str] | None = None) -> int:
 
             for source, row in [] if per_source else searched_sources(manifest0, release):
                 initial = SAMPLE_RATES[source.corpus_component]
-                deep = DEEP_RATES[source.corpus_component]
                 # A band is given in rate units of the *initial* design, so --band 1:10 reads
                 # "from the initial rate out to ten times it" whatever the component's rate is.
                 # That keeps one flag meaningful across sources whose rates differ.
                 lo, hi = (band[0] * initial, band[1] * initial) if band else (0.0, initial)
-                if hi > deep:
+                ceiling = rate_ceiling(TASK, source.corpus_component)
+                if hi > ceiling:
                     raise SystemExit(
                         f"--band {args.band} reaches rate {hi} for {source.corpus_component}, "
-                        f"beyond the declared deep rate {deep} (D-099). A rate past the "
+                        f"beyond {TASK}'s declared rate {ceiling} (D-099). A rate past the "
                         "pre-registered one is a new decision, not a flag."
                     )
                 label = f"{source.corpus_component}/{Path(source.key).name}"

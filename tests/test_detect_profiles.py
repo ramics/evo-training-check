@@ -290,3 +290,24 @@ class TestTheTaskTheRunBelongsTo:
         """A run that forgets `--task` writes where it always did, rather than somewhere
         new and empty that nothing reads."""
         assert detect_profiles.TASK_DEFAULT == "A2.1"
+
+
+class TestHowDeepATaskMayRead:
+    """D-099 made the declared rate a pre-registration rather than a flag. A2.6 reads the
+    whole corpus, which is a new declaration (D-222) and not a wider argument."""
+
+    def test_a21_may_not_read_past_its_pre_registered_deepening(self) -> None:
+        assert (
+            detect_profiles.rate_ceiling("A2.1", "stage2") == detect_profiles.DEEP_RATES["stage2"]
+        )
+
+    def test_a26_reads_the_whole_corpus(self) -> None:
+        for component in detect_profiles.SAMPLE_RATES:
+            assert detect_profiles.rate_ceiling("A2.6", component) == 1.0
+
+    def test_an_unknown_task_gets_the_narrow_ceiling(self) -> None:
+        """A typo in --task must not widen what the run may read."""
+        assert detect_profiles.rate_ceiling("A2.9", "imgvr") == detect_profiles.DEEP_RATES["imgvr"]
+
+    def test_every_sampled_component_has_a_census_rate(self) -> None:
+        assert set(detect_profiles.CENSUS_RATES) == set(detect_profiles.SAMPLE_RATES)

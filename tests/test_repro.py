@@ -557,6 +557,10 @@ NOT_PIPELINES: dict[str, str] = {
     "ec2_exclusivity.py": "launcher; the instance publishes the seed-exclusivity pass",
     "ec2_folds.py": "launcher; the instance publishes A2.2's fold detections",
     "ec2_opengenome_contigs.py": "launcher; the instance publishes A7.4's contig tables",
+    "ec2_detect_census.py": (
+        "launcher; the instance's own detect_profiles workers publish A2.6's band parts, "
+        "and the assembly that merges them runs in the session container"
+    ),
     "ec2_proviruses.py": "launcher; the instance publishes A2.4's provirus detections",
     "ec2_select_agent_seeds.py": "launcher; the instance publishes A1.8's seed set",
     "ec2_similarity.py": "launcher; the instance publishes A1.6's similarity pass",
