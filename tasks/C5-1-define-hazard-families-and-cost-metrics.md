@@ -2,13 +2,13 @@
 id: C5.1
 title: Define hazard families and cost metrics
 phase: C
-status: ready
+status: in-progress
 gate: false
 depends_on: [A0.3, A3.1]
 blocks: [C5.2]
 design_ref: "§C5, §C6"
 deliverable: 4
-owner: unassigned
+owner: claude
 ---
 
 # C5.1 — Define hazard families and cost metrics
@@ -42,6 +42,11 @@ threshold is.
 - The regime boundary is pre-registered in DECISIONS.md, before any computation.
 - The output schema can produce the aggregated view §4 requires without recomputation.
 - No metric requires training or running a model, per §C5.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the
+project owner.
 
 ## Notes
 
