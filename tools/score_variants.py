@@ -81,31 +81,53 @@ def plan(
     }
 
 
-def _forward_from_weights(
-    spec: backends.Recipe, weights: Path
-) -> backends.Forward:  # pragma: no cover - needs an accelerator
-    """Load the checkpoint and return its forward pass, frozen.
+def load_backend(
+    spec: backends.Recipe, weights: str, *, batch_size: int
+) -> backends.FrozenLM:  # pragma: no cover - loads weights
+    """Load the checkpoint and wrap it as a frozen backend.
 
     The only place in this repository that imports a deep-learning stack. It puts the model in
-    evaluation mode and disables gradients, which is belt and braces over the harness's own
-    refusals rather than a substitute for them: `scoring.enforce_scope` still runs, and still
-    rejects a backend that exposes a training entry point.
+    evaluation mode and clears every gradient flag, which is belt and braces over the
+    harness's own refusals rather than a substitute for them: `scoring.enforce_scope` still
+    runs against the object this returns, and still rejects a backend that exposes a training
+    entry point.
+
+    The vocabulary and the prefix length are read from the tokenizer rather than assumed. Both
+    are the kind of thing that is right on one checkpoint and silently wrong on the next, and
+    `FrozenLM` has no way to detect either: a one-token shift produces perfectly plausible
+    numbers.
     """
     import torch
+    from transformers import AutoTokenizer
 
     module, _, attribute = spec.loader.rpartition(".")
     loaded = getattr(__import__(module, fromlist=[attribute]), attribute)
-    model = loaded.from_pretrained(str(weights))
+    tokenizer = AutoTokenizer.from_pretrained(weights)
+    model = loaded.from_pretrained(weights)
     model.eval()
-    for parameter in model.parameters():
-        parameter.requires_grad_(False)
+    model.requires_grad_(False)
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    vocabulary = {r: tokenizer.convert_tokens_to_ids(r) for r in scoring.AMINO_ACIDS}
+    prefix = len(tokenizer("A")["input_ids"]) - 1 - int(tokenizer.eos_token_id is not None)
 
     def forward(rows):  # type: ignore[no-untyped-def]
         with torch.inference_mode():
-            out = model(torch.tensor(list(rows))).logits
-        return out.to(torch.float32).cpu().tolist()
+            out = model(input_ids=torch.tensor(list(rows))).logits
+        return out.to(torch.float64).cpu().tolist()
 
-    return forward
+    return backends.FrozenLM(
+        checkpoint_id=spec.checkpoint_id,
+        mode=spec.mode,
+        modality=spec.modality,
+        trainable_parameters=trainable,
+        vocabulary=vocabulary,
+        encoder=dict(vocabulary),
+        mask_token_id=int(tokenizer.mask_token_id),
+        prefix_tokens=prefix,
+        forward=forward,
+        batch_size=batch_size,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -118,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--assays", type=Path, help="DMS_ProteinGym_substitutions.zip")
     ap.add_argument("--published", type=Path, help="zero_shot_substitutions_scores.zip")
     ap.add_argument("--published-column", help="the model's column in the score archive")
-    ap.add_argument("--weights", type=Path, help="local checkpoint; omit for --plan")
+    ap.add_argument("--weights", help="checkpoint path or hub id; omit for --plan")
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--plan", action="store_true", help="cost the pass; load nothing")
     ap.add_argument("--outdir", type=Path, default=Path("artifacts/b1-2"))
@@ -201,13 +223,7 @@ def _score(
         wild_type=assay.target_sequence,
         variants=scoring.variants_from_mutants(sorted(truth)),
     )
-    backend = backends.FrozenLM(
-        checkpoint_id=spec.checkpoint_id,
-        mode=spec.mode,
-        modality=spec.modality,
-        forward=_forward_from_weights(spec, args.weights),
-        batch_size=args.batch_size,
-    )
+    backend = load_backend(spec, str(args.weights), batch_size=args.batch_size)
     scoring.enforce_scope(backend)
     scores = scoring.score_request(backend, request)
     determinism = scoring.determinism_evidence(backend, request)
