@@ -2,13 +2,13 @@
 id: A5.1
 title: Package the filter-audit tool
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4, A3.2, A4.1, A4.2]
 blocks: [X1.2]
 design_ref: "§5 deliverable 1"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A5.1 — Package the filter-audit tool
@@ -33,6 +33,11 @@ language in, survival-route report out.
 - Tool runs end-to-end on a fixture corpus in CI.
 - Refactor reproduces A3.2 results exactly.
 - Interface and limitations documented.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
+owner.
 
 ## Notes
 
