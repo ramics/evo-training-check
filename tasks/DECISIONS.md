@@ -10119,3 +10119,57 @@ decision has a threshold or parameter in it, the number goes in the entry.
   grant relied on with that caveat attached, which is a statement of the evidence and not a
   legal opinion. If the project ever does redistribute assay data, this entry does not cover it
   and the question is open again.
+
+### D-229 — The parameter-free baseline is RSALOR, integrated rather than reimplemented, with a site-independent floor beside it
+
+- **Date:** 2026-10-20
+- **Task:** B4.1
+- **Context.** §B1 names three options for the mandatory non-neural baseline — RSALOR, GEMME,
+  or a site-independent MSA model — and §B4 makes the choice load-bearing: the baseline is what
+  separates "this assay is intrinsically hard" from "this model's failure is attributable to
+  its training data". A weak baseline makes the second reading unavailable, because a pLM
+  beating a straw man shows nothing. The choice and its parameters are recorded here before any
+  baseline score exists, per the §2 commitment that thresholds and analysis specs are fixed
+  before results are inspected.
+- **Decision.** RSALOR, as the primary baseline, integrated from the authors' own MIT-licensed
+  package rather than reimplemented from the paper. A site-independent model is computed beside
+  it as the floor. Both are scored on all 31 assays in `assays/register.json`, and both are
+  validated against ProteinGym v1.3's own published columns for them, which is the same
+  reference check B1.2 applies to the language models.
+- **Why RSALOR.** §B4's requirement is an MSA + structure method built at inference time, and
+  RSALOR is the only one of the three options that is both. GEMME needs its own JET2 pipeline
+  and is not runnable here. A site-independent model is MSA-only and is the straw man §B4 warns
+  against — it is kept as a floor precisely because the gap between it and RSALOR is what shows
+  the strong baseline is doing work.
+- **Why integrate rather than reimplement.** The method has no free parameters, but it has
+  several specified procedures, and reimplementation risk sits entirely on this project. Two of
+  them matter: sequence weighting clusters the alignment at 80% sequence identity and weights
+  each sequence by the inverse of its cluster size, which is quadratic in alignment depth and is
+  why the authors ship a C++ backend; and the frequency regularisation is applied in a specific
+  order. Running the authors' own implementation makes the baseline theirs rather than our
+  reading of their paper, and B4.2's validation against the published column then tests the
+  integration rather than excusing a reimplementation that reproduces our own mistake.
+- **Parameters, fixed here.** The package's defaults, which are the ones the published ProteinGym
+  column was produced with: `theta_regularization` 0.01, `n_regularization` 0.0,
+  `count_target_sequence` true, `seqid_weights` 0.80, and the default RSA factor
+  `w(RSA) = 1 − min(RSA, 100)/100`. The score is
+  `RSALOR(i, wt, mt) = w(RSA_i) · (LOR(i, wt) − LOR(i, mt))` with
+  `LOR(i, a) = log(f_i(a) / (1 − f_i(a)))` over regularised, weighted frequencies. Structures are
+  the AlphaFold models ProteinGym ships, and alignments are ProteinGym's own, so the baseline
+  sees exactly what the published column saw.
+- **Why it has no exclusion exposure.** Nothing in it is trained. The alignment is built from
+  sequence databases at inference time, the structure is a prediction of the target itself, and
+  the score is a closed-form function of the two. There are no weights, so there is no corpus
+  that a filter could have been applied to, which is the property §B4 needs and the thing the
+  task asks to be documented and verifiable.
+- **Alternatives rejected.** *Site-independent alone* — §B4 is explicit that the baseline must
+  be strong, and this one is not. *Reimplementing RSALOR* — see above; the quadratic weighting
+  alone makes a faithful Python implementation impractical on this container, and an unfaithful
+  one would be worse than no baseline. *Citing the published RSALOR column instead of running
+  it* — the column covers ProteinGym's own alignments and would be fine for the 31 assays here,
+  but B3 and B5 need the baseline runnable against assays the benchmark does not cover, and a
+  baseline this project cannot run is not a baseline it can extend.
+- **Limit carried forward.** Integrating a third-party package adds a dependency that must be
+  pinned like everything else; it goes in its own pixi environment and the lock file carries it.
+  If the published column cannot be reproduced, that is a finding about the integration and is
+  reported as one rather than worked around.
