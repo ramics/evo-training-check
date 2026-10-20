@@ -412,7 +412,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"dry run: {exc}")
         return 0
 
-    instance_id = ec2.run_instances(**kwargs)["Instances"][0]["InstanceId"]
+    try:
+        instance_id = ec2.run_instances(**kwargs)["Instances"][0]["InstanceId"]
+    except Exception as exc:
+        # A spot refusal has three causes that need three different responses, and the raw
+        # botocore message distinguishes none of them. `ec2lib.spot_refusal` does, and says
+        # in each case that nothing launched and nothing was billed.
+        message = ec2lib.spot_refusal(str(exc)) if args.spot else None
+        if message:
+            raise SystemExit(message) from exc
+        raise
     print(f"launched {instance_id}", flush=True)
 
     if args.detach:

@@ -392,3 +392,31 @@ def test_the_s3_client_names_the_regional_endpoint(monkeypatch) -> None:
 
     s3 = next(c for c in built if c["service"] == "s3")
     assert s3["endpoint_url"].endswith(".us-east-1.amazonaws.com")
+
+
+def test_a_spot_refusal_is_explained_rather_than_raised_raw(monkeypatch) -> None:
+    """The three spot refusals need three different responses — an IAM action, a quota
+    raise, or a retry — and botocore's message distinguishes none of them."""
+
+    class Client:
+        def put_object(self, **kw):
+            pass
+
+        def get_parameter(self, **kw):
+            return {"Parameter": {"Value": "ami-0123456789abcdef0"}}
+
+        def run_instances(self, **kw):
+            raise RuntimeError("MaxSpotInstanceCountExceeded: Max spot instance count exceeded")
+
+    class Boto3:
+        @staticmethod
+        def client(name, **kw):
+            return Client()
+
+    monkeypatch.setitem(__import__("sys").modules, "boto3", Boto3)
+    monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
+    with pytest.raises(SystemExit) as caught:
+        launcher.main(["--s3-uri", "s3://bucket/corpora", "--allow-dirty", "--detach", "--spot"])
+    message = str(caught.value)
+    assert "quota" in message
+    assert "nothing launched" in message
