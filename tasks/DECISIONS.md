@@ -9859,3 +9859,25 @@ decision has a threshold or parameter in it, the number goes in the entry.
   two checkpoints' scores attributable to the checkpoint. Score ESM3-open in bfloat16 by
   casting the activations instead — it would make its numbers incomparable with every other
   checkpoint's and with the published reference.
+
+### D-221 — Phase A says the readings agree on this corpus, not that the policy is reproducible
+
+- **Date:** 2026-10-20
+- **Task:** A0.4
+- **Context:** Evo's literal, charitable and strict readings remove the identical 95 records
+  from OpenGenome and 0 from OpenGenome2, Jaccard 1.0000 on every pair. That looks like
+  reproducibility and is not: the readings agree because neither release carries the host
+  metadata that would separate them, so the agreement is a property of what was released
+  rather than of the policy prose. D-207 introduced the three-valued verdict for exactly
+  this. ESM3-open comes out `not_measurable` — its identity threshold is unpublished and two
+  of its three readings wait on A1.6.
+- **Decision:** The project owner signed both off on 2026-10-20. Phase A reports "the
+  readings agree on this corpus", never "the policy is reproducible", and A0.4 closes with
+  ESM3-open recorded as `not_measurable` rather than being held open until A1.6. When A1.6
+  supplies the charitable and strict manifests, that arm is re-run and the spread artefact
+  regenerated; the Phase A write-up does not wait on it, and says plainly that one model's
+  spread is unmeasured and why.
+- **Alternatives rejected:** Hold A0.4 open until A1.6 — it would hold the Phase A write-up
+  on a single arm of one sub-measurement, and `not_measurable` is a result §A0 asks for
+  rather than a gap. Report the Jaccard agreement as reproducibility — it is the claim §A0
+  exists to avoid, and an adversarial reader would find the missing metadata in a paragraph.

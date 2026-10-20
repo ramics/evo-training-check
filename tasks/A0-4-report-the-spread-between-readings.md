@@ -2,7 +2,7 @@
 id: A0.4
 title: Report the spread between readings
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A0.3, A3.2]
 blocks: [A6.1]
@@ -43,8 +43,13 @@ Evo's three readings remove identical record sets from both releases and report 
 headline metrics, and the whole measurable spread is in declared scope and in which rules the
 release leaves undecidable. Reported as `agree_on_the_corpus`, not as reproducibility.
 
-**Left.** ESM3-open's spread is not measurable until A1.6 supplies the charitable and strict
-manifests; that arm reports `not_measurable` and will want re-running when it does.
+**Closed 2026-10-20.** The project owner signed off both calls (D-221): Phase A reports that
+the readings agree on this corpus rather than that the policy is reproducible, and ESM3-open
+closes as `not_measurable` rather than holding the task open.
+
+**Carried forward, not left.** When A1.6 supplies the charitable and strict manifests, that
+arm is re-run and the spread artefact regenerated. The Phase A write-up does not wait on it
+and says plainly that one model's spread is unmeasured and why.
 
 ## Notes
 
