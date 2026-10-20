@@ -713,6 +713,22 @@ def _shelved_rows(shelf: dict[str, Path], key: str) -> Iterator[dict[str, Any]]:
                 yield json.loads(line)
 
 
+def thresholds_for(reg: Registry) -> dict[str, Any]:
+    """The threshold block a table records for `reg`.
+
+    One definition, because the assembler needs it too when there is no initial pass to copy
+    it from, and two copies of this would drift silently — a table's thresholds are read as
+    the record of what the search actually applied.
+    """
+    return {
+        "kind": "gathering" if reg.curated_cutoffs else "pinned-e-value",
+        "e_value": None if reg.curated_cutoffs else PINNED_E_VALUE,
+        "z": None if reg.curated_cutoffs else PINNED_Z,
+        "min_model_coverage": MIN_MODEL_COVERAGE,
+        "decision_ref": "D-076",
+    }
+
+
 def assemble(
     args: argparse.Namespace, regs: list[Registry], manifests: list[dict[str, Any]]
 ) -> int:
@@ -733,16 +749,25 @@ def assemble(
     # A2.6's census depth a part carries about one row per record searched and eight of them
     # parsed at once do not fit the container (D-099 sized the search, not the assembly).
     parts, shelf = _shelve_parts(part_paths, out)
-    print(f"assembling {len(parts)} band part(s) with the initial tables", flush=True)
+    had_initial = any(out.glob("detections-*.json")) or (out / "initial").exists()
+    print(
+        f"assembling {len(parts)} band part(s)"
+        + (" with the initial tables" if had_initial else " with no initial pass"),
+        flush=True,
+    )
 
     # Keep the first pass's tables as written, once, before anything overwrites them. They are
     # the result that was already reported, and a superseded artefact should stay readable.
     initial_dir = out / "initial"
     if not initial_dir.exists():
-        initial_dir.mkdir(parents=True)
-        for path in sorted(out.glob("detections-*.json*")):
-            shutil.copy2(path, initial_dir / path.name)
-        print(f"  kept the initial pass in {manifest_ref_path(initial_dir)}", flush=True)
+        # Only when there is one to keep. An empty `initial/` would read as a first pass that
+        # found nothing, which is a different claim from a census that never had one.
+        first_pass = sorted(out.glob("detections-*.json*"))
+        if first_pass:
+            initial_dir.mkdir(parents=True)
+            for path in first_pass:
+                shutil.copy2(path, initial_dir / path.name)
+            print(f"  kept the initial pass in {manifest_ref_path(initial_dir)}", flush=True)
 
     with run(
         TASK,
@@ -767,9 +792,19 @@ def assemble(
             for reg in regs:
                 view = views[reg.id]
                 stem = f"detections-{reg.id}-{policy_id}-{release}"
-                initial_table = json.loads((initial_dir / f"{stem}.json").read_text())
+                # A2.1 deepened a first pass, so the initial table was always there to merge
+                # and to copy the table's own metadata from. A2.6 is a census: its bands start
+                # at multiple 1 and tile the whole rate, so there is no first pass at all and
+                # this read raised FileNotFoundError — after the search, at the end of a run
+                # costing hours. The three fields the initial table supplied are all
+                # reconstructable from the manifest and the registry, which is what the
+                # searching path does for them anyway.
+                initial_path = initial_dir / f"{stem}.json"
+                initial_table = (
+                    json.loads(initial_path.read_text()) if initial_path.exists() else None
+                )
                 initial_jsonl = initial_dir / f"{stem}.jsonl"
-                source_rows = [initial_table["sources"]]
+                source_rows = [initial_table["sources"]] if initial_table else []
                 for part in parts:
                     if part["release"] != release:
                         continue
@@ -814,7 +849,17 @@ def assemble(
                     detector="profile-hmmer",
                     registry=reg.id,
                     registry_version=reg.version,
-                    manifest=ManifestRef(**initial_table["manifest"]),
+                    manifest=(
+                        ManifestRef(**initial_table["manifest"])
+                        if initial_table
+                        else ManifestRef(
+                            policy_id=policy_id,
+                            release=release,
+                            path=manifest_ref_path(entry["path"]),
+                            sha256=sha256_file(entry["path"]),
+                            removed_records=manifest.get("removed", {}).get("records", 0),
+                        )
+                    ),
                     sources=sources,
                     sample=sample,
                     rows=build_rows(
@@ -822,12 +867,20 @@ def assemble(
                         universe=view.universe,
                         thresholds=view.thresholds_by_family(),
                     ),
-                    thresholds=initial_table["thresholds"],
+                    thresholds=(
+                        initial_table["thresholds"] if initial_table else thresholds_for(reg)
+                    ),
                     notes=[
-                        *initial_table["notes"],
-                        f"Assembled from the initial pass and {len(parts)} band part(s) "
-                        "(D-099). Bands are disjoint, so counts add and nothing was searched "
-                        "twice.",
+                        *(initial_table["notes"] if initial_table else []),
+                        (
+                            f"Assembled from the initial pass and {len(parts)} band part(s) "
+                            "(D-099). Bands are disjoint, so counts add and nothing was "
+                            "searched twice."
+                            if initial_table
+                            else f"Assembled from {len(parts)} band part(s) with no initial "
+                            "pass: the bands start at multiple 1 and tile the whole rate, so "
+                            "every record the table claims was read by one of them."
+                        ),
                     ],
                 )
                 check_route_coverage(table)
@@ -1343,13 +1396,7 @@ def main(argv: list[str] | None = None) -> int:
                             universe=view.universe,
                             thresholds=view.thresholds_by_family(),
                         ),
-                        thresholds={
-                            "kind": "gathering" if reg.curated_cutoffs else "pinned-e-value",
-                            "e_value": None if reg.curated_cutoffs else PINNED_E_VALUE,
-                            "z": None if reg.curated_cutoffs else PINNED_Z,
-                            "min_model_coverage": MIN_MODEL_COVERAGE,
-                            "decision_ref": "D-076",
-                        },
+                        thresholds=thresholds_for(reg),
                         notes=[
                             f"{excluded} hits fell on records this reading removes and are "
                             "excluded from the surviving set; they are candidate conformance "

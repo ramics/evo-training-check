@@ -673,3 +673,125 @@ class TestShelvingBandPartsForAssembly:
         counts, shelf = detect_profiles._shelve_parts([a], tmp_path)
         assert len(counts) == 1
         assert shelf == {}
+
+
+class TestAssemblingACensusWithNoInitialPass:
+    """A2.1 deepened a first pass; A2.6 is a census whose bands start at multiple 1 and tile
+    the whole rate, so there is no first pass at all.
+
+    The assembler read the initial table unguarded for the three fields it could not get
+    anywhere else — the manifest reference, the thresholds and the notes. On a census that
+    raised `FileNotFoundError`, at the end of a run costing hours of compute, which is the
+    same class of failure as the memory one the shelf fixed. These pin the fallback.
+    """
+
+    def _part(self, out, lo, hi, families):
+        path = out / "parts" / f"part-opengenome2-{lo:g}-{hi:g}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        rows = [
+            {
+                "family_id": f,
+                "registry": "pfam",
+                "registry_version": "36.0",
+                "record_id": f"rec-{lo:g}-{i}",
+                "route": "retained_by_design",
+                "element_kind": "free_virus",
+                "detector": "profile-hmmer",
+                "score": 50.0,
+                "threshold": 20.0,
+            }
+            for i, f in enumerate(families)
+        ]
+        path.write_text(
+            json.dumps(
+                {
+                    "release": "opengenome2",
+                    "band_multiple": [lo, hi],
+                    "sources": [
+                        {
+                            "component": "imgvr",
+                            "corpus_component": "imgvr",
+                            "key": "corpora/opengenome2/x/imgvr.fasta.gz",
+                            "searched": True,
+                            "sample_rate": 1.0,
+                            "band": [lo, hi],
+                            "records_in_source": 1000,
+                            "records": 500,
+                            "records_without_genes": 0,
+                            "genes": 5000,
+                            "residues": 150000,
+                            "read_seconds": 1.0,
+                            "search_seconds": {"pfam": 1.0},
+                        }
+                    ],
+                    "tables": {f"{p}|pfam": rows for p in ("evo1-literal",)},
+                }
+            )
+        )
+
+    def _assemble(self, out):
+        return detect_profiles.main(
+            [
+                "--assemble",
+                "--task",
+                "A2.6",
+                "--manifests",
+                "artifacts/a1-4",
+                "--registry",
+                "pfam",
+                "--release",
+                "opengenome2",
+                "--out",
+                str(out),
+                "--allow-dirty",
+            ]
+        )
+
+    @pytest.fixture
+    def assembled(self, tmp_path):
+        universe = sorted(
+            detect_profiles.family_universe(detect_profiles.registry("pfam")).universe
+        )[:3]
+        self._part(tmp_path, 0.0, 0.5, universe)
+        self._part(tmp_path, 0.5, 1.0, universe)
+        assert self._assemble(tmp_path) == 0
+        return json.loads((tmp_path / "detections-pfam-evo1-literal-opengenome2.json").read_text())
+
+    def test_both_bands_counts_reach_the_table(self, assembled):
+        """Two bands contributing one hit each per family must come out as two, not one:
+        the whole reason the parts are assembled rather than taken from the last one."""
+        by_family = {c["family_id"]: c for c in assembled["composition"]}
+        assert by_family, "the assembled table has no composition at all"
+        assert all(c["hits"] == 2 for c in by_family.values()), by_family
+
+    def test_the_sources_record_both_bands_so_coverage_can_be_checked(self, assembled):
+        searched = [s for s in assembled["sources"] if s.get("searched")]
+        assert searched
+        assert sorted(tuple(b) for s in searched for b in s["bands"]) == [
+            (0.0, 0.5),
+            (0.5, 1.0),
+        ]
+
+    def test_the_manifest_reference_is_rebuilt_with_a_real_digest(self, assembled):
+        ref = assembled["manifest"]
+        assert ref["policy_id"] == "evo1-literal"
+        assert ref["release"] == "opengenome2"
+        assert len(ref["sha256"]) == 64
+
+    def test_the_thresholds_are_the_registrys_own(self, assembled):
+        assert assembled["thresholds"] == detect_profiles.thresholds_for(
+            detect_profiles.registry("pfam")
+        )
+
+    def test_the_note_says_there_was_no_initial_pass(self, assembled):
+        assert any("no initial pass" in n for n in assembled["notes"])
+
+    def test_no_empty_initial_directory_is_left_behind(self, tmp_path):
+        """An empty `initial/` reads as a first pass that found nothing, which is a
+        different claim from a census that never had one."""
+        universe = sorted(
+            detect_profiles.family_universe(detect_profiles.registry("pfam")).universe
+        )[:2]
+        self._part(tmp_path, 0.0, 1.0, universe)
+        assert self._assemble(tmp_path) == 0
+        assert not (tmp_path / "initial").exists()
