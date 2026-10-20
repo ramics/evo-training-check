@@ -2,13 +2,13 @@
 id: A4.4
 title: Benchmark the imported taxonomy catalogues the denylist depends on
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A4.2]
 blocks: [A6.1]
 design_ref: "§A4"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A4.4 — Benchmark the imported taxonomy catalogues the denylist depends on
@@ -60,6 +60,11 @@ widened to absorb an adjacent problem.
 - The share of the denylist's hits covered by a measured error rate is reported.
 - Anything left unmeasured is named for the Phase A write-up as a bound on the audit, not on
   the filter.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
+owner yet.
 
 ## Notes
 
