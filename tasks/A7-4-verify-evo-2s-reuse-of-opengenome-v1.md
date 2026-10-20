@@ -2,13 +2,13 @@
 id: A7.4
 title: Verify Evo 2's reuse of OpenGenome v1
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.2, A1.4]
 blocks: []
 design_ref: "§A7, §A1"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A7.4 — Verify Evo 2's reuse of OpenGenome v1
@@ -60,6 +60,12 @@ representations of a sequence set, and the two share no machinery beyond the obj
 - The 28,174 figure is reconciled or the gap is quantified.
 - Every discrepancy class has a count; none is left in a residual bucket.
 - A `run.json` pins inputs, outputs, parameters and the commit.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Fixing the comparison key and the
+record definition first, before any count exists, as the first Done-when criterion requires.
+Nothing is waiting on the project owner.
 
 ## Notes
 
