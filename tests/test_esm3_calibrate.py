@@ -625,3 +625,31 @@ def test_no_renderer_claims_a_bound_from_the_seed_axis_alone() -> None:
         for line in src.splitlines():
             if '"at least "' in line:
                 assert "net_direction" in line, f"{path.name}: {line.strip()}"
+
+
+def test_the_manifest_name_follows_the_artefact_name() -> None:
+    """`--artefact-name` must move the manifest too (X1.6).
+
+    A re-measurement passes `--artefact-name` precisely so it does not write a key whose
+    figures are cited. Before this, the flag moved the result and left the manifest on
+    `run-calibration.json`, so a re-run overwrote the provenance of the run it was replacing
+    — in a bucket with no DeleteObject.
+    """
+    assert tool.manifest_name_for("cap-measurement-rerun-20261019.json") == (
+        "run-cap-measurement-rerun-20261019.json"
+    )
+    # A name without the suffix is still given exactly one.
+    assert tool.manifest_name_for("rerun") == "run-rerun.json"
+    # And the default is unchanged, so every existing call site keeps its key.
+    assert tool.manifest_name_for(None) == "run-calibration.json"
+    assert tool.manifest_name_for("") == "run-calibration.json"
+
+
+def test_no_artefact_name_collides_with_its_own_manifest() -> None:
+    """The derived manifest name is never the artefact's own name.
+
+    Writing both to one key would publish the provenance over the figures, which is the
+    failure the naming exists to prevent rather than a tidier version of it.
+    """
+    for artefact in ("calibration.json", "cap-measurement.json", "band.json", "rerun.json"):
+        assert tool.manifest_name_for(artefact) != artefact

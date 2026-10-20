@@ -279,6 +279,28 @@ def searched_sources(
     return chosen
 
 
+def plan_lines(manifest: dict[str, Any], release: str) -> list[str]:
+    """What `--plan` reports for one manifest: the objects, the rate and the sampled count.
+
+    A function rather than a loop inside `main` because `--plan` reads
+    :func:`searched_sources`, which changed shape once — from manifest rows to
+    `(StagedSource, row)` pairs — and the plan branch was not changed with it, so the flag
+    raised a `TypeError` until X1.6 came to use it. A search path is exercised by every real
+    run; a reporting path is exercised only when somebody asks what a run would read, which
+    is precisely when a stale call site is least welcome.
+    """
+    lines = []
+    for source, row in searched_sources(manifest, release):
+        rate = SAMPLE_RATES[source.corpus_component]
+        records = row.get("records")
+        expected = f"~{int(records * rate):,}" if records else "unknown"
+        lines.append(
+            f"  {source.corpus_component:>10}  rate {rate}  of "
+            f"{records or '?'} records -> {expected} sampled"
+        )
+    return lines
+
+
 def stream_source(client: Any, source: corpora.StagedSource, *, lo: float = 0.0, hi: float):
     """Sampled records with sequence, for one staged source, over the hash band `[lo, hi)`."""
     live = int(client.head_object(Bucket=corpora.BUCKET, Key=source.key)["ContentLength"])
@@ -715,14 +737,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.plan:
         for release, entries in sorted(by_release.items()):
             print(f"{release}:")
-            for source in searched_sources(entries[0]["manifest"]):
-                rate = SAMPLE_RATES[source["corpus_component"]]
-                records = source.get("records")
-                expected = f"~{int(records * rate):,}" if records else "unknown"
-                print(
-                    f"  {source['corpus_component']:>10}  rate {rate}  of "
-                    f"{records or '?'} records -> {expected} sampled"
-                )
+            for line in plan_lines(entries[0]["manifest"], release):
+                print(line)
             print(f"  readings: {[e['manifest']['policy']['id'] for e in entries]}")
         return 0
 
