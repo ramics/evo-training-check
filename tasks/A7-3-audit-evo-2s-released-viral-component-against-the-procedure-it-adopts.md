@@ -2,13 +2,13 @@
 id: A7.3
 title: Audit Evo 2's released viral component against the procedure it adopts
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A7.2]
 blocks: []
 design_ref: "§A7"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A7.3 — Audit Evo 2's released viral component against the procedure it adopts
@@ -104,6 +104,53 @@ output of all six.
 - **Not a judgement about intent.** The counts support a mismatch between a stated procedure and a
   released artefact. Nothing in the data speaks to what anyone meant to do.
 - **Not an ESM3 arm.** There is none; see A7.2 and A1.6.
+
+## State — 2026-10-20
+
+Branch: `claude/project-thread-a3vch4`. Nothing is waiting on the project owner, but there is
+one question for review, below.
+
+**The headline changed, and it got stronger.** The alternative this task was told to rule out —
+that the FASTA tree is a pre-filter staging artefact — came back confirmed. OpenGenome2's JSON
+training format is Evo 1's released viral component to the record and to the nucleotide, zero on
+both deltas. The FASTA representation holds 304,448 records and 2.64 billion nucleotides more,
+among them the 264,570 the published procedure removes. So the filter's output was carried
+forward unchanged into what was trained on, and the only representation carrying a source
+accession — the only one the filter can be checked against at all — is a superset of it. The
+earlier reading, that 264,570 records escaped the filter into the training data, is withdrawn in
+the write-up.
+
+Done:
+
+- `docs/evo2-two-representations.md` — the write-up, with each alternative recorded as a check
+  that was run and each claim graded by what the evidence carries.
+- `policies/evo.md` §10 — the measurement, and the version of record's data-curation paragraph,
+  which scopes the inheritance in a way the preprint does not. Two corrections there as well:
+  §8 said the two trees hold the same sequences, and §6's caveat 5 said the version of record
+  was unretrieved when it had been retrieved on 2026-10-17.
+- The denylist rules broken down at the taxon each names, with the order-dependence published
+  as a number: 2,102 family records under the published chain against 4,706 counting denylist
+  membership alone.
+- A second method for the headline count — newline counting and byte arithmetic, no decode and
+  no parse — with its own premise check.
+- The reconciliation against Evo 2's published figures: not possible, and that is the finding.
+  The only published figure for the component is a training-mix percentage.
+
+- The repeated accessions, resolved (D-225). They are not repeated accessions: the release
+  carries 1,775 accessions on 41,749 headers, and 41,749 - 1,775 = 39,974, which is the figure
+  A7.1 and A7.2 each reported as a population. Every one of the 1,775 is a giant-virus MAG
+  whose occurrences sum exactly to IMG/VR's own length for it, so the surplus records and
+  surplus nucleotides are both zero and the undeclared-upsampling concern does not arise.
+
+Left: the second-method recount and the duplicates artefact are both re-running to pick up the
+published reconciliation; then `review`.
+
+**For review.** This task's Done-when says the 264,570 figure is reproduced by a second method
+*under A3.3*. A3.3 is `done` and its gate is open (D-215), and its conformance arm reimplemented
+Evo 1's 95 and not Evo 2's 264,570 — so that criterion is not met as written, and the figure is
+no longer this task's headline either. A7.3 supplies a second method for the headline it does
+have. Whether that satisfies §7 for this result, or whether A3.3's scope should be extended to
+Evo 2's arm before the Phase A write-up cites it, is the project owner's call.
 
 ## Notes
 

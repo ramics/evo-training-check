@@ -290,6 +290,13 @@ interval heartbeat covers only the corpus pass, so through a 35-minute cell it d
 observable was the artefact growing as each cell published. Both halves are the rule; only one of
 them is implemented everywhere, so check which one a mode gives you before reading its silence.
 
+**A log uploaded on exit is not a channel.** A2.6's census workers redirect stdout to a file on
+the instance and upload it when the worker finishes, which gives you nothing at all while it
+runs — the console stops recording after boot, and the parts appear only as each band completes.
+That is the same silence as a dead process. Upload the log on the heartbeat interval, not at the
+end, and do it from whichever loop is already running rather than from a handler that a hard
+failure skips.
+
 **The boot-armed shutdown timer works, and it also blocks the immediate shutdown — cancel it
 first.** Arm `shutdown -h +N` in `UserData` before anything that can fail; observed 2026-10-16, it
 fires on time, four hours after a watcher had been killed and the launcher could no longer
@@ -313,6 +320,48 @@ having read nothing. Derive the first-party import closure from the source and t
 `tests/test_ec2_similarity.py` does, and import the shipped tool on the instance **before** the
 long work starts: on the instance a missing import costs an hour and a launch, and in a test it
 costs a second.
+
+**An import closure is not a dependency closure.** A2.6 spent four launches on this in one
+afternoon, each one dying in five or six minutes. The closure walk finds what a source
+*imports*; it cannot find what a source *reads*, and it cannot find an import that happens
+inside a function. The payload shipped no `policies/specs`, so eight workers died on `no
+policy specs found` — nothing imports a YAML directory. Then the specs shipped and the
+workers died again, because `policyspec` imports `yaml` inside `load_policy_dir` rather than
+at module scope, so the payload imported cleanly and failed on the first policy read, and no
+wheel carried PyYAML. Two things fix the class rather than the instance. Walk the shipped
+sources with `ast` for *every* third-party import, map each to the wheel that provides it,
+and fail the test on one that is not mapped. And unpack the payload into a bare directory in
+a test and run it there with nothing else on the path — `tests/test_ec2_detect_census.py`
+does both, and the second is the only check that fails for the same reasons the instance
+does. The pre-flight on the instance should likewise *load* what the run needs — the policy
+specs, the manifests — not merely import the module.
+
+**Parallel workers on one instance must not share an output name.** A2.6 runs eight bands of
+one release at once and every worker publishes to the same durable prefix. Anything named for
+the release alone is written eight times: the run manifest loses seven, and eight different
+index bodies under one key are refused outright by the commit-keyed copy (D-216) — *after*
+each worker's six hours, not before. Put the band in the name. A1.5 hit the same shape with
+two staging passes, which is why `detect_profiles` already named its manifest per release;
+one more level of parallelism needed one more level of naming.
+
+**`aws s3 cp --recursive` over an empty prefix exits 0.** A2.6's first launch copied the A1.4
+manifests from `s3://bucket/results/a1-4/` with the bucket prefix missing, the copy reported
+success, and the workers started on an empty directory. A copy that must bring something is
+followed by a `test -f` on something it must have brought.
+
+**Bring the logs back yourself; the console will not.** Across those four launches
+`GetConsoleOutput` truncated mid-way through staging twice and returned empty twice, including
+for ten minutes after the instance that needed reading had terminated. Tee the whole script to
+a file, give each worker its own log, and have the `die` helper upload all of them before it
+powers off. Write the exit reason as its own small object too: it is the one thing you always
+want and the cheapest thing to lose.
+
+**Probe without the flag that publishes.** `detect_profiles --band` publishes a part that
+`--assemble` reads as *the* result for that band, so a probe with `--limit-records` publishes
+a part covering twenty records and claiming the whole band — and the coverage check still
+passes, because the bands do tile. One reached the census prefix on 2026-10-20 and the store
+has no delete. Either refuse the pair in code, which is what was done, or redirect the durable
+destination for the probe.
 
 **A dry run authorizes; it does not execute.** `DryRun=True` checks permissions and parameters and
 returns `DryRunOperation` on success, which is worth doing. It runs no `UserData`, so it cannot
@@ -342,6 +391,19 @@ instance is the right one.
 deliberate — it is what makes a staged corpus un-rewritable — but it means a bug that writes junk
 writes it forever. Before a run that uploads, be sure about the keys it will produce; A1.3 left four
 0-byte objects behind that cannot be removed.
+
+**A rehearsal is the thing most likely to write junk there, because `--out` and the durable prefix
+are decided separately.** `repro.run`'s `durable` is derived from the task id, so it cannot see
+where the run was told to write: a probe from a scratch directory publishes to the real results
+prefix under the names the deliverable will use. The fix is one line per tool — publish only when
+`--out` resolves to the task's canonical `artifacts/<slug>`, claim `durable_exempt` otherwise, and
+print why. `tools/detect_segmented.py`'s `durable_for` is the worked example.
+
+**And when you fix something like that, fix the shape, not the tool.** A2.5 hit exactly this on
+2026-10-19, the guard went into `detect_segmented.py`, and on 2026-10-20 A2.6 hit it again in
+`detect_profiles.py` — permanently, in a bucket with no delete (D-193, then D-224). One tool was
+guarded and four were not. Before closing an incident, grep for every call site with the same
+shape and fix all of them, or say in the decision entry which ones you left and why.
 
 ## Reporting to the project owner
 
