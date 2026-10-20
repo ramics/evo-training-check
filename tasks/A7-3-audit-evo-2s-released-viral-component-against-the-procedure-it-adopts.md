@@ -2,13 +2,13 @@
 id: A7.3
 title: Audit Evo 2's released viral component against the procedure it adopts
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A7.2]
 blocks: []
 design_ref: "§A7"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A7.3 — Audit Evo 2's released viral component against the procedure it adopts
@@ -104,6 +104,16 @@ output of all six.
 - **Not a judgement about intent.** The counts support a mismatch between a stated procedure and a
   released artefact. Nothing in the data speaks to what anyone meant to do.
 - **Not an ESM3 arm.** There is none; see A7.2 and A1.6.
+
+## State — 2026-10-20
+
+Branch: `claude/project-thread-a3vch4`. Picked up after X5.1; nothing is waiting on the project
+owner. A3.3 is `done` and the gate is open (D-215), so the second-method criterion is reachable
+rather than blocking.
+
+Done: nothing yet.
+
+Left: all of it. First the three alternative checks, each as a check rather than a sentence.
 
 ## Notes
 
