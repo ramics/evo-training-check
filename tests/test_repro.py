@@ -446,6 +446,11 @@ EXEMPT_CALL_SITES: set[str] = {
     # would sit beside the real count looking exactly like it — which is how a 20-record part
     # landed in A2.6's census prefix on 2026-10-20.
     "evo2_json_tree.py",
+    # A7.3's repeated-accession pass, conditionally, on the same principle as the two above:
+    # the full pass publishes, and the exemption is claimed only when `--max-headers` bounds
+    # the read. A bounded read answers the question for a prefix of the release and would be
+    # indistinguishable in the prefix from an answer for the whole of it.
+    "evo2_duplicates.py",
 }
 
 
