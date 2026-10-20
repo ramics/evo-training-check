@@ -2,13 +2,13 @@
 id: B1.2
 title: Build the zero-shot scoring harness
 phase: B
-status: ready
+status: in-progress
 gate: false
 depends_on: [B1.1]
 blocks: [B5.2]
 design_ref: "§B1, §4"
 deliverable: null
-owner: unassigned
+owner: claude
 ---
 
 # B1.2 — Build the zero-shot scoring harness
@@ -32,6 +32,11 @@ Scope limits in §4 apply strictly.
 - All in-scope models score a common test set through one interface.
 - §4 limits are enforced by the harness, not just by convention.
 - Determinism verified; reference numbers reproduced where available.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the
+project owner yet; a priced GPU pass will be.
 
 ## Notes
 
