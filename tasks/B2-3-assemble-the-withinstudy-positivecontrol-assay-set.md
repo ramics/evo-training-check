@@ -2,13 +2,13 @@
 id: B2.3
 title: Assemble the within-study positive-control assay set
 phase: B
-status: ready
+status: in-progress
 gate: false
 depends_on: [B2.2]
 blocks: [B2.4]
 design_ref: "§B2"
 deliverable: 2
-owner: unassigned
+owner: claude
 ---
 
 # B2.3 — Assemble the within-study positive-control assay set
