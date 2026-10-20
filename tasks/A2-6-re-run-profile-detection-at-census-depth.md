@@ -59,6 +59,31 @@ are already never pooled (D-022, D-161). A reader comparing them across registri
 comparing a census with a sample. Whether to buy RVDB's census too is the project owner's
 call and is not assumed here.
 
+## State — 2026-10-20
+
+Branch: `claude/project-thread-a3vch4`.
+
+Done: the in-region launcher `tools/ec2_detect_census.py`, with the band tiling, the import
+closure, the shutdown paths and the `run_instances` call under test; `tools/detect_profiles.py`
+made task-aware, so A2.6's census rate is declared in code and cannot overwrite A2.1's tables.
+
+Two things the sizing above got wrong, both measured rather than assumed:
+
+- **Eight vCPU is the account's ceiling.** Every `4xlarge` and larger tried — `m6i`, `c6i`,
+  `r6i` — is refused with a bare `UnauthorizedOperation`. So the census is two instances, one
+  per release, at eight workers each; the core-hours and therefore the cost are unchanged,
+  the wall clock is five to seven hours rather than six.
+- **The search had to be made to stream.** A band was read into one list before gene calling,
+  which is fine at the pre-registered rate and impossible here: OpenGenome publishes stage 2
+  as a single object of 2,652,947 records, so a release arrives as one source and the list is
+  the corpus. It now gene-calls and searches `--chunk-records` at a time. The detections are a
+  union over records and every threshold is per protein, so this changes no result.
+
+Left: launch both instances, assemble the band parts in the container, re-run A3.2, record the
+actual cost against the estimate.
+
+Waiting on the project owner: nothing.
+
 ## Steps
 
 - Fix the depth and declare it before any count exists. A census is `rate: 1.0`,
