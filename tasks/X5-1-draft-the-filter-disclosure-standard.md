@@ -2,13 +2,13 @@
 id: X5.1
 title: Draft the filter disclosure standard
 phase: X
-status: ready
+status: in-progress
 gate: false
 depends_on: [A0.1, A7.1]
 blocks: []
 design_ref: "§10, §5 deliverable 8"
 deliverable: 8
-owner: unassigned
+owner: claude
 ---
 
 # X5.1 — Draft the filter disclosure standard
@@ -39,6 +39,15 @@ then retro-fit it to all four models and report what is missing against each.
 - All four models scored, with every gap traceable to a quoted source in `policies/`.
 - This project's own filter specifications are published in the same format.
 - Overlap with existing framework requirements is stated, so the contribution is clear.
+
+## State — 2026-10-20
+
+Branch: `claude/project-thread-a3vch4`. Picked up while A2.6's census runs; nothing is
+waiting on the project owner.
+
+Done: nothing yet.
+
+Left: all of it.
 
 ## Notes
 
