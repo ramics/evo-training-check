@@ -9444,33 +9444,37 @@ decision has a threshold or parameter in it, the number goes in the entry.
   is a good reason to believe the shortcut is close, and not a reason to report a different
   operation under a frozen metric's name.
 
-### D-207 — 2026-10-20 — Evo's three readings are indistinguishable against its own releases, and that is reported as agreement over the corpus, not reproducibility
+### D-207 — Evo's three readings are indistinguishable against its own releases, which is agreement over the corpus and not reproducibility
+- **Date:** 2026-10-20
+- **Task:** A0.4
+- **Context:** A0.3 wrote Evo 1's published filter three ways and A1.4 executed each against
+  both OpenGenome and OpenGenome2. A0.4 asks whether the choice of reading changes anything.
+- **Decision:**
+  A0.4 measured the spread between the literal, charitable and strict readings of Evo 1's
+  published filter (`tools/reading_spread.py`, `artifacts/a0-4/spread.json`), against both
+  OpenGenome and OpenGenome2.
 
-A0.4 measured the spread between the literal, charitable and strict readings of Evo 1's
-published filter (`tools/reading_spread.py`, `artifacts/a0-4/spread.json`), against both
-OpenGenome and OpenGenome2.
+  **The measurement.** Identical wherever a count exists. The three readings remove the same 95
+  records from OpenGenome — Jaccard 1.0000 on every pair, all attributed to
+  `remove-taxonomically-unspecific` — and the same 0 records from OpenGenome2. M1 and M2 are
+  identical across readings in all six registry-and-release cells A3.2 reports.
 
-**The measurement.** Identical wherever a count exists. The three readings remove the same 95
-records from OpenGenome — Jaccard 1.0000 on every pair, all attributed to
-`remove-taxonomically-unspecific` — and the same 0 records from OpenGenome2. M1 and M2 are
-identical across readings in all six registry-and-release cells A3.2 reports.
+  **Where the spread actually is.** Two places, neither of which moves a count. *Scope*: the
+  strict reading claims the whole corpus, so two components on OpenGenome and nine on
+  OpenGenome2 move from `out_of_scope` to `retained_by_design` — the same records with a
+  different account of why they are still there. *Decidability*: the three rules that separate
+  the readings — `remove-eukaryotic-host-evidence`, `keep-prokaryotic-host-twice` and
+  `keep-only-exclusively-prokaryotic-hosts` — all read IMG/VR host metadata that neither release
+  carries.
 
-**Where the spread actually is.** Two places, neither of which moves a count. *Scope*: the
-strict reading claims the whole corpus, so two components on OpenGenome and nine on
-OpenGenome2 move from `out_of_scope` to `retained_by_design` — the same records with a
-different account of why they are still there. *Decidability*: the three rules that separate
-the readings — `remove-eukaryotic-host-evidence`, `keep-prokaryotic-host-twice` and
-`keep-only-exclusively-prokaryotic-hosts` — all read IMG/VR host metadata that neither release
-carries.
+  **The reading taken, and the one rejected.** The tempting write-up is "Evo's policy is
+  reproducible: all three readings agree". Rejected, because the readings agree only because the
+  only corpus available for checking them cannot tell them apart. `spread.Verdict.reproducible`
+  is therefore three-valued — `agree`, `agree_on_the_corpus`, `readings_disagree` — and this case
+  reports `agree_on_the_corpus`. An ambiguity invisible against the published release is
+  unfalsifiable at that point, not absent, and §A0 counts that as the finding.
 
-**The reading taken, and the one rejected.** The tempting write-up is "Evo's policy is
-reproducible: all three readings agree". Rejected, because the readings agree only because the
-only corpus available for checking them cannot tell them apart. `spread.Verdict.reproducible`
-is therefore three-valued — `agree`, `agree_on_the_corpus`, `readings_disagree` — and this case
-reports `agree_on_the_corpus`. An ambiguity invisible against the published release is
-unfalsifiable at that point, not absent, and §A0 counts that as the finding.
-
-**ESM3-open's spread is not measurable.** One of its three readings has a corpus manifest and
-that one evaluates to `undetermined`, because the matching threshold is unpublished (D-015);
-the other two were deferred to A1.6 (D-043). Recorded as `not_measurable` rather than folded
-into any agreement figure.
+  **ESM3-open's spread is not measurable.** One of its three readings has a corpus manifest and
+  that one evaluates to `undetermined`, because the matching threshold is unpublished (D-015);
+  the other two were deferred to A1.6 (D-043). Recorded as `not_measurable` rather than folded
+  into any agreement figure.
