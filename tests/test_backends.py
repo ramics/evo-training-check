@@ -210,3 +210,43 @@ def test_a_long_pass_reports_progress_so_its_silence_can_be_read():
 def test_a_backend_with_no_progress_callback_still_scores():
     model = make(echo_forward, batch_size=2)
     assert len(model.position_log_probs(WT, [1, 2])) == 2
+
+
+class TestTheRowCarriesBothEnds:
+    """D-230. The models are trained with a start and an end token, and a row that carries
+    only the first shows the model a truncation. It cost every protein score this project had
+    produced, and it hid because the start id is zero on all four checkpoints, so a row filled
+    with zeros was right at one end and silently wrong at the other."""
+
+    def _row(self, **kw):
+        seen = []
+
+        def forward(rows):
+            seen.extend(rows)
+            return echo_forward(rows)
+
+        make(forward, **kw).position_log_probs(WT, [1])
+        return seen[0]
+
+    def test_the_closing_token_is_in_the_row(self):
+        assert self._row(suffix_token_ids=(2,))[-1] == 2
+
+    def test_a_row_without_one_stops_at_the_last_residue(self):
+        """The old behaviour, kept as a test so the difference is visible rather than
+        remembered: with no closing token the row ends on a residue."""
+        assert self._row(suffix_token_ids=())[-1] == ENCODER[WT[-1]]
+
+    def test_the_opening_token_is_the_checkpoints_own_not_a_zero(self):
+        assert self._row(prefix_token_ids=(7,))[0] == 7
+
+    def test_adding_a_closing_token_does_not_shift_the_read_index(self):
+        """The index arithmetic counts from the front, so the distribution read for residue 1
+        must be the same with and without a suffix. If it moved, the fix would trade one
+        off-by-one for another."""
+        with_suffix = make(echo_forward, suffix_token_ids=(2,)).position_log_probs(WT, [1])
+        without = make(echo_forward, suffix_token_ids=()).position_log_probs(WT, [1])
+        assert with_suffix[1] == without[1]
+
+    def test_opening_tokens_that_disagree_with_the_index_arithmetic_are_refused(self):
+        with pytest.raises(ScoringError, match="would disagree"):
+            make(echo_forward, prefix_tokens=1, prefix_token_ids=(0, 0))

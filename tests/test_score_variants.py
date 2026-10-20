@@ -10,6 +10,8 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 
+import pytest
+
 _PATH = pathlib.Path(__file__).resolve()
 _spec = importlib.util.spec_from_file_location(
     "score_variants", _PATH.parent.parent / "tools" / "score_variants.py"
@@ -91,3 +93,32 @@ def test_each_route_reads_its_own_output_objects_sequence_logits() -> None:
 
     assert tool._masked_lm_logits(MaskedLM(), "rows") == ("masked", "rows")
     assert tool._sequence_logits(Multitrack(), "rows") == ("sequence", "rows")
+
+
+class TestReadingTheBoundaryTokensOffTheTokenizer:
+    """D-230. The harness used to take a prefix *count* from the tokenizer and build the row
+    with zeros, which dropped the end-of-sequence token on every checkpoint and showed each
+    model a truncation. Reading both ends off a real tokenised row is the fix, and these pin
+    the cases that made the old version look fine."""
+
+    def test_both_ends_come_back(self):
+        assert tool.boundary_tokens([0, 5, 2], 5, "stub") == ((0,), (2,))
+
+    def test_a_tokenizer_that_appends_nothing_gives_an_empty_suffix(self):
+        assert tool.boundary_tokens([0, 5], 5, "stub") == ((0,), ())
+
+    def test_a_zero_opening_token_is_read_rather_than_assumed(self):
+        """Zero was the right answer on every checkpoint here, which is precisely why
+        assuming it concealed the other end for so long."""
+        assert tool.boundary_tokens([7, 5, 2], 5, "stub") == ((7,), (2,))
+
+    def test_several_boundary_tokens_at_either_end_are_kept(self):
+        assert tool.boundary_tokens([0, 9, 5, 2, 3], 5, "stub") == ((0, 9), (2, 3))
+
+    def test_an_ambiguous_row_is_refused_rather_than_guessed(self):
+        with pytest.raises(RuntimeError, match="appears 2 times"):
+            tool.boundary_tokens([0, 5, 5, 2], 5, "stub")
+
+    def test_a_row_without_the_residue_is_refused(self):
+        with pytest.raises(RuntimeError, match="appears 0 times"):
+            tool.boundary_tokens([0, 2], 5, "stub")

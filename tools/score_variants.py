@@ -167,15 +167,9 @@ def load_backend(
     # *count* and filling the row with zeros is what hid a missing end-of-sequence token
     # through every protein score this project had produced (D-230): the opening id happened
     # to be zero, so the half that was guessed right concealed the half that was dropped.
-    row = list(tokenizer("A")["input_ids"])
-    residue = vocabulary["A"]
-    if row.count(residue) != 1:
-        raise RuntimeError(
-            f"{spec.checkpoint_id}: cannot locate the residue in the tokenised row {row}; "
-            "the boundary tokens cannot be read off it"
-        )
-    at = row.index(residue)
-    prefix_ids, suffix_ids = tuple(row[:at]), tuple(row[at + 1 :])
+    prefix_ids, suffix_ids = boundary_tokens(
+        list(tokenizer("A")["input_ids"]), vocabulary["A"], spec.checkpoint_id
+    )
     prefix = len(prefix_ids)
 
     def forward(rows):  # type: ignore[no-untyped-def]
@@ -198,6 +192,27 @@ def load_backend(
         batch_size=batch_size,
         progress=progress,
     )
+
+
+def boundary_tokens(
+    row: list[int], residue_id: int, checkpoint_id: str
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """What the checkpoint's tokenizer puts before and after a single residue.
+
+    Read off a real tokenised row rather than reconstructed from a count. Taking only a
+    prefix *length* is what hid a missing end-of-sequence token through every protein score
+    this project had produced (D-230): the opening id happens to be zero on these
+    checkpoints, so a row filled with zeros was right at one end and silently wrong at the
+    other, and the model was shown a truncation.
+    """
+    if row.count(residue_id) != 1:
+        raise RuntimeError(
+            f"{checkpoint_id}: the residue appears {row.count(residue_id)} times in the "
+            f"tokenised row {row}, so the boundary tokens cannot be read off it. Refusing "
+            "rather than guessing: a guessed boundary produces plausible numbers"
+        )
+    at = row.index(residue_id)
+    return tuple(row[:at]), tuple(row[at + 1 :])
 
 
 def main(argv: list[str] | None = None) -> int:
