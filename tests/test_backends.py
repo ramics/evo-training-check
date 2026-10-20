@@ -32,6 +32,8 @@ def make(forward, **kw):  # type: ignore[no-untyped-def]
         encoder=ENCODER,
         mask_token_id=MASK_ID,
         prefix_tokens=kw.pop("prefix_tokens", 1),
+        prefix_token_ids=kw.pop("prefix_token_ids", (0,)),
+        suffix_token_ids=kw.pop("suffix_token_ids", ()),
         forward=forward,
         **kw,
     )
@@ -70,7 +72,7 @@ class TestTheOffsetConvention:
             seen.extend(list(r) for r in rows)
             return echo_forward(rows)
 
-        make(forward, prefix_tokens=0).position_log_probs(WT, [1, 4])
+        make(forward, prefix_tokens=0, prefix_token_ids=()).position_log_probs(WT, [1, 4])
         assert [r.index(MASK_ID) for r in seen] == [0, 3]
 
     def test_the_distribution_is_read_at_the_masked_index_not_at_position_minus_one(

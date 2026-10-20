@@ -162,7 +162,21 @@ def load_backend(
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     vocabulary = {r: tokenizer.convert_tokens_to_ids(r) for r in scoring.AMINO_ACIDS}
-    prefix = len(tokenizer("A")["input_ids"]) - 1 - int(tokenizer.eos_token_id is not None)
+    # The whole row the tokenizer builds for one residue, so the opening and closing tokens
+    # are the checkpoint's own rather than this harness's idea of them. Taking only a prefix
+    # *count* and filling the row with zeros is what hid a missing end-of-sequence token
+    # through every protein score this project had produced (D-230): the opening id happened
+    # to be zero, so the half that was guessed right concealed the half that was dropped.
+    row = list(tokenizer("A")["input_ids"])
+    residue = vocabulary["A"]
+    if row.count(residue) != 1:
+        raise RuntimeError(
+            f"{spec.checkpoint_id}: cannot locate the residue in the tokenised row {row}; "
+            "the boundary tokens cannot be read off it"
+        )
+    at = row.index(residue)
+    prefix_ids, suffix_ids = tuple(row[:at]), tuple(row[at + 1 :])
+    prefix = len(prefix_ids)
 
     def forward(rows):  # type: ignore[no-untyped-def]
         with torch.inference_mode():
@@ -178,6 +192,8 @@ def load_backend(
         encoder=dict(vocabulary),
         mask_token_id=int(tokenizer.mask_token_id),
         prefix_tokens=prefix,
+        prefix_token_ids=prefix_ids,
+        suffix_token_ids=suffix_ids,
         forward=forward,
         batch_size=batch_size,
         progress=progress,

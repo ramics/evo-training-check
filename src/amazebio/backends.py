@@ -187,6 +187,18 @@ class FrozenLM:
     prefix_tokens: int
     forward: Forward
     batch_size: int = 8
+    #: The token ids that open and close a row, taken from the checkpoint's own tokenizer.
+    #:
+    #: These exist because omitting the closing one is not a cosmetic difference. A model
+    #: trained with an end-of-sequence token and shown a sequence without one is being shown
+    #: a truncation, and the error is largest at the end and decays inward — which is exactly
+    #: how it was found (D-230): agreement with the benchmark's published ESM-C column broke
+    #: down at the last few residues of every assay, and worst of all on the shortest
+    #: construct, where the terminal positions are most of the protein. `prefix_tokens`
+    #: alone encoded the opening token as a count and the row was built with zeros, which
+    #: happened to be the right id and made the omission at the other end invisible.
+    prefix_token_ids: tuple[int, ...] = (0,)
+    suffix_token_ids: tuple[int, ...] = ()
     #: Called with (batches done, batches total) after each forward pass. A long pass that
     #: prints nothing is indistinguishable from a dead one — the lesson `AGENTS.md` records
     #: for EC2 applies to a model pass in a container too, where the only difference is that
@@ -208,13 +220,19 @@ class FrozenLM:
         unencodable = sorted(set(AMINO_ACIDS) - set(self.encoder))
         if unencodable:
             raise ScoringError(f"{self.checkpoint_id}: cannot encode {unencodable}")
+        if len(self.prefix_token_ids) != self.prefix_tokens:
+            raise ScoringError(
+                f"{self.checkpoint_id}: {len(self.prefix_token_ids)} opening token(s) but "
+                f"prefix_tokens={self.prefix_tokens}; the index arithmetic and the row would "
+                "disagree, and every distribution would be read one position out"
+            )
 
     def _encode(self, sequence: str) -> list[int]:
         try:
             body = [self.encoder[residue] for residue in sequence]
         except KeyError as exc:  # pragma: no cover - ScoringRequest rejects these first
             raise ScoringError(f"{self.checkpoint_id}: cannot encode {exc.args[0]!r}") from exc
-        return [0] * self.prefix_tokens + body
+        return [*self.prefix_token_ids, *body, *self.suffix_token_ids]
 
     def position_log_probs(
         self, sequence: str, positions: Sequence[int]
