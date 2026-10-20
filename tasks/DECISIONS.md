@@ -10213,3 +10213,56 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Carried forward.** Any future backend states its boundary tokens the same way. A harness
   whose agreement with a published reference sits persistently just below a floor is reporting
   a defect, not noise, and the shape of the disagreement is where to look for it.
+
+### D-231 — The alignment-depth covariate is Neff under the alignment maintainers' own threshold
+
+- **Date:** 2026-10-20
+- **Task:** B3.4
+- **Context.** §B3 names the confounder — "compute Neff per target and include as covariate" —
+  and nothing else. Neff is not one statistic: it depends on the identity threshold, on whether
+  gaps count toward identity, on whether the comparison is strict or inclusive at the boundary,
+  and on which columns are compared. Every one of those is fixed here, before any depth has
+  been computed, because the covariate decides whether "viral proteins are hard" and "viral
+  proteins were excluded" can be separated at all, and a threshold chosen after seeing the
+  spread is not a covariate but a knob.
+
+- **The statistic.** For an alignment of N sequences, Neff is the sum of sequence weights,
+  where a sequence's weight is the reciprocal of the number of sequences in the alignment at
+  or above the identity threshold to it — itself included, so a sequence with no neighbours
+  weighs 1 and a group of k identical sequences contributes 1 between them. This is the
+  reweighting used by the alignment maintainers' own pipeline and by the model families this
+  project scores, which is what makes the number comparable to theirs.
+
+- **Identity.** Computed over the alignment's match columns only: lowercase insertion columns
+  and `.` are dropped first, so every sequence is compared on the same L positions. A gap
+  counts as a mismatch rather than as an exclusion, and the denominator is L for every pair.
+  The alternative — identity over the positions where both sequences are ungapped — makes a
+  pair of short fragments look identical, which is the failure mode that matters in a viral
+  alignment full of partial genomes.
+
+- **The threshold is not ours.** Each alignment carries the threshold its maintainers
+  reweighted at, as `MSA_theta` in the pinned reference table: identity above 1 − theta. For
+  the 28 alignments behind this project's 31 assays that is 0.99 for 25 of them and 0.80 for
+  three. Taking their per-alignment value rather than imposing one of our own keeps our number
+  comparable to their published `MSA_N_eff`, which is the cross-check; it also means the
+  threshold is a pinned input rather than a choice this task can tune.
+
+- **Both readings of the boundary.** Whether a pair at exactly the threshold counts as
+  neighbours is unstated. Both readings are computed and both are reported, with the inclusive
+  one as the headline. Where they differ the gap is the finding, per §A0's treatment of
+  under-specification.
+
+- **Exact where it is affordable, estimated with an interval where it is not.** Identical rows
+  are collapsed and carried as multiplicities, which makes the exact sum tractable for most
+  alignments and free for those whose threshold admits only exact duplicates. Where the
+  deduplicated alignment is still too deep to compare against itself, Neff is estimated by
+  sampling rows and comparing each against the whole alignment — unbiased for the same sum —
+  and reported with a bootstrap interval, never as a bare point estimate. Which alignments
+  were exact and which estimated travels in the artefact.
+
+- **Rejected.** Clustering the alignment at the threshold and counting clusters is cheaper and
+  is a defensible depth measure, but it is a different statistic from the one §B3 names and
+  could not be compared against the maintainers' published value. Taking that published value
+  as the covariate directly was also rejected: it is computed on their filtered alignment
+  rather than the one distributed, and a covariate this load-bearing should be an artefact this
+  project produced, with the published figure as the check rather than the source.
