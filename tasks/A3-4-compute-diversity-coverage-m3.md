@@ -2,13 +2,13 @@
 id: A3.4
 title: Compute diversity coverage (M3)
 phase: A
-status: blocked
+status: in-progress
 gate: false
 depends_on: [A3.2]
 blocks: [A6.1]
 design_ref: "§A3"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A3.4 — Compute diversity coverage (M3)
@@ -46,6 +46,20 @@ was never taken, so taking it is a corpus pass with its own cost and its own dec
 - The corpus summary is a distribution, not a pooled figure.
 - If the owner declines the compute, this task is `deferred` rather than dropped, so M3 appears
   in the write-up as a named commitment deliberately not run.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
+owner; the bin-source question was answered on 2026-10-20 and is recorded in **D-205**.
+
+The task has two halves and only the first is cheap. **Bins** come from Pfam's seed alignment,
+complete rather than sampled, and are computed here. **Placement** — putting each surviving
+detection into a bin of its family — needs the surviving sequence, which no A2 artefact
+carries (D-195), so it is a corpus pass whose depth is declared before it runs.
+
+D-205 also settles the other two registries: RVDB-prot publishes no sequence-to-family
+mapping, so M3 is not computable there from the published release, and Dfam is nucleotide, so
+the frozen amino-acid rule does not apply. Both are findings, not gaps to close here.
 
 ## Notes
 

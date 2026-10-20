@@ -9358,3 +9358,53 @@ decision has a threshold or parameter in it, the number goes in the entry.
   a label produced by sampling noise is worse than no label.
   *Dropping an under-sized class from the published view.* The counts would stop reconciling
   with the per-family artefact and a reader could not tell a merge from a missing family.
+
+### D-205 — M3's diversity bins come from Pfam's seed alignment, and two of the three registries cannot supply them at all
+- **Date:** 2026-10-20
+- **Task:** A3.4
+- **Context:** `metrics/survival.md` M3 says to take "the family's reference members from the
+  pinned registry release" and cluster them at 50% identity over 80% of the shorter sequence.
+  For Pfam that phrase has two readings — the curated seed alignment or the full alignment —
+  and the project owner was asked which, before any coverage figure was computed. The other
+  two registries turned out not to have a reading at all.
+- **Decision:**
+  **Pfam: the seed alignment, `Pfam-A.seed.gz` of the pinned 38.2 release**, md5
+  `7a37e1237d5d20c35b236c9f5a9ac797` from the publisher's own `md5_checksums`. The project
+  owner chose it on 2026-10-20 over the full alignment, which was priced at 24.0 GB and about
+  three and a half hours of download at the measured rate.
+  **The consequence travels with every Pfam coverage figure and is stated before any of them
+  exist.** The seed is curated and small: the median viral family carries about six seed
+  members and yields about four bins at 50% identity. A coverage of 0.5 over four bins has a
+  95% Wilson interval of roughly [0.15, 0.85]. So M3 from the seed will be a measurement whose
+  interval spans most of the range for a typical family, and `metrics/survival.md` §6 already
+  says an interval spanning the interesting range is reported as uninformative rather than as
+  a point estimate with the interval in a footnote. That is what this will mostly be, and
+  saying so now is cheaper than discovering it after the compute.
+  **RVDB-prot: M3 is not computable from the published release, and that is a §A0 finding.**
+  The release publishes HMM profiles, an unclustered protein FASTA of 41,321,264 sequences, a
+  100%-clustered FASTA of 783,103, and an annotations database — and **no mapping from any
+  sequence to any family**. The database's `family` table carries a member count (`nbseq`) and
+  `fam_tax` carries taxon frequencies; neither is a membership list, and the clustered FASTA's
+  headers are GenBank accessions with no family field. So the registry whose membership is the
+  publisher's own, and which therefore carries the stronger headline, cannot supply a diversity
+  denominator. Reconstructing membership by searching the clustered FASTA against the 13,679
+  profiles would give *this project's* membership and not the publisher's, which is a different
+  quantity and a separate decision with its own compute; it is not taken here.
+  **Dfam: M3 does not apply.** The frozen rule is clustering at 50% **amino-acid** identity and
+  Dfam's curated LTR set is nucleotide. The metric as frozen cannot cover a nucleotide
+  registry, which is reported rather than worked around by inventing a nucleotide threshold.
+  **Bins are computed over the complete seed membership, not a sample.** There is no depth
+  choice on this side: the denominator is cheap and partial bins would understate coverage.
+  The depth that does cost is placing surviving detections into bins, which needs the surviving
+  sequence and therefore a corpus pass; that depth is declared separately, before any placement
+  runs, as A3.4's steps require.
+- **Rejected:** *The full alignment.* The owner's call, taken after it was priced. It would
+  have given far more bins and much tighter intervals, at 24.0 GB and several hours.
+  *Reconstructing RVDB-prot membership with our own profile search, quietly.* The metric says
+  the registry's reference members. A reconstruction is a substitution, and a substitution made
+  inside a metric computation rather than recorded as one is exactly what `AGENTS.md` forbids.
+  *Clustering Dfam's LTR set at a nucleotide identity chosen here.* M3 is frozen; inventing a
+  second threshold for one registry would make two registries' M3 incomparable while printing
+  them in one column.
+  *Reporting a pooled coverage across families to escape the narrow intervals.* The frozen
+  specification forbids it, and the fragility it would hide is the reason it is forbidden.

@@ -2,7 +2,7 @@
 id: A3.2
 title: Compute survival quantification by route
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A3.1, A2.1, A2.2, A2.3, A2.4, A2.5]
 blocks: [A0.4, A3.3, A3.4, A5.1, X1.3]
@@ -73,8 +73,9 @@ reads as a filter that removed everything, which is the strongest claim in this 
 - *Results reproducible from pinned inputs and seeds* — **met**. 35 pinned inputs in the run
   manifest, seed 20261020 for M2's bootstrap, clean tree enforced.
 
-**Waiting on the project owner:** whether to buy M3 (A3.4) or defer it. A3.4 blocks A6.1 either
-way; deferring leaves it visible in the write-up as a commitment deliberately not run.
+**Closed 2026-10-20.** The owner chose to buy M3 rather than defer it, and fixed the bin
+source: Pfam's seed alignment (**D-205**). M3 is A3.4's and A3.4 is in progress, so the one
+criterion this task could not demonstrate on its own is now owned elsewhere rather than open.
 
 ## Notes
 
