@@ -175,12 +175,20 @@ def reach_of(
         for name in wanted:
             hits = [t for t in index.get(name, ()) if release.rank.get(t) == rank]
             if not hits:
-                elsewhere = index.get(name) or list(release.synonyms.get(name, ()))
-                why = (
-                    f"a {release.rank.get(elsewhere[0], 'no rank')}, not a {rank}"
-                    if elsewhere
-                    else "absent from this release"
-                )
+                # Three distinct ways a name stops working, and they are not the same
+                # failure: a name the release has never heard of, a name it carries at
+                # another rank, and a name it has demoted to a synonym of a taxon that may
+                # well still be at the right rank. The last is the one that reads as
+                # harmless and is not — `Herpesviridae` is in it by 2026.
+                scientific = index.get(name)
+                if scientific:
+                    why = f"a {release.rank.get(scientific[0], 'no rank')}, not a {rank}"
+                elif synonym_of := release.synonyms.get(name):
+                    target = release.names.get(synonym_of[0], "an unnamed taxon")
+                    found = release.rank.get(synonym_of[0], "no rank")
+                    why = f"no longer a name of its own: a synonym of {target}, a {found}"
+                else:
+                    why = "absent from this release"
                 unreachable.append((name, why))
                 continue
             for taxid in hits:

@@ -60,7 +60,25 @@ def test_a_name_that_became_a_synonym_of_another_rank_is_unreachable(tmp_path, b
     later = dump(tmp_path, "2026-10-01", nodes, names, synonyms=[("Reoviridae", 401)])
     m = decay.measure(later, baseline, named=NAMED, realms=REALMS)
     assert [n for n, _ in m.unreachable_names] == ["Reoviridae"]
-    assert m.unreachable_names[0][1] == "a order, not a family"
+    assert m.unreachable_names[0][1] == (
+        "no longer a name of its own: a synonym of Reovirales, a order"
+    )
+
+
+def test_a_name_kept_as_a_synonym_of_a_taxon_at_the_right_rank_still_fails(tmp_path, baseline):  # type: ignore[no-untyped-def]
+    """The failure that reads as harmless. The word survives, the rank survives, and the
+    rule still matches nothing, because the rule names a scientific name."""
+    nodes = {**BASE_NODES}
+    del nodes[400]
+    nodes[401] = (200, "family")
+    names = {**BASE_NAMES}
+    del names[400]
+    names[401] = "Orthoreoviridae"
+    later = dump(tmp_path, "2026-10-01", nodes, names, synonyms=[("Reoviridae", 401)])
+    m = decay.measure(later, baseline, named=NAMED, realms=REALMS)
+    assert m.unreachable_names == (
+        ("Reoviridae", "no longer a name of its own: a synonym of Orthoreoviridae, a family"),
+    )
 
 
 def test_a_renumbering_is_not_new_diversity(tmp_path, baseline):  # type: ignore[no-untyped-def]
