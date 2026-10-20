@@ -144,6 +144,26 @@ class Join:
         return wilson(self.shared_with_reused, self.v1_accessions)
 
     @property
+    def reused_novelty(self) -> tuple[float, float, float]:
+        """How much of the reused subtree v1 does not have, with its interval.
+
+        The converse of :attr:`reused_coverage`, and a different question: coverage tests
+        "used in its entirety", this tests whether the subtree called a reuse is only
+        that. A reuse can be complete and still carry material the thing it reuses never
+        had, so neither number stands in for the other.
+        """
+        return wilson(len(self.only_reused), self.reused_accessions)
+
+    @property
+    def added_overlap(self) -> tuple[float, float, float]:
+        """How much of the added archive v1 already carried, with its interval.
+
+        The stated selection rule takes species with no 214.1 genome, so this is a rate
+        the rule predicts to be zero.
+        """
+        return wilson(len(self.added_also_in_v1), self.added_accessions)
+
+    @property
     def claims_entirety(self) -> bool:
         """Whether "used in its entirety" holds on accessions alone, before causes."""
         return not self.only_v1

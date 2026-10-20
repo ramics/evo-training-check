@@ -142,6 +142,21 @@ def sibling_records(
     return {a: where for a, where in v1.items() if project_of(a) in projects}
 
 
+def _rate(result: reuse.Join, name: str) -> dict[str, Any] | None:
+    """One of the join's rates as an estimate with its interval, or `None`.
+
+    A rate over no records is not a rate, and `amazebio.reuse` refuses to invent one. A
+    report assembled from one side's tables alone still has to be writable, so the
+    absence is recorded as `null` rather than as a zero a reader would take for a
+    measurement.
+    """
+    try:
+        point, low, high = getattr(result, name)
+    except ValueError:
+        return None
+    return {"estimate": point, "low": low, "high": high, "method": "wilson"}
+
+
 def report(
     result: reuse.Join,
     discrepancies: tuple[reuse.Discrepancy, ...],
@@ -149,7 +164,6 @@ def report(
     genomes: dict[str, int],
     v1_digest_scope: str = reuse.FULL_SCOPE,
 ) -> dict[str, Any]:
-    point, low, high = result.reused_coverage
     counts = reuse.tally(discrepancies)
     added_delta = genomes.get("added", 0) - STATED_ADDED
     return {
@@ -160,7 +174,9 @@ def report(
         "og2_reused_contigs": result.reused_accessions,
         "og2_added_contigs": result.added_accessions,
         "shared_with_reused": result.shared_with_reused,
-        "reused_coverage": {"estimate": point, "low": low, "high": high, "method": "wilson"},
+        "reused_coverage": _rate(result, "reused_coverage"),
+        "reused_novelty": _rate(result, "reused_novelty"),
+        "added_overlap": _rate(result, "added_overlap"),
         "only_in_v1": len(result.only_v1),
         "only_in_reused": len(result.only_reused),
         "added_also_in_v1": len(result.added_also_in_v1),
@@ -181,6 +197,10 @@ def report(
             "figure is about.",
             "`undetermined` is not a cause. It counts records whose digest has not been "
             "read, and it is never added to the other four.",
+            "`reused_coverage` is how much of v1 the reused subtree carries and is what "
+            "'used in its entirety' is about. `reused_novelty` is the converse — how "
+            "much of that subtree v1 never had — and a complete reuse can still carry "
+            "material of its own, so neither number stands in for the other.",
             "Only `content` bears on whether the corpus holds what its authors said; the "
             "other causes are differences in naming, in duplication, or in release date.",
             "`v1_digest_scope` says what a contig only OpenGenome2 has was looked for in "
@@ -286,7 +306,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
 
-    coverage = document["reused_coverage"]
+    coverage = document["reused_coverage"] or {"estimate": 0.0, "low": 0.0, "high": 0.0}
     print(
         f"reused coverage {coverage['estimate']:.6f} "
         f"[{coverage['low']:.6f}, {coverage['high']:.6f}]\n"

@@ -122,6 +122,7 @@ def test_the_report_carries_every_cause_and_what_each_one_means() -> None:
     assert set(document["discrepancies_by_cause"]) == {c.value for c in Cause}
     assert set(document["cause_meaning"]) == {c.value for c in Cause}
     assert document["reused_coverage"]["low"] < document["reused_coverage"]["estimate"]
+    assert document["reused_novelty"] is not None
     assert document["added_difference"] == 1 - tool.STATED_ADDED
     assert any("never pooled" in line for line in document["reading_this_file"])
 
@@ -175,3 +176,14 @@ def test_the_report_carries_the_scope_so_the_artefact_does_not_need_the_log() ->
     document = tool.report(result, (), genomes={"reused": 1}, v1_digest_scope="a narrow scope")
     assert document["v1_digest_scope"] == "a narrow scope"
     assert any("D-217" in line for line in document["reading_this_file"])
+
+
+def test_a_rate_over_no_records_is_null_rather_than_zero() -> None:
+    """A report built from one side's tables has no records on the other, and a zero
+    there would read as a measurement of nothing rather than the absence of one."""
+    from amazebio import reuse
+
+    result = reuse.join(["A.1"], [("A.1", Side.REUSED)])
+    document = tool.report(result, (), genomes={"reused": 1})
+    assert document["added_overlap"] is None
+    assert document["reused_coverage"]["estimate"] == 1.0
