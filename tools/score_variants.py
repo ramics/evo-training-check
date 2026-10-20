@@ -23,6 +23,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -82,7 +84,11 @@ def plan(
 
 
 def load_backend(
-    spec: backends.Recipe, weights: str, *, batch_size: int
+    spec: backends.Recipe,
+    weights: str,
+    *,
+    batch_size: int,
+    progress: Callable[[int, int], None] | None = None,
 ) -> backends.FrozenLM:  # pragma: no cover - loads weights
     """Load the checkpoint and wrap it as a frozen backend.
 
@@ -127,6 +133,7 @@ def load_backend(
         prefix_tokens=prefix,
         forward=forward,
         batch_size=batch_size,
+        progress=progress,
     )
 
 
@@ -139,7 +146,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--reference", type=Path, required=True, help="DMS_substitutions.csv")
     ap.add_argument("--assays", type=Path, help="DMS_ProteinGym_substitutions.zip")
     ap.add_argument("--published", type=Path, help="zero_shot_substitutions_scores.zip")
-    ap.add_argument("--published-column", help="the model's column in the score archive")
+    ap.add_argument(
+        "--published-column",
+        help="override the column pinned on the recipe; normally omitted",
+    )
     ap.add_argument("--weights", help="checkpoint path or hub id; omit for --plan")
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--plan", action="store_true", help="cost the pass; load nothing")
@@ -223,7 +233,19 @@ def _score(
         wild_type=assay.target_sequence,
         variants=scoring.variants_from_mutants(sorted(truth)),
     )
-    backend = load_backend(spec, str(args.weights), batch_size=args.batch_size)
+    started = time.time()
+
+    def progress(done: int, total: int) -> None:
+        if done % 10 and done != total:
+            return
+        rate = done / max(time.time() - started, 1e-9)
+        print(
+            f"  {done}/{total} batches, {rate:.2f}/s, "
+            f"{(total - done) / max(rate, 1e-9) / 60:.1f} min left",
+            flush=True,
+        )
+
+    backend = load_backend(spec, str(args.weights), batch_size=args.batch_size, progress=progress)
     scoring.enforce_scope(backend)
     scores = scoring.score_request(backend, request)
     determinism = scoring.determinism_evidence(backend, request)
@@ -235,7 +257,8 @@ def _score(
         "determinism": determinism,
         "scores": scores,
     }
-    if args.published is not None and args.published_column:
+    column = args.published_column or spec.published_column
+    if args.published is not None and column:
         manifest.input_file(args.published, role="published zero-shot scores")
         published = proteingym.load_model_scores(args.published, assay, args.published_column)
         doc["reference_check"] = reference.check_against_published(
@@ -246,6 +269,7 @@ def _score(
             truth,
             seed=SEED,
         ).to_dict()
+        doc["published_column"] = column
     return doc
 
 

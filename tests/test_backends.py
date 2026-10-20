@@ -194,3 +194,17 @@ def test_the_harness_scores_through_a_wrapped_model_end_to_end() -> None:
     assert set(scores) == {"M1A", "A4G", "M1A:A4G"}
     assert scores["M1A:A4G"] == pytest.approx(scores["M1A"] + scores["A4G"])
     assert scoring.determinism_evidence(model, request)["bitwise_identical"] is True
+
+
+def test_a_long_pass_reports_progress_so_its_silence_can_be_read():
+    """A pass that prints nothing is indistinguishable from a dead one. The callback fires
+    once per forward pass and carries the total, so a caller can say how much is left."""
+    seen: list[tuple[int, int]] = []
+    model = make(echo_forward, batch_size=2, progress=lambda d, n: seen.append((d, n)))
+    model.position_log_probs(WT, [1, 2, 3, 4, 5])
+    assert seen == [(1, 3), (2, 3), (3, 3)]
+
+
+def test_a_backend_with_no_progress_callback_still_scores():
+    model = make(echo_forward, batch_size=2)
+    assert len(model.position_log_probs(WT, [1, 2])) == 2

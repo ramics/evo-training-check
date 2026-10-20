@@ -63,6 +63,12 @@ class Recipe:
     #: The loader the published instructions name, as a string rather than an import: this
     #: module does not import any of them.
     loader: str
+    #: This checkpoint's column in ProteinGym's own zero-shot score archive, where it has
+    #: one. It is what B1.2's validation step compares against (D-208), and it is pinned here
+    #: beside the checkpoint rather than passed in, because pairing our scores with another
+    #: model's column would produce a divergence with no obvious cause. `None` means the
+    #: benchmark publishes no scores for this checkpoint and the check cannot run.
+    published_column: str | None = None
 
     def __post_init__(self) -> None:
         if self.modality not in {"protein", "nucleotide"}:
@@ -72,6 +78,7 @@ class Recipe:
 RECIPES: tuple[Recipe, ...] = (
     Recipe(
         checkpoint_id="esm2_t33_650M_UR50D",
+        published_column="ESM2_650M",
         mode=Mode.MASKED_MARGINALS,
         modality="protein",
         access="facebook/esm2_t33_650M_UR50D on HuggingFace, or the fair-esm package",
@@ -79,6 +86,7 @@ RECIPES: tuple[Recipe, ...] = (
     ),
     Recipe(
         checkpoint_id="esm2_t36_3B_UR50D",
+        published_column="ESM2_3B",
         mode=Mode.MASKED_MARGINALS,
         modality="protein",
         access="facebook/esm2_t36_3B_UR50D on HuggingFace, or the fair-esm package",
@@ -86,6 +94,7 @@ RECIPES: tuple[Recipe, ...] = (
     ),
     Recipe(
         checkpoint_id="esm3-sm-open-v1",
+        published_column="ESM3",
         mode=Mode.MASKED_MARGINALS,
         modality="protein",
         access="HuggingFace biohub/esm3-sm-open-v1, loaded via the esm package",
@@ -93,6 +102,7 @@ RECIPES: tuple[Recipe, ...] = (
     ),
     Recipe(
         checkpoint_id="ESMC-600M",
+        published_column="ESMC-600M",
         mode=Mode.MASKED_MARGINALS,
         modality="protein",
         access="HuggingFace biohub/ESMC-600M; also in transformers from v5.16.0",
@@ -177,6 +187,11 @@ class FrozenLM:
     prefix_tokens: int
     forward: Forward
     batch_size: int = 8
+    #: Called with (batches done, batches total) after each forward pass. A long pass that
+    #: prints nothing is indistinguishable from a dead one — the lesson `AGENTS.md` records
+    #: for EC2 applies to a model pass in a container too, where the only difference is that
+    #: the silence is cheaper. Defaults to doing nothing, so nothing is forced to care.
+    progress: Callable[[int, int], None] | None = None
 
     def __post_init__(self) -> None:
         if self.trainable_parameters != 0:
@@ -211,7 +226,8 @@ class FrozenLM:
         """
         base = self._encode(sequence)
         table: dict[int, Mapping[str, float]] = {}
-        for batch in mask_batches(positions, batch_size=self.batch_size):
+        batches = mask_batches(positions, batch_size=self.batch_size)
+        for done, batch in enumerate(batches, start=1):
             rows = []
             for position in batch:
                 if not 1 <= position <= len(sequence):
@@ -238,6 +254,8 @@ class FrozenLM:
                 table[position] = {
                     residue: logprobs[self.vocabulary[residue]] for residue in AMINO_ACIDS
                 }
+            if self.progress is not None:
+                self.progress(done, len(batches))
         return table
 
     def sequence_log_likelihood(self, sequences: Sequence[str]) -> Sequence[float]:
