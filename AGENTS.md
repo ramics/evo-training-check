@@ -21,8 +21,8 @@ Three phases, strictly ordered by dependency rather than preference:
 
 ## Repo map
 
-**The module and tool lists below are excerpts, not inventories.** There are 31 modules in
-`src/amazebio/` and 36 scripts in `tools/`; the ones named here are the entry points worth
+**The module and tool lists below are excerpts, not inventories.** There are 52 modules in
+`src/amazebio/` and 73 scripts in `tools/`; the ones named here are the entry points worth
 knowing before you plan anything. For the rest, read the docstring — every module and tool
 opens with one line saying what it is for and which task it belongs to. Do not infer from this
 map that something does not exist.
@@ -39,8 +39,12 @@ policies/             the policy evidence store: primary-source quotes, each tra
   sources.json        the source register — retrieval status, digests, blockers
   specs/              each filter policy as executable predicates, three readings
   captures/           the captured primary sources the quotes cite
+assays/               the assay provenance and licence register (deliverable 2), committed
+  README.md           the two licence questions and why they are kept apart; read before editing
+  register.json       GENERATED — one entry per assay: provenance, arm, control tag, terms
+  licences.json       GENERATED — the evidence: the deposit's grant and each article's terms
 pdfs/                 owner-supplied subscription sources and supplements
-src/amazebio/         library code — 31 modules; a selection follows
+src/amazebio/         library code — 52 modules; a selection follows
   repro.py            seeding, input pinning, run provenance
   survival.py         the frozen route taxonomy and headline metrics
   uniref.py           streaming acquisition of a pinned UniRef release, per release
@@ -56,7 +60,7 @@ metrics/              the output contracts — a change to one is a DECISIONS en
   survival.md         FROZEN — the headline metric spec
   detections.md       the shared detection schema every A2 detector emits
   manifests.md        the surviving-corpus manifest contract
-tools/                36 scripts; a selection follows
+tools/                73 scripts; a selection follows
 tools/board.py        regenerates tasks/BOARD.md from task frontmatter
 tools/stage_uniref.py stages a pinned UniRef release into object storage, streaming
 tools/count_clusters.py counts clusters in a staged tier and checks the composition
@@ -65,6 +69,8 @@ tools/ec2_count.py    runs the count in-region on EC2; see "Running work on EC2"
 tools/esm3_composition.py writes ESM3's stated composition and its reconciliation gaps
 tools/taxonomy_dependency.py which taxonomy tool the denylist's removals actually rest on
 tools/taxonomy_benchmark.py builds the labelled set and scores the tool's error by direction
+tools/assay_register.py builds and validates the assay licence register; CI runs --check
+tools/assay_licences.py acquires that register's evidence; the only online step in B2.4
 tools/policies.py     verifies every quote in policies/ against its cited source; CI runs it
 tools/specs.py        validates the filter policy specs; CI runs it
 tools/esm3_calibrate.py prices an in-region pass; the worked example for heartbeats
@@ -79,9 +85,9 @@ artifacts/            pipeline outputs and run manifests (git-ignored)
 ```
 
 Run `pixi run -e dev check` before every commit — it is exactly what CI runs, so a green local
-run means a green CI run. Seven steps, in order: lint, format, task graph, **policy evidence**,
-**filter specs**, **model inventory**, tests. The three in bold are the evidence checks, and
-they are the ones a change to `policies/` trips; do not read "lint and tests" and assume a
+run means a green CI run. Nine steps, in order: lint, format, task graph, decisions log, **policy evidence**,
+**filter specs**, **model inventory**, **assay register**, tests. The four in bold are the evidence checks, and
+they are the ones a change to `policies/` or `assays/` trips; do not read "lint and tests" and assume a
 documentation-only change is safe.
 
 ## How to pick up work
