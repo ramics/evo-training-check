@@ -122,6 +122,14 @@ shutdown -h +{hard_stop_minutes} &
 # (D-127). Cancel first, then go down, with fallbacks.
 die() {{
   echo "=== shutting down: $1 ==="
+  # The reason, where it can be read afterwards. `GetConsoleOutput` is best-effort and was
+  # empty for the first ten minutes after the instance that needed reading had terminated;
+  # an object in the store is not.
+  echo "$1" > /tmp/why.txt 2>/dev/null || true
+  iid=$(cat /var/lib/cloud/data/instance-id 2>/dev/null || echo unknown)
+  aws s3 cp /tmp/why.txt \
+    "s3://{bucket}/{prefix}/results/a2-6/exit-$iid-$(date +%s).txt" \
+    --region {region} || true
   shutdown -c || true
   shutdown -h now || systemctl --no-block poweroff || halt -p || true
   exit "${{2:-1}}"
@@ -146,9 +154,16 @@ aws s3 cp "s3://{bucket}/{code_key}" code.tar.gz --region {region}
 tar xzf code.tar.gz
 
 # The A1.4 manifests say which records survive each reading. A2.1 consumes them rather than
-# re-deriving a surviving set (D-059), so the census does too.
+# re-deriving a surviving set (D-059), so the census does too. The prefix is part of the key:
+# the first launch copied from `s3://{bucket}/results/a1-4/`, which does not exist, and
+# `aws s3 cp --recursive` over a prefix with nothing under it exits 0. Eight workers then
+# started, failed on the missing manifests and the instance shut itself down five minutes in
+# — the failure cost nothing only because the workers refuse rather than guess. Hence the
+# check on the next line: a copy that silently brought nothing must not reach the workers.
 mkdir -p artifacts/a1-4
-aws s3 cp "s3://{bucket}/results/a1-4/" artifacts/a1-4/ --recursive --region {region}
+aws s3 cp "s3://{bucket}/{prefix}/results/a1-4/" artifacts/a1-4/ --recursive --region {region}
+test -f artifacts/a1-4/index.json \
+  || die "the A1.4 manifests did not arrive from s3://{bucket}/{prefix}/results/a1-4/"
 
 # Import the shipped tool before the long work rather than discovering a short payload
 # after it. On the instance a missing import costs hours and a launch; here, a second.

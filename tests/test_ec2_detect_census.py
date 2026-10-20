@@ -204,6 +204,28 @@ class TestTheRunInstancesCall:
         assert "results/a1-4/" in rendered()
         assert not any("a1-4" in p for p in launcher.PAYLOAD_MODULES)
 
+    def test_the_manifest_copy_names_the_whole_key(self) -> None:
+        """This assertion used to be the substring above, and the first launch copied from
+        `s3://bucket/results/a1-4/` with the prefix missing. `aws s3 cp --recursive` over a
+        prefix with nothing under it exits 0, so eight workers started on an empty directory
+        and the instance was down five minutes later."""
+        assert "s3://b/corpora/results/a1-4/" in rendered()
+
+    def test_an_empty_copy_cannot_reach_the_workers(self) -> None:
+        """Because that copy succeeds when it brings nothing, the check is what turns the
+        silence into a failure, and it has to come before the workers start."""
+        text = rendered()
+        assert "test -f artifacts/a1-4/index.json" in text
+        assert text.index("test -f artifacts/a1-4/index.json") < text.index('pids=""')
+
+    def test_the_reason_for_an_exit_is_written_where_it_can_be_read(self) -> None:
+        """`GetConsoleOutput` was empty for ten minutes after the instance that needed
+        reading had terminated. An object in the store is not best-effort."""
+        die = rendered()
+        die = die[die.index("die() {") : die.index("dnf install")]
+        assert "aws s3 cp /tmp/why.txt" in die
+        assert "results/a2-6/exit-" in die
+
 
 class TestMainOnADryRun:
     """The launcher's own `main` up to the authorization call.
