@@ -206,3 +206,87 @@ class TestWhatAProbeMayNotPublish:
             text = fh.read()
         assert "durable=None if smoke else" in text
         assert "durable_exempt=" in text
+
+
+class TestTheSecondMethod:
+    """It must fail differently from the first, and it must check its own premise."""
+
+    def _blob(self, payload: bytes) -> bytes:
+        buf = io.BytesIO()
+        with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
+            gz.write(payload)
+        return buf.getvalue()
+
+    def test_it_recovers_the_same_counts_without_parsing(self, served):
+        payload = b"".join(b'{"text": "' + s + b'"}\n' for s in (b"ACGT", b"ACGTACGT", b"A"))
+        served(self._blob(payload))
+        row = jt.recount_file("https://example/x.gz", 0)
+        assert row["records"] == 3
+        assert row["sequence_chars"] == 13
+        assert row["premise_holds"] is True
+
+    def test_it_agrees_with_the_first_method_on_the_same_bytes(self, served):
+        payload = b"".join(b'{"text": "' + b"ACGT" * n + b'"}\n' for n in (1, 7, 3))
+        served(self._blob(payload))
+        first = jt.count_file("https://example/x.gz", 0)
+        served(self._blob(payload))
+        second = jt.recount_file("https://example/x.gz", 0)
+        assert (first["records"], first["sequence_chars"]) == (
+            second["records"],
+            second["sequence_chars"],
+        )
+
+    def test_an_escaped_byte_breaks_the_arithmetic_and_is_reported(self, served):
+        """A backslash means the byte total is no longer the nucleotide total."""
+        served(self._blob(b'{"text": "AC\\nGT"}\n'))
+        row = jt.recount_file("https://example/x.gz", 0)
+        assert row["escape_bytes_seen"] == 1
+        assert row["premise_holds"] is False
+
+    def test_an_unexpected_record_shape_is_reported_rather_than_counted(self, served):
+        served(self._blob(b'{"id": 1, "text": "ACGT"}\n'))
+        row = jt.recount_file("https://example/x.gz", 0)
+        assert row["opener_as_expected"] is False
+        assert row["premise_holds"] is False
+
+
+class TestComparingTheTwoMethods:
+    def _write(self, tmp_path, files):
+        path = tmp_path / "json-tree.json"
+        path.write_text(json.dumps({"files": files}))
+        return path
+
+    def test_agreement_is_reported_per_file_and_not_only_in_total(self, tmp_path):
+        """Two methods can agree on a total while disagreeing on every file."""
+        first = {
+            "a": {"records": 10, "sequence_chars": 100},
+            "b": {"records": 20, "sequence_chars": 200},
+        }
+        second = {
+            "a": {"records": 20, "sequence_chars": 100},
+            "b": {"records": 10, "sequence_chars": 200},
+        }
+        out = jt.agreement(second, self._write(tmp_path, first))
+        assert out["agree"] is False
+        assert out["files_disagreeing"] == 2
+
+    def test_identical_counts_agree(self, tmp_path):
+        files = {"a": {"records": 10, "sequence_chars": 100}}
+        out = jt.agreement(dict(files), self._write(tmp_path, files))
+        assert out["agree"] is True
+        assert out["files_disagreeing"] == 0
+
+    def test_a_file_missing_from_the_first_run_is_a_disagreement(self, tmp_path):
+        out = jt.agreement({"b": {"records": 1, "sequence_chars": 1}}, self._write(tmp_path, {}))
+        assert out["agree"] is False
+
+    def test_a_broken_premise_blocks_agreement_even_when_the_numbers_match(self, tmp_path):
+        files = {"a": {"records": 10, "sequence_chars": 100}}
+        second = {"a": {"records": 10, "sequence_chars": 100, "premise_holds": False}}
+        out = jt.agreement(second, self._write(tmp_path, files))
+        assert out["agree"] is False
+        assert out["premise_failures"] == ["a"]
+
+    def test_no_first_method_artefact_means_nothing_is_compared(self, tmp_path):
+        out = jt.agreement({}, tmp_path / "absent.json")
+        assert out["compared"] is False

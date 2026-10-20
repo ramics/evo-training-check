@@ -112,6 +112,63 @@ def _reader(url: str, size: int) -> io.BufferedReader:
     return io.BufferedReader(_Raw(ResumableRead(url=url, expected_bytes=size)), buffer_size=1 << 23)
 
 
+#: The fixed cost of one record's JSON wrapper, as this publisher writes it:
+#: `{"text": "` is ten bytes, `"}` is two, and the newline is one.
+WRAPPER_BYTES = 13
+
+
+def recount_file(
+    url: str, size: int, *, progress: float = 300.0, label: str = ""
+) -> dict[str, Any]:
+    """Count the same file a second way, sharing nothing with `count_file` but the socket.
+
+    §7 requires the headline reproduced by a second method before publication, and A3.3's
+    reimplementation covered Evo 1's conformance arm rather than this comparison, so A7.3
+    supplies its own. The point of a second method is that it fails differently: this one
+    never decodes to text, never parses JSON and never materialises a record. It counts
+    newlines for the record total and subtracts a fixed wrapper cost from the decompressed
+    byte total for the nucleotide total.
+
+    That subtraction is only valid if every line really is `{"text": "<seq>"}` with nothing
+    escaped and no second key, so the method checks its own premise rather than assuming it:
+    it verifies the opening bytes of the first line, and it counts any byte that cannot
+    appear in an unescaped nucleotide line. A single backslash or a second key makes the
+    arithmetic wrong, and the artefact says so instead of reporting a number.
+    """
+    opener = b'{"text": "'
+    records = 0
+    decompressed = 0
+    suspicious = 0
+    first = b""
+    started = last = time.time()
+
+    with gzip.GzipFile(fileobj=_reader(url, size)) as gz:
+        while chunk := gz.read(1 << 23):
+            if not first:
+                first = bytes(chunk[: len(opener)])
+            decompressed += len(chunk)
+            records += chunk.count(b"\n")
+            suspicious += chunk.count(b"\\")
+            now = time.time()
+            if now - last >= progress:
+                last = now
+                print(
+                    f"  {label}: {decompressed:,} bytes, {records:,} lines "
+                    f"({decompressed / max(1e-9, now - started) / 1e6:,.1f} MB/s)",
+                    flush=True,
+                )
+
+    return {
+        "records": records,
+        "decompressed_bytes": decompressed,
+        "sequence_chars": decompressed - WRAPPER_BYTES * records,
+        "wrapper_bytes_assumed": WRAPPER_BYTES,
+        "opener_as_expected": first == opener,
+        "escape_bytes_seen": suspicious,
+        "premise_holds": first == opener and suspicious == 0,
+    }
+
+
 def count_file(
     url: str,
     size: int,
@@ -310,6 +367,44 @@ def compare(files: dict[str, dict[str, Any]], *, partial: bool) -> dict[str, Any
     }
 
 
+def agreement(second: dict[str, dict[str, Any]], first_path: Path) -> dict[str, Any]:
+    """Compare the second method's per-file counts against the first method's.
+
+    Reported per file as well as in total, because two methods can agree on a total while
+    disagreeing on every file — which would mean both are wrong and the errors cancel.
+    """
+    if not first_path.exists():
+        return {"compared": False, "why": f"no first-method artefact at {first_path}"}
+    first = json.loads(first_path.read_text())["files"]
+    rows = {}
+    disagreements = 0
+    premise_failures = [p for p, r in second.items() if not r.get("premise_holds", True)]
+    for path, row in sorted(second.items()):
+        base = first.get(path)
+        if base is None:
+            rows[path] = {"compared": False, "why": "absent from the first-method artefact"}
+            disagreements += 1
+            continue
+        dr = row["records"] - base["records"]
+        dc = row["sequence_chars"] - base["sequence_chars"]
+        rows[path] = {"record_delta": dr, "sequence_char_delta": dc, "agree": dr == 0 and dc == 0}
+        if dr or dc:
+            disagreements += 1
+    return {
+        "compared": True,
+        "files_disagreeing": disagreements,
+        "premise_failures": premise_failures,
+        "agree": disagreements == 0 and not premise_failures,
+        "per_file": rows,
+        "first_method": "gzip to text, json.loads, len of the text field",
+        "second_method": "gzip to bytes, newline count, byte total less a fixed wrapper cost",
+        "why_it_is_a_second_method": (
+            "the two share the socket and the gzip member and nothing else: a fault in the "
+            "decode, the parser or the field lookup shows up in one and not the other"
+        ),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -332,6 +427,12 @@ def main(argv: list[str] | None = None) -> int:
         "rewrite it in place. The counts are the measurement and the comparison is a "
         "derivation over them, so changing how the derivation reads is not a reason to "
         "re-read 10.4 GB.",
+    )
+    ap.add_argument(
+        "--second-method",
+        action="store_true",
+        help="recount by newlines and byte arithmetic instead of by parsing, and compare "
+        "the two counts. §7's second-method requirement for this task's headline.",
     )
     ap.add_argument("--allow-dirty", action="store_true")
     args = ap.parse_args(argv)
@@ -359,12 +460,14 @@ def main(argv: list[str] | None = None) -> int:
     # bounded read that reaches the durable prefix is permanent and indistinguishable from
     # a result at a glance — which is how a 20-record part landed in A2.6's census prefix.
     smoke = args.max_records is not None
+    if args.second_method and smoke:
+        raise SystemExit("--second-method reads whole files; it has no bounded form")
     with run(
         "A7.3",
         seed=None,
         outdir=outdir,
         allow_dirty=args.allow_dirty,
-        manifest_name="run-json-tree.json",
+        manifest_name="run-json-tree-second.json" if args.second_method else "run-json-tree.json",
         durable=None if smoke else objectstore.durable_results("a7-3"),
         durable_exempt="a bounded smoke read, marked partial and never cited" if smoke else None,
     ) as m:
@@ -389,13 +492,23 @@ def main(argv: list[str] | None = None) -> int:
         per_file: dict[str, dict[str, Any]] = {}
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
             futures = {
-                pool.submit(
-                    count_file,
-                    og.resolve_url(release, blob.path),
-                    blob.size,
-                    max_records=args.max_records,
-                    progress=args.progress,
-                    label=blob.path.rsplit("/", 1)[-1],
+                (
+                    pool.submit(
+                        recount_file,
+                        og.resolve_url(release, blob.path),
+                        blob.size,
+                        progress=args.progress,
+                        label=blob.path.rsplit("/", 1)[-1],
+                    )
+                    if args.second_method
+                    else pool.submit(
+                        count_file,
+                        og.resolve_url(release, blob.path),
+                        blob.size,
+                        max_records=args.max_records,
+                        progress=args.progress,
+                        label=blob.path.rsplit("/", 1)[-1],
+                    )
                 ): blob
                 for blob in blobs
             }
@@ -425,11 +538,17 @@ def main(argv: list[str] | None = None) -> int:
             },
             "comparison": compare(per_file, partial=args.max_records is not None),
         }
-        out = outdir / "json-tree.json"
+        if args.second_method:
+            report["method"] = (
+                "newline count and byte arithmetic; no text decode, no JSON parse, no "
+                "record materialised"
+            )
+            report["agreement"] = agreement(per_file, outdir / "json-tree.json")
+        out = outdir / ("json-tree-second.json" if args.second_method else "json-tree.json")
         out.write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")
         m.output_file(out, role="json-tree-count")
 
-    print(json.dumps(report["comparison"], indent=1))
+    print(json.dumps(report.get("agreement") or report["comparison"], indent=1))
     return 0
 
 
