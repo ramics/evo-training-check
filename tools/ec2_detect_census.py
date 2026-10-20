@@ -334,8 +334,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.attach:
         return _watch(ec2, args.attach, args)
 
-    s3.put_object(Bucket=bucket, Key=code_key, Body=build_payload(root))
-    print(f"payload at s3://{bucket}/{code_key}", flush=True)
+    # Not on a dry run. A dry run authorizes and executes nothing, and the corpus bucket
+    # has no delete, so an upload here would leave a permanent object behind for a launch
+    # that never happened.
+    if not args.dry_run:
+        s3.put_object(Bucket=bucket, Key=code_key, Body=build_payload(root))
+        print(f"payload at s3://{bucket}/{code_key}", flush=True)
 
     kwargs: dict[str, Any] = dict(
         ImageId=_ami(),
