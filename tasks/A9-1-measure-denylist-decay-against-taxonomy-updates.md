@@ -2,13 +2,13 @@
 id: A9.1
 title: Measure denylist decay against taxonomy updates
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A0.3]
 blocks: []
 design_ref: "§A9"
 deliverable: 1
-owner: unassigned
+owner: claude
 ---
 
 # A9.1 — Measure denylist decay against taxonomy updates
@@ -38,6 +38,17 @@ diversity it stops naming over time, and derive the implied re-validation interv
 - Re-validation interval derived, with assumptions stated.
 - The static-list versus computed-rule contrast is reported.
 - Result is framed as applying to label-based filters generally, not only to these two.
+
+## State — 2026-10-20
+
+`in-progress`. **Branch `claude/project-thread-a3vch4`.** Nothing is waiting on the project
+owner yet.
+
+**Read D-199 before choosing the baseline.** A8.1 found two decay cases in the *pinned*
+taxonomy, before any replay: `Reoviridae` is no longer a family name there, and
+`require_rank: realm` asks for a rank NCBI has never used. The first is decay at time zero;
+the second is not decay at all but a vocabulary mismatch, and conflating them would start the
+curve at the wrong place.
 
 ## Notes
 
