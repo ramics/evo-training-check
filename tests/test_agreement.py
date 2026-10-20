@@ -204,3 +204,47 @@ def test_the_entry_level_taxid_is_not_counted_as_a_member(predicate):
     )
     counts = tally(predicate, block)
     assert counts.members == 1
+
+
+def test_a_name_the_dump_carries_only_as_a_synonym_is_reported_not_applied():
+    """Evo names Reoviridae; the pinned dump has it only as a synonym of an *order*.
+
+    Read as written, the family rule matches nothing. Read as "whatever the word resolves
+    to", it removes a whole order. The two differ by a rank, so the predicate takes the rule
+    as written and carries what the other reading would have reached beside it.
+    """
+    taxonomy = Taxonomy(
+        {t: p for t, (p, _) in NODES.items()}, {t: r for t, (_, r) in NODES.items()}
+    )
+    predicate = agreement.build_predicate(
+        taxonomy=taxonomy,
+        names=NAMES,
+        family_names=["Reoviridae"],
+        order_names=[],
+        stop_taxa=["Riboviria"],
+        require_rank="realm",
+        ranks=RANKS,
+        synonyms={"Reoviridae": [150]},  # the order Caudovirales, standing in for Reovirales
+    )
+    assert predicate.by_family == frozenset()
+    assert predicate.resolution == (("Reoviridae", "synonym of a order, not a family", "order"),)
+    assert 160 in predicate.loose_only  # the family beneath that order
+    counts = tally(predicate, cluster(160))
+    assert counts.cells[agreement.CELL_BOTH] == 0
+    assert counts.loose_only_members == 1
+
+
+def test_a_name_the_dump_has_never_heard_of_is_still_an_error():
+    taxonomy = Taxonomy(
+        {t: p for t, (p, _) in NODES.items()}, {t: r for t, (_, r) in NODES.items()}
+    )
+    with pytest.raises(ValueError, match="under any class"):
+        agreement.build_predicate(
+            taxonomy=taxonomy,
+            names=NAMES,
+            family_names=["Nothingviridae"],
+            order_names=[],
+            stop_taxa=["Riboviria"],
+            require_rank="realm",
+            ranks=RANKS,
+        )

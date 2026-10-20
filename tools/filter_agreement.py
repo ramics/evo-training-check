@@ -36,6 +36,7 @@ import json
 import os
 import sys
 import time
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -107,6 +108,25 @@ def taxon_rules(policies: dict[str, policyspec.Policy]) -> dict[str, Any]:
         )
     shape = shapes[READINGS[0]]
     return {**shape, "readings": READINGS, "not_runnable": tuple(sorted(set(not_runnable)))}
+
+
+def other_names(taxdump: Path) -> dict[str, list[int]]:
+    """Every non-scientific name in the dump, so a renamed taxon can be reported as renamed.
+
+    `NameIndex` keeps scientific names only, which is right for looking a taxid up. Here the
+    question runs the other way — the rules hand over a word, and whether the dump carries
+    that word as a current name, an old one, or not at all is the finding.
+    """
+    out: dict[str, list[int]] = {}
+    with zipfile.ZipFile(taxdump) as archive, archive.open("names.dmp") as handle:
+        for raw in handle:
+            fields = [c.strip() for c in raw.decode("utf-8", "replace").split("\t|")]
+            if len(fields) > 3 and fields[3] != "scientific name":
+                try:
+                    out.setdefault(fields[1], []).append(int(fields[0]))
+                except ValueError:
+                    continue
+    return out
 
 
 def _make_heartbeat(client: Any, bucket: str, prefix: str, name: str, commit: str | None) -> Any:
@@ -209,6 +229,14 @@ def summarise(payload: dict[str, Any]) -> str:
         out.append(f"    {cell:<16} {cells[cell]:,}")
     share = counts["agreement"]
     out.append(f"  agreement: {share:.4f}" if share is not None else "  agreement: no records")
+    for name, how, _ in payload["name_resolution"]:
+        if how == "scientific name":
+            continue
+        out.append(
+            f"  the rules name {name}, which the pinned taxonomy carries as a {how}: "
+            f"read as written that rule removes nothing, and a looser reading would "
+            f"reach {counts['loose_only_members']:,} further records"
+        )
     return "\n".join(out)
 
 
@@ -281,6 +309,7 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
     print(f"loading taxonomy from {args.taxdump}", flush=True)
     index = selectagents.NameIndex.from_taxdump_zip(args.taxdump)
     taxonomy = seeds.Taxonomy(index.parent, index.rank)
+    synonyms = other_names(args.taxdump)
     predicate = agreement.build_predicate(
         taxonomy=taxonomy,
         names=index.names,
@@ -290,7 +319,11 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
         require_rank=rules["require_rank"],
         ranks=rules["ranks"],
         rules_not_runnable=rules["not_runnable"],
+        synonyms=synonyms,
     )
+    for name, how, _ in predicate.resolution:
+        if how != "scientific name":
+            print(f"  NAME NOT AS WRITTEN: {name} is a {how}", flush=True)
     print(
         f"  {len(taxonomy.parent):,} taxa, {len(predicate.viral):,} viral, "
         f"{len(predicate.removed):,} removed by the taxon rules",
@@ -385,6 +418,8 @@ def _execute(args: argparse.Namespace, client: Any, bucket: str, prefix: str) ->
                 "require_rank": rules["require_rank"],
             },
             "rules_not_runnable": [list(p) for p in rules["not_runnable"]],
+            "name_resolution": [list(r) for r in predicate.resolution],
+            "loose_reading_taxa": len(predicate.loose_only),
             "counts": detail,
             "cellular_in_covering_clusters": kinds[agreement.KIND_CELLULAR],
             "compressed_bytes_read": compressed,

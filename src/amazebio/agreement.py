@@ -58,6 +58,7 @@ __all__ = [
     "CELL_OUT_OF_SCOPE",
     "CELL_OUT_OF_SCOPE_REMOVED",
     "CELL_SIMILARITY_ONLY",
+    "ICTV_REALMS",
     "KINDS",
     "LABEL_RANKS",
     "AgreementConfig",
@@ -118,6 +119,22 @@ KINDS: tuple[str, ...] = (
 #: one filter's removals, so it is never collapsed here either.
 LABEL_RANKS: tuple[str, ...] = ("family", "order", "unspecific")
 
+#: The realms, by name. Needed because Evo's specificity rule requires a rank NCBI does not
+#: use: in the pinned 2023-04-01 dump no node carries rank `realm`, and Riboviria — a realm
+#: in the ICTV scheme the rule is written against — is a `clade`. Executed literally against
+#: NCBI the rule removes every viral record, so `build_predicate` falls back to these names
+#: and says in its `resolution` that it had to. The list is ICTV's own, as of the pinned
+#: taxonomy; a dump that grows a seventh realm and is not reflected here under-removes, which
+#: is the decay A9.1 measures one rank up.
+ICTV_REALMS: tuple[str, ...] = (
+    "Adnaviria",
+    "Duplodnaviria",
+    "Monodnaviria",
+    "Riboviria",
+    "Ribozyviria",
+    "Varidnaviria",
+)
+
 _NCBI_TAXONOMY = re.compile(rb'type="NCBI taxonomy" value="(\d+)"')
 _ENTRY_ID = re.compile(rb'<entry id="([^"]+)"')
 
@@ -143,6 +160,13 @@ class LabelPredicate:
     family_names: tuple[str, ...] = ()
     order_names: tuple[str, ...] = ()
     rules_not_runnable: tuple[tuple[str, str], ...] = ()
+    #: One entry per name the rules cite, saying how the pinned taxonomy answered it. A name
+    #: the dump carries only as a synonym, or at a rank the rule did not declare, is in here
+    #: and **not** in the sets above. See `build_predicate`.
+    resolution: tuple[tuple[str, str, str], ...] = ()
+    #: Taxa a looser reading of the names would reach and this one does not. Counted against
+    #: the corpus so the artefact can say what the reading is worth, never folded into a cell.
+    loose_only: frozenset[int] = frozenset()
 
     @property
     def removed(self) -> frozenset[int]:
@@ -218,6 +242,9 @@ class AgreementCounts:
     clusters: int = 0
     covering_clusters: int = 0
     members: int = 0
+    #: Records a looser reading of the rules' own names would have removed and this one does
+    #: not. Carried beside the table, never inside it: the table is the rules as written.
+    loose_only_members: int = 0
     cells: dict[str, int] = field(default_factory=lambda: dict.fromkeys(CELLS, 0))
     kind_by_cell: dict[str, dict[str, int]] = field(
         default_factory=lambda: {c: dict.fromkeys(KINDS, 0) for c in CELLS}
@@ -234,6 +261,8 @@ class AgreementCounts:
             self.members += 1
             kind = predicate.kind_of(taxid)
             rank = None if taxid is None else predicate.rank_of(taxid)
+            if taxid is not None and taxid in predicate.loose_only:
+                self.loose_only_members += 1
             if kind in (KIND_CELLULAR, KIND_UNPLACED):
                 # Evo's filter never sees it, so it has no verdict to agree or disagree with.
                 cell = CELL_OUT_OF_SCOPE_REMOVED if reduction.covers_seed else CELL_OUT_OF_SCOPE
@@ -250,6 +279,7 @@ class AgreementCounts:
         self.clusters += other.clusters
         self.covering_clusters += other.covering_clusters
         self.members += other.members
+        self.loose_only_members += other.loose_only_members
         for cell in CELLS:
             self.cells[cell] += other.cells[cell]
             for kind in KINDS:
@@ -265,6 +295,7 @@ class AgreementCounts:
             "clusters": self.clusters,
             "covering_clusters": self.covering_clusters,
             "members": self.members,
+            "loose_only_members": self.loose_only_members,
             "cells": dict(self.cells),
             "out_of_scope_members": out_of_scope,
             "judged_members": judged,
@@ -325,6 +356,8 @@ def build_predicate(
     require_rank: str,
     ranks: Sequence[str],
     rules_not_runnable: Sequence[tuple[str, str]] = (),
+    synonyms: Mapping[str, Sequence[int]] | None = None,
+    realm_names: Sequence[str] = ICTV_REALMS,
 ) -> LabelPredicate:
     """Close the rules' named taxa over the pinned taxonomy.
 
@@ -332,33 +365,55 @@ def build_predicate(
     `exclusivity.FamilyIndex.build` does it: the predicate's logic is testable on synthetic
     taxa and should not drag a taxdump into the test suite.
 
-    A name the taxonomy does not carry is an error, not a zero. The eight stop taxa and the
-    thirty-one families and orders are a static enumeration against a taxonomy that keeps
-    moving — that decay is what A9.1 measures — and a silently-dropped name would show up
-    here as a filter that removes less, which is a finding about the filter rather than about
-    the dump.
+    **A name the taxonomy does not carry at the rank the rule declares is a finding, not a
+    zero and not a crash.** It happens: `Reoviridae`, one of the nineteen families Evo names,
+    is not a scientific name in the pinned 2023-04-01 dump at all. The dump carries it as a
+    synonym of `Reovirales`, which is an *order*. So the family rule, read as written, matches
+    nothing — and read as "whatever the dump can resolve the word to" it removes an entire
+    order instead. The two readings differ by a whole rank, which is not a detail to settle
+    silently.
+
+    What this does: the removal sets are built from scientific names at the declared rank
+    only, which is the rule read as written. Every name is recorded in `resolution` with how
+    the dump answered it, and anything a looser reading would have reached goes in
+    `loose_only`, which the cross-tab counts against the corpus and never folds into a cell.
+    A name the dump does not carry under *any* class is still an error, because that is a
+    dump too old or too new to be the one the rule was written against.
     """
     index: dict[str, list[int]] = {}
     for taxid, name in names.items():
         index.setdefault(name, []).append(taxid)
+    other = {k: list(v) for k, v in (synonyms or {}).items()}
+    rank_of = taxonomy.rank  # type: ignore[attr-defined]
+    resolution: list[tuple[str, str, str]] = []
+    loose: set[int] = set()
 
-    def close(wanted: Sequence[str], what: str) -> frozenset[int]:
+    def close(wanted: Sequence[str], rank: str, what: str) -> frozenset[int]:
         out: set[int] = set()
         for name in wanted:
-            hits = index.get(name)
-            if not hits:
+            exact = [t for t in index.get(name, ()) if rank_of.get(t) == rank]
+            if exact:
+                resolution.append((name, "scientific name", rank))
+                for taxid in exact:
+                    out |= taxonomy.descendants(taxid)  # type: ignore[attr-defined]
+                continue
+            loose_hits = [*index.get(name, ()), *other.get(name, ())]
+            if not loose_hits:
                 raise ValueError(
-                    f"{what} {name!r} is not a scientific name in the pinned taxonomy; a "
-                    "rule whose taxon has been renamed removes nothing and must not be "
-                    "scored as removing nothing by accident"
+                    f"{what} {name!r} is not a name in the pinned taxonomy under any class; "
+                    "a rule whose taxon the dump has never heard of is a dump that is not "
+                    "the one the rule was written against, not a rule that removes nothing"
                 )
-            for taxid in hits:
-                out |= taxonomy.descendants(taxid)  # type: ignore[attr-defined]
+            for taxid in loose_hits:
+                found = rank_of.get(taxid, "no rank")
+                how = "scientific name" if taxid in index.get(name, ()) else "synonym"
+                resolution.append((name, f"{how} of a {found}, not a {rank}", found))
+                loose.update(taxonomy.descendants(taxid))  # type: ignore[attr-defined]
         return frozenset(out)
 
     viral = frozenset(taxonomy.descendants(VIRAL_ROOT))  # type: ignore[attr-defined]
-    by_family = close(family_names, "denylisted family") & viral
-    by_order = close(order_names, "denylisted order") & viral
+    by_family = close(family_names, "family", "denylisted family") & viral
+    by_order = close(order_names, "order", "denylisted order") & viral
 
     # The stop taxa are matched as *assignments*, not as clades. "only assigned up to the
     # level of Riboviria" means the record sits at Riboviria and nowhere finer; closing the
@@ -370,8 +425,33 @@ def build_predicate(
         if name not in index:
             raise ValueError(f"stop taxon {name!r} is not a scientific name in the taxonomy")
     parent = taxonomy.parent  # type: ignore[attr-defined]
-    rank_of = taxonomy.rank  # type: ignore[attr-defined]
     order = {rank: i for i, rank in enumerate(ranks)}
+
+    # **The required rank does not exist in this taxonomy.** Evo's rule says "no assigned
+    # realm at all", which is an ICTV rank; NCBI does not use it — in the pinned dump
+    # Riboviria's rank is `clade`, and no node anywhere carries `realm`. Executed as written
+    # against NCBI the rule removes every viral record, which is not a filter result but a
+    # unit mismatch. So the rank is resolved to the realms by name when the taxonomy has no
+    # such rank, and `resolution` records that it had to be.
+    if any(rank_of.get(t) == require_rank for t in viral):
+        realms: frozenset[int] = frozenset()
+    else:
+        resolution.append(
+            (
+                require_rank,
+                f"not a rank this taxonomy uses, so 'has a {require_rank}' is read as "
+                f"descent from one of the {len(realm_names)} named {require_rank}s",
+                "no rank",
+            )
+        )
+        realms = frozenset(t for name in realm_names for t in index.get(name, ()) if t in viral)
+        if not realms:
+            raise ValueError(
+                f"the taxonomy has no node of rank {require_rank!r} and none of "
+                f"{sorted(realm_names)} by name either; the specificity rule cannot be run "
+                "against it at all, and running it anyway would remove the whole corpus"
+            )
+
     unspecific: set[int] = set()
     for taxid in viral:
         # One climb per taxid, not one per rank: the lineage is the same walk eight times
@@ -380,7 +460,7 @@ def build_predicate(
         while node not in seen:
             seen.add(node)
             rank = rank_of.get(node)
-            if rank == require_rank:
+            if rank == require_rank or node in realms:
                 has_required = True
             place = order.get(rank)
             if place is not None and place > best:
@@ -399,4 +479,6 @@ def build_predicate(
         family_names=tuple(family_names),
         order_names=tuple(order_names),
         rules_not_runnable=tuple(rules_not_runnable),
+        resolution=tuple(resolution),
+        loose_only=frozenset(loose) & viral - by_family - by_order,
     )
