@@ -847,6 +847,14 @@ def main(argv: list[str] | None = None) -> int:
     # release — and two runs sharing one `run.json` would leave the second silently overwriting
     # the first one's provenance, which A1.5 hit with two staging passes at once.
     scope = "-".join(sorted(by_release)) if len(by_release) < 3 else "all"
+    # And the band, when there is one. A2.6 runs eight bands of one release at once on one
+    # machine, and without this every worker names its provenance and its index for the
+    # release alone: eight runs would write one `run-opengenome.json`, losing seven, and
+    # eight different `index-opengenome.json` bodies under one durable key — which
+    # `repro`'s commit-keyed copy refuses outright (D-216), after the work rather than
+    # before it. A2.1 hit the same shape with two staging passes at once (A1.5).
+    if band is not None:
+        scope = f"{scope}-{band[0]:g}-{band[1]:g}"
     with run(
         TASK,
         seed=SEED,

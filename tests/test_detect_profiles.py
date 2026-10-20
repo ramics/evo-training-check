@@ -14,6 +14,7 @@ registry's own behaviour is `test_profiles.py`'s.
 from __future__ import annotations
 
 import importlib.util
+import itertools
 import pathlib
 import sys
 
@@ -461,3 +462,42 @@ class TestTheChunkedCache:
             detect_profiles.cache_stem("stage2", "train_stage2.parquet", 0.014, 0.02)
             == "stage2--train_stage2.parquet--0.014-0.02"
         )
+
+
+class TestWhatParallelBandsMustNotShare:
+    """Eight bands of one release run at once on one machine, and everything they publish
+    goes to one durable prefix. Anything named for the release alone is written eight times.
+
+    This is not hypothetical twice over: A1.5 lost a staging run's provenance to exactly
+    this with two passes, and `repro`'s commit-keyed copy (D-216) refuses a second set of
+    bytes under one key outright — so a collision here fails the worker *after* its six
+    hours rather than before them.
+    """
+
+    @staticmethod
+    def _scope(release: str, band) -> str:
+        scope = release
+        if band is not None:
+            scope = f"{scope}-{band[0]:g}-{band[1]:g}"
+        return scope
+
+    def test_two_bands_of_one_release_do_not_share_a_name(self) -> None:
+        names = {self._scope("opengenome", b) for b in [(1, 126), (126, 251)]}
+        assert len(names) == 2
+
+    def test_every_band_of_a_census_split_is_distinct(self) -> None:
+        edges = [1, 126, 251, 376, 501, 625, 750, 875, 1000]
+        bands = list(itertools.pairwise(edges))
+        assert len({self._scope("opengenome2", b) for b in bands}) == len(bands)
+
+    def test_an_unbanded_run_keeps_the_release_name(self) -> None:
+        """A2.1's own artefacts are `run-opengenome.json` and `index-opengenome.json`, and
+        they are cited."""
+        assert self._scope("opengenome", None) == "opengenome"
+
+    def test_the_tool_builds_the_scope_this_way(self) -> None:
+        """Read from the source rather than restated, so the test moves when it does."""
+        source = _PATH.read_text()
+        assert 'scope = f"{scope}-{band[0]:g}-{band[1]:g}"' in source
+        assert 'manifest_name=f"run-{scope}.json"' in source
+        assert "index-{scope}.json" in source
