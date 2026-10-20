@@ -119,22 +119,27 @@ def render(docs: list[dict[str, Any]]) -> str:
     ]
     for rule, kind in first["rules_not_runnable"]:
         lines.append(f"- `{rule}` (`{kind}`)")
+    unresolved = [(n, how) for n, how, _ in first["name_resolution"] if how != "scientific name"]
     lines += [
         "",
-        "Two of the rules' own names do not resolve against the pinned taxonomy as written:",
+        f"And {len(unresolved)} of the rules' own names do not land on the pinned taxonomy as "
+        f"written:",
         "",
     ]
-    for name, how, _ in first["name_resolution"]:
-        if how != "scientific name":
-            lines.append(f"- **{name}** — {how}.")
+    for name, how in unresolved:
+        lines.append(f"- **{name}** — {how}.")
     loose = " and ".join(
         f"{d['counts']['loose_only_members']:,} at {d['identity']:.0%}" for d in docs
     )
     lines += [
         "",
-        f"Taken as written those rules remove nothing. A reading that resolved the names "
-        f"loosely would reach {loose} further records, which is reported here and is not in "
-        f"the table above.",
+        f"A name the dump carries only as a synonym removes nothing here, because the rule "
+        f"names a rank and the dump has no taxon of that name at that rank. A reading that "
+        f"resolved such a name loosely would reach {loose} further records — reported here, "
+        f"and deliberately not in the table above. Where instead the *rank* is the thing the "
+        f"taxonomy does not carry, the rule is still run, by the substitution named above; "
+        f"run literally it would have removed every viral record in the corpus, which would "
+        f"measure the rank vocabulary rather than the filter.",
         "",
         "## The confound",
         "",
