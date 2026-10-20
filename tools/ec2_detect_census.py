@@ -43,6 +43,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from amazebio import ec2 as ec2lib
+from amazebio import objectstore
 
 TASK = "A2.6"
 REGION = ec2lib.REGION
@@ -346,7 +347,11 @@ def main(argv: list[str] | None = None) -> int:
 
     import boto3
 
-    s3 = boto3.client("s3", region_name=REGION)
+    # The regional endpoint explicitly. The session's AWS credentials are injected by a
+    # proxy that allow-lists `*.us-east-1.amazonaws.com`, and boto3's default global
+    # endpoint is not that: the put comes back a bare `403 Forbidden`, which reads like a
+    # bucket policy rather than a route. `objectstore.client` is the one way to build it.
+    s3 = objectstore.client()
     ec2 = boto3.client("ec2", region_name=REGION)
 
     code_key = f"{prefix}/code/a2-6-{commit}.tar.gz"

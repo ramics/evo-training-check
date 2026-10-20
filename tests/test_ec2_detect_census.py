@@ -362,3 +362,33 @@ class TestDetaching:
     def test_it_still_uploads_the_payload(self, monkeypatch) -> None:
         _, calls, _ = self._run(monkeypatch)
         assert "put_object" in [n for n, _ in calls]
+
+
+def test_the_s3_client_names_the_regional_endpoint(monkeypatch) -> None:
+    """boto3's default global endpoint is not `*.us-east-1.amazonaws.com`, which is what
+    the session's credential proxy allow-lists. The put then fails as a bare `403
+    Forbidden` that reads like a bucket policy, and both launches died on it."""
+    built: list[dict] = []
+
+    class Client:
+        def put_object(self, **kw):
+            pass
+
+        def get_parameter(self, **kw):
+            return {"Parameter": {"Value": "ami-0123456789abcdef0"}}
+
+        def run_instances(self, **kw):
+            return {"Instances": [{"InstanceId": "i-0deadbeef0000001"}]}
+
+    class Boto3:
+        @staticmethod
+        def client(name, **kw):
+            built.append({"service": name, **kw})
+            return Client()
+
+    monkeypatch.setitem(__import__("sys").modules, "boto3", Boto3)
+    monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
+    launcher.main(["--s3-uri", "s3://bucket/corpora", "--allow-dirty", "--detach"])
+
+    s3 = next(c for c in built if c["service"] == "s3")
+    assert s3["endpoint_url"].endswith(".us-east-1.amazonaws.com")
