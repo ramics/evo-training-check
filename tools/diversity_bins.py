@@ -121,7 +121,7 @@ def build(seed: Path, dat: Path, *, workers: int, limit: int | None = None) -> d
     return {
         "task": TASK,
         "design_ref": "§A3",
-        "decisions": ["D-195", "D-205", "D-206"],
+        "decisions": ["D-195", "D-205", "D-206", "D-239"],
         "registry": {"id": "pfam", "version": "38.2", "members_from": "Pfam-A.seed.gz"},
         "seed_md5": SEED_MD5,
         "parameters": {
@@ -228,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("coverage", diversity.COVERAGE)
             manifest.parameter("cov_mode", diversity.COV_MODE)
             manifest.parameter("members_from", "Pfam-A.seed.gz")
-            manifest.parameter("decisions", ["D-195", "D-205", "D-206"])
+            manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239"])
             manifest.parameter("limit", args.limit)
             manifest.input_file(args.seed, role="pfam seed alignment")
             manifest.input_file(args.dat, role="pfam family metadata")
