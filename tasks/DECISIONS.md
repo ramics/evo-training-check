@@ -10531,3 +10531,58 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Assigning each detection to its single best-matching bin. Cheaper, but it answers "where does
   this sequence belong" rather than "which parts of the family's diversity are represented",
   and the second is what M3 asks.
+
+### D-240 — The placement pass keeps the hit protein during the search rather than recovering it afterwards
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Context.** D-239 fixed how a detection is placed in a bin. It left open where the detection's
+  sequence comes from: the A2.1 tables carry a record id, a score and a route and no residues
+  (D-103), the called-protein cache from the deepened pass is ephemeral scratch and is gone, and
+  object storage offers no index into a gzip stream, so there is no way to fetch one record's
+  sequence without reading the object it sits in.
+- **Decision.** The search keeps it. `detect_profiles.py --retain-hit-proteins <dir>` writes the
+  protein behind each accepted hit to ephemeral scratch, one FASTA per family, as the hits are
+  accepted. A2.1's figures are unaffected: retention reads the same proteins the search already
+  holds and changes no threshold, no sampling band and no table.
+- **Cost, measured rather than assumed.** The deepened band over both releases took 65 and 55
+  minutes of local container time on 2026-10-21 (`artifacts/a2-1/run-opengenome-1-10.json`,
+  `run-opengenome2-1-10.json`), and retention adds a bounded write of the hit proteins only. The
+  placement itself is `mmseqs easy-search` per family over at most a few hundred detections
+  against a median of six members. No money, so this needs no spend approval — the owner's
+  condition of 2026-10-21 is on compute that is bought.
+- **Why not re-read the corpus for the hit records.** A second pass costs the same two hours as
+  the first and reproduces exactly what the first pass had in hand.
+- **Why not reuse the parked search.** The hits dump holds scores and accessions and never
+  sequence, so a retaining run that reused it would finish with an empty retention directory and
+  nothing to show anything was missing. A retaining run ignores the dump and searches again.
+- **Containment.** The retention directory is checked, not trusted: a path resolving inside the
+  working tree is refused, because corpus residues may not enter the repository, `artifacts/`,
+  or anything read as a result (D-103), and the durable result bucket has no delete.
+
+### D-243 — Correction: D-240 is withdrawn, and the number is spent
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Context.** Two threads worked A3.4's placement pass at the same time without either noticing
+  the other. This one recorded D-240 and pushed it to `main`; the other recorded its own D-240
+  and two entries after it on `claude/project-thread-rrpy0i`, where they are not yet merged. The
+  two D-240s are different decisions with the same number, which is exactly what an append-only
+  log cannot carry. The numbers that branch holds are not cited here: a citation of an entry that
+  does not exist yet fails the log's own check, which is how this entry first went in.
+- **Decision.** **D-240 as recorded on `main` is withdrawn**, and its number is spent: nothing
+  may cite it, and it is not reused. The entry stays where it is, because this log is append-only
+  and a correction is a new entry rather than an edit. The placement pass is owned by the other
+  branch, whose implementation is better founded — it places a detection by its matched domain
+  region rather than the whole gene, which the withdrawn implementation got wrong.
+- **What this means for the other branch.** Only its D-240 needs a new number; the two it
+  recorded after that one do not collide and are left for it, which is why this correction is
+  243 and not 241. The numbering check will note the two it holds as gaps until that branch
+  merges and fills them, and the first number free after those is 244.
+- **What survives from the withdrawn work.** Two changes in `tools/diversity_bins.py` that the
+  other branch does not touch: the bin assignment is published beside the bin count with a digest
+  of the members it is positional over, and `--limit` now blocks durable publication, which D-232
+  required and this tool did not do. The rest is reverted rather than reconciled.
+- **Why it happened, and the cheap guard.** Neither thread read the other's thread before
+  starting. A task file that names the branch its work is on is the cheap check: A3.4's did, and
+  it named this thread's branch, which is what the other thread then had to correct.
