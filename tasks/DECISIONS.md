@@ -10559,3 +10559,29 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Containment.** The retention directory is checked, not trusted: a path resolving inside the
   working tree is refused, because corpus residues may not enter the repository, `artifacts/`,
   or anything read as a result (D-103), and the durable result bucket has no delete.
+
+### D-243 — Correction: D-240 is withdrawn, and the number is spent
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Context.** Two threads worked A3.4's placement pass at the same time without either noticing
+  the other. This one recorded D-240 and pushed it to `main`; the other recorded its own D-240,
+  D-241 and D-242 on `claude/project-thread-rrpy0i`, where they are not yet merged. The two
+  D-240s are different decisions with the same number, which is exactly what an append-only log
+  cannot carry.
+- **Decision.** **D-240 as recorded on `main` is withdrawn**, and its number is spent: nothing
+  may cite it, and it is not reused. The entry stays where it is, because this log is append-only
+  and a correction is a new entry rather than an edit. The placement pass is owned by the other
+  branch, whose implementation is better founded — it places a detection by its matched domain
+  region rather than the whole gene, which the withdrawn implementation got wrong.
+- **What this means for the other branch.** Only its D-240 needs a new number; D-241 and D-242
+  do not collide and are left for it, which is why this correction is D-243 and not D-241. The
+  numbering check will note 241 and 242 as gaps until that branch merges and fills them. The
+  next free number after that is D-244.
+- **What survives from the withdrawn work.** Two changes in `tools/diversity_bins.py` that the
+  other branch does not touch: the bin assignment is published beside the bin count with a digest
+  of the members it is positional over, and `--limit` now blocks durable publication, which D-232
+  required and this tool did not do. The rest is reverted rather than reconciled.
+- **Why it happened, and the cheap guard.** Neither thread read the other's thread before
+  starting. A task file that names the branch its work is on is the cheap check: A3.4's did, and
+  it named this thread's branch, which is what the other thread then had to correct.
