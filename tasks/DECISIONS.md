@@ -10774,8 +10774,13 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `/mnt/project-files/decisions/rvdb-prot-depth-tradeoffs.md`. Three reasons carried it.
   - A **like-for-like comparison already exists** and costs nothing. Both registries were
     searched at the same pre-registered rates, so Evo 1 reads 470 of 1,719 nucleotide families
-    (27.3%) against 582 of 13,679 protein families (4.25%) at one rate, and Evo 2 reads 492
-    (28.6%) against 1,483 (10.84%) at another. The deepened nucleotide figures answer a
+    (27.34%) against 572 of 13,679 protein families (4.18%) at one rate, and Evo 2 reads 492
+    (28.62%) against 1,456 (10.64%) at another. **Those are the profile search's own counts on
+    both sides, corrected within the hour of writing this entry:** the first version paired them
+    with the merged headline's protein counts of 582 and 1,483, which fold in A2.4's provirus
+    route at a third rate again (0.0025) and so are not an equal-rate pairing. The equal-rate
+    claim holds only one detector at a time, and the same distinction separates 590/811 from
+    597/812 on the nucleotide side. The deepened nucleotide figures answer a
     different question — what a tenfold sample does to one registry's bound — and the two
     questions can both be reported without buying anything.
   - What ten hours buys is **the bound, not the interval**. The intervals are already about half
