@@ -10760,3 +10760,39 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Every durable reader that lists a prefix is now in scope for that question: `recount.py` was
   already right, `apply_policies.py` lists staged corpora rather than results, and A3.2 was the
   one that was wrong.
+
+### D-247 — The protein registry stays at its pre-registered depth, and the census is not bought; Phase A's output is a funder-facing write-up
+
+- **Date:** 2026-10-21
+- **Task:** A2.6 (bearing on A2.1, A3.2, A6.1 and the write-up)
+- **Settled by the owner**, closing D-236 and the depth question beside it. Phase A proceeds
+  **without** the full census, the ten-fold re-run of the protein registry is **declined**, and
+  the phase's output is a write-up aimed at funders: first principles, with the places deeper
+  work would extend the study named and costed rather than quietly absent.
+- **Why the protein registry stays shallow**, laid out in full at
+  `/mnt/project-files/decisions/rvdb-prot-depth-tradeoffs.md`. Three reasons carried it.
+  - A **like-for-like comparison already exists** and costs nothing. Both registries were
+    searched at the same pre-registered rates, so Evo 1 reads 470 of 1,719 nucleotide families
+    (27.3%) against 582 of 13,679 protein families (4.25%) at one rate, and Evo 2 reads 492
+    (28.6%) against 1,483 (10.84%) at another. The deepened nucleotide figures answer a
+    different question — what a tenfold sample does to one registry's bound — and the two
+    questions can both be reported without buying anything.
+  - What ten hours buys is **the bound, not the interval**. The intervals are already about half
+    a percentage point wide, because the denominator is 13,679 families. Depth would raise the
+    count, on the nucleotide registry's evidence by something like a quarter to two thirds, and
+    would still be a lower bound with no ceiling established.
+  - A deeper protein pass would be **banded**, which is the structure D-245's fault lived in. The
+    specific fault is fixed and tested, but the instrument that caught it was re-running the pass
+    from its pins, and that instrument does not scale to a ten-hour pass run twice. Buying a
+    second deep number with the same structural risk and no second check is the trade that was
+    declined.
+- **What this changes on the board.** A2.6 moves to `deferred` rather than being dropped, so the
+  census appears in the write-up as a named commitment deliberately not run, with its costing and
+  the account of its failed first launch intact. Nothing now blocks on it. The census remains a
+  cash decision if it ever returns; this decision is not a judgement that it is worthless, only
+  that it is unbought.
+- **What the write-up must therefore say, in its own voice.** The protein registry is measured ten
+  times less deeply than the nucleotide one; the comparable pair is the equal-rate pair above; and
+  every survival figure in the document is a lower bound whose ceiling was not found. A limitation
+  that is named, measured on a neighbouring registry and costed is evidence of the method working.
+  An unstated one is not.
