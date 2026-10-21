@@ -10389,3 +10389,36 @@ decision has a threshold or parameter in it, the number goes in the entry.
   than as an estimate. Whether to buy more depth is the owner's call, and it is now a question
   with a measured cost behind it: 55 minutes for Evo 2's band sharing the machine and 64 for
   Evo 1's with it to itself, in the session container, at no dollar cost.
+
+### D-236 — The deepening removes most of what blocked A3.4, measured; the census is no longer its prerequisite
+
+- **Date:** 2026-10-21
+- **Task:** A3.4 (bearing on A2.6 and A6.1)
+- **Context.** D-222 blocked A3.4 on A2.6 because its detections came from a 0.2% and 0.1%
+  sample: M3 asks which of a family's diversity bins the surviving sequence covers, and at that
+  depth most families had fewer surviving records than bins, so M3 would have read zero or one
+  bin covered almost everywhere. D-235 re-measured the detections at ten times that rate. The
+  question is whether the blocker survives, and it is answerable by reading two artefacts rather
+  than by running anything.
+- **What was measured.** Against A3.4's own bins (`bins-pfam-38.2.json`, 1,719 families, 17,502
+  bins), restricted to the **371 families whose M3 could be informative at all** — those whose
+  interval at half coverage is no wider than half the range, the criterion
+  `metrics/survival.md` §6 sets. The other 1,348 are uninformative whatever the detections are.
+  | | Evo 1 shallow | Evo 1 deep | Evo 2 shallow | Evo 2 deep |
+  |---|---|---|---|---|
+  | informative families with a detection | 224 | **302** | 232 | **303** |
+  | median surviving records per family | 18 | **123** | 7 | **113** |
+  | median records per bin | 0.56 | **4.14** | 0.26 | **4.04** |
+  | families with at least as many records as bins | 78 | **204** | 41 | **205** |
+- **Decision.** The specific defect D-222 named is gone. The median informative family went from
+  having about half a record per bin to about four, and from 60% to 81% of the informative set
+  being detected at all. A3.4 can be computed from the deepened tables and its M3 would not be
+  the degenerate zero-or-one-bin table that blocking it was meant to avoid. **A2.6 is therefore
+  no longer A3.4's prerequisite**, and the owner's block is put back to the owner with these
+  figures rather than lifted here.
+- **What the census would still add.** The 69 informative families still undetected, and more
+  records per bin for the rest. That is a real improvement and not a necessary one: M3 stays a
+  lower bound at any sampled depth, and the artefact says so in its own field.
+- **What does not change.** The 1,348 uninformative families are uninformative because their
+  seed alignments hold too few members, which no corpus depth touches. D-214's reporting cut for
+  them is unaffected and still the owner's to accept.
