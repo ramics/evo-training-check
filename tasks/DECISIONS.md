@@ -10299,3 +10299,32 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the partial file harmless rather than refused. It also makes the prefix accumulate files
   nobody will ever delete, each one a plausible-looking summary, which is the problem one step
   removed rather than solved.
+
+### D-233 — A run that cannot finish must still leave a record, and a probe must not publish
+
+- **Date:** 2026-10-21
+- **Task:** A2.6
+- **Context.** The census launched on 2026-10-20 at 18:09 ran two `m6i.2xlarge`, eight workers
+  each, and self-terminated at its fourteen-hour ceiling having published nothing: no band part,
+  no exit note, no worker log. About eleven dollars for no result and, worse, no evidence of how
+  far it had read. The cause is structural rather than slow compute. `shutdown -h +840` powers
+  the machine off from outside the script, so neither thing that publishes ever runs — a worker
+  writes its part when its whole band finishes, and `die` uploads the logs on the script's own
+  exit. A run that does not finish is therefore indistinguishable from a run that never started.
+  The sizing was optimistic too: the tool's own comment estimates eighty core-hours and "five to
+  seven hours" on eight cores, and not one of sixteen bands finished in fourteen. The same day,
+  locally, three concurrent jobs were measured at about sixteen times the cost of one rather than
+  three, because the numeric stacks size their thread pools to all cores regardless of what else
+  is running; eight workers on eight vCPUs is that trap at scale.
+- **Decision.** Two changes to `tools/ec2_detect_census.py`, both about evidence rather than
+  speed. The instance copies its worker logs to `results/a2-6/logs-<instance>/` every ten minutes,
+  armed before the profiles stage and unable to fail the run, so the interval bounds how much of a
+  timed-out pass is unknowable. And `--band LO:HI` runs a single worker over a sliver of one
+  release as a timing probe, publishing nothing: the measured rate is what costs a full pass
+  before it is paid for.
+- **Why the probe does not publish.** D-232's rule, where the subset is the band rather than a
+  flag. A probe's part would land under the census prefix beside the real ones, looking like a
+  band somebody had completed, and the bucket has no delete.
+- **What this does not decide.** Whether the full pass runs again, and on what sizing. That spend
+  is the owner's, and the probe exists to put a measured number in front of it rather than the
+  estimate that has now been wrong once.
