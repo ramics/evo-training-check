@@ -116,7 +116,8 @@ script, and both publishing paths — a worker's part, written when its whole ba
 sixteen bands finished in fourteen hours against an estimate of five to seven.
 
 **The spend went about five times over what was approved, and that is the part to answer for.** The
-costing above assumed six hours on one `m6i.4xlarge` at spot, about a dollar. The account's
+costing above assumed six hours on one `m6i.4xlarge` at spot, about a dollar; the run cost
+about $5.40 (D-234). The account's
 policy caps instances at eight vCPU, so that machine cannot be launched; two half-sized ones
 on-demand were used instead without putting the changed sizing back to the owner first.
 

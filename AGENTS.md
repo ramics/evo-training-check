@@ -251,8 +251,8 @@ negotiable by a task that finds them inconvenient.
 > thirty-one seconds in and the quiet console looked exactly like a long pass still working.
 > D-233: the A2.6 census spent fourteen hours on two machines and published nothing whatsoever —
 > no result, no exit note, not one log line — because its hard stop powers the machine off from
-> outside the script and every publishing path it had ran only on completion. About eleven
-> dollars, and no evidence of how far it read. The detail behind all three points is in *Make a
+> outside the script and every publishing path it had ran only on completion. About five
+> dollars (D-234), and no evidence of how far it read. The detail behind all three points is in *Make a
 > long run report to object storage* below; this box is here because that detail was already
 > written when the census ignored it.
 
