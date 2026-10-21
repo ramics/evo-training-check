@@ -10389,3 +10389,110 @@ decision has a threshold or parameter in it, the number goes in the entry.
   than as an estimate. Whether to buy more depth is the owner's call, and it is now a question
   with a measured cost behind it: 55 minutes for Evo 2's band sharing the machine and 64 for
   Evo 1's with it to itself, in the session container, at no dollar cost.
+
+### D-236 — The deepening removes most of what blocked A3.4, measured; the census is no longer its prerequisite
+
+- **Date:** 2026-10-21
+- **Task:** A3.4 (bearing on A2.6 and A6.1)
+- **Context.** D-222 blocked A3.4 on A2.6 because its detections came from a 0.2% and 0.1%
+  sample: M3 asks which of a family's diversity bins the surviving sequence covers, and at that
+  depth most families had fewer surviving records than bins, so M3 would have read zero or one
+  bin covered almost everywhere. D-235 re-measured the detections at ten times that rate. The
+  question is whether the blocker survives, and it is answerable by reading two artefacts rather
+  than by running anything.
+- **What was measured.** Against A3.4's own bins (`bins-pfam-38.2.json`, 1,719 families, 17,502
+  bins), restricted to the **371 families whose M3 could be informative at all** — those whose
+  interval at half coverage is no wider than half the range, the criterion
+  `metrics/survival.md` §6 sets. The other 1,348 are uninformative whatever the detections are.
+  | | Evo 1 shallow | Evo 1 deep | Evo 2 shallow | Evo 2 deep |
+  |---|---|---|---|---|
+  | informative families with a detection | 224 | **302** | 232 | **303** |
+  | median surviving records per family | 18 | **123** | 7 | **113** |
+  | median records per bin | 0.56 | **4.14** | 0.26 | **4.04** |
+  | families with at least as many records as bins | 78 | **204** | 41 | **205** |
+- **Decision.** The specific defect D-222 named is gone. The median informative family went from
+  having about half a record per bin to about four, and from 60% to 81% of the informative set
+  being detected at all. A3.4 can be computed from the deepened tables and its M3 would not be
+  the degenerate zero-or-one-bin table that blocking it was meant to avoid. **A2.6 is therefore
+  no longer A3.4's prerequisite**, and the owner's block is put back to the owner with these
+  figures rather than lifted here.
+- **What the census would still add.** The 69 informative families still undetected, and more
+  records per bin for the rest. That is a real improvement and not a necessary one: M3 stays a
+  lower bound at any sampled depth, and the artefact says so in its own field.
+- **What does not change.** The 1,348 uninformative families are uninformative because their
+  seed alignments hold too few members, which no corpus depth touches. D-214's reporting cut for
+  them is unaffected and still the owner's to accept.
+
+### D-237 — The harness reproduces three of four checkpoints exactly; ESM3's reference does not reproduce and the cause is not established
+
+- **Date:** 2026-10-21
+- **Task:** B1.2
+- **Context.** B1.2 exists to establish that this project's scoring harness produces the numbers
+  the published references produce, before any result rests on it. D-230's truncation fix
+  invalidated four runs, which were re-scored on 2026-10-21 from clean trees at `bcba835` and
+  `ceef6b6`. Twelve runs were checked against ProteinGym v1.3's published columns.
+- **What reproduced.** `esm2_t33_650M_UR50D` and `esm2_t36_3B_UR50D` at Spearman **1.0000**
+  against their published columns, to four places. `ESMC-600M` at **0.9957 to 0.9999** across
+  nine assays. All twelve runs are bitwise deterministic on rescore. On the three reproducing
+  checkpoints the harness is established.
+- **What did not.** `esm3-sm-open-v1` against ProteinGym's `ESM3` column on
+  `A0A2Z5U3Z0_9INFA_Wu_2014`: **0.2043 (0.1627 to 0.2450)**, against the 0.99 floor. Measured
+  against the experimental truth, our ESM3 scores reach 0.089 (0.049 to 0.130) and the published
+  ESM3 column reaches 0.350 (0.313 to 0.384); the intervals do not overlap, so this is not a
+  near miss.
+- **What the evidence does and does not support.** It does **not** support calling our ESM3 run
+  broken. Cross-correlating our four score sets on the shared assay gives a clean family
+  structure: ESM-C to ESM3 **0.845** and ESM-2 650M to 3B **0.781** within families, against
+  0.186 to 0.206 across them. Our ESM3 sits beside our ESM-C exactly as the two ESM-2s sit
+  beside each other. Our ESM-C also reaches only 0.089 against truth on this assay, and its
+  published column reaches 0.086 — so a low truth correlation is what this assay does to an
+  EvolutionaryScale model, and it is ProteinGym's ESM3 column that behaves unlike either of
+  ours, scoring closer to the ESM-2s. Whether that column was produced sequence-only or with
+  a structure track is not documented in what a search turned up, and ESM3 can be scored both
+  ways.
+- **Decision.** The harness is **validated on the three checkpoints whose references reproduce**,
+  and `esm3-sm-open-v1` is **held out of every downstream result** until its reference is
+  explained. A checkpoint that cannot be checked against a published number is not one a
+  published claim may rest on, and the alternative — carrying it with a caveat — puts the
+  caveat somewhere a reader will not be when they read the number.
+- **What would settle it, and what it costs.** Scoring ESM3 over the eight further assays where
+  ESM-C has a reference would say whether the gap is systematic or particular to this assay:
+  about ten hours of container compute and no dollars. Reading ProteinGym's own scoring code
+  for its ESM3 column is cheaper and may settle it outright; it is the first thing to try.
+- **Not decided here.** Whether Phase B's roster keeps ESM3 at all. That is the owner's, and it
+  is put to them with these figures.
+
+### D-238 — Correction to D-237: ProteinGym's ESM3 column is structure-conditioned, so it was never a reference for what this harness computes
+
+- **Date:** 2026-10-21
+- **Task:** B1.2
+- **Context.** D-237 recorded `esm3-sm-open-v1` at 0.2043 against ProteinGym's `ESM3` column,
+  against a 0.99 floor, and said the cause was not established. It is now established, from
+  ProteinGym's own code rather than by inference.
+  `scripts/scoring_DMS_zero_shot/scoring_ESM3_substitutions.sh` calls
+  `proteingym/baselines/evoscale/compute_fitness.py --model_type esm3_open --use_structure`.
+  With that flag the scorer encodes the assay's PDB coordinates onto ESM3's structure track and
+  holds those tokens fixed at the wild type while masking the sequence position
+  (`score_mutations_with_pdb`). This harness reads the sequence track alone. Everything else
+  matches ours exactly — masked marginals one position at a time, `log p(mut) - log p(wt)`,
+  per-position sums for multiple mutants.
+- **Decision.** `esm3-sm-open-v1` has **no published column**, for the same reason `evo2_7b` has
+  none: the benchmark publishes no number for the quantity this harness computes. The field is
+  cleared in `amazebio.backends` with the cause in the comment, and tests pin it so restoring
+  the column re-creates the false divergence rather than passing silently. The 0.2043 was never
+  a disagreement about a number; it was two different numbers compared.
+- **This is not a failing check being dropped.** The three checkpoints whose references are
+  comparable still reproduce — 1.0000, 1.0000 and 0.9957-0.9999 — and the floor still applies
+  to them. What changed is which comparisons are meaningful, decided by reading the reference's
+  provenance, which is what should have happened before the column was pinned in the first
+  place. The corroborating measurement stands and is now explained: our ESM3 tracks our ESM-C
+  at 0.845 because both read the sequence track, while ProteinGym's ESM3 scores closer to the
+  ESM-2s because the structure track is carrying the signal.
+- **The consequence, which must travel with every ESM3 result.** ESM3 is the one checkpoint in
+  Phase B with **no published validation of any kind**. Its scores are determinstic, in scope,
+  and produced by the same code path that reproduces ESM-C exactly, which is evidence but not a
+  reference. Wherever an ESM3 figure is reported, that gap is reported with it.
+- **Rejected.** Scoring ESM3 with the structure track to match the published column. It would
+  make the number comparable and change what Phase B measures: a structure-conditioned score is
+  not the zero-shot sequence scoring `DESIGN.md` §4 fixes, and it would need a pinned structure
+  per assay with its own provenance. If the owner wants that comparison it is its own task.
