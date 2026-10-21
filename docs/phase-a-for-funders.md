@@ -155,12 +155,19 @@ pair reads:
 
 | release (shared sampling rate) | Pfam viral, of 1,719 | RVDB-prot, of 13,679 |
 |---|---|---|
-| Evo 1, rate 0.002 | 470 (27.3%) | 582 (4.25%) |
-| Evo 2, rate 0.001 | 492 (28.6%) | 1,483 (10.84%) |
+| Evo 1, rate 0.002 | 470 (27.34%) | 572 (4.18%) |
+| Evo 2, rate 0.001 | 492 (28.62%) | 1,456 (10.64%) |
+
+Both columns here are the profile search alone, which is the only pairing that is genuinely
+equal-rate: the second detection route sampled at a third rate again, so a merged count on one
+side and a single-detector count on the other is not a comparison (D-247). For the same reason the
+deepened figures must be read as a matched pair — 590 and 811 are the profile search, 597 and 812
+the two routes merged — and neither belongs beside a single-detector count from the other
+registry.
 
 That equal-depth pair is what any comparison between registries should be read from. The deepened
 curated figures answer a different question — what happens to one registry's bound when you
-sample ten times harder — and setting the deepened 34.7% beside the shallow 4.25% would read a
+sample ten times harder — and setting the deepened 34.7% beside the shallow 4.18% would read a
 sampling artefact as a finding. The two registries were in any case never poolable: different
 family definitions, different denominators, one nucleotide-derived and one protein-level. Depth is
 a third reason on a list that already ruled out reading one against the other. Deepening the
