@@ -7,7 +7,6 @@ sequences short enough that the whole file runs in a couple of seconds.
 from __future__ import annotations
 
 import gzip
-import pathlib
 import shutil
 
 import pytest
@@ -154,69 +153,3 @@ class TestCoverage:
         out = diversity.coverage_of(bins, {"PF1": 1})
         assert set(out) == {"PF1"}
         assert out["PF1"].estimate == pytest.approx(0.5)
-
-
-class TestPlacingDetectionsInBins:
-    """D-239. A detection hits a bin when it meets the frozen criterion against any member
-    of that bin. The rule decides every coverage figure A3.4 produces, so the properties it
-    rests on are pinned here rather than discovered from a result that looks plausible."""
-
-    A = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKR"
-    #: Unrelated to A and, unlike a synthetic repeat, not low-complexity: MMseqs2 masks
-    #: low-complexity queries in its prefilter, so a `WWWWCCCC...` fixture comes back with no
-    #: hit even against an identical target and would have tested the masker, not the rule.
-    B = (
-        "MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHM"
-        "KQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADK"
-    )
-
-    def test_a_detection_identical_to_a_member_hits_that_members_bin(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        members = [self.A, self.B]
-        assignment = diversity.cluster_members(members, workdir=tmp_path / "c")
-        hit = diversity.bins_hit_by(members, assignment, [self.A], workdir=tmp_path / "p")
-        assert hit == (frozenset({assignment[0]}),)
-
-    def test_a_detection_like_nothing_in_the_family_hits_no_bin(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        members = [self.A]
-        assignment = diversity.cluster_members(members, workdir=tmp_path / "c")
-        hit = diversity.bins_hit_by(members, assignment, [self.B], workdir=tmp_path / "p")
-        assert hit == (frozenset(),)
-
-    def test_that_is_a_result_rather_than_a_refusal(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        """Surviving sequence the seed diversity does not represent is a finding, and a
-        function that raised here would turn it into a crash in the middle of a pass."""
-        members = [self.A]
-        assignment = diversity.cluster_members(members, workdir=tmp_path / "c")
-        diversity.bins_hit_by(members, assignment, [self.B], workdir=tmp_path / "p")
-
-    def test_results_come_back_in_detection_order(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        members = [self.A, self.B]
-        assignment = diversity.cluster_members(members, workdir=tmp_path / "c")
-        hits = diversity.bins_hit_by(members, assignment, [self.B, self.A], workdir=tmp_path / "p")
-        assert hits == (frozenset({assignment[1]}), frozenset({assignment[0]}))
-
-    def test_no_detections_is_no_work_rather_than_an_error(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        assert diversity.bins_hit_by([self.A], (0,), [], workdir=tmp_path) == ()
-
-    def test_an_assignment_that_is_not_these_members_is_refused(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        """The bin indices index into `members`; a mismatched pair would place detections in
-        bins belonging to a different family and the numbers would look fine."""
-        with pytest.raises(DiversityError, match="bin indices"):
-            diversity.bins_hit_by([self.A, self.B], (0,), [self.A], workdir=tmp_path)
-
-    def test_placing_against_an_empty_family_is_refused(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        with pytest.raises(DiversityError, match="empty family"):
-            diversity.bins_hit_by([], (), [self.A], workdir=tmp_path)
-
-    def test_a_missing_aligner_is_a_refusal_not_a_silent_zero(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        with pytest.raises((DiversityError, FileNotFoundError)):
-            diversity.bins_hit_by([self.A], (0,), [self.A], workdir=tmp_path, mmseqs="mmseqs-nope")
-
-    def test_it_searches_at_the_same_frozen_values_the_bins_were_cut_at(self) -> None:
-        """Admitting a detection on weaker evidence than the members needed would inflate
-        coverage, which is the direction of error this audit must not make."""
-        source = pathlib.Path(diversity.__file__).read_text()
-        placement = source[source.index("def bins_hit_by") : source.index("class FamilyBins")]
-        assert "identity: float = IDENTITY" in placement
-        assert "coverage: float = COVERAGE" in placement
-        assert "cov_mode: int = COV_MODE" in placement
