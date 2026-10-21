@@ -45,6 +45,7 @@ __all__ = [
     "DiversityError",
     "FamilyBins",
     "SeedFamily",
+    "bins_hit_by",
     "cluster_members",
     "coverage_of",
     "iter_seed_families",
@@ -183,6 +184,86 @@ def cluster_members(
             f"(first: m{missing[0]}); a member in no bin would shrink the denominator"
         )
     return tuple(bin_of[f"m{i}"] for i in range(len(members)))
+
+
+def bins_hit_by(
+    members: Sequence[str],
+    assignment: Sequence[int],
+    detections: Sequence[str],
+    *,
+    workdir: Path,
+    mmseqs: str = "mmseqs",
+    identity: float = IDENTITY,
+    coverage: float = COVERAGE,
+    cov_mode: int = COV_MODE,
+) -> tuple[frozenset[int], ...]:
+    """Which of a family's bins each detection hits, in detection order (D-239).
+
+    A detection hits a bin when it meets the frozen criterion — the same identity, coverage
+    and coverage mode the bins themselves were cut at — against **any** member of that bin.
+    One detection may hit several bins and each one counts: M3 asks which parts of a family's
+    diversity are represented in the surviving corpus, not where a sequence belongs best.
+
+    A detection that meets no member returns an empty set rather than raising. That is a
+    result, not a failure: surviving sequence the family's seed diversity does not represent.
+    """
+    if len(members) != len(assignment):
+        raise DiversityError(
+            f"{len(members)} members against {len(assignment)} bin indices; the assignment "
+            "must be the one `cluster_members` returned for these members"
+        )
+    if not members:
+        raise DiversityError("placing detections against an empty family")
+    if not detections:
+        return ()
+
+    workdir.mkdir(parents=True, exist_ok=True)
+    query = workdir / "detections.faa"
+    target = workdir / "members.faa"
+    query.write_text("".join(f">d{i}\n{s}\n" for i, s in enumerate(detections)))
+    target.write_text("".join(f">m{i}\n{s}\n" for i, s in enumerate(members)))
+    hits_table = workdir / "hits.tsv"
+    argv = [
+        mmseqs,
+        "easy-search",
+        str(query),
+        str(target),
+        str(hits_table),
+        str(workdir / "tmp"),
+        "--min-seq-id",
+        f"{identity:g}",
+        "-c",
+        f"{coverage:g}",
+        "--cov-mode",
+        str(cov_mode),
+        "--format-output",
+        "query,target",
+        "--threads",
+        "1",
+        "-v",
+        "1",
+    ]
+    result = subprocess.run(argv, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise DiversityError(
+            f"mmseqs easy-search exited {result.returncode}: "
+            f"{(result.stderr or result.stdout).strip()[:400]}"
+        )
+    if not hits_table.exists():
+        raise DiversityError(f"mmseqs produced no hit table at {hits_table}")
+
+    found: list[set[int]] = [set() for _ in detections]
+    for line in hits_table.read_text().splitlines():
+        if not line.strip():
+            continue
+        q, _, t = line.partition("\t")
+        try:
+            detection = int(q[1:])
+            member = int(t[1:])
+        except ValueError as error:  # pragma: no cover - a format change, not a data case
+            raise DiversityError(f"mmseqs wrote an unreadable hit row {line!r}") from error
+        found[detection].add(assignment[member])
+    return tuple(frozenset(s) for s in found)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
