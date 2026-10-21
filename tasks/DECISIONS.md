@@ -10461,3 +10461,38 @@ decision has a threshold or parameter in it, the number goes in the entry.
   for its ESM3 column is cheaper and may settle it outright; it is the first thing to try.
 - **Not decided here.** Whether Phase B's roster keeps ESM3 at all. That is the owner's, and it
   is put to them with these figures.
+
+### D-238 — Correction to D-237: ProteinGym's ESM3 column is structure-conditioned, so it was never a reference for what this harness computes
+
+- **Date:** 2026-10-21
+- **Task:** B1.2
+- **Context.** D-237 recorded `esm3-sm-open-v1` at 0.2043 against ProteinGym's `ESM3` column,
+  against a 0.99 floor, and said the cause was not established. It is now established, from
+  ProteinGym's own code rather than by inference.
+  `scripts/scoring_DMS_zero_shot/scoring_ESM3_substitutions.sh` calls
+  `proteingym/baselines/evoscale/compute_fitness.py --model_type esm3_open --use_structure`.
+  With that flag the scorer encodes the assay's PDB coordinates onto ESM3's structure track and
+  holds those tokens fixed at the wild type while masking the sequence position
+  (`score_mutations_with_pdb`). This harness reads the sequence track alone. Everything else
+  matches ours exactly — masked marginals one position at a time, `log p(mut) - log p(wt)`,
+  per-position sums for multiple mutants.
+- **Decision.** `esm3-sm-open-v1` has **no published column**, for the same reason `evo2_7b` has
+  none: the benchmark publishes no number for the quantity this harness computes. The field is
+  cleared in `amazebio.backends` with the cause in the comment, and tests pin it so restoring
+  the column re-creates the false divergence rather than passing silently. The 0.2043 was never
+  a disagreement about a number; it was two different numbers compared.
+- **This is not a failing check being dropped.** The three checkpoints whose references are
+  comparable still reproduce — 1.0000, 1.0000 and 0.9957-0.9999 — and the floor still applies
+  to them. What changed is which comparisons are meaningful, decided by reading the reference's
+  provenance, which is what should have happened before the column was pinned in the first
+  place. The corroborating measurement stands and is now explained: our ESM3 tracks our ESM-C
+  at 0.845 because both read the sequence track, while ProteinGym's ESM3 scores closer to the
+  ESM-2s because the structure track is carrying the signal.
+- **The consequence, which must travel with every ESM3 result.** ESM3 is the one checkpoint in
+  Phase B with **no published validation of any kind**. Its scores are determinstic, in scope,
+  and produced by the same code path that reproduces ESM-C exactly, which is evidence but not a
+  reference. Wherever an ESM3 figure is reported, that gap is reported with it.
+- **Rejected.** Scoring ESM3 with the structure track to match the published column. It would
+  make the number comparable and change what Phase B measures: a structure-conditioned score is
+  not the zero-shot sequence scoring `DESIGN.md` §4 fixes, and it would need a pinned structure
+  per assay with its own provenance. If the owner wants that comparison it is its own task.
