@@ -105,6 +105,32 @@ Waiting on the project owner: nothing.
   bound, with the asymmetry named in the table's own `reading_this_table`.
 - The instance terminated, verified, and the cost recorded against the estimate above.
 
+## State — 2026-10-21
+
+**The first launch produced nothing, and it cost about eleven dollars.** Two `m6i.2xlarge`
+started 2026-10-20 18:09 UTC, eight workers each, one release apiece. Both ran their full
+fourteen-hour ceiling and self-terminated having published no band part, no exit note and no
+worker log. D-233 records the cause: the hard stop powers the machine off from outside the
+script, and both publishing paths — a worker's part, written when its whole band finishes, and
+`die`'s log upload, on the script's own exit — run only when the work completes. Not one of
+sixteen bands finished in fourteen hours against an estimate of five to seven.
+
+**The spend went ten times over what was approved, and that is the part to answer for.** The
+costing above assumed six hours on one `m6i.4xlarge` at spot, about a dollar. The account's
+policy caps instances at eight vCPU, so that machine cannot be launched; two half-sized ones
+on-demand were used instead without putting the changed sizing back to the owner first.
+
+**Fixed since, in `tools/ec2_detect_census.py` (D-233).** The instance copies its worker logs
+to `results/a2-6/logs-<instance>/` every ten minutes, armed before the profiles stage, so a run
+killed by its timer still says how far it read. `--band LO:HI` runs a single worker over a
+sliver of one release as a timing probe and publishes nothing.
+
+**Held.** No further compute runs until the owner picks between a timing probe, a nested
+widening of the existing sample, the full census, or stopping at the bound. D-078's sample is
+nested in its rate, so a wider pass extends it rather than replacing it: 0.1% to 1% costs about
+a tenth of a census and tightens the bound rather than removing it, which may be all M3 needs.
+This task's `Done when` is unchanged and unmet.
+
 ## Notes
 
 Read with D-078, which set the original sampling rates and why; D-076 on the threshold
