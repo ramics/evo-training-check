@@ -10422,3 +10422,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **What does not change.** The 1,348 uninformative families are uninformative because their
   seed alignments hold too few members, which no corpus depth touches. D-214's reporting cut for
   them is unaffected and still the owner's to accept.
+
+### D-237 — The harness reproduces three of four checkpoints exactly; ESM3's reference does not reproduce and the cause is not established
+
+- **Date:** 2026-10-21
+- **Task:** B1.2
+- **Context.** B1.2 exists to establish that this project's scoring harness produces the numbers
+  the published references produce, before any result rests on it. D-230's truncation fix
+  invalidated four runs, which were re-scored on 2026-10-21 from clean trees at `bcba835` and
+  `ceef6b6`. Twelve runs were checked against ProteinGym v1.3's published columns.
+- **What reproduced.** `esm2_t33_650M_UR50D` and `esm2_t36_3B_UR50D` at Spearman **1.0000**
+  against their published columns, to four places. `ESMC-600M` at **0.9957 to 0.9999** across
+  nine assays. All twelve runs are bitwise deterministic on rescore. On the three reproducing
+  checkpoints the harness is established.
+- **What did not.** `esm3-sm-open-v1` against ProteinGym's `ESM3` column on
+  `A0A2Z5U3Z0_9INFA_Wu_2014`: **0.2043 (0.1627 to 0.2450)**, against the 0.99 floor. Measured
+  against the experimental truth, our ESM3 scores reach 0.089 (0.049 to 0.130) and the published
+  ESM3 column reaches 0.350 (0.313 to 0.384); the intervals do not overlap, so this is not a
+  near miss.
+- **What the evidence does and does not support.** It does **not** support calling our ESM3 run
+  broken. Cross-correlating our four score sets on the shared assay gives a clean family
+  structure: ESM-C to ESM3 **0.845** and ESM-2 650M to 3B **0.781** within families, against
+  0.186 to 0.206 across them. Our ESM3 sits beside our ESM-C exactly as the two ESM-2s sit
+  beside each other. Our ESM-C also reaches only 0.089 against truth on this assay, and its
+  published column reaches 0.086 — so a low truth correlation is what this assay does to an
+  EvolutionaryScale model, and it is ProteinGym's ESM3 column that behaves unlike either of
+  ours, scoring closer to the ESM-2s. Whether that column was produced sequence-only or with
+  a structure track is not documented in what a search turned up, and ESM3 can be scored both
+  ways.
+- **Decision.** The harness is **validated on the three checkpoints whose references reproduce**,
+  and `esm3-sm-open-v1` is **held out of every downstream result** until its reference is
+  explained. A checkpoint that cannot be checked against a published number is not one a
+  published claim may rest on, and the alternative — carrying it with a caveat — puts the
+  caveat somewhere a reader will not be when they read the number.
+- **What would settle it, and what it costs.** Scoring ESM3 over the eight further assays where
+  ESM-C has a reference would say whether the gap is systematic or particular to this assay:
+  about ten hours of container compute and no dollars. Reading ProteinGym's own scoring code
+  for its ESM3 column is cheaper and may settle it outright; it is the first thing to try.
+- **Not decided here.** Whether Phase B's roster keeps ESM3 at all. That is the owner's, and it
+  is put to them with these figures.
