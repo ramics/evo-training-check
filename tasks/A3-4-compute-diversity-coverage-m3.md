@@ -47,6 +47,28 @@ was never taken, so taking it is a corpus pass with its own cost and its own dec
 - If the owner declines the compute, this task is `deferred` rather than dropped, so M3 appears
   in the write-up as a named commitment deliberately not run.
 
+## State — 2026-10-21
+
+`in-progress` on branch **`claude/project-thread-a3vch4`**. Both halves of the measurement are
+built and tested, and the cost of the remaining pass is measured rather than estimated.
+
+- **The denominator carries its assignment.** The published bins recorded how many bins each
+  family has and dropped which member went where, so there was nothing to place against.
+  `tools/diversity_bins.py` now emits the assignment, positional over the seed members, with a
+  digest of those members so a pass that re-reads the seed can prove it recovered the same list
+  in the same order. It is being rebuilt locally; no money.
+- **The numerator has a route to the sequence (D-240).** The detection tables carry no residues
+  and the called-protein cache from the deepened pass is gone, so `detect_profiles.py
+  --retain-hit-proteins` keeps the protein behind each hit as the search accepts it, in
+  ephemeral scratch, one file per family. The retention directory is refused if it resolves
+  inside the working tree (D-103).
+- **The cost of the remaining pass, measured.** Re-running the sampled band over both releases
+  took 65 and 55 minutes of local container time on 2026-10-21; retention adds a bounded write.
+  Local, so there is nothing to approve.
+- **`tools/diversity_coverage.py`** places the retained detections with D-239's rule and emits
+  per-family `coverage(f)` with its Wilson interval, the distribution across families with a
+  detection, the count of families with none, and the detections that met no bin.
+
 ## State — 2026-10-20
 
 `in-progress` on branch **`claude/project-thread-a3vch4`**. Unblocked 2026-10-21. The bins are built: 1,719 viral
