@@ -225,7 +225,7 @@ def build(
         "task": TASK,
         "design_ref": "§A3",
         "metric": "M3",
-        "decisions": ["D-195", "D-205", "D-206", "D-239", "D-240", "D-241"],
+        "decisions": ["D-195", "D-205", "D-206", "D-239", "D-244", "D-241"],
         "detections_from": detections_path.name,
         "bins_from": {"seed_md5": bins_doc["seed_md5"], "families": bins_doc["families"]},
         "registry": bins_doc["registry"],
@@ -362,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("cov_mode", diversity.COV_MODE)
             manifest.parameter("search_evalue", diversity.SEARCH_EVALUE)
             manifest.parameter("search_sensitivity", diversity.SEARCH_SENSITIVITY)
-            manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239", "D-240", "D-241"])
+            manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239", "D-244", "D-241"])
             manifest.parameter("limit", args.limit)
             manifest.input_file(args.seed, role="pfam seed alignment")
             manifest.input_file(args.dat, role="pfam family metadata")

@@ -47,6 +47,47 @@ was never taken, so taking it is a corpus pass with its own cost and its own dec
 - If the owner declines the compute, this task is `deferred` rather than dropped, so M3 appears
   in the write-up as a named commitment deliberately not run.
 
+## State — 2026-10-21 (evening)
+
+`in-progress` on branch **`claude/project-thread-rrpy0i`**, which is based on pull request #31
+rather than on `main`: the detections this task places were produced by the chunked, task-aware
+search on that branch, and `main`'s copy of the search is 445 lines behind it (D-242).
+
+**The placement pass is written and under test.** `tools/place_detections.py` rebuilds each
+family's bins, checks the rebuilt count against the published artefact rather than trusting it,
+places every detection under D-239's rule, and reports `coverage(f)` as a distribution with the
+unplaced detections counted apart. `detect_profiles.py --emit-hit-proteins` writes the residues
+it reads, from inside the search, to ephemeral scratch (D-103).
+
+**Two readings were forced and both are recorded before any coverage figure is kept.** D-244
+opens the search's own prefilter and E-value gates so the frozen criterion alone decides a
+placement. D-241 is the substantive one: a 400-record probe put 93% of detections in no bin,
+and the cause was that the bins' members are aligned regions while a detection is a whole gene,
+commonly two to three times as long, so the 80%-of-both criterion could not place them whatever
+their identity. The unit placed is now the matched domain region. The probe's figures are
+discarded.
+
+Running now: a local re-read of the deepened sample and a re-search of it, to write out the
+residues. Roughly two hours, no rented hardware and no cost. The pass writes no artefact of
+A2.1's own — the durable upload is suppressed — so it cannot write a band part the published
+tables were never assembled from.
+
+Nothing is waiting on the project owner, except the standing D-236 question of whether Phase A
+proceeds without the census.
+
+## State — 2026-10-21, withdrawn
+
+Another thread built this pass at the same time, not knowing this one was doing the same, and
+stood down once it read this branch: its `--retain-hit-proteins`, `tools/diversity_coverage.py`
+and the decision behind them are reverted, and D-243 withdraws its D-240. What survives from it
+is in `tools/diversity_bins.py`, which now publishes each family's bin assignment with a digest
+of the members it is positional over, and refuses to publish durably under `--limit` as D-232
+requires. The placement pass here re-clusters rather than reading that assignment, so the two
+agree by construction wherever both are run; the assignment makes the agreement checkable.
+
+Its measurement of the remaining pass stands and matches this one: re-running the sampled band
+over both releases took 65 and 55 minutes of local container time, with nothing to approve.
+
 ## State — 2026-10-20
 
 `in-progress` on branch **`claude/project-thread-a3vch4`**. Unblocked 2026-10-21. The bins are built: 1,719 viral
@@ -72,34 +113,6 @@ most families would land at zero or one bin covered. Costed at
 Left once A2.6 lands: place the surviving detections into the bins at census depth, and
 report pooled M3 by homology class alongside the 371 families that can carry a per-family
 figure. Nothing is waiting on the project owner.
-
-## State — 2026-10-21 (evening)
-
-`in-progress` on branch **`claude/project-thread-rrpy0i`**, which is based on pull request #31
-rather than on `main`: the detections this task places were produced by the chunked, task-aware
-search on that branch, and `main`'s copy of the search is 445 lines behind it (D-242).
-
-**The placement pass is written and under test.** `tools/place_detections.py` rebuilds each
-family's bins, checks the rebuilt count against the published artefact rather than trusting it,
-places every detection under D-239's rule, and reports `coverage(f)` as a distribution with the
-unplaced detections counted apart. `detect_profiles.py --emit-hit-proteins` writes the residues
-it reads, from inside the search, to ephemeral scratch (D-103).
-
-**Two readings were forced and both are recorded before any coverage figure is kept.** D-240
-opens the search's own prefilter and E-value gates so the frozen criterion alone decides a
-placement. D-241 is the substantive one: a 400-record probe put 93% of detections in no bin,
-and the cause was that the bins' members are aligned regions while a detection is a whole gene,
-commonly two to three times as long, so the 80%-of-both criterion could not place them whatever
-their identity. The unit placed is now the matched domain region. The probe's figures are
-discarded.
-
-Running now: a local re-read of the deepened sample and a re-search of it, to write out the
-residues. Roughly two hours, no rented hardware and no cost. The pass writes no artefact of
-A2.1's own — the durable upload is suppressed — so it cannot write a band part the published
-tables were never assembled from.
-
-Nothing is waiting on the project owner, except the standing D-236 question of whether Phase A
-proceeds without the census.
 
 ## Notes
 

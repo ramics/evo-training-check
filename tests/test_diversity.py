@@ -233,7 +233,7 @@ class TestPlacement:
             )
 
     def test_the_search_gates_are_open_so_the_frozen_criterion_decides(self) -> None:
-        """D-240: the prefilter and the E-value are not in the metric, so neither may remove a
+        """D-244: the prefilter and the E-value are not in the metric, so neither may remove a
         candidate the frozen 50%/80% criterion would have admitted."""
         assert diversity.SEARCH_SENSITIVITY == 7.5
         assert diversity.SEARCH_EVALUE >= 1000

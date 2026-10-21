@@ -70,7 +70,7 @@ COV_MODE = 0
 
 #: Placement searches at maximum sensitivity and with the E-value gate opened, so that the
 #: frozen 50%/80% criterion is the only thing deciding whether a detection joins a bin. Both are
-#: recorded in D-240. A default E-value would silently drop a short protein that meets the
+#: recorded in D-244. A default E-value would silently drop a short protein that meets the
 #: criterion, and the default prefilter would drop true matches at this identity — each of which
 #: would lower coverage without appearing anywhere in the result.
 SEARCH_EVALUE = 10000.0

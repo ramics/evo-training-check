@@ -10532,38 +10532,38 @@ decision has a threshold or parameter in it, the number goes in the entry.
   this sequence belong" rather than "which parts of the family's diversity are represented",
   and the second is what M3 asks.
 
-### D-240 — The placement search runs at full sensitivity with the E-value gate open, so the frozen criterion is the only gate
+### D-240 — The placement pass keeps the hit protein during the search rather than recovering it afterwards
 
 - **Date:** 2026-10-21
 - **Task:** A3.4
-- **Context.** D-239 fixed *what* admits a detection to a bin — 50% amino-acid identity over
-  80% coverage at `--cov-mode 0`, the same three values the members were grouped by — and said
-  it is evaluated with `mmseqs easy-search`. That tool applies two further gates of its own
-  before the criterion is ever reached: a prefilter at default sensitivity, and an E-value
-  threshold of 1e-3. Neither is in the metric, and both can only remove candidates, so leaving
-  them at their defaults would mean a figure gated by three numbers of which the specification
-  names only one. Fixed here, with the bins built and before any coverage figure exists.
-- **Decision.** `-s 7.5` (maximum sensitivity), `-e 10000` (the E-value gate effectively open),
-  `--alignment-mode 3` so identity and coverage are computed from a real alignment rather than
-  inferred, and `--max-seqs` at no fewer than the family's member count so no member can be
-  dropped for being one candidate too many. The frozen criterion then decides every placement
-  on its own. Single-threaded, as the clustering is, so the result does not move with the
-  machine.
-- **Why this direction.** A missed match costs a bin, and a bin missed for a reason the metric
-  does not name is an understatement nothing in the artefact would reveal. The audit's own
-  finding is that surviving material is *more* widespread than the filters' authors expect, so
-  an unstated gate that quietly lowers coverage flatters the thing under audit. Opening the
-  gates costs search time and nothing else: the families are a few dozen members each.
-- **What it does not change.** The identity, coverage and coverage-mode values, which are
-  frozen by `metrics/survival.md` §4 M3 and D-206 and are not parameters of this pass. A
-  detection still has to meet the members' own criterion, and one that meets no bin is still
-  reported apart rather than absorbed (D-239).
-
+- **Context.** D-239 fixed how a detection is placed in a bin. It left open where the detection's
+  sequence comes from: the A2.1 tables carry a record id, a score and a route and no residues
+  (D-103), the called-protein cache from the deepened pass is ephemeral scratch and is gone, and
+  object storage offers no index into a gzip stream, so there is no way to fetch one record's
+  sequence without reading the object it sits in.
+- **Decision.** The search keeps it. `detect_profiles.py --retain-hit-proteins <dir>` writes the
+  protein behind each accepted hit to ephemeral scratch, one FASTA per family, as the hits are
+  accepted. A2.1's figures are unaffected: retention reads the same proteins the search already
+  holds and changes no threshold, no sampling band and no table.
+- **Cost, measured rather than assumed.** The deepened band over both releases took 65 and 55
+  minutes of local container time on 2026-10-21 (`artifacts/a2-1/run-opengenome-1-10.json`,
+  `run-opengenome2-1-10.json`), and retention adds a bounded write of the hit proteins only. The
+  placement itself is `mmseqs easy-search` per family over at most a few hundred detections
+  against a median of six members. No money, so this needs no spend approval — the owner's
+  condition of 2026-10-21 is on compute that is bought.
+- **Why not re-read the corpus for the hit records.** A second pass costs the same two hours as
+  the first and reproduces exactly what the first pass had in hand.
+- **Why not reuse the parked search.** The hits dump holds scores and accessions and never
+  sequence, so a retaining run that reused it would finish with an empty retention directory and
+  nothing to show anything was missing. A retaining run ignores the dump and searches again.
+- **Containment.** The retention directory is checked, not trusted: a path resolving inside the
+  working tree is refused, because corpus residues may not enter the repository, `artifacts/`,
+  or anything read as a result (D-103), and the durable result bucket has no delete.
 ### D-241 — A detection is placed by its matched domain region, because the bins' members are regions and not whole proteins
 
 - **Date:** 2026-10-21
 - **Task:** A3.4
-- **Context.** D-239 fixed the placement criterion and D-240 opened the search's own gates so
+- **Context.** D-239 fixed the placement criterion and D-244 opened the search's own gates so
   that criterion alone would decide. A 400-record probe run to check the pass end to end then
   showed 93% of detections meeting no bin at all, which is far outside what D-236's record
   counts implied. The cause is not homology. **The two sides are different kinds of object.**
@@ -10589,7 +10589,6 @@ decision has a threshold or parameter in it, the number goes in the entry.
   defect, and nothing downstream carries them. `metrics/survival.md` §4's rule is that
   thresholds are fixed before results are inspected; what was inspected here was a construction
   fault, and the fix is recorded before any coverage figure is kept.
-
 ### D-242 — `main` is two days behind the work its own task files assert; A3.4 is built on the open pull request instead
 
 - **Date:** 2026-10-21
@@ -10622,3 +10621,57 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **The standing lesson.** A branch that holds a finished result is an unpublished result. D-188
   said this about artefacts that never left their container; it is the same failure one level
   up, and the check is the same — look for the thing itself, not for the claim that it exists.
+### D-243 — Correction: D-240 is withdrawn, and the number is spent
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Context.** Two threads worked A3.4's placement pass at the same time without either noticing
+  the other. This one recorded D-240 and pushed it to `main`; the other recorded its own D-240,
+  D-241 and D-242 on `claude/project-thread-rrpy0i`, where they are not yet merged. The two
+  D-240s are different decisions with the same number, which is exactly what an append-only log
+  cannot carry.
+- **Decision.** **D-240 as recorded on `main` is withdrawn**, and its number is spent: nothing
+  may cite it, and it is not reused. The entry stays where it is, because this log is append-only
+  and a correction is a new entry rather than an edit. The placement pass is owned by the other
+  branch, whose implementation is better founded — it places a detection by its matched domain
+  region rather than the whole gene, which the withdrawn implementation got wrong.
+- **What this means for the other branch.** Only its D-240 needs a new number; D-241 and D-242
+  do not collide and are left for it, which is why this correction is D-243 and not D-241. The
+  numbering check will note 241 and 242 as gaps until that branch merges and fills them. The
+  next free number after that is D-244.
+- **What survives from the withdrawn work.** Two changes in `tools/diversity_bins.py` that the
+  other branch does not touch: the bin assignment is published beside the bin count with a digest
+  of the members it is positional over, and `--limit` now blocks durable publication, which D-232
+  required and this tool did not do. The rest is reverted rather than reconciled.
+- **Why it happened, and the cheap guard.** Neither thread read the other's thread before
+  starting. A task file that names the branch its work is on is the cheap check: A3.4's did, and
+  it named this thread's branch, which is what the other thread then had to correct.
+### D-244 — The placement search runs at full sensitivity with the E-value gate open, so the frozen criterion is the only gate
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Note.** Numbered 244, not 240: two threads were building this pass at the same time without
+  knowing it, and the other thread's D-240 reached `main` first and was withdrawn by its D-243.
+  This entry was written as D-240 and renumbered before merging.
+- **Context.** D-239 fixed *what* admits a detection to a bin — 50% amino-acid identity over
+  80% coverage at `--cov-mode 0`, the same three values the members were grouped by — and said
+  it is evaluated with `mmseqs easy-search`. That tool applies two further gates of its own
+  before the criterion is ever reached: a prefilter at default sensitivity, and an E-value
+  threshold of 1e-3. Neither is in the metric, and both can only remove candidates, so leaving
+  them at their defaults would mean a figure gated by three numbers of which the specification
+  names only one. Fixed here, with the bins built and before any coverage figure exists.
+- **Decision.** `-s 7.5` (maximum sensitivity), `-e 10000` (the E-value gate effectively open),
+  `--alignment-mode 3` so identity and coverage are computed from a real alignment rather than
+  inferred, and `--max-seqs` at no fewer than the family's member count so no member can be
+  dropped for being one candidate too many. The frozen criterion then decides every placement
+  on its own. Single-threaded, as the clustering is, so the result does not move with the
+  machine.
+- **Why this direction.** A missed match costs a bin, and a bin missed for a reason the metric
+  does not name is an understatement nothing in the artefact would reveal. The audit's own
+  finding is that surviving material is *more* widespread than the filters' authors expect, so
+  an unstated gate that quietly lowers coverage flatters the thing under audit. Opening the
+  gates costs search time and nothing else: the families are a few dozen members each.
+- **What it does not change.** The identity, coverage and coverage-mode values, which are
+  frozen by `metrics/survival.md` §4 M3 and D-206 and are not parameters of this pass. A
+  detection still has to meet the members' own criterion, and one that meets no bin is still
+  reported apart rather than absorbed (D-239).
