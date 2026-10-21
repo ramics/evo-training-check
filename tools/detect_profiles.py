@@ -742,8 +742,16 @@ def _shelve_parts(
     means peak memory is one part rather than all of them, and the rows are then read back a
     line at a time by a generator that never holds the file.
 
-    Returns the per-part counts in path order, and the shelf: table key to the file holding
-    that key's rows from every part, in part order.
+    Returns the per-part counts in path order, and the shelf: `release|policy|registry` to the
+    file holding that key's rows from every part of that release, in part order.
+
+    **The release is in the key, and it has to be.** A part names its tables by policy and
+    registry alone — `evo1-literal|pfam` — because within one part the release is implied. The
+    two Evo releases are read under the same three policy ids, so a shelf keyed on the part's
+    own key alone put both releases' rows in one file and every release's assembled table then
+    read all of them. That is D-245: it inflated Evo 1's deepened Pfam figure from 590 families
+    to 830 and Evo 2's from 811 to 836, in a table whose per-source counts were right, and it
+    was found by re-running the search and getting the part back exactly.
     """
     shelf_dir = out / ".assemble"
     if shelf_dir.exists():
@@ -762,7 +770,8 @@ def _shelve_parts(
                     "sources": part["sources"],
                 }
             )
-            for key, rows in part.get("tables", {}).items():
+            for part_key, rows in part.get("tables", {}).items():
+                key = f"{part['release']}|{part_key}"
                 if key not in handles:
                     # The key carries a `|`, which is fine in a filename but reads badly; the
                     # shelf is internal and deleted, so the name only has to be unique.
@@ -887,13 +896,16 @@ def assemble(
                     source_rows.append(part["sources"])
 
                 def _rows(
-                    initial_jsonl: Path = initial_jsonl, key: str = f"{policy_id}|{reg.id}"
+                    initial_jsonl: Path = initial_jsonl,
+                    key: str = f"{release}|{policy_id}|{reg.id}",
                 ) -> Iterator[dict[str, Any]]:
                     """The initial pass's rows, then every shelved band row, streamed.
 
                     Bound as defaults rather than closed over, because this is defined inside
                     two loops and a late-binding closure would hand every table the last
                     table's key — the kind of bug that produces a complete-looking artefact.
+                    The release is part of the key for the reason the shelf records: without
+                    it, this table reads the other release's rows as well as its own (D-245).
                     """
                     if initial_jsonl.exists():
                         with initial_jsonl.open() as fh:

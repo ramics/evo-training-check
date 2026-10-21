@@ -608,6 +608,11 @@ class TestShelvingBandPartsForAssembly:
     The risk the shelf introduces is routing: rows from the wrong part, or from the wrong
     table key, would produce a table that looks complete and counts the wrong records. These
     pin the routing, the ordering and the one-part-at-a-time property.
+
+    Every case here used to use one release, and that is how D-245 got through: the key came
+    from the part's own table name, which carries policy and registry and not the release, so
+    both Evo releases' rows landed in one file and each release's table read the other's as
+    well. The release is now in the key and the case below varies it.
     """
 
     def _part(self, tmp_path, name, release, band, tables, sources=None):
@@ -630,7 +635,7 @@ class TestShelvingBandPartsForAssembly:
         b = self._part(tmp_path, "part-b.json", "r1", [1, 2], {"p|pfam": [{"n": 3}]})
         counts, shelf = detect_profiles._shelve_parts([a, b], tmp_path)
         assert [c["band_multiple"] for c in counts] == [[0, 1], [1, 2]]
-        assert list(detect_profiles._shelved_rows(shelf, "p|pfam")) == [
+        assert list(detect_profiles._shelved_rows(shelf, "r1|p|pfam")) == [
             {"n": 1},
             {"n": 2},
             {"n": 3},
@@ -645,12 +650,26 @@ class TestShelvingBandPartsForAssembly:
             {"literal|pfam": [{"n": 1}], "strict|pfam": [{"n": 99}]},
         )
         _, shelf = detect_profiles._shelve_parts([a], tmp_path)
-        assert list(detect_profiles._shelved_rows(shelf, "literal|pfam")) == [{"n": 1}]
-        assert list(detect_profiles._shelved_rows(shelf, "strict|pfam")) == [{"n": 99}]
+        assert list(detect_profiles._shelved_rows(shelf, "r1|literal|pfam")) == [{"n": 1}]
+        assert list(detect_profiles._shelved_rows(shelf, "r1|strict|pfam")) == [{"n": 99}]
+
+    def test_rows_do_not_leak_between_releases(self, tmp_path):
+        """D-245. The two releases are read under the same policy ids, so the part's own table
+        name does not distinguish them: without the release in the key, each release's table
+        counted the other release's detections as its own. That survived every count check the
+        table makes — the per-source records, genes and residues were all right, because they
+        come from the part's `sources` and those *were* filtered by release."""
+        a = self._part(tmp_path, "part-a.json", "opengenome", [1, 10], {"literal|pfam": [{"n": 1}]})
+        b = self._part(
+            tmp_path, "part-b.json", "opengenome2", [1, 10], {"literal|pfam": [{"n": 2}]}
+        )
+        _, shelf = detect_profiles._shelve_parts([a, b], tmp_path)
+        assert list(detect_profiles._shelved_rows(shelf, "opengenome|literal|pfam")) == [{"n": 1}]
+        assert list(detect_profiles._shelved_rows(shelf, "opengenome2|literal|pfam")) == [{"n": 2}]
 
     def test_a_key_nothing_shelved_yields_nothing_rather_than_raising(self, tmp_path):
         _, shelf = detect_profiles._shelve_parts([], tmp_path)
-        assert list(detect_profiles._shelved_rows(shelf, "absent|pfam")) == []
+        assert list(detect_profiles._shelved_rows(shelf, "r1|absent|pfam")) == []
 
     def test_the_counts_are_kept_and_the_rows_are_not(self, tmp_path):
         """The whole point: the small half stays in memory, the large half does not."""
@@ -667,7 +686,7 @@ class TestShelvingBandPartsForAssembly:
         a = self._part(tmp_path, "part-a.json", "r1", [0, 1], {"p|pfam": [{"n": 1}]})
         detect_profiles._shelve_parts([a], tmp_path)
         _, shelf = detect_profiles._shelve_parts([a], tmp_path)
-        assert list(detect_profiles._shelved_rows(shelf, "p|pfam")) == [{"n": 1}]
+        assert list(detect_profiles._shelved_rows(shelf, "r1|p|pfam")) == [{"n": 1}]
 
     def test_a_part_with_no_tables_still_contributes_its_counts(self, tmp_path):
         a = self._part(tmp_path, "part-a.json", "r1", [0, 1], {})

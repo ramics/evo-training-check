@@ -10675,3 +10675,51 @@ decision has a threshold or parameter in it, the number goes in the entry.
   frozen by `metrics/survival.md` §4 M3 and D-206 and are not parameters of this pass. A
   detection still has to meet the members' own criterion, and one that meets no bin is still
   reported apart rather than absorbed (D-239).
+
+### D-245 — Correction to D-235: the deepened Pfam tables counted each release's detections in the other release's table; Evo 1 is 590 families, not 830, and Evo 2 is 811, not 836
+
+- **Date:** 2026-10-21
+- **Task:** A2.1 (bearing on A3.2, A3.4, A6.1 and the Phase A headline)
+- **How it surfaced.** A3.4 needs the residues behind each detection, which no artefact carries,
+  so it re-ran the deepened search over both releases from the same pins. The re-run reproduced
+  the published **band parts** exactly — Evo 1's deep band at 115,349 rows across 580 families,
+  row for row — and reproduced records, genes and residues exactly for every source
+  (53,139 / 1,006,337 / 226,983,924 on Evo 1). What it did not reproduce was the **assembled
+  table**, which holds 188,329 rows across 830 families. The gap is not a sensitivity
+  difference and not depth: 59,849 of those rows carry `IMGVR_*` and `IMGPR_*` accessions, which
+  are OpenGenome2's components. Evo 2's table carries the mirror image — Evo 1's 115,349
+  `stage2:` rows. Each release's table had been counting the other's detections as its own.
+- **The cause, exactly.** A band part names its tables by policy and registry — `evo1-literal|pfam`
+  — because within one part the release is implied. `_shelve_parts` spilled rows to one file per
+  that key, so both releases' parts landed in the same file, and each release's assembled table
+  read all of them. The per-source counts were right throughout, because those come from the
+  part's `sources` and *were* filtered by release — which is why nothing in the table's own
+  consistency checks caught it. `bands_cover_rate` was true. The nesting check passed. The
+  denominator was right. Only the numerator was wrong, and only by rows that belonged to a
+  different corpus.
+- **Corrected figures**, from the same parts, re-assembled with the release in the shelf key:
+  | release | rate | families with a hit | fraction | published in D-235 |
+  |---|---|---|---|---|
+  | `opengenome` | 0.02 | **590** of 1,719 | **34.32%** | 830, 48.28% |
+  | `opengenome2` | 0.01 | **811** of 1,719 | **47.18%** | 836, 48.63% |
+  Identical across the three readings, as before.
+- **D-099's withdrawn prose figures were right.** D-235 recorded that D-099's deepened Pfam
+  figures of 590 and 811 "do not reproduce" and withdrew them on the strength of the assembled
+  table. They reproduce exactly. The withdrawal is itself withdrawn: 590 and 811 are the
+  figures, D-099's run was sound, and what did not reproduce was the assembly that replaced it.
+- **What this changes.** Deepening ten-fold still raises survival sharply — Evo 1 from 470 to 590
+  families and Evo 2 from 492 to 811 — and still shows no saturation, so D-235's reading of
+  *depth* stands and A6.1 must still report a lower bound with no established ceiling. What
+  changes is the headline number and, more sharply, the **asymmetry between the two releases**:
+  at a tenth of Evo 1's sampling rate Evo 2 reaches 811 families against Evo 1's 590. The two
+  are not comparable as rates, and anything that reads them side by side has to say so.
+- **The fix.** The release is now part of the shelf key, with a test that varies it — every
+  existing shelf test used one release, which is how this got through. The tables are
+  re-assembled from the published parts and the re-run shallow bands, so every row in the
+  corrected tables traces to a part that can be regenerated.
+- **The lesson, which is not "add a check".** Four checks passed over a table that was wrong by
+  32%: tiling, nesting, per-source counts and the denominator. Each was a check on the *shape*
+  of the result. None asked whether a row belonged to the corpus the table is about. A2.1's
+  tables now carry rows whose identifiers name their component, so that question is answerable
+  from the artefact — and the recount that answered it was a re-run from pins, which is the
+  instrument this project already has and the only one that caught it.
