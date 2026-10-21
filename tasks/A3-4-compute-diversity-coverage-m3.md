@@ -73,6 +73,34 @@ Left once A2.6 lands: place the surviving detections into the bins at census dep
 report pooled M3 by homology class alongside the 371 families that can carry a per-family
 figure. Nothing is waiting on the project owner.
 
+## State — 2026-10-21 (evening)
+
+`in-progress` on branch **`claude/project-thread-rrpy0i`**, which is based on pull request #31
+rather than on `main`: the detections this task places were produced by the chunked, task-aware
+search on that branch, and `main`'s copy of the search is 445 lines behind it (D-242).
+
+**The placement pass is written and under test.** `tools/place_detections.py` rebuilds each
+family's bins, checks the rebuilt count against the published artefact rather than trusting it,
+places every detection under D-239's rule, and reports `coverage(f)` as a distribution with the
+unplaced detections counted apart. `detect_profiles.py --emit-hit-proteins` writes the residues
+it reads, from inside the search, to ephemeral scratch (D-103).
+
+**Two readings were forced and both are recorded before any coverage figure is kept.** D-240
+opens the search's own prefilter and E-value gates so the frozen criterion alone decides a
+placement. D-241 is the substantive one: a 400-record probe put 93% of detections in no bin,
+and the cause was that the bins' members are aligned regions while a detection is a whole gene,
+commonly two to three times as long, so the 80%-of-both criterion could not place them whatever
+their identity. The unit placed is now the matched domain region. The probe's figures are
+discarded.
+
+Running now: a local re-read of the deepened sample and a re-search of it, to write out the
+residues. Roughly two hours, no rented hardware and no cost. The pass writes no artefact of
+A2.1's own — the durable upload is suppressed — so it cannot write a band part the published
+tables were never assembled from.
+
+Nothing is waiting on the project owner, except the standing D-236 question of whether Phase A
+proceeds without the census.
+
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
