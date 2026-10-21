@@ -10589,3 +10589,36 @@ decision has a threshold or parameter in it, the number goes in the entry.
   defect, and nothing downstream carries them. `metrics/survival.md` §4's rule is that
   thresholds are fixed before results are inspected; what was inspected here was a construction
   fault, and the fix is recorded before any coverage figure is kept.
+
+### D-242 — `main` is two days behind the work its own task files assert; A3.4 is built on the open pull request instead
+
+- **Date:** 2026-10-21
+- **Task:** X1.7 (bearing on A2.1, A3.4, A7.4, B3.4, X5.1 and anything read from `main`)
+- **Context.** A3.4's placement pass was started from a container cloned at `main`. Three tasks
+  the board carries as `review` — X1.7, B3.4, X5.1 — name deliverables that are not in that
+  tree: no commit-keyed durable writes in `amazebio.repro`, no `src/amazebio/neff.py`, no
+  `tools/assay_depth.py`, no `metrics/depth.md`, no `docs/disclosure-standard.md`. Nor is the
+  commit the published Pfam headline was measured at, `bcba835`, reachable from `main`. The
+  first reading of that was that the work had been lost with its container, and it very nearly
+  was recorded as such. It is not lost: **pull request #31 is open**, its head is `29409bc`, and
+  it carries 74 commits that `main` does not have. Since #30 merged on 2026-10-20, `main` has
+  received only task-file and decision-log commits — the narrative of the work, with none of the
+  code under it.
+- **What this costs while it stands.** A task file that asserts a finished result whose code is
+  on an unmerged branch reads, from `main`, exactly like a task file asserting a result that was
+  never produced, and the only way to tell the two apart is to go and look at the pull request.
+  It also splits the search: A3.4 was being built against `main`'s `detect_profiles.py`, which
+  is 445 lines behind the version that produced the detections A3.4 places — the chunked,
+  task-aware one on the branch.
+- **Decision.** A3.4's work is based on the pull request's head rather than on `main`, merged in
+  here, so the placement pass runs against the same search that produced its input. The residue
+  hook therefore sits inside that version's chunked `search_batch` rather than the per-source
+  loop `main` still has. Whether and when #31 merges is the project owner's call, and it is put
+  to him rather than assumed; until it does, work that reads a result from `main` has to read
+  the branch instead.
+- **What was undone.** X1.7's durable keying had been re-implemented from its task file, with
+  tests, before the pull request was found. That re-implementation is dropped rather than kept
+  beside the branch's: two implementations of one decision is worse than either.
+- **The standing lesson.** A branch that holds a finished result is an unpublished result. D-188
+  said this about artefacts that never left their container; it is the same failure one level
+  up, and the check is the same — look for the thing itself, not for the claim that it exists.
