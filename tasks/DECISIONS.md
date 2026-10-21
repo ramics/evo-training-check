@@ -10349,3 +10349,43 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **What does not change.** The run still published nothing, still spent fourteen hours, and is
   still the reason for D-233's heartbeat and for the standing rule now at the top of `AGENTS.md`'s
   EC2 section. Five dollars for no evidence is the same failure as eleven.
+
+### D-235 — The ten-fold deepening is re-run and backed by artefacts; Pfam survival is 48%, and D-099's Evo 1 figure of 590 does not reproduce
+
+- **Date:** 2026-10-21
+- **Task:** A2.1
+- **Context.** D-099's deepening ran in October and its artefacts never left the container that
+  produced them (D-188). X1.6 re-ran only the pre-registered shallow pass, which reproduced
+  exactly (D-192), and left the deepened figures as prose in the task file with a note that they
+  were about eighteen hours of compute from being backed. The owner authorised the re-run on
+  2026-10-21. Pfam only: it is about 7% of the search cost, and the larger registry is a separate
+  spend to put to the owner.
+- **Decision.** These are A2.1's Pfam figures of record, measured at the deepened rates D-099
+  pre-registered, from a clean tree at commit `bcba835` and published under
+  `corpora/results/a2-1/`:
+  | release | rate | families with a hit | fraction | 95% Wilson |
+  |---|---|---|---|---|
+  | `opengenome` | 0.02 | 830 of 1,719 | 48.28% | 45.93-50.65% |
+  | `opengenome2` | 0.01 | 836 of 1,719 | 48.63% | 46.28-51.00% |
+  Identical across all three readings, as at the shallow depth. `estimate_kind` stays
+  `lower_bound` and D-161's denominator restriction is unchanged: this is a fraction of *this
+  project's* derived viral subset of Pfam, never "the fraction of viral families", and it is not
+  comparable with RVDB-prot's.
+- **What was checked before trusting it.** The bands tile their rate exactly
+  (`bands_cover_rate: true`, bands `[0, 0.002]` and `[0.002, 0.02]` on Evo 1, the same at a tenth
+  on Evo 2), so the denominator covers only records something read. And the nesting held
+  perfectly: **every** family the shallow pass found is in the deepened set — zero lost on either
+  release — with 360 and 344 gained on top. That is the property D-078's hash sample was designed
+  to have, now demonstrated on real data rather than in a unit test.
+- **D-099's Evo 1 prose figure does not reproduce, and is withdrawn.** The task file recorded
+  590 and 811 for the deepened Pfam pass. Evo 2's 811 is within 3% of the measured 836; Evo 1's
+  590 is 29% below the measured 830. The run that produced those numbers left no artefact, so the
+  cause cannot be established — most likely a partial assembly, since a band that had not been
+  run would depress exactly this figure and nothing then checked that the bands tiled. The
+  measured figures above supersede both.
+- **What this says about depth.** Deepening ten-fold took survival from roughly a quarter of
+  families to roughly a half, with no sign of saturation. The bound is weak in the direction that
+  matters, and A6.1 must report it as "at least this, and the ceiling is not established" rather
+  than as an estimate. Whether to buy more depth is the owner's call, and it is now a question
+  with a measured cost behind it: 55 minutes for Evo 2's band sharing the machine and 64 for
+  Evo 1's with it to itself, in the session container, at no dollar cost.

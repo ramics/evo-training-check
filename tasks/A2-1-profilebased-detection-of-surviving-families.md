@@ -88,7 +88,15 @@ denominators reproduced from re-staged registries at their pinned digests (Pfam 
 30,134; RVDB-prot 13,679 counted against 13,679 stated). Artefacts are now in object storage under
 `corpora/results/a2-1/` — 32 objects with run manifests.
 
-**The deepened pass has not been re-run.** The figures in the table above are the ten-fold ones
+**Re-run on 2026-10-21 and now backed by artefacts (D-235).** Pfam at the deepened rates is
+**830 of 1,719 families on Evo 1 (48.28%, 45.93-50.65%)** and **836 on Evo 2 (48.63%,
+46.28-51.00%)**, identical across all three readings, published under `corpora/results/a2-1/`
+from commit `bcba835`. The bands tile their rate and every shallow family is in the deepened
+set, with 360 and 344 gained. Evo 2's prose figure of 811 is within 3% of this; **Evo 1's 590
+does not reproduce and is withdrawn** — 830 is the figure. RVDB-prot's deepening has not been
+re-run and remains prose-only.
+
+**The superseded note, kept for the record.** The figures in the table above are the ten-fold ones
 (590/1,091 and 811/4,154) and they remain prose-only, about eighteen hours of compute from being
 backed. The shallow sample is a nested subset of the deepened one, so the agreement above is
 evidence for the method rather than for those numbers. A3.2 and A6.1 should know which of the two
