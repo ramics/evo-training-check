@@ -67,7 +67,7 @@ class _FakeStore:
     def get_paginator(self, _name: str) -> _FakeStore:
         return self
 
-    def paginate(self, *, Bucket: str, Prefix: str) -> list[dict[str, object]]:  # noqa: N803
+    def paginate(self, *, Bucket: str, Prefix: str) -> list[dict[str, object]]:
         del Bucket
         return [{"Contents": [{"Key": k} for k in self.keys if k.startswith(Prefix)]}]
 
@@ -89,7 +89,8 @@ def test_fetch_tables_skips_the_commit_keyed_twins(tmp_path: pathlib.Path) -> No
     )
     fetched = quantify_survival.fetch_tables(tmp_path, client=store)
     assert [key for key, _ in fetched] == [
-        "s3://" + quantify_survival.objectstore.CORPORA_BUCKET
+        "s3://"
+        + quantify_survival.objectstore.CORPORA_BUCKET
         + "/corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json"
     ]
     assert not any("by-commit" in key for key in store.downloaded)
