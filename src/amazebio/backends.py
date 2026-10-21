@@ -93,8 +93,16 @@ RECIPES: tuple[Recipe, ...] = (
         loader="transformers.EsmForMaskedLM",
     ),
     Recipe(
+        # No published column, and the reason is a measurement rather than an absence
+        # (D-238). ProteinGym's `ESM3` column is produced by
+        # `scripts/scoring_DMS_zero_shot/scoring_ESM3_substitutions.sh`, which passes
+        # `--use_structure`: the wild-type structure's tokens are held fixed on the
+        # structure track while the sequence position is masked. This harness scores the
+        # sequence track alone. The two are different quantities, so comparing them
+        # produced a 0.2043 "divergence" that was never a disagreement about the same
+        # number. Pairing our scores with a column computed another way is exactly what
+        # `published_column`'s own docstring warns against.
         checkpoint_id="esm3-sm-open-v1",
-        published_column="ESM3",
         mode=Mode.MASKED_MARGINALS,
         modality="protein",
         access="HuggingFace biohub/esm3-sm-open-v1, loaded via the esm package",

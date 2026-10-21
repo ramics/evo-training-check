@@ -8,6 +8,7 @@ bug produces plausible scores at the wrong residues and never announces itself.
 from __future__ import annotations
 
 import math
+import pathlib
 
 import pytest
 
@@ -250,3 +251,28 @@ class TestTheRowCarriesBothEnds:
     def test_opening_tokens_that_disagree_with_the_index_arithmetic_are_refused(self):
         with pytest.raises(ScoringError, match="would disagree"):
             make(echo_forward, prefix_tokens=1, prefix_token_ids=(0, 0))
+
+
+class TestWhichCheckpointsHaveAPublishedReference:
+    """D-238. A published column is only a reference when it was computed the same way.
+    ProteinGym's ESM3 column is structure-conditioned and this harness scores the sequence
+    track alone, so pairing them manufactures a divergence out of a difference in protocol.
+    Pinned here because restoring the column would re-create exactly that."""
+
+    def test_esm3_has_no_published_column(self) -> None:
+        assert backends.recipe("esm3-sm-open-v1").published_column is None
+
+    def test_the_reason_is_recorded_where_the_column_would_be(self) -> None:
+        source = pathlib.Path(backends.__file__).read_text()
+        assert "use_structure" in source and "D-238" in source
+
+    def test_the_checkpoints_that_do_have_one_still_do(self) -> None:
+        for checkpoint, column in [
+            ("esm2_t33_650M_UR50D", "ESM2_650M"),
+            ("esm2_t36_3B_UR50D", "ESM2_3B"),
+            ("ESMC-600M", "ESMC-600M"),
+        ]:
+            assert backends.recipe(checkpoint).published_column == column
+
+    def test_the_nucleotide_arm_still_has_none(self) -> None:
+        assert backends.recipe("evo2_7b").published_column is None
