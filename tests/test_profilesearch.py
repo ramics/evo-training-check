@@ -10,7 +10,9 @@ bacterium, and no downstream artefact would show it.
 
 from __future__ import annotations
 
-from amazebio.profilesearch import proteins_from_fasta, text_of
+import pathlib
+
+from amazebio.profilesearch import proteins_from_fasta, retain_hit_proteins, text_of
 
 
 def host_of(name: str) -> str:
@@ -81,3 +83,65 @@ def test_no_entries_is_an_empty_search_rather_than_an_error():
     proteins, stats = proteins_from_fasta([], record_of=host_of)
     assert proteins == []
     assert stats["records"] == 0
+
+
+class TestRetainingTheProteinBehindAHit:
+    """M3 places the protein that hit, and only the search ever holds it (D-195, D-239)."""
+
+    @staticmethod
+    def _proteins(pairs: list[tuple[str, str]]) -> list[object]:
+        from pyhmmer.easel import Alphabet, TextSequence
+
+        amino = Alphabet.amino()
+        return [TextSequence(name=n.encode(), sequence=s).digitize(amino) for n, s in pairs]
+
+    @staticmethod
+    def _hit(record: str, gene: str, profile: str) -> dict[str, object]:
+        return {"record_id": record, "gene": gene, "profile": profile}
+
+    def test_a_hit_protein_is_written_under_its_family(self, tmp_path: pathlib.Path) -> None:
+        proteins = self._proteins([("rec1|1", "MKTAYIAKQR"), ("rec1|2", "GGSGGSGGSG")])
+        kept = retain_hit_proteins(tmp_path, [self._hit("rec1", "1", "PF00001")], proteins)
+        assert kept == 1
+        assert (tmp_path / "PF00001.faa").read_text() == ">rec1|1\nMKTAYIAKQR\n"
+
+    def test_a_protein_that_did_not_hit_is_not_written(self, tmp_path: pathlib.Path) -> None:
+        proteins = self._proteins([("rec1|1", "MKTAYIAKQR"), ("rec1|2", "GGSGGSGGSG")])
+        retain_hit_proteins(tmp_path, [self._hit("rec1", "1", "PF00001")], proteins)
+        assert "rec1|2" not in (tmp_path / "PF00001.faa").read_text()
+
+    def test_a_protein_that_hit_two_families_is_placed_against_both(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        proteins = self._proteins([("rec1|1", "MKTAYIAKQR")])
+        retain_hit_proteins(
+            tmp_path,
+            [self._hit("rec1", "1", "PF00001"), self._hit("rec1", "1", "PF00002")],
+            proteins,
+        )
+        assert (tmp_path / "PF00001.faa").exists()
+        assert (tmp_path / "PF00002.faa").exists()
+
+    def test_a_second_chunk_appends_rather_than_replacing(self, tmp_path: pathlib.Path) -> None:
+        """A band arrives in chunks and a family is hit in several; the last write must not win."""
+        retain_hit_proteins(
+            tmp_path, [self._hit("rec1", "1", "PF00001")], self._proteins([("rec1|1", "MKTAYIA")])
+        )
+        retain_hit_proteins(
+            tmp_path, [self._hit("rec2", "1", "PF00001")], self._proteins([("rec2|1", "QRSTVWY")])
+        )
+        assert (tmp_path / "PF00001.faa").read_text().count(">") == 2
+
+    def test_nothing_found_writes_nothing(self, tmp_path: pathlib.Path) -> None:
+        target = tmp_path / "unused"
+        assert retain_hit_proteins(target, [], self._proteins([("rec1|1", "MKTAYIA")])) == 0
+        assert not target.exists()
+
+    def test_a_hit_naming_a_protein_the_batch_does_not_hold_is_not_invented(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        kept = retain_hit_proteins(
+            tmp_path, [self._hit("rec9", "4", "PF00001")], self._proteins([("rec1|1", "MKTAYIA")])
+        )
+        assert kept == 0
+        assert not (tmp_path / "PF00001.faa").exists()

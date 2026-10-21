@@ -290,6 +290,26 @@ def call_genes(records: list[Any]) -> tuple[list[Any], dict[str, int]]:
     return profilesearch.call_genes(records)
 
 
+def ephemeral_or_refuse(directory: Path) -> Path:
+    """Refuse a retention directory that is not ephemeral scratch (D-103).
+
+    Called proteins are corpus residues. They may live in memory and in scratch and may not
+    enter the repository, `artifacts/`, the audit store, or anything a reviewer reads as a
+    result. A path check here is what keeps a convenient `--retain-hit-proteins artifacts/...`
+    from putting sequence into a published directory, which the result bucket could not then
+    un-publish.
+    """
+    resolved = directory.resolve()
+    repo = Path(__file__).resolve().parent.parent
+    if resolved == repo or repo in resolved.parents:
+        raise SystemExit(
+            f"--retain-hit-proteins {directory}: resolves inside the repository at {repo}. "
+            "Called proteins are corpus residues and stay in ephemeral scratch (D-103); give "
+            "a path outside the working tree."
+        )
+    return resolved
+
+
 def search_batch(
     regs: list[Registry],
     views: dict[str, Any],
@@ -298,6 +318,7 @@ def search_batch(
     source: Any,
     hits: dict[str, list[dict[str, Any]]],
     search_seconds: dict[str, float],
+    retain: Path | None = None,
 ) -> set[str]:
     """Search one batch of called proteins against every registry, in place.
 
@@ -316,6 +337,8 @@ def search_batch(
             row_hit["component"] = source.component
             row_hit["corpus_component"] = source.corpus_component
             touched.add(row_hit["record_id"])
+        if retain is not None:
+            profilesearch.retain_hit_proteins(retain / reg.id, found, proteins)
         hits[reg.id].extend(found)
     return touched
 
@@ -992,6 +1015,16 @@ def main(argv: list[str] | None = None) -> int:
             "for the audit's own artefacts."
         ),
     )
+    parser.add_argument(
+        "--retain-hit-proteins",
+        type=Path,
+        default=None,
+        help=(
+            "park the protein behind every hit, one FASTA per family, for A3.4 to place "
+            "against the family's diversity bins. Ephemeral scratch only: these are corpus "
+            "residues and a path inside the working tree is refused (D-103)."
+        ),
+    )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     parser.add_argument(
         "--deliverable",
@@ -1004,6 +1037,11 @@ def main(argv: list[str] | None = None) -> int:
     global TASK
     TASK = args.task
 
+    retain = (
+        ephemeral_or_refuse(args.retain_hit_proteins)
+        if args.retain_hit_proteins is not None
+        else None
+    )
     regs = [registry(i) for i in (args.registry or sorted(REGISTRIES))]
     band: tuple[float, float] | None = None
     if args.band:
@@ -1086,6 +1124,7 @@ def main(argv: list[str] | None = None) -> int:
         m.parameter("pinned_z", PINNED_Z)
         m.parameter("pinned_e_value", PINNED_E_VALUE)
         m.parameter("min_model_coverage", MIN_MODEL_COVERAGE)
+        m.parameter("retained_hit_proteins", retain is not None)
         m.parameter("gene_caller", "prodigal-meta")
         m.parameter("limit_records", args.limit_records)
         for reg in regs:
@@ -1121,10 +1160,13 @@ def main(argv: list[str] | None = None) -> int:
             manifest0 = entries[0]["manifest"]
             dump = hits_dump_path(release, band, root=args.cache_dir)
 
-            if dump.exists() and not args.collect:
+            if dump.exists() and not args.collect and retain is None:
                 # A previous run searched this band and something downstream failed. Reuse the
                 # search rather than repeat it; the registries and thresholds are pins, so the
                 # hits cannot have changed, and the dump records which bands they came from.
+                # Not when proteins are being retained: the dump holds scores and accessions
+                # and never sequence (D-103), so reusing it would finish with an empty
+                # retention directory and no sign that anything was missing.
                 hits, per_source, sampled_records = read_hits_dump(dump)
                 print(
                     f"\n{release}: reusing the finished search in {dump} "
@@ -1196,6 +1238,7 @@ def main(argv: list[str] | None = None) -> int:
                             source=source,
                             hits=hits,
                             search_seconds=search_seconds,
+                            retain=retain,
                         )
                     del proteins
                 else:
@@ -1261,6 +1304,7 @@ def main(argv: list[str] | None = None) -> int:
                                 source=source,
                                 hits=hits,
                                 search_seconds=search_seconds,
+                                retain=retain,
                             )
                             # Only the records a hit points at are kept. Downstream reads
                             # `sampled_records` to resolve a hit's route, and nothing else;

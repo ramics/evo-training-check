@@ -23,6 +23,7 @@ what lets A3.2 join the two tables instead of reconciling them.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +46,7 @@ __all__ = [
     "family_universe",
     "hmm_path",
     "proteins_from_fasta",
+    "retain_hit_proteins",
     "search",
     "text_of",
 ]
@@ -213,6 +215,46 @@ def proteins_from_fasta(entries: Any, *, record_of: Any) -> tuple[list[Any], dic
         tagged = f"{record_id}|gene{i}".encode()
         proteins.append(TextSequence(name=tagged, sequence=protein).digitize(amino))
     return proteins, dict(stats)
+
+
+def retain_hit_proteins(
+    directory: Path, found: Sequence[Mapping[str, Any]], proteins: Sequence[Any]
+) -> int:
+    """Park the sequence of every protein that hit, one FASTA per family. Returns proteins kept.
+
+    M3 asks which of a family's diversity bins the surviving sequence covers, which cannot be
+    answered from a detection table: the table names the record, and placing a detection needs
+    the protein that hit (D-195, D-239). The search already holds it, so it is kept here rather
+    than recovered by a second pass over the corpus.
+
+    `directory` must be ephemeral scratch. Corpus residues may live in memory and in scratch and
+    may not enter the repository, `artifacts/`, or anything read as a result (D-103), and the
+    caller is where that is enforced — this function writes where it is told.
+
+    Files are appended to, because a band arrives in chunks and a family is hit in several of
+    them. A protein that hit two families is written under both: the placement is per family.
+    """
+    wanted: dict[str, set[str]] = {}
+    for row in found:
+        wanted.setdefault(f"{row['record_id']}|{row['gene']}", set()).add(str(row["profile"]))
+    if not wanted:
+        return 0
+    directory.mkdir(parents=True, exist_ok=True)
+    per_family: dict[str, list[str]] = {}
+    kept = 0
+    for protein in proteins:
+        name = text_of(protein.name)
+        families = wanted.get(name)
+        if not families:
+            continue
+        kept += 1
+        sequence = protein.textize().sequence
+        for family in families:
+            per_family.setdefault(family, []).append(f">{name}\n{sequence}\n")
+    for family, entries in per_family.items():
+        with (directory / f"{family}.faa").open("a", encoding="ascii") as handle:
+            handle.write("".join(entries))
+    return kept
 
 
 def search(

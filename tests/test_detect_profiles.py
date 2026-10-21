@@ -806,3 +806,34 @@ class TestAssemblingACensusWithNoInitialPass:
         self._part(tmp_path, 0.0, 1.0, universe)
         assert self._assemble(tmp_path) == 0
         assert not (tmp_path / "initial").exists()
+
+
+class TestWhereRetainedProteinsMayGo:
+    """D-103: corpus residues live in memory and ephemeral scratch and nowhere a reviewer reads.
+
+    The retention directory is the one place in this tool where a sequence is written to disk
+    under a path the caller chooses, so the path is checked rather than trusted.
+    """
+
+    def test_scratch_is_allowed(self, tmp_path: pathlib.Path) -> None:
+        assert detect_profiles.ephemeral_or_refuse(tmp_path) == tmp_path.resolve()
+
+    def test_a_relative_path_inside_the_working_tree_is_refused(self) -> None:
+        with pytest.raises(SystemExit, match="inside the repository"):
+            detect_profiles.ephemeral_or_refuse(pathlib.Path("artifacts/a3-4/proteins"))
+
+    def test_the_repository_itself_is_refused(self) -> None:
+        repo = pathlib.Path(detect_profiles.__file__).resolve().parent.parent
+        with pytest.raises(SystemExit, match="inside the repository"):
+            detect_profiles.ephemeral_or_refuse(repo)
+
+    def test_a_path_that_climbs_back_into_the_tree_is_refused(self) -> None:
+        """`resolve()` before the check, so `repo/../repo/artifacts` cannot walk around it."""
+        repo = pathlib.Path(detect_profiles.__file__).resolve().parent.parent
+        with pytest.raises(SystemExit, match="inside the repository"):
+            detect_profiles.ephemeral_or_refuse(repo / ".." / repo.name / "artifacts" / "a3-4")
+
+    def test_the_directory_is_not_created_by_the_check(self, tmp_path: pathlib.Path) -> None:
+        target = tmp_path / "not-yet"
+        detect_profiles.ephemeral_or_refuse(target)
+        assert not target.exists()
