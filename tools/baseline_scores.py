@@ -41,7 +41,7 @@ from typing import Any
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
-from amazebio import objectstore, proteingym, reference  # noqa: E402
+from amazebio import objectstore, proteingym, reference, repro  # noqa: E402
 from amazebio.repro import run  # noqa: E402
 
 TASK = "B4.1"
@@ -279,11 +279,47 @@ def durable_for(out: Path) -> str | None:
     return None
 
 
+def provenance(repo: Path = REPO) -> dict[str, Any]:
+    """What a per-assay file must agree with before a later run may reuse it."""
+    state = repro.git_state(repo)
+    return {
+        "parameters": dict(PARAMETERS),
+        "commit": state.get("commit") if state.get("available") else None,
+        "dirty": state.get("dirty") if state.get("available") else None,
+    }
+
+
+def reusable(path: Path, now: dict[str, Any]) -> dict[str, Any] | None:
+    """An already-scored assay this run may carry over, or None to score it again.
+
+    A pass over all 31 assays is hours, and a container that restarts halfway through
+    threw all of it away — twice would be careless. But a half-finished directory is also
+    how a result from the wrong code ends up in a deliverable looking like the rest, so
+    the bar is exact agreement: same parameters, same commit, and neither run from a dirty
+    tree. Anything else is rescored, which is the cheap mistake to make.
+    """
+    if not path.exists():
+        return None
+    try:
+        earlier = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    had = earlier.get("provenance")
+    if not isinstance(had, dict) or had != now or now.get("commit") is None or now.get("dirty"):
+        return None
+    return earlier
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default=CANONICAL_OUT, type=Path)
     parser.add_argument("--assay", action="append", help="limit to these assays, for a rehearsal")
     parser.add_argument("--threads", type=int, default=2)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="carry over an assay already scored by this commit with these parameters",
+    )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     args = parser.parse_args(argv)
 
@@ -313,7 +349,18 @@ def main(argv: list[str] | None = None) -> int:
             m.parameter(name, value)
 
         results = []
+        carried: list[str] = []
+        now = provenance()
+        m.parameter("resume", bool(args.resume))
         for dms_id in sorted(wanted):
+            path = out / f"baseline-{dms_id}.json"
+            earlier = reusable(path, now) if args.resume else None
+            if earlier is not None:
+                print(f"carrying over {dms_id}", flush=True)
+                m.output_file(path, role="baseline-scores")
+                results.append(earlier)
+                carried.append(dms_id)
+                continue
             print(f"scoring {dms_id}", flush=True)
             assay = assays[dms_id]
             truth = proteingym.load_assay(ASSAY_ARCHIVE, assay)
@@ -327,12 +374,13 @@ def main(argv: list[str] | None = None) -> int:
                 truth,
                 seed=SEED,
             ).to_dict()
-            path = out / f"baseline-{dms_id}.json"
+            result["provenance"] = now
             path.write_text(json.dumps(result, indent=1, sort_keys=True) + "\n")
             m.output_file(path, role="baseline-scores")
             results.append(result)
 
         report = summarise(results)
+        report["carried_over"] = carried
         path = out / "baseline.json"
         path.write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")
         m.output_file(path, role="baseline-summary")

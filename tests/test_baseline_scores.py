@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import gzip
 import importlib.util
+import json
 import pathlib
 
 import pytest
@@ -140,3 +141,62 @@ def test_the_package_is_reported_missing_rather_than_crashing():
         bs.load_rsalor()
     except bs.Unavailable as exc:
         assert "pixi run -e baseline" in str(exc)
+
+
+class TestCarryingOverAnAlreadyScoredAssay:
+    """A restart mid-pass cost two hours of scoring once. Resuming is worth having and is
+    also how a result from the wrong code slips into a deliverable looking like the rest, so
+    every one of these is a case where the carry-over must be refused."""
+
+    @staticmethod
+    def _now(**over):
+        base = {"parameters": dict(bs.PARAMETERS), "commit": "a" * 40, "dirty": False}
+        base.update(over)
+        return base
+
+    def _write(self, tmp_path, body):
+        path = tmp_path / "baseline-X.json"
+        path.write_text(json.dumps(body))
+        return path
+
+    def test_an_identical_run_is_carried_over(self, tmp_path):
+        now = self._now()
+        path = self._write(tmp_path, {"assay": "X", "provenance": now})
+        assert bs.reusable(path, now)["assay"] == "X"
+
+    def test_a_missing_file_is_scored(self, tmp_path):
+        assert bs.reusable(tmp_path / "absent.json", self._now()) is None
+
+    def test_a_different_commit_is_scored_again(self, tmp_path):
+        path = self._write(tmp_path, {"provenance": self._now(commit="b" * 40)})
+        assert bs.reusable(path, self._now()) is None
+
+    def test_a_changed_parameter_is_scored_again(self, tmp_path):
+        stale = dict(bs.PARAMETERS)
+        stale["min_seqid"] = 0.5
+        path = self._write(tmp_path, {"provenance": self._now(parameters=stale)})
+        assert bs.reusable(path, self._now()) is None
+
+    def test_a_file_from_before_provenance_was_recorded_is_scored_again(self, tmp_path):
+        path = self._write(tmp_path, {"assay": "X", "scores": {}})
+        assert bs.reusable(path, self._now()) is None
+
+    def test_nothing_is_carried_over_when_either_tree_was_dirty(self, tmp_path):
+        dirty = self._now(dirty=True)
+        path = self._write(tmp_path, {"provenance": dirty})
+        assert bs.reusable(path, dirty) is None
+
+    def test_nothing_is_carried_over_when_the_commit_is_unknown(self, tmp_path):
+        unknown = self._now(commit=None)
+        path = self._write(tmp_path, {"provenance": unknown})
+        assert bs.reusable(path, unknown) is None
+
+    def test_an_unreadable_file_is_scored_again_rather_than_raising(self, tmp_path):
+        path = tmp_path / "baseline-X.json"
+        path.write_text("{not json")
+        assert bs.reusable(path, self._now()) is None
+
+    def test_the_provenance_block_carries_the_parameters_and_the_commit(self):
+        got = bs.provenance()
+        assert got["parameters"] == dict(bs.PARAMETERS)
+        assert set(got) == {"parameters", "commit", "dirty"}
