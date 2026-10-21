@@ -107,7 +107,7 @@ Waiting on the project owner: nothing.
 
 ## State — 2026-10-21
 
-**The first launch produced nothing, and it cost about eleven dollars.** Two `m6i.2xlarge`
+**The first launch produced nothing, and it cost about five dollars** (D-234; D-233 said eleven, which was the on-demand price of instances that ran on spot). Two `m6i.2xlarge`
 started 2026-10-20 18:09 UTC, eight workers each, one release apiece. Both ran their full
 fourteen-hour ceiling and self-terminated having published no band part, no exit note and no
 worker log. D-233 records the cause: the hard stop powers the machine off from outside the
@@ -115,7 +115,7 @@ script, and both publishing paths — a worker's part, written when its whole ba
 `die`'s log upload, on the script's own exit — run only when the work completes. Not one of
 sixteen bands finished in fourteen hours against an estimate of five to seven.
 
-**The spend went ten times over what was approved, and that is the part to answer for.** The
+**The spend went about five times over what was approved, and that is the part to answer for.** The
 costing above assumed six hours on one `m6i.4xlarge` at spot, about a dollar. The account's
 policy caps instances at eight vCPU, so that machine cannot be launched; two half-sized ones
 on-demand were used instead without putting the changed sizing back to the owner first.

@@ -10328,3 +10328,24 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **What this does not decide.** Whether the full pass runs again, and on what sizing. That spend
   is the owner's, and the probe exists to put a measured number in front of it rather than the
   estimate that has now been wrong once.
+
+### D-234 — Correction to D-233: the failed census cost about five dollars, not eleven, and it ran on spot
+
+- **Date:** 2026-10-21
+- **Task:** A2.6
+- **Context.** D-233 put the cost of the failed census at "about eleven dollars", which is the
+  on-demand price of two `m6i.2xlarge` for fourteen hours. The instances were not on-demand.
+  `DescribeInstances` reports `InstanceLifecycle: spot` for both, in `us-east-1d`, and the spot
+  price history for that type and zone across the run is $0.1892 falling to $0.1847, about
+  $0.1864 on average.
+- **Decision.** The cost of record is **about $5.40**: 28 instance-hours at roughly $0.1864, plus
+  two 60 GB gp3 volumes for fourteen hours at a few cents each. Every statement of "eleven
+  dollars" is withdrawn — in D-233, in A2.6's task file and in `AGENTS.md` — and the two editable
+  ones are corrected in place.
+- **Why it matters beyond the arithmetic.** The error was in the direction that makes this
+  project's own frugality argument look worse than it is, and it reached the owner twice before
+  it was checked. The lifecycle of an instance is a single API field; a cost quoted without
+  reading it is a guess. Quote the measured price or say the price is unknown.
+- **What does not change.** The run still published nothing, still spent fourteen hours, and is
+  still the reason for D-233's heartbeat and for the standing rule now at the top of `AGENTS.md`'s
+  EC2 section. Five dollars for no evidence is the same failure as eleven.
