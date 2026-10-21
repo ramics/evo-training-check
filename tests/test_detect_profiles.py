@@ -289,12 +289,27 @@ class TestEmitHitProteins:
         "PF00002": "PF00002",
     }
 
-    def hit(self, record_id: str, gene: str, profile: str) -> dict[str, object]:
-        return {"record_id": record_id, "gene": gene, "profile": profile}
+    def hit(
+        self,
+        record_id: str,
+        gene: str,
+        profile: str,
+        region: tuple[int, int] | None = None,
+    ) -> dict[str, object]:
+        return {
+            "record_id": record_id,
+            "gene": gene,
+            "profile": profile,
+            "target_from": None if region is None else region[0],
+            "target_to": None if region is None else region[1],
+        }
 
     def test_each_hit_lands_in_its_familys_file(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
         proteins = [protein("r1|gene0", "MKVLATGG"), protein("r2|gene3", "MKWWYYAA")]
-        found = [self.hit("r1", "gene0", "PF00001"), self.hit("r2", "gene3", "PF00002")]
+        found = [
+            self.hit("r1", "gene0", "PF00001", (3, 6)),
+            self.hit("r2", "gene3", "PF00002", (1, 8)),
+        ]
         written = detect_profiles.emit_hit_proteins(
             tmp_path,
             registry_id="pfam",
@@ -303,12 +318,14 @@ class TestEmitHitProteins:
             family_of_profile=self.FAMILY_OF_PROFILE,
         )
         assert written == 2
-        assert (tmp_path / "pfam" / "PF00001.faa").read_text() == ">r1|gene0\nMKVLATGG\n"
-        assert (tmp_path / "pfam" / "PF00002.faa").read_text() == ">r2|gene3\nMKWWYYAA\n"
+        # The matched domain region, not the whole gene, and the region travels in the name so
+        # a reviewer can see which part of the protein was placed (D-241).
+        assert (tmp_path / "pfam" / "PF00001.faa").read_text() == ">r1|gene0|3-6\nVLAT\n"
+        assert (tmp_path / "pfam" / "PF00002.faa").read_text() == ">r2|gene3|1-8\nMKWWYYAA\n"
 
     def test_a_gene_that_did_not_hit_contributes_no_residues(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
         proteins = [protein("r1|gene0", "MKVLATGG"), protein("r1|gene1", "MKWWYYAA")]
-        found = [self.hit("r1", "gene0", "PF00001")]
+        found = [self.hit("r1", "gene0", "PF00001", (1, 8))]
         detect_profiles.emit_hit_proteins(
             tmp_path,
             registry_id="pfam",
@@ -316,7 +333,19 @@ class TestEmitHitProteins:
             found=found,
             family_of_profile=self.FAMILY_OF_PROFILE,
         )
-        assert (tmp_path / "pfam" / "PF00001.faa").read_text() == ">r1|gene0\nMKVLATGG\n"
+        assert (tmp_path / "pfam" / "PF00001.faa").read_text() == ">r1|gene0|1-8\nMKVLATGG\n"
+
+    def test_a_hit_with_no_domain_region_is_written_whole(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """Rather than dropped: a detection the audit found and could not reduce to a region is
+        still a detection, and the run reports how many took this path."""
+        detect_profiles.emit_hit_proteins(
+            tmp_path,
+            registry_id="pfam",
+            proteins=[protein("r1|gene0", "MKVLATGG")],
+            found=[self.hit("r1", "gene0", "PF00001")],
+            family_of_profile=self.FAMILY_OF_PROFILE,
+        )
+        assert "MKVLATGG" in (tmp_path / "pfam" / "PF00001.faa").read_text()
 
     def test_a_second_band_appends_rather_than_replacing(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
         for record in ("r1", "r2"):
@@ -324,7 +353,7 @@ class TestEmitHitProteins:
                 tmp_path,
                 registry_id="pfam",
                 proteins=[protein(f"{record}|gene0", "MKVLATGG")],
-                found=[self.hit(record, "gene0", "PF00001")],
+                found=[self.hit(record, "gene0", "PF00001", (1, 8))],
                 family_of_profile=self.FAMILY_OF_PROFILE,
             )
         text = (tmp_path / "pfam" / "PF00001.faa").read_text()

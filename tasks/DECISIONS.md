@@ -10558,3 +10558,34 @@ decision has a threshold or parameter in it, the number goes in the entry.
   frozen by `metrics/survival.md` §4 M3 and D-206 and are not parameters of this pass. A
   detection still has to meet the members' own criterion, and one that meets no bin is still
   reported apart rather than absorbed (D-239).
+
+### D-241 — A detection is placed by its matched domain region, because the bins' members are regions and not whole proteins
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Context.** D-239 fixed the placement criterion and D-240 opened the search's own gates so
+  that criterion alone would decide. A 400-record probe run to check the pass end to end then
+  showed 93% of detections meeting no bin at all, which is far outside what D-236's record
+  counts implied. The cause is not homology. **The two sides are different kinds of object.**
+  Pfam's seed members are *aligned regions* — a median of 172 residues for one of the families
+  in the probe — while a detection is a whole gene called by Prodigal, a median of 344 residues
+  for that same family. Across the probe's 25 families the median length ratio was 1.33 and ran
+  to 3.66. The frozen criterion requires 80% coverage of **both** sequences (D-206), so any
+  detection more than about 1.25 times its member's length cannot be placed whatever its
+  identity is. Left alone, M3 would have reported a near-total absence of diversity coverage
+  while measuring a length asymmetry.
+- **Decision.** The unit placed is the detection's **matched domain region**: the region of the
+  protein occupied by the same best-covering domain `profilesearch.best_model_coverage` already
+  measures the model side of, in 1-based inclusive target coordinates, now carried on the hit
+  row and sliced out when the residues are written. A hit with no domain region is written
+  whole and counted in the run's output, so the fallback is visible. The criterion itself is
+  untouched — still 50% identity over 80% of both, at `--cov-mode 0`.
+- **Why this and not a looser criterion.** Relaxing the coverage requirement, or switching to a
+  one-sided coverage mode, would admit detections on weaker evidence than the members needed to
+  be grouped and inflate coverage — the direction D-239 refuses. Comparing like with like
+  changes the *object*, not the standard: a seed member is the part of a sequence that aligns to
+  the model, and so is the region taken here.
+- **The probe's figures are discarded.** They were read before this was fixed, they measured the
+  defect, and nothing downstream carries them. `metrics/survival.md` §4's rule is that
+  thresholds are fixed before results are inspected; what was inspected here was a construction
+  fault, and the fix is recorded before any coverage figure is kept.

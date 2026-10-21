@@ -10,7 +10,38 @@ bacterium, and no downstream artefact would show it.
 
 from __future__ import annotations
 
+import dataclasses
+
+from amazebio import profilesearch
 from amazebio.profilesearch import proteins_from_fasta, text_of
+
+
+@dataclasses.dataclass(frozen=True)
+class _Alignment:
+    hmm_from: int
+    hmm_to: int
+    target_from: int
+    target_to: int
+
+
+@dataclasses.dataclass(frozen=True)
+class _Domain:
+    """Enough of a pyhmmer domain for the coordinate arithmetic, and no more."""
+
+    hmm_from: int
+    hmm_to: int
+    target_from: int
+    target_to: int
+    included: bool = True
+
+    @property
+    def alignment(self) -> _Alignment:
+        return _Alignment(self.hmm_from, self.hmm_to, self.target_from, self.target_to)
+
+
+@dataclasses.dataclass(frozen=True)
+class _Hit:
+    domains: list[_Domain]
 
 
 def host_of(name: str) -> str:
@@ -81,3 +112,23 @@ def test_no_entries_is_an_empty_search_rather_than_an_error():
     proteins, stats = proteins_from_fasta([], record_of=host_of)
     assert proteins == []
     assert stats["records"] == 0
+
+
+class TestBestDomainRegion:
+    """The target-side coordinates A3.4 places (D-241). The model side is `best_model_coverage`."""
+
+    def test_the_region_belongs_to_the_best_covering_domain(self) -> None:
+        hit = _Hit(
+            [
+                _Domain(hmm_from=1, hmm_to=10, target_from=5, target_to=14),
+                _Domain(hmm_from=1, hmm_to=50, target_from=100, target_to=149),
+            ]
+        )
+        assert profilesearch.best_domain_region(hit) == (100, 149)
+
+    def test_an_excluded_domain_is_not_a_region(self) -> None:
+        hit = _Hit([_Domain(hmm_from=1, hmm_to=50, target_from=1, target_to=50, included=False)])
+        assert profilesearch.best_domain_region(hit) is None
+
+    def test_a_hit_with_no_domains_has_no_region(self) -> None:
+        assert profilesearch.best_domain_region(_Hit([])) is None

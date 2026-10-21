@@ -209,6 +209,14 @@ def emit_hit_proteins(
     them with an accession and a score. This writes them out for the placement pass instead of
     making it read 35 GB of corpus again to re-derive what this pass already had in memory.
 
+    What is written is the **matched domain region**, not the whole gene: A3.4's bins are built
+    from Pfam's seed alignment, whose members are aligned regions, and a called gene is a whole
+    protein — commonly two to three times the length of the member it is homologous to. The
+    frozen criterion requires 80% coverage of both sequences, so comparing the two directly
+    cannot place a detection however related it is, and the figure would read as an absence of
+    diversity coverage when it measures a length asymmetry (D-241). A hit with no domain region
+    is written whole and counted, so the choice is visible rather than silent.
+
     Scratch only, and the caller is responsible for pointing it outside the working tree:
     D-103 permits residues in memory and in ephemeral scratch, never in the repository, in
     `artifacts/`, or in the audit store. Appending rather than truncating, because one family
@@ -223,12 +231,25 @@ def emit_hit_proteins(
         if name in wanted:
             sequences[name] = protein.textize().sequence
     by_family: dict[str, list[str]] = {}
+    whole = 0
     for row in found:
         name = f"{row['record_id']}|{row['gene']}"
         sequence = sequences.get(name)
         if sequence is None:
             continue
-        by_family.setdefault(family_of_profile[row["profile"]], []).append(f">{name}\n{sequence}\n")
+        start, end = row.get("target_from"), row.get("target_to")
+        if start and end:
+            sequence = sequence[int(start) - 1 : int(end)]
+        else:
+            whole += 1
+        by_family.setdefault(family_of_profile[row["profile"]], []).append(
+            f">{name}|{start or 1}-{end or len(sequence)}\n{sequence}\n"
+        )
+    if whole:
+        print(
+            f"  {whole:,} hits carry no domain region and are written whole",
+            flush=True,
+        )
     out = directory / registry_id
     out.mkdir(parents=True, exist_ok=True)
     written = 0

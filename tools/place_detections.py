@@ -19,7 +19,10 @@ family's seed diversity does not represent.
 **Where the residues come from.** No A2 artefact carries sequence (D-195, D-103), so
 `detect_profiles.py --emit-hit-proteins` writes the hitting genes' residues to ephemeral scratch
 as its search passes over them, and this tool reads that. The alternative was a second 35 GB
-corpus pass to re-derive residues the first pass already held.
+corpus pass to re-derive residues the first pass already held. What it writes is each hit's
+matched domain region rather than the whole gene, because the members are aligned regions and
+the criterion requires 80% coverage of both sides: comparing a protein with a domain measures
+the length difference and nothing else (D-241).
 
 **The corpus summary is a distribution, never a pooled figure** (`metrics/survival.md` §4 M3).
 A pooled coverage would average a family with 421 bins against a family with one, and the
@@ -222,7 +225,7 @@ def build(
         "task": TASK,
         "design_ref": "§A3",
         "metric": "M3",
-        "decisions": ["D-195", "D-205", "D-206", "D-239", "D-240"],
+        "decisions": ["D-195", "D-205", "D-206", "D-239", "D-240", "D-241"],
         "detections_from": detections_path.name,
         "bins_from": {"seed_md5": bins_doc["seed_md5"], "families": bins_doc["families"]},
         "registry": bins_doc["registry"],
@@ -359,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("cov_mode", diversity.COV_MODE)
             manifest.parameter("search_evalue", diversity.SEARCH_EVALUE)
             manifest.parameter("search_sensitivity", diversity.SEARCH_SENSITIVITY)
-            manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239", "D-240"])
+            manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239", "D-240", "D-241"])
             manifest.parameter("limit", args.limit)
             manifest.input_file(args.seed, role="pfam seed alignment")
             manifest.input_file(args.dat, role="pfam family metadata")
