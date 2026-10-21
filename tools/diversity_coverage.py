@@ -93,12 +93,34 @@ def read_detections(path: Path) -> tuple[tuple[str, str], ...]:
     return tuple(out)
 
 
+def read_detection_table(path: Path) -> dict[str, set[str]]:
+    """The published detections, as record ids per family.
+
+    The retention directory holds every protein that hit, which is not the same set as the
+    detections A2.1 published: a reading removes records from the surviving corpus, and a
+    protein from a removed record is not a surviving detection. Placing it would raise
+    coverage on evidence the table does not contain, so the table is what decides.
+    """
+    out: dict[str, set[str]] = {}
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            out.setdefault(row["family_id"], set()).add(row["record_id"])
+    return out
+
+
 def _place(
-    item: tuple[str, tuple[str, ...], tuple[int, ...], str],
+    item: tuple[str, tuple[str, ...], tuple[int, ...], str, frozenset[str]],
 ) -> dict[str, Any]:
     """One family: place its detections and report which bins they reached."""
-    accession, members, assignment, proteins_path = item
-    detections = read_detections(Path(proteins_path))
+    accession, members, assignment, proteins_path, surviving = item
+    retained = read_detections(Path(proteins_path))
+    detections = tuple(
+        (name, sequence) for name, sequence in retained if name.partition("|")[0] in surviving
+    )
+    not_in_table = len(retained) - len(detections)
     with tempfile.TemporaryDirectory(prefix="amazebio-place-") as scratch:
         placed = diversity.bins_hit_by(
             members,
@@ -117,6 +139,7 @@ def _place(
         "accession": accession,
         "detections": len(detections),
         "detections_meeting_no_bin": unplaced,
+        "proteins_not_in_the_table": not_in_table,
         "bins_hit": sorted(hit),
     }
 
@@ -135,8 +158,11 @@ def load_bins(path: Path) -> dict[str, dict[str, Any]]:
 
 
 def prepare(
-    bins: dict[str, dict[str, Any]], seed: Path, proteins: Path
-) -> list[tuple[str, tuple[str, ...], tuple[int, ...], str]]:
+    bins: dict[str, dict[str, Any]],
+    seed: Path,
+    proteins: Path,
+    table: dict[str, set[str]],
+) -> list[tuple[str, tuple[str, ...], tuple[int, ...], str, frozenset[str]]]:
     """Pair each family's retained detections with its members and bin assignment.
 
     The seed is re-read for the member sequences the assignment is positional over, and the
@@ -144,7 +170,15 @@ def prepare(
     members in a different order would place every detection against the wrong bins and no
     figure downstream would look wrong.
     """
-    available = {p.stem: p for p in sorted(proteins.glob("*.faa"))}
+    available = {p.stem: p for p in sorted(proteins.glob("*.faa")) if p.stem in table}
+    absent = sorted(set(table) - {p.stem for p in proteins.glob("*.faa")})
+    if absent:
+        raise SystemExit(
+            f"{len(absent)} families carry published detections and no retained protein "
+            f"(first: {absent[:5]}); the retention pass did not cover the band the table was "
+            "assembled from, and a coverage over the rest would be a metric over a smaller "
+            "set of families than it claims"
+        )
     unknown = sorted(set(available) - set(bins))
     if unknown:
         raise SystemExit(
@@ -165,7 +199,15 @@ def prepare(
                 "the bin assignment was built over. The assignment is positional, so placing "
                 "against a different list would be silently wrong; refusing."
             )
-        items.append((family.accession, family.members, tuple(entry["assignment"]), str(path)))
+        items.append(
+            (
+                family.accession,
+                family.members,
+                tuple(entry["assignment"]),
+                str(path),
+                frozenset(table[family.accession]),
+            )
+        )
     found = {i[0] for i in items}
     unread = sorted(set(available) - found)
     if unread:
@@ -178,7 +220,7 @@ def prepare(
 
 def build(
     bins: dict[str, dict[str, Any]],
-    items: list[tuple[str, tuple[str, ...], tuple[int, ...], str]],
+    items: list[tuple[str, tuple[str, ...], tuple[int, ...], str, frozenset[str]]],
     *,
     label: str,
     workers: int,
@@ -237,6 +279,7 @@ def build(
         "families_with_no_detection": len(bins) - len(per_family),
         "detections_placed": sum(r["detections"] for r in per_family),
         "detections_meeting_no_bin": sum(r["detections_meeting_no_bin"] for r in per_family),
+        "proteins_not_in_the_table": sum(r["proteins_not_in_the_table"] for r in per_family),
         "distribution": _distribution(covered),
         "distribution_informative_only": _distribution(informative),
         "families_uninformative": sum(1 for r in per_family if r["uninformative"]),
@@ -317,6 +360,14 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="retained hit proteins, one FASTA per family, in ephemeral scratch (D-103)",
     )
+    ap.add_argument(
+        "--detections",
+        type=Path,
+        required=True,
+        help="A2.1's published detections for this release, as JSONL. Only the records it "
+        "names are placed: a protein that hit but whose record a reading removes is not a "
+        "surviving detection.",
+    )
     ap.add_argument("--label", required=True, help="which reading and release these came from")
     ap.add_argument("--outdir", type=Path, default=Path("artifacts/a3-4"))
     ap.add_argument("--workers", type=int, default=2)
@@ -332,7 +383,8 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     bins = load_bins(args.bins)
-    items = prepare(bins, args.seed, args.proteins)
+    table = read_detection_table(args.detections)
+    items = prepare(bins, args.seed, args.proteins, table)
     if not items:
         raise SystemExit(
             f"{args.proteins} holds no family FASTA. Run the detection pass with "
@@ -362,6 +414,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239", "D-240"])
             manifest.input_file(args.seed, role="pfam seed alignment")
             manifest.input_file(args.bins, role="diversity bins")
+            manifest.input_file(args.detections, role="published detections")
             doc = build(bins, items, label=args.label, workers=args.workers)
             (args.outdir / f"{stem}.json").write_text(
                 json.dumps(doc, indent=2, sort_keys=True) + "\n"

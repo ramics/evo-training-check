@@ -122,3 +122,37 @@ class TestAProbeMayNotPublish:
     def test_a_limited_run_does_not(self) -> None:
         assert coverage_tool.durable_destination(10)[0] is None
         assert coverage_tool.durable_destination(0)[0] is None
+
+
+class TestOnlyPublishedDetectionsArePlaced:
+    """The retention directory holds every protein that hit; the table holds what survived."""
+
+    def test_the_table_reads_back_as_records_per_family(self, tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "d.jsonl"
+        path.write_text(
+            '{"family_id": "PF00001", "record_id": "rec1"}\n'
+            '{"family_id": "PF00001", "record_id": "rec2"}\n'
+            '{"family_id": "PF00002", "record_id": "rec1"}\n'
+        )
+        assert coverage_tool.read_detection_table(path) == {
+            "PF00001": {"rec1", "rec2"},
+            "PF00002": {"rec1"},
+        }
+
+    def test_a_blank_line_is_not_a_record(self, tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "d.jsonl"
+        path.write_text('{"family_id": "PF00001", "record_id": "rec1"}\n\n')
+        assert coverage_tool.read_detection_table(path) == {"PF00001": {"rec1"}}
+
+    def test_a_protein_whose_record_the_table_omits_is_not_placed(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """A reading removes records; a protein from a removed one is not a surviving
+        detection, and placing it would raise coverage on evidence the table does not hold."""
+        faa = tmp_path / "PF00001.faa"
+        faa.write_text(">rec1|1\nMKTAYIAKQR\n>rec9|2\nMKTAYIAKQR\n")
+        row = coverage_tool._place(
+            ("PF00001", ("MKTAYIAKQR",), (0,), str(faa), frozenset({"rec1"}))
+        )
+        assert row["detections"] == 1
+        assert row["proteins_not_in_the_table"] == 1
