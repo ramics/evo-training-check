@@ -193,6 +193,52 @@ def read_hits_dump(
     return payload["hits"], payload["per_source"], records
 
 
+def emit_hit_proteins(
+    directory: Path,
+    *,
+    registry_id: str,
+    proteins: list[Any],
+    found: list[dict[str, Any]],
+    family_of_profile: dict[str, str],
+) -> int:
+    """Write the residues of the genes that hit, per family, to ephemeral scratch.
+
+    A3.4 has to place each surviving detection into one of its family's diversity bins, which
+    needs the detection's residues — and no artefact carries residues (D-195, D-103). The
+    residues exist for one moment, here, between gene calling and the hit row that replaces
+    them with an accession and a score. This writes them out for the placement pass instead of
+    making it read 35 GB of corpus again to re-derive what this pass already had in memory.
+
+    Scratch only, and the caller is responsible for pointing it outside the working tree:
+    D-103 permits residues in memory and in ephemeral scratch, never in the repository, in
+    `artifacts/`, or in the audit store. Appending rather than truncating, because one family
+    collects hits from several sources and several bands.
+    """
+    wanted = {f"{row['record_id']}|{row['gene']}" for row in found}
+    if not wanted:
+        return 0
+    sequences: dict[str, str] = {}
+    for protein in proteins:
+        name = profilesearch.text_of(protein.name)
+        if name in wanted:
+            sequences[name] = protein.textize().sequence
+    by_family: dict[str, list[str]] = {}
+    for row in found:
+        name = f"{row['record_id']}|{row['gene']}"
+        sequence = sequences.get(name)
+        if sequence is None:
+            continue
+        by_family.setdefault(family_of_profile[row["profile"]], []).append(f">{name}\n{sequence}\n")
+    out = directory / registry_id
+    out.mkdir(parents=True, exist_ok=True)
+    written = 0
+    for family, entries in sorted(by_family.items()):
+        with (out / f"{family}.faa").open("a") as handle:
+            handle.writelines(entries)
+        written += len(entries)
+    return written
+
+
 def hmm_path(reg: Registry) -> Path:
     """This tool's data root, bound to the shared `profilesearch.hmm_path`."""
     return profilesearch.hmm_path(reg, DATA)
@@ -706,8 +752,23 @@ def main(argv: list[str] | None = None) -> int:
             "for the audit's own artefacts."
         ),
     )
+    parser.add_argument(
+        "--emit-hit-proteins",
+        type=Path,
+        default=None,
+        help=(
+            "also write the residues of the genes that hit, one FASTA per family, for A3.4's "
+            "bin placement to read (D-195). Ephemeral scratch only: residues never belong in "
+            "the working tree or the audit store (D-103)."
+        ),
+    )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
     args = parser.parse_args(argv)
+    if args.emit_hit_proteins and args.collect:
+        raise SystemExit(
+            "--emit-hit-proteins needs a search to emit from; --collect searches nothing. "
+            "Collect the band first, then search it with --from-cache --emit-hit-proteins."
+        )
 
     regs = [registry(i) for i in (args.registry or sorted(REGISTRIES))]
     band: tuple[float, float] | None = None
@@ -803,10 +864,13 @@ def main(argv: list[str] | None = None) -> int:
             manifest0 = entries[0]["manifest"]
             dump = hits_dump_path(release, band, root=args.cache_dir)
 
-            if dump.exists() and not args.collect:
+            if dump.exists() and not args.collect and not args.emit_hit_proteins:
                 # A previous run searched this band and something downstream failed. Reuse the
                 # search rather than repeat it; the registries and thresholds are pins, so the
                 # hits cannot have changed, and the dump records which bands they came from.
+                # `--emit-hit-proteins` is the one case that must not reuse it: the dump holds
+                # no residues by design, so reusing it would write an empty FASTA set and the
+                # placement pass would read a coverage of zero as a measurement.
                 hits, per_source, sampled_records = read_hits_dump(dump)
                 print(
                     f"\n{release}: reusing the finished search in {dump} "
@@ -933,6 +997,19 @@ def main(argv: list[str] | None = None) -> int:
                         row_hit["component"] = source.component
                         row_hit["corpus_component"] = source.corpus_component
                     hits[reg.id].extend(found)
+                    if args.emit_hit_proteins:
+                        genes_out = emit_hit_proteins(
+                            Path(args.emit_hit_proteins),
+                            registry_id=reg.id,
+                            proteins=proteins,
+                            found=found,
+                            family_of_profile=views[reg.id].family_of_profile,
+                        )
+                        print(
+                            f"  {reg.key}: residues for {genes_out:,} hit genes written to "
+                            f"{args.emit_hit_proteins}",
+                            flush=True,
+                        )
                     print(
                         f"  {reg.key}: {len(found):,} hits above threshold in "
                         f"{source_row['search_seconds'][reg.id] / 60:.1f} min",

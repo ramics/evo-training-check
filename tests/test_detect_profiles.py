@@ -16,6 +16,7 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 import sys
+import typing
 
 import pytest
 
@@ -272,3 +273,70 @@ def test_the_plan_path_reports_unknown_rather_than_guessing_a_count():
     }
 
     assert all("unknown sampled" in line for line in detect_profiles.plan_lines(manifest, release))
+
+
+class TestEmitHitProteins:
+    """The residues A3.4's bin placement reads, written as the search passes over them (D-195).
+
+    The hazard this guards is quiet emptiness: a placement pass reading an incomplete FASTA set
+    reports low coverage rather than failing, and low coverage is exactly the finding the audit
+    would otherwise be reporting. So what is tested is that every hit row gets its residues, in
+    the right family, and that a second band appends instead of replacing.
+    """
+
+    FAMILY_OF_PROFILE: typing.ClassVar[dict[str, str]] = {
+        "PF00001": "PF00001",
+        "PF00002": "PF00002",
+    }
+
+    def hit(self, record_id: str, gene: str, profile: str) -> dict[str, object]:
+        return {"record_id": record_id, "gene": gene, "profile": profile}
+
+    def test_each_hit_lands_in_its_familys_file(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        proteins = [protein("r1|gene0", "MKVLATGG"), protein("r2|gene3", "MKWWYYAA")]
+        found = [self.hit("r1", "gene0", "PF00001"), self.hit("r2", "gene3", "PF00002")]
+        written = detect_profiles.emit_hit_proteins(
+            tmp_path,
+            registry_id="pfam",
+            proteins=proteins,
+            found=found,
+            family_of_profile=self.FAMILY_OF_PROFILE,
+        )
+        assert written == 2
+        assert (tmp_path / "pfam" / "PF00001.faa").read_text() == ">r1|gene0\nMKVLATGG\n"
+        assert (tmp_path / "pfam" / "PF00002.faa").read_text() == ">r2|gene3\nMKWWYYAA\n"
+
+    def test_a_gene_that_did_not_hit_contributes_no_residues(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        proteins = [protein("r1|gene0", "MKVLATGG"), protein("r1|gene1", "MKWWYYAA")]
+        found = [self.hit("r1", "gene0", "PF00001")]
+        detect_profiles.emit_hit_proteins(
+            tmp_path,
+            registry_id="pfam",
+            proteins=proteins,
+            found=found,
+            family_of_profile=self.FAMILY_OF_PROFILE,
+        )
+        assert (tmp_path / "pfam" / "PF00001.faa").read_text() == ">r1|gene0\nMKVLATGG\n"
+
+    def test_a_second_band_appends_rather_than_replacing(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        for record in ("r1", "r2"):
+            detect_profiles.emit_hit_proteins(
+                tmp_path,
+                registry_id="pfam",
+                proteins=[protein(f"{record}|gene0", "MKVLATGG")],
+                found=[self.hit(record, "gene0", "PF00001")],
+                family_of_profile=self.FAMILY_OF_PROFILE,
+            )
+        text = (tmp_path / "pfam" / "PF00001.faa").read_text()
+        assert text.count(">") == 2 and ">r1|gene0" in text and ">r2|gene0" in text
+
+    def test_a_search_that_found_nothing_writes_nothing(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        written = detect_profiles.emit_hit_proteins(
+            tmp_path,
+            registry_id="pfam",
+            proteins=[protein("r1|gene0")],
+            found=[],
+            family_of_profile=self.FAMILY_OF_PROFILE,
+        )
+        assert written == 0
+        assert not (tmp_path / "pfam").exists()

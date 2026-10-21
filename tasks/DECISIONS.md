@@ -10531,3 +10531,30 @@ decision has a threshold or parameter in it, the number goes in the entry.
   Assigning each detection to its single best-matching bin. Cheaper, but it answers "where does
   this sequence belong" rather than "which parts of the family's diversity are represented",
   and the second is what M3 asks.
+
+### D-240 — The placement search runs at full sensitivity with the E-value gate open, so the frozen criterion is the only gate
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Context.** D-239 fixed *what* admits a detection to a bin — 50% amino-acid identity over
+  80% coverage at `--cov-mode 0`, the same three values the members were grouped by — and said
+  it is evaluated with `mmseqs easy-search`. That tool applies two further gates of its own
+  before the criterion is ever reached: a prefilter at default sensitivity, and an E-value
+  threshold of 1e-3. Neither is in the metric, and both can only remove candidates, so leaving
+  them at their defaults would mean a figure gated by three numbers of which the specification
+  names only one. Fixed here, with the bins built and before any coverage figure exists.
+- **Decision.** `-s 7.5` (maximum sensitivity), `-e 10000` (the E-value gate effectively open),
+  `--alignment-mode 3` so identity and coverage are computed from a real alignment rather than
+  inferred, and `--max-seqs` at no fewer than the family's member count so no member can be
+  dropped for being one candidate too many. The frozen criterion then decides every placement
+  on its own. Single-threaded, as the clustering is, so the result does not move with the
+  machine.
+- **Why this direction.** A missed match costs a bin, and a bin missed for a reason the metric
+  does not name is an understatement nothing in the artefact would reveal. The audit's own
+  finding is that surviving material is *more* widespread than the filters' authors expect, so
+  an unstated gate that quietly lowers coverage flatters the thing under audit. Opening the
+  gates costs search time and nothing else: the families are a few dozen members each.
+- **What it does not change.** The identity, coverage and coverage-mode values, which are
+  frozen by `metrics/survival.md` §4 M3 and D-206 and are not parameters of this pass. A
+  detection still has to meet the members' own criterion, and one that meets no bin is still
+  reported apart rather than absorbed (D-239).

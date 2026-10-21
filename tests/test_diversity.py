@@ -153,3 +153,87 @@ class TestCoverage:
         out = diversity.coverage_of(bins, {"PF1": 1})
         assert set(out) == {"PF1"}
         assert out["PF1"].estimate == pytest.approx(0.5)
+
+
+@pytest.mark.skipif(MMSEQS is None, reason="the pinned MMseqs2 is not on PATH")
+class TestPlacement:
+    """The D-239 placement rule: the members' own criterion, every bin a detection meets."""
+
+    A = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKR"
+    B = "WWWWCCCCYYYYHHHHPPPPGGGGNNNNQQQQDDDDEEEEKKKKRRRRSSSSTTTTIIIILLLLVVVVFFFFMMMMAA"
+    C = "MSDNKLIVRFAPSPTGYLHIGNARTALFNWLYARHHGGEFILRIEDTDRERSTEEAIEAIMDGMKWLGLDWDEGPDVG"
+
+    def test_a_detection_identical_to_a_member_covers_that_members_bin(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        placement = diversity.place_detections(
+            [self.A, self.B],
+            {"r1|gene0": self.A},
+            (0, 1),
+            accession="PF1",
+            workdir=tmp_path,
+        )
+        assert placement.bins_hit == (0,)
+        assert (placement.placed, placement.unplaced) == (1, 0)
+
+    def test_a_detection_meeting_no_member_is_counted_apart(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        unrelated = (
+            "GGGGGGGGGGSSSSSSSSSSAAAAAAAAAAPPPPPPPPPPTTTTTTTTTTGGGGGGGGGGSSSSSSSSSSAAAAAAAAAA"
+        )
+        placement = diversity.place_detections(
+            [self.A],
+            {"r1|gene0": unrelated},
+            (0,),
+            accession="PF1",
+            workdir=tmp_path,
+        )
+        assert placement.bins_hit == ()
+        assert (placement.placed, placement.unplaced) == (0, 1)
+
+    def test_detections_in_different_bins_cover_both(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        # Two members in different bins, each with a detection: the rule counts every bin met
+        # rather than one per detection, because M3 asks which parts of the family's diversity
+        # are represented (D-239). `C` rather than `B` here: `B` is a synthetic low-complexity
+        # run, and MMseqs2 masks low-complexity regions by default, so even a detection
+        # identical to it does not align. That masking stays at its default — it can only lose
+        # a placement, and a lost placement understates coverage, which is the direction this
+        # audit is allowed to err in.
+        placement = diversity.place_detections(
+            [self.A, self.C],
+            {"r1|gene0": self.A, "r2|gene0": self.C},
+            (0, 1),
+            accession="PF1",
+            workdir=tmp_path,
+        )
+        assert placement.bins_hit == (0, 1)
+        assert placement.detections == 2
+
+    def test_members_sharing_a_bin_count_once(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        placement = diversity.place_detections(
+            [self.A, self.A],
+            {"r1|gene0": self.A},
+            (0, 0),
+            accession="PF1",
+            workdir=tmp_path,
+        )
+        assert placement.bins_hit == (0,)
+
+    def test_no_detections_is_a_measured_zero_not_a_run(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        placement = diversity.place_detections(
+            [self.A], {}, (0,), accession="PF1", workdir=tmp_path
+        )
+        assert (placement.detections, placement.bins_hit) == (0, ())
+
+    def test_an_assignment_that_does_not_fit_the_members_is_refused(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        with pytest.raises(DiversityError, match="bin assignments"):
+            diversity.place_detections(
+                [self.A, self.B],
+                {"r1|gene0": self.A},
+                (0,),
+                accession="PF1",
+                workdir=tmp_path,
+            )
+
+    def test_the_search_gates_are_open_so_the_frozen_criterion_decides(self) -> None:
+        """D-240: the prefilter and the E-value are not in the metric, so neither may remove a
+        candidate the frozen 50%/80% criterion would have admitted."""
+        assert diversity.SEARCH_SENSITIVITY == 7.5
+        assert diversity.SEARCH_EVALUE >= 1000
