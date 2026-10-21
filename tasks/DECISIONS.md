@@ -10723,3 +10723,40 @@ decision has a threshold or parameter in it, the number goes in the entry.
   tables now carry rows whose identifiers name their component, so that question is answerable
   from the artefact — and the recount that answered it was a re-run from pins, which is the
   instrument this project already has and the only one that caught it.
+
+### D-246 — A3.2 reads only the tables lying directly under a task's prefix, not the commit-keyed twins beside them
+
+- **Date:** 2026-10-21
+- **Task:** A3.2 (bearing on X1.7, D-216 and every durable reader that lists a prefix)
+- **How it surfaced.** The corrected A2.1 tables were published, A3.2 was re-run against them,
+  and the headline came back at the old 830 and 836 anyway. The cause is a second, independent
+  fault, and it was created by the fix for D-216.
+
+- `fetch_tables` paginates `corpora/results/<slug>` recursively and takes every object whose
+  basename looks like a detection table. D-216 added a commit-keyed twin of every published
+  output under `<slug>/by-commit/<commit>/`, and `repro.durable_keys` describes that twin as
+  sitting "out of the way of a listing that globs the prefix" — which is true of a glob and
+  false of a recursive listing. So A3.2 was reading each table twice, once under its stable key
+  and once per commit that had ever published it.
+- Merging a table with a twin of itself is not a double count of records — the merge unions
+  families — so it left the shallow figures alone and was invisible until the two copies
+  *disagreed*. The moment the stable key held the correction and a twin held the superseded run,
+  the merge unioned the stale families straight back in, and the corrected headline read exactly
+  as the wrong one had. A correction that is silently undone by the store's own provenance copies
+  is worse than no correction.
+- **The rule, which the project already had.** `tools/recount.py` takes only objects lying
+  directly under a task prefix and records anything deeper as excluded with its reason. A3.2 now
+  does the same, and names the twins in `TABLES_NOT_MERGED` so the omission appears in the
+  output rather than only in the code. The prefix is also matched with its trailing slash, so
+  `a2-1` cannot reach a future `a2-10`.
+- **What this costs the earlier figures.** Nothing, as it happens: before today every twin agreed
+  with the table beside it, so every headline A3.2 has published is what the stable keys hold.
+  That is luck, not a property — the same luck D-216 was written about.
+- **The lesson, and it is the same one as D-245 pointing the other way.** D-245 was a reader
+  taking in rows from a corpus it was not about. This is a reader taking in copies of rows it had
+  already taken in. Both passed every check the project had because the checks ask what shape a
+  result has, not which objects it was built from. A pass's manifest records its inputs; what was
+  missing is anything that asks whether that list is the list the pass was supposed to read.
+  Every durable reader that lists a prefix is now in scope for that question: `recount.py` was
+  already right, `apply_policies.py` lists staged corpora rather than results, and A3.2 was the
+  one that was wrong.

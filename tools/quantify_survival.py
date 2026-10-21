@@ -87,23 +87,43 @@ TABLES_NOT_MERGED: tuple[dict[str, str], ...] = (
         "tables": "a2-4/band1-run1-*",
         "why": "A2.4's superseded first band, kept only because the result bucket has no delete.",
     },
+    {
+        "tables": "*/by-commit/<commit>/*",
+        "why": (
+            "The commit-keyed twins D-216 publishes beside every output. Each is a copy of a "
+            "table already merged here under its stable key, so reading both would merge a "
+            "pass with a rerun of itself, and a twin from before a correction would union its "
+            "superseded families back into the headline. Only objects directly under a task's "
+            "prefix are tables. D-246."
+        ),
+    },
 )
 
 RESULT_PREFIX = "corpora/results/"
 
 
 def fetch_tables(cache: Path, *, client: Any = None) -> list[tuple[str, dict[str, Any]]]:
-    """Download every consumed detection table into `cache`, returning (key, document)."""
+    """Download every consumed detection table into `cache`, returning (key, document).
+
+    Only objects lying *directly* under a task's prefix are tables. The store also holds
+    commit-keyed twins of every published output under `<slug>/by-commit/<commit>/` (D-216),
+    and a recursive listing reaches them even though they are copies: reading one beside the
+    table it is a twin of merges a pass with a superseded rerun of itself, which is the same
+    fault the `band1-run1` exclusion below exists to prevent. The twins of a *corrected*
+    output are worse still, because the stale twin's families union into the result and the
+    correction disappears. D-246.
+    """
     client = client or objectstore.client()
     paginator = client.get_paginator("list_objects_v2")
     found: list[str] = []
     for prefix, stem in TABLE_SOURCES:
-        for page in paginator.paginate(
-            Bucket=objectstore.CORPORA_BUCKET, Prefix=RESULT_PREFIX + prefix
-        ):
+        root = RESULT_PREFIX + prefix + "/"
+        for page in paginator.paginate(Bucket=objectstore.CORPORA_BUCKET, Prefix=root):
             for obj in page.get("Contents", []):
                 key = obj["Key"]
-                name = key.rsplit("/", 1)[-1]
+                name = key[len(root) :]
+                if "/" in name:
+                    continue
                 # `band1-run1-...` is A2.4's superseded first band, kept in the store because
                 # the bucket has no delete. Reading it alongside the final tables would merge
                 # one pass with its own rerun.
