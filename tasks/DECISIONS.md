@@ -10266,3 +10266,36 @@ decision has a threshold or parameter in it, the number goes in the entry.
   as the covariate directly was also rejected: it is computed on their filtered alignment
   rather than the one distributed, and a covariate this load-bearing should be an artefact this
   project produced, with the published figure as the check rather than the source.
+
+### D-232 — A run over part of the assay set may not publish, and `--out` cannot be the signal
+
+- **Date:** 2026-10-21
+- **Task:** B4.1
+- **Context.** D-193 and D-224 are the same incident twice: a rehearsal publishing to a real
+  results prefix in a store with no delete, because `repro.run`'s durable destination follows
+  from the task id and cannot see where the run was told to write. The fix both times was to
+  publish only when `--out` resolves to the task's canonical directory. `baseline_scores.py`
+  carried that guard and was still exposed, which is why this is its own entry rather than a
+  line in a commit message.
+
+- **Why `--out` is the wrong signal here.** The baseline's `--assay` flag limits which assays
+  are scored but not what the run writes: the same `baseline.json`, under the same key, and a
+  summary over three assays is indistinguishable from a summary over 31. The natural place to
+  rehearse one assay is the canonical directory — that is where its per-assay file belongs and
+  where a later full pass will carry it over from — so pointing `--out` elsewhere is the thing
+  a careful operator would *not* do. The guard that worked for the other tools would therefore
+  have been bypassed exactly when it mattered.
+
+- **What changed.** `--assay` now withholds publication outright and claims the exemption with
+  a reason naming the hazard. The full pass is unaffected.
+
+- **The other call sites, checked rather than assumed**, as AGENTS.md requires before closing
+  an incident of this shape. `assay_register.py` and `scoring_summary.py` take no subset flag,
+  so their whole output is always the deliverable. `control_set.py` already withholds for
+  `--max-rows` and `assay_depth.py` for `--only`. `baseline_scores.py` was the only one where a
+  subset flag and an unconditional durable destination met.
+
+- **Rejected.** Naming the subset in the published key — `baseline-3-assays.json` — would make
+  the partial file harmless rather than refused. It also makes the prefix accumulate files
+  nobody will ever delete, each one a plausible-looking summary, which is the problem one step
+  removed rather than solved.
