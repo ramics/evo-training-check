@@ -181,6 +181,18 @@ def summarise(doc: dict[str, Any]) -> str:
     )
 
 
+def durable_destination(limit: int | None) -> tuple[str | None, str | None]:
+    """Where this run publishes, and why it does not — `repro.run(durable=, durable_exempt=)`.
+
+    `--limit` reads the first N families, so its denominator is a fragment of the pinned
+    universe wearing the published artefact's name. The result bucket has no delete, so a
+    subset that publishes is permanent (D-232): the flag blocks publication instead.
+    """
+    if limit is not None:
+        return None, f"--limit {limit}: a probe over part of the family universe, not a denominator"
+    return objectstore.durable_results("a3-4"), None
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -200,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
             "denominator must come from the pinned release, so this is a refusal, not a warning."
         )
 
+    durable, exempt = durable_destination(args.limit)
     args.outdir.mkdir(parents=True, exist_ok=True)
     try:
         with repro.run(
@@ -208,7 +221,8 @@ def main(argv: list[str] | None = None) -> int:
             outdir=args.outdir,
             allow_dirty=args.allow_dirty,
             manifest_name="run-bins.json",
-            durable=objectstore.durable_results("a3-4"),
+            durable=durable,
+            durable_exempt=exempt,
         ) as manifest:
             manifest.parameter("identity", diversity.IDENTITY)
             manifest.parameter("coverage", diversity.COVERAGE)

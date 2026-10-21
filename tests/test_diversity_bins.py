@@ -72,3 +72,26 @@ class TestWhatAFamilyPublishes:
         entry = bins_tool.family_entry(family, "deadbeef")
         assert isinstance(entry["assignment"], list)
         assert all(isinstance(b, int) for b in entry["assignment"])
+
+
+class TestAProbeMayNotPublish:
+    """D-232: where a tool has a subset flag, the subset flag blocks publication.
+
+    The result bucket has no delete, so a partial denominator published under the real
+    artefact's name could not be withdrawn afterwards.
+    """
+
+    def test_a_whole_run_publishes(self) -> None:
+        durable, exempt = bins_tool.durable_destination(None)
+        assert durable and durable.endswith("a3-4")
+        assert exempt is None
+
+    def test_a_limited_run_does_not(self) -> None:
+        durable, exempt = bins_tool.durable_destination(50)
+        assert durable is None
+        assert exempt and "50" in exempt
+
+    def test_a_limit_of_one_is_still_a_limit(self) -> None:
+        """`if args.limit` would let `--limit 0` through; zero families is the emptiest probe."""
+        assert bins_tool.durable_destination(1)[0] is None
+        assert bins_tool.durable_destination(0)[0] is None
