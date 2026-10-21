@@ -332,7 +332,14 @@ def main(argv: list[str] | None = None) -> int:
 
     out: Path = args.out
     out.mkdir(parents=True, exist_ok=True)
-    destination = durable_for(out)
+    # A run limited to some of the assays writes the same `baseline.json` under the same
+    # durable key as the full pass, and a summary over three assays reads exactly like a
+    # summary over 31. The corpus bucket has no delete, so that file would be permanent
+    # (D-193, D-224). `--out` is not the signal here because a one-assay rehearsal is most
+    # naturally run against the canonical directory, which is where its per-assay file
+    # belongs; `--assay` is.
+    partial = bool(args.assay)
+    destination = None if partial else durable_for(out)
     with run(
         TASK,
         seed=SEED,
@@ -341,7 +348,13 @@ def main(argv: list[str] | None = None) -> int:
         repo=REPO,
         manifest_name="run-baseline.json",
         durable=destination,
-        durable_exempt=None if destination else "rehearsal: --out is not the canonical directory",
+        durable_exempt=None
+        if destination
+        else (
+            "a run over some of the assays, whose summary would read like the whole pass"
+            if partial
+            else "rehearsal: --out is not the canonical directory"
+        ),
     ) as m:
         for path in (REFERENCE, INPUTS, REGISTER, PUBLISHED):
             m.input_file(path, role="input")

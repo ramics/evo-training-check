@@ -200,3 +200,23 @@ class TestCarryingOverAnAlreadyScoredAssay:
         got = bs.provenance()
         assert got["parameters"] == dict(bs.PARAMETERS)
         assert set(got) == {"parameters", "commit", "dirty"}
+
+
+class TestASubsetRunDoesNotPublish:
+    """`--assay` is how a single assay is rehearsed, and the natural place to rehearse it is
+    the canonical directory, where its per-assay file belongs. So `--out` cannot be the signal
+    that separates a rehearsal from the deliverable here: a three-assay `baseline.json` under
+    the deliverable's key reads exactly like a 31-assay one, and the store has no delete."""
+
+    def test_the_full_pass_publishes(self):
+        assert bs.durable_for(bs.CANONICAL_OUT) is not None
+
+    def test_a_scratch_directory_does_not(self, tmp_path):
+        assert bs.durable_for(tmp_path) is None
+
+    def test_the_subset_flag_is_what_blocks_the_canonical_run(self):
+        source = (
+            pathlib.Path(__file__).resolve().parent.parent / "tools" / "baseline_scores.py"
+        ).read_text()
+        assert "partial = bool(args.assay)" in source
+        assert "None if partial else durable_for(out)" in source
