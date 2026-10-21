@@ -335,9 +335,9 @@ def main(argv: list[str] | None = None) -> int:
     # A run limited to some of the assays writes the same `baseline.json` under the same
     # durable key as the full pass, and a summary over three assays reads exactly like a
     # summary over 31. The corpus bucket has no delete, so that file would be permanent
-    # (D-193, D-224). `--out` is not the signal here because a one-assay rehearsal is most
-    # naturally run against the canonical directory, which is where its per-assay file
-    # belongs; `--assay` is.
+    # (D-193, D-224, and D-232 for this one). `--out` is not the signal here, because a
+    # one-assay rehearsal is most naturally run against the canonical directory, which is
+    # where its per-assay file belongs; `--assay` is.
     partial = bool(args.assay)
     destination = None if partial else durable_for(out)
     with run(
