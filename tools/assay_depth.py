@@ -324,7 +324,8 @@ def markdown(report: dict[str, Any]) -> str:
         "sum of sequence weights, at the threshold each alignment's own maintainers "
         "reweighted it at.",
         "",
-        "| assay | sequences | columns | Neff | Neff per column | how | against published |",
+        "| assay | sequences | columns | Neff (95% interval where estimated) | "
+        "Neff per column | how | against published |",
         "|---|---:|---:|---:|---:|---|---:|",
     ]
     for t in report["table"]["targets"]:
@@ -333,9 +334,15 @@ def markdown(report: dict[str, Any]) -> str:
             continue
         block = report["table"]["alignments"][t["alignment"]]["readings"]["inclusive"]
         ratio = t["against_published"]["ratio"]
+        # An estimate without its interval is not a result this project ships, and the
+        # write-up is where a reader will actually meet the number.
+        interval = block["interval"]
+        depth = f"{t['depth']:,.0f}" + (
+            "" if interval is None else f" ({interval[0]:,.0f} to {interval[1]:,.0f})"
+        )
         lines.append(
             f"| `{t['dms_id']}` | {block['sequences']:,} | {block['columns']:,} | "
-            f"{t['depth']:,.0f} | {t['depth_per_column']:.3f} | {block['method']} | "
+            f"{depth} | {t['depth_per_column']:.3f} | {block['method']} | "
             f"{'—' if ratio is None else f'{ratio:.2f}x'} |"
         )
     lines += [

@@ -270,3 +270,36 @@ class TestTheWriteUp:
         report = {"table": table, "sanity": assay_depth.sanity(table)}
         report["problems"] = assay_depth.check(report)
         return report
+
+
+class TestTheWriteUpCarriesTheUncertainty:
+    """No point estimate ships without its interval, and the write-up is where a reader meets
+    the number. The JSON carrying it is not enough."""
+
+    def _report(self, staged, sampled: bool):
+        reference = assay_depth.reference_rows(
+            staged["reference"], {"TARGET_One_2020", "TARGET_Two_2021"}
+        )
+        table = assay_depth.depth_table(
+            staged["register"],
+            staged["inputs"]["alignment_for_assay"],
+            reference,
+            {"TARGET_b01.a2m": staged["path"]},
+            seed=1,
+        )
+        if sampled:
+            block = table["alignments"]["TARGET_b01.a2m"]["readings"]["inclusive"]
+            block["method"] = "sampled"
+            block["interval"] = [90.0, 110.0]
+        report = {"table": table, "sanity": assay_depth.sanity(table)}
+        report["problems"] = []
+        return report
+
+    def test_an_estimated_depth_is_written_with_its_interval(self, staged):
+        text = assay_depth.markdown(self._report(staged, sampled=True))
+        assert "(90 to 110)" in text
+        assert "95% interval" in text
+
+    def test_an_exact_depth_carries_no_interval(self, staged):
+        text = assay_depth.markdown(self._report(staged, sampled=False))
+        assert " to " not in text.split("| `TARGET_One_2020`")[1].split("|")[1]
