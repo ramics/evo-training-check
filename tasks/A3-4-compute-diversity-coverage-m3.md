@@ -2,9 +2,9 @@
 id: A3.4
 title: Compute diversity coverage (M3)
 phase: A
-status: blocked
+status: in-progress
 gate: false
-depends_on: [A3.2, A2.6]
+depends_on: [A3.2]
 blocks: [A6.1]
 design_ref: "§A3"
 deliverable: 1
@@ -49,13 +49,21 @@ was never taken, so taking it is a corpus pass with its own cost and its own dec
 
 ## State — 2026-10-20
 
-`blocked`, and the work that is done is on branch **`claude/project-thread-a3vch4`**. The bins are built: 1,719 viral
+`in-progress` on branch **`claude/project-thread-a3vch4`**. Unblocked 2026-10-21. The bins are built: 1,719 viral
 Pfam families, 34,482 seed members, 17,502 bins, at 50% identity and 80% coverage
 (D-205, D-206). The finding is in the shape of that distribution rather than in the count —
 78.4% of families cannot carry an informative M3 whatever the detections turn out to be,
 because Pfam's seed alignments hold too few members. D-214 fixes what is reported for them.
 
-**Blocked on A2.6, by the owner's choice on 2026-10-20 (D-222).** The placement pass itself
+**Unblocked on 2026-10-21, and A2.6 is no longer a dependency.** D-222 blocked this task on
+the census because the detections were too thin for M3 to say anything: most families had fewer
+surviving records than bins. D-235 re-ran the ten-fold deepening and D-236 measured what that
+did — in the 371 families whose M3 could be informative at all, the median went from about half
+a record per bin to about four, and 302 of them now have a detection against 224 before. The
+owner unblocked the task on that evidence. D-239 fixes how a detection is placed in a bin,
+before any coverage figure exists. The superseded reasoning follows.
+
+**Why it was blocked (D-222, superseded).** The placement pass itself
 is cheap — 35 GB to stream, under an hour, about twenty cents — but the detections it would
 place come from a 0.2% and a 0.1% sample, so M3 built on them would be a lower bound and
 most families would land at zero or one bin covered. Costed at

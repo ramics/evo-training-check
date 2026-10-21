@@ -10496,3 +10496,38 @@ decision has a threshold or parameter in it, the number goes in the entry.
   make the number comparable and change what Phase B measures: a structure-conditioned score is
   not the zero-shot sequence scoring `DESIGN.md` §4 fixes, and it would need a pinned structure
   per assay with its own provenance. If the owner wants that comparison it is its own task.
+
+### D-239 — How a surviving detection is placed in a bin, fixed before any coverage figure exists
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Context.** `metrics/survival.md` §4 M3 defines the denominator exactly — a family's seed
+  members clustered at 50% identity over 80% of the shorter sequence — and defines coverage as
+  the share of bins holding at least one surviving detection. What it does not define is the
+  numerator's mechanics: a detection is a corpus protein that is not one of the seed members,
+  so something has to say which bin, if any, it belongs to. That rule decides every coverage
+  figure this task produces and is therefore fixed here, before the pass runs, as §4's
+  thresholds-before-results rule requires. The owner unblocked the task on 2026-10-21 on the
+  evidence of D-236.
+- **Decision.** A detection **hits a bin when it meets the same frozen criterion against any
+  member of that bin**: 50% amino-acid identity over 80% coverage at `--cov-mode 0`, the same
+  three values D-206 pinned for the clustering itself, evaluated with `mmseqs easy-search` of
+  the detections against the family's members. One detection may hit several bins and each
+  counts; `coverage(f)` remains the share of bins hit, with its Wilson interval over bins.
+- **Why against members rather than bin representatives.** A representative is MMseqs2's
+  greedy set-cover choice, not a centroid, so "similar to the representative" is a different
+  question from "belongs with this group". Searching all members asks the question the
+  specification asks, and the cost is small: 34,482 members in total across 1,719 families.
+- **Why the same criterion rather than a looser one.** A detection admitted to a bin on weaker
+  evidence than the members needed to be grouped would inflate coverage, and the direction of
+  that error is the one this audit must not make. A detection that meets no bin is counted in
+  neither numerator nor denominator and is reported separately, because it is a real finding —
+  surviving sequence a family's seed diversity does not represent.
+- **What the artefact carries.** Accessions, bin indices, counts and intervals. No sequence, in
+  line with D-103: the detected proteins live in ephemeral scratch for the length of the pass.
+- **Rejected.** Clustering members and detections together and reading the resulting partition.
+  It changes the denominator — detections can merge two member bins into one — and the
+  denominator is pinned by D-206 against the members alone.
+  Assigning each detection to its single best-matching bin. Cheaper, but it answers "where does
+  this sequence belong" rather than "which parts of the family's diversity are represented",
+  and the second is what M3 asks.
