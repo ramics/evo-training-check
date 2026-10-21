@@ -5,7 +5,7 @@ phase: A
 status: in-progress
 gate: false
 depends_on: [A2.1]
-blocks: [A3.4]
+blocks: []
 design_ref: "§A2"
 deliverable: 1
 owner: claude
@@ -125,6 +125,11 @@ on-demand were used instead without putting the changed sizing back to the owner
 to `results/a2-6/logs-<instance>/` every ten minutes, armed before the profiles stage, so a run
 killed by its timer still says how far it read. `--band LO:HI` runs a single worker over a
 sliver of one release as a timing probe and publishes nothing.
+
+**A3.4 no longer waits on this task (D-236, 2026-10-21).** The deepening gave M3 enough
+detections to be informative, the owner unblocked A3.4 on that evidence, and `blocks` is now
+empty. What a census would still buy is the 69 informative families it cannot see and more
+records per bin for the rest — an improvement rather than a prerequisite.
 
 **Held.** No further compute runs until the owner picks between a timing probe, a nested
 widening of the existing sample, the full census, or stopping at the bound. D-078's sample is
