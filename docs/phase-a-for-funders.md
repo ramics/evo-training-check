@@ -153,25 +153,30 @@ only the second is an inconsistency finding. It is small, and saying so is part 
 per-release rates, but only the curated one has since been deepened tenfold. At equal depth the
 pair reads:
 
-| release (shared sampling rate) | Pfam viral, of 1,719 | RVDB-prot, of 13,679 |
-|---|---|---|
-| Evo 1, rate 0.002 | 470 (27.34%) | 572 (4.18%) |
-| Evo 2, rate 0.001 | 492 (28.62%) | 1,456 (10.64%) |
+| release | rate | Pfam viral, of 1,719 | RVDB-prot, of 13,679 |
+|---|---|---|---|
+| Evo 1 (`opengenome`) | 0.002 | 470 = 27.34% [25.29, 29.50] | 572 = 4.18% [3.86, 4.53] |
+| Evo 2 (`opengenome2`) | 0.001 | 492 = 28.62% [26.53, 30.80] | 1,456 = 10.64% [10.14, 11.17] |
 
-Both columns here are the profile search alone, which is the only pairing that is genuinely
-equal-rate: the second detection route sampled at a third rate again, so a merged count on one
-side and a single-detector count on the other is not a comparison (D-247). For the same reason the
-deepened figures must be read as a matched pair — 590 and 811 are the profile search, 597 and 812
-the two routes merged — and neither belongs beside a single-detector count from the other
-registry.
+Intervals are 95%. Both columns are the profile search alone, which is the only pairing that is
+genuinely equal-rate: the second detection route sampled at a third rate again, so a merged count
+on one side and a single-detector count on the other is not a comparison. (The merged protein
+counts are 582 and 1,483, and the artefact records them beside these with the reason they differ.)
+For the same reason the deepened figures must be read as a matched pair — 590 and 811 are the
+profile search, 597 and 812 the two routes merged — and neither belongs beside a single-detector
+count from the other registry.
 
-That equal-depth pair is what any comparison between registries should be read from. The deepened
-curated figures answer a different question — what happens to one registry's bound when you
-sample ten times harder — and setting the deepened 34.7% beside the shallow 4.18% would read a
-sampling artefact as a finding. The two registries were in any case never poolable: different
-family definitions, different denominators, one nucleotide-derived and one protein-level. Depth is
-a third reason on a list that already ruled out reading one against the other. Deepening the
-second registry is costed and deliberately deferred; see §"What a funded continuation buys".
+What equal sampling establishes is exactly one thing: the gap between the two registries is not an
+artefact of depth. It does not make the two comparable in any other respect, because they define a
+family differently and their denominators differ eightfold, so neither column says that one
+registry's families are more or less likely to survive than the other's (D-161, D-247).
+
+That pair is what any cross-registry statement should be read from, and it is published as its own
+artefact — a recount over tables already in the store rather than a new search, which refuses to
+run if a part names the wrong release or a source was sampled at a rate its row does not claim
+(`corpora/results/a3-2/equal-rate-pair`, commit `238313f`). Setting the deepened 34.7% beside the
+shallow 4.18% would instead read a sampling artefact as a finding. Deepening the second registry
+is costed and deliberately deferred; see §"What a funded continuation buys".
 
 ## Finding 3: the artefact you can audit is not the artefact that was trained on
 
@@ -276,8 +281,9 @@ and engineering discipline, not hardware. Four items, in the order I would spend
 of a corpus whose accumulation curve has not flattened. A full pass against the curated registry
 is a few thousand core-hours — tens of dollars at spot prices. The obstacle is not money but the
 engineering the failed attempt exposed: publish per chunk, sync logs on a timer, time one band
-before launching sixteen. This converts the headline from "at least 34.7% and 47.2%" into a
-measured value, and it is the highest-value purchase in the project.
+before launching sixteen. The pass is currently deferred by an explicit decision rather than left
+hanging, with its costing recorded (D-247). It converts the headline from "at least 34.7% and
+47.2%" into a measured value, and it is the highest-value purchase in the project.
 
 **2. Deepen the second registry.** About ten hours of local compute and no money, deliberately
 not spent yet: an equal-depth comparison already exists for free (Finding 2), and a second deep
