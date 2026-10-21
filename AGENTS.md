@@ -234,6 +234,28 @@ negotiable by a task that finds them inconvenient.
 
 ## Running work on EC2
 
+> **Before you launch anything: a remote run must be observable from its first minute, or it is
+> not a run, it is a bet.** Three things, all of them prerequisites rather than improvements, and
+> all of them verified working before the launch that depends on them:
+>
+> 1. **It logs where you can always see it**, which means object storage, not the instance's
+>    disk and not the console. A log that is uploaded when the work finishes tells you nothing
+>    while the work is running and nothing at all if it never finishes.
+> 2. **It heartbeats on an interval**, from a loop that runs independently of whether the work
+>    succeeds, fails or is killed. The question a heartbeat has to answer is *how far did it
+>    get*, and it has to answer it for a run that was killed as readily as for one that ended.
+> 3. **You check on it often**, rather than finding out at the end. A run nobody looked at for
+>    fourteen hours is fourteen hours you cannot get back.
+>
+> This is a standing rule because it has already been paid for twice. D-127: two runs died
+> thirty-one seconds in and the quiet console looked exactly like a long pass still working.
+> D-233: the A2.6 census spent fourteen hours on two machines and published nothing whatsoever —
+> no result, no exit note, not one log line — because its hard stop powers the machine off from
+> outside the script and every publishing path it had ran only on completion. About five
+> dollars (D-234), and no evidence of how far it read. The detail behind all three points is in *Make a
+> long run report to object storage* below; this box is here because that detail was already
+> written when the census ignored it.
+
 **Launch an instance sparingly, and only when being in-region is the point.** The test is whether
 the work is bound by data movement that is free inside `us-east-1` and metered outside it — reading
 the staged corpora is the case that qualifies, because a full pass over them is tens of gigabytes.

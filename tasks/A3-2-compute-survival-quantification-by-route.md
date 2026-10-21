@@ -19,6 +19,17 @@ owner: claude
 
 Merge all detection outputs into the headline quantification, broken down by survival route.
 
+## Re-run against the deepened Pfam tables — 2026-10-21 (D-235)
+
+A2.1's Pfam detections were re-measured at ten times the pre-registered rate, so this task's
+Pfam rows were recomputed from them at commit `bcba835` and republished to
+`corpora/results/a3-2/`. M1 for Pfam goes from 486/1,719 to **830/1,719** on Evo 1 (0.4828,
+[0.4593, 0.5065]) and from 514 to **836** on Evo 2 (0.4863, [0.4628, 0.5100]), identical across
+the three readings. RVDB-prot's rows are unchanged, because its deepening has not been re-run:
+**Pfam is now measured ten times deeper than RVDB-prot in this table**, which is a reason on top
+of D-161 not to read the two universes against each other. Everything else — the withheld
+`not_searched` rows, the route breakdown, M3's absence — is as before.
+
 ## Steps
 
 - Merge A2.* outputs on the shared schema, de-duplicating hits across routes.

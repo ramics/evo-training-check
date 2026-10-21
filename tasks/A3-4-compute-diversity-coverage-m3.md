@@ -49,7 +49,7 @@ was never taken, so taking it is a corpus pass with its own cost and its own dec
 
 ## State — 2026-10-20
 
-`in-progress`. **Branch `claude/project-thread-a3vch4`.** The bins are built: 1,719 viral
+`blocked`, and the work that is done is on branch **`claude/project-thread-a3vch4`**. The bins are built: 1,719 viral
 Pfam families, 34,482 seed members, 17,502 bins, at 50% identity and 80% coverage
 (D-205, D-206). The finding is in the shape of that distribution rather than in the count —
 78.4% of families cannot carry an informative M3 whatever the detections turn out to be,
