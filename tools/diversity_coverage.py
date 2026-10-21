@@ -223,7 +223,7 @@ def build(
         "task": TASK,
         "design_ref": "§A3",
         "metric": "M3",
-        "decisions": ["D-195", "D-205", "D-206", "D-239"],
+        "decisions": ["D-195", "D-205", "D-206", "D-239", "D-240"],
         "label": label,
         "registry": {"id": "pfam", "version": "38.2"},
         "parameters": {
@@ -359,7 +359,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.parameter("cov_mode", diversity.COV_MODE)
             manifest.parameter("label", args.label)
             manifest.parameter("limit", args.limit)
-            manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239"])
+            manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239", "D-240"])
             manifest.input_file(args.seed, role="pfam seed alignment")
             manifest.input_file(args.bins, role="diversity bins")
             doc = build(bins, items, label=args.label, workers=args.workers)

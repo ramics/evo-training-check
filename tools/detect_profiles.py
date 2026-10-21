@@ -1021,7 +1021,8 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help=(
             "park the protein behind every hit, one FASTA per family, for A3.4 to place "
-            "against the family's diversity bins. Ephemeral scratch only: these are corpus "
+            "against the family's diversity bins (D-240). Ephemeral scratch only: these are "
+            "corpus "
             "residues and a path inside the working tree is refused (D-103)."
         ),
     )
