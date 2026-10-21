@@ -19,13 +19,27 @@ owner: claude
 
 Merge all detection outputs into the headline quantification, broken down by survival route.
 
-## Re-run against the deepened Pfam tables — 2026-10-21 (D-235)
+## Re-run against the corrected deepened Pfam tables — 2026-10-21 (D-235, D-245, D-246)
 
 A2.1's Pfam detections were re-measured at ten times the pre-registered rate, so this task's
-Pfam rows were recomputed from them at commit `bcba835` and republished to
-`corpora/results/a3-2/`. M1 for Pfam goes from 486/1,719 to **830/1,719** on Evo 1 (0.4828,
-[0.4593, 0.5065]) and from 514 to **836** on Evo 2 (0.4863, [0.4628, 0.5100]), identical across
-the three readings. RVDB-prot's rows are unchanged, because its deepening has not been re-run:
+Pfam rows were recomputed from them and republished to `corpora/results/a3-2/`. M1 for Pfam goes
+from 486/1,719 to **597/1,719** on Evo 1 (0.3473, [0.3252, 0.3701]) and from 514 to **812**
+on Evo 2 (0.4724, [0.4489, 0.4960]), identical across the three readings. The headline merges
+A2.1's profile search with A2.4's provirus route, which is why it sits a few families above
+A2.1's own 590 and 811.
+
+**Two corrections stand behind those numbers, and the first version of this block had both
+wrong.** It read 830 and 836. D-245 is A2.1's: each release's deepened table was counting the
+other release's detections. D-246 is this task's own, and it is the sharper lesson — with the
+corrected tables published, this task still reported 830 and 836, because `fetch_tables`
+paginates each task prefix recursively and was also reading the commit-keyed twins D-216
+publishes under `<slug>/by-commit/<commit>/`. Merging a table with a twin of itself unions
+families rather than double-counting records, so it was invisible for as long as the copies
+agreed; the moment the stable key held a correction and a twin held the superseded run, the
+stale families unioned straight back in and the correction vanished. The merge now takes only
+objects lying directly under a task's prefix, as `tools/recount.py` always has.
+
+RVDB-prot's rows are unchanged, because its deepening has not been re-run:
 **Pfam is now measured ten times deeper than RVDB-prot in this table**, which is a reason on top
 of D-161 not to read the two universes against each other. Everything else — the withheld
 `not_searched` rows, the route breakdown, M3's absence — is as before.
