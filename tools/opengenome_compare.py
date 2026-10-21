@@ -28,6 +28,7 @@ import gzip
 import json
 import sys
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -114,13 +115,55 @@ def digest_v1(
     return out
 
 
+#: How many leading characters of an INSDC contig accession name its WGS project.
+#: `JAHFAU010000004.1` -> `JAHFAU01`. D-217 makes this the scope a disputed contig's
+#: residues are looked for in on the v1 side.
+PROJECT = 8
+
+
+def project_of(accession: str) -> str:
+    return accession[:PROJECT]
+
+
+def sibling_records(
+    v1: Mapping[str, tuple[str, int]], disputed: Iterable[str]
+) -> dict[str, tuple[str, int]]:
+    """The v1 records sharing a WGS project with a contig only OpenGenome2 has.
+
+    Deciding whether such a contig is new material means asking whether v1 held the same
+    residues under another accession. Asked of all of v1 that is a full pass over a
+    118.5 GiB tier; asked of the same WGS project it is a few hundred rows, and it is
+    where a renamed contig of the same genome would actually be. The restriction is
+    D-217's, and it travels into the evidence rather than being left implicit.
+    """
+    projects = {project_of(a) for a in disputed}
+    if not projects:
+        return {}
+    return {a: where for a, where in v1.items() if project_of(a) in projects}
+
+
+def _rate(result: reuse.Join, name: str) -> dict[str, Any] | None:
+    """One of the join's rates as an estimate with its interval, or `None`.
+
+    A rate over no records is not a rate, and `amazebio.reuse` refuses to invent one. A
+    report assembled from one side's tables alone still has to be writable, so the
+    absence is recorded as `null` rather than as a zero a reader would take for a
+    measurement.
+    """
+    try:
+        point, low, high = getattr(result, name)
+    except ValueError:
+        return None
+    return {"estimate": point, "low": low, "high": high, "method": "wilson"}
+
+
 def report(
     result: reuse.Join,
     discrepancies: tuple[reuse.Discrepancy, ...],
     *,
     genomes: dict[str, int],
+    v1_digest_scope: str = reuse.FULL_SCOPE,
 ) -> dict[str, Any]:
-    point, low, high = result.reused_coverage
     counts = reuse.tally(discrepancies)
     added_delta = genomes.get("added", 0) - STATED_ADDED
     return {
@@ -131,11 +174,14 @@ def report(
         "og2_reused_contigs": result.reused_accessions,
         "og2_added_contigs": result.added_accessions,
         "shared_with_reused": result.shared_with_reused,
-        "reused_coverage": {"estimate": point, "low": low, "high": high, "method": "wilson"},
+        "reused_coverage": _rate(result, "reused_coverage"),
+        "reused_novelty": _rate(result, "reused_novelty"),
+        "added_overlap": _rate(result, "added_overlap"),
         "only_in_v1": len(result.only_v1),
         "only_in_reused": len(result.only_reused),
         "added_also_in_v1": len(result.added_also_in_v1),
         "discrepancies_by_cause": counts,
+        "v1_digest_scope": v1_digest_scope,
         "cause_meaning": {k.value: v for k, v in reuse.CAUSE_MEANING.items()},
         "added_genomes": genomes.get("added"),
         "stated_added": STATED_ADDED,
@@ -151,8 +197,14 @@ def report(
             "figure is about.",
             "`undetermined` is not a cause. It counts records whose digest has not been "
             "read, and it is never added to the other four.",
+            "`reused_coverage` is how much of v1 the reused subtree carries and is what "
+            "'used in its entirety' is about. `reused_novelty` is the converse — how "
+            "much of that subtree v1 never had — and a complete reuse can still carry "
+            "material of its own, so neither number stands in for the other.",
             "Only `content` bears on whether the corpus holds what its authors said; the "
             "other causes are differences in naming, in duplication, or in release date.",
+            "`v1_digest_scope` says what a contig only OpenGenome2 has was looked for in "
+            "on the v1 side. A `content` call is against that scope and no wider (D-217).",
         ],
     }
 
@@ -207,14 +259,29 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             v1_digests: dict[str, str] = {}
+            scope = reuse.FULL_SCOPE
             if args.digest:
                 wanted = {a: v1[a] for a in result.only_v1 if a in v1}
+                siblings = sibling_records(v1, result.only_reused)
+                wanted.update(siblings)
+                projects = sorted({project_of(a) for a in result.only_reused})
+                if projects:
+                    named = (
+                        f"WGS project {projects[0]}"
+                        if len(projects) == 1
+                        else f"{len(projects)} WGS projects"
+                    )
+                    scope = f"the {len(siblings):,} v1 contigs of {named}"
                 print(f"digesting {len(wanted):,} v1 records", flush=True)
                 v1_digests = digest_v1(objectstore.client(), wanted)
-                manifest.parameter("v1_records_digested", len(v1_digests))
+                manifest.parameter("v1_records_digested", len(wanted))
+                manifest.parameter("v1_digest_scope", scope)
+                manifest.parameter("sibling_projects", projects)
 
-            discrepancies = reuse.classify(result, og2_digests=og2_digests, v1_digests=v1_digests)
-            document = report(result, discrepancies, genomes=genomes)
+            discrepancies = reuse.classify(
+                result, og2_digests=og2_digests, v1_digests=v1_digests, v1_scope=scope
+            )
+            document = report(result, discrepancies, genomes=genomes, v1_digest_scope=scope)
 
             out = args.outdir / "comparison.json"
             out.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
@@ -239,7 +306,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
 
-    coverage = document["reused_coverage"]
+    coverage = document["reused_coverage"] or {"estimate": 0.0, "low": 0.0, "high": 0.0}
     print(
         f"reused coverage {coverage['estimate']:.6f} "
         f"[{coverage['low']:.6f}, {coverage['high']:.6f}]\n"

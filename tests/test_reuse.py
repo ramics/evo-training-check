@@ -129,3 +129,25 @@ def test_the_tally_writes_down_the_zeroes() -> None:
 def test_every_cause_says_what_it_does_and_does_not_license() -> None:
     assert set(CAUSE_MEANING) == set(Cause)
     assert "used in its entirety" in CAUSE_MEANING[Cause.CONTENT]
+
+
+def test_the_two_directions_are_separate_rates() -> None:
+    """A reuse can be complete and still carry material the original never had, so the
+    converse rate is a different fact rather than one minus the first."""
+    result = join(
+        ["A.1", "B.1"], [("A.1", Side.REUSED), ("B.1", Side.REUSED), ("C.1", Side.REUSED)]
+    )
+    assert result.reused_coverage[0] == 1.0
+    assert result.claims_entirety
+    novel, low, high = result.reused_novelty
+    assert novel == 1 / 3
+    assert low < novel < high
+
+
+def test_the_added_sides_overlap_with_v1_has_an_interval_too() -> None:
+    """The stated selection rule predicts zero, and a zero without an interval cannot be
+    distinguished from a zero over three records."""
+    result = join(["A.1"], [("A.1", Side.ADDED), ("N.1", Side.ADDED)])
+    point, low, high = result.added_overlap
+    assert point == 0.5
+    assert 0.0 <= low < point < high <= 1.0

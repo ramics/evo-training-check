@@ -55,5 +55,12 @@ jobs:
       - name: Model inventory
         run: pixi run -e dev models-check
 
+      # Validates B2.4's assay provenance and licence register: every assay traceable to a
+      # study, no unrecognised licence URL left for a reader to interpret, and the deposit
+      # whose grant the project relies on still established to be the bytes it read. See
+      # assays/README.md.
+      - name: Assay register
+        run: pixi run -e dev assays-check
+
       - name: Tests
         run: pixi run -e dev test

@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import itertools
 import json
 import os
 import shutil
@@ -44,6 +45,7 @@ import sys
 import tempfile
 import time
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -80,6 +82,74 @@ OUTDIR = REPO / "artifacts" / "a2-1"
 
 #: Seed for the sample. Pinned in D-078; the same value every run, so a wider pass extends the
 #: same sample rather than drawing a new one.
+#: Which task this run belongs to, and therefore which durable prefix its tables land under.
+#: A2.1 searched a hash sample; A2.6 re-runs the same search at census depth (D-222). They are
+#: separate measurements and neither may overwrite the other, so the task id is a parameter of
+#: the run rather than a constant — the alternative is two copies of this tool drifting apart.
+TASK_DEFAULT = "A2.1"
+TASK = TASK_DEFAULT
+
+#: Records gene-called and searched at a time. Chosen so a worker's peak stays in single-digit
+#: gigabytes with eight of them on one machine: at A2.1's measured 1.50 ms per gene this is a
+#: search of a couple of minutes, which is also short enough that a chunk's progress line is a
+#: real heartbeat rather than silence (AGENTS.md).
+CHUNK_RECORDS = 20_000
+
+
+#: The deepest rate each task may read, by component. D-099 made the declared rate a
+#: pre-registration rather than a flag, so reaching further is a decision recorded here in
+#: code and not an argument someone can pass. A2.6's census rate of 1.0 is D-222's.
+CENSUS_RATES = {"stage2": 1.0, "imgvr": 1.0, "imgpr": 1.0}
+
+
+def rate_ceiling(task: str, component: str) -> float:
+    """How deep `task` may read `component`, as a sampling rate.
+
+    A2.1 pre-registered a tenfold deepening and may not exceed it. A2.6 exists precisely to
+    read the rest, and its ceiling is the whole corpus; it is a separate task for that
+    reason, so neither can quietly acquire the other's licence.
+    """
+    if task == "A2.6":
+        return CENSUS_RATES[component]
+    return DEEP_RATES[component]
+
+
+def task_slug(task: str) -> str:
+    """A task id as it appears in a path: `A2.6` -> `a2-6`."""
+    return task.lower().replace(".", "-")
+
+
+def canonical_out(task: str) -> Path:
+    """Where a run that is the deliverable for `task` writes: `artifacts/a2-6` for A2.6."""
+    return REPO / "artifacts" / task_slug(task)
+
+
+def durable_for(task: str, out: Path, *, deliverable: bool = False) -> str | None:
+    """The durable prefix for `task`, **or None for a run that is not its deliverable.**
+
+    The prefix follows from the task id, which does not say where the run was told to write.
+    On 2026-10-20 that published an end-to-end rehearsal of `--assemble` — real tables plus
+    three synthetic band parts, written to a scratch directory — to `corpora/results/a2-6/`,
+    under the exact names the census itself will use, in a bucket with no `DeleteObject`.
+    `detect_segmented.py` had already learned this (D-193) and the lesson did not travel; it
+    travels now. `--out` is the signal that separates a rehearsal from the deliverable, so it
+    is the one used: publish from the task's canonical directory, and from nowhere else.
+
+    The census workers are the exception that has to be declared rather than inferred. They
+    run on an instance with no checkout and write to `/opt/amazebio/out-<band>`, which is a
+    deliverable and is not the canonical directory. `--deliverable` says so explicitly, and
+    the launcher is the only caller that passes it: an opt-in keeps the default refusing,
+    which is the direction the incident says it must fail in.
+    """
+    if deliverable or out.resolve() == canonical_out(task).resolve():
+        return objectstore.durable_results(task_slug(task))
+    print(
+        f"not publishing: --out {out} is not {canonical_out(task)}, so this run is a rehearsal",
+        file=sys.stderr,
+    )
+    return None
+
+
 SEED = 20261015
 
 #: Per-source sample rates, fixed in D-078 before any hit was inspected. Keyed by the component
@@ -265,9 +335,65 @@ def hmm_path(reg: Registry) -> Path:
     return profilesearch.hmm_path(reg, DATA)
 
 
+def manifest_ref_path(path: Path) -> str:
+    """How a manifest is cited in a detection table: repo-relative where it can be.
+
+    `Path.relative_to` raises rather than giving up, and the path is whatever `--manifests`
+    was given — relative in the census workers, since the instance has no checkout at the
+    repository root. That raised *after* the search, so a worker would have spent its whole
+    pass and then died with nothing written. Outside the repo the absolute path is the
+    honest answer: it still says which file was read, and the digest beside it is what
+    actually pins the content.
+    """
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(REPO))
+    except ValueError:
+        return str(resolved)
+
+
 def call_genes(records: list[Any]) -> tuple[list[Any], dict[str, int]]:
     """A2.1's gene calling. Lives in `amazebio.profilesearch` so A2.4 calls the same one."""
     return profilesearch.call_genes(records)
+
+
+def search_batch(
+    regs: list[Registry],
+    views: dict[str, Any],
+    proteins: list[Any],
+    *,
+    source: Any,
+    hits: dict[str, list[dict[str, Any]]],
+    search_seconds: dict[str, float],
+    emit_to: Path | None = None,
+) -> set[str]:
+    """Search one batch of called proteins against every registry, in place.
+
+    Returns the record ids that hit something, because those are the only records the route
+    resolution downstream looks up. At census depth, keeping the rest is the difference
+    between a pass that fits in memory and one that does not.
+    """
+    touched: set[str] = set()
+    if not proteins:
+        return touched
+    for reg in regs:
+        t0 = time.time()
+        found = search(reg, proteins, restrict_to=views[reg.id].restrict_to)
+        search_seconds[reg.id] += time.time() - t0
+        for row_hit in found:
+            row_hit["component"] = source.component
+            row_hit["corpus_component"] = source.corpus_component
+            touched.add(row_hit["record_id"])
+        hits[reg.id].extend(found)
+        if emit_to is not None:
+            emit_hit_proteins(
+                emit_to,
+                registry_id=reg.id,
+                proteins=proteins,
+                found=found,
+                family_of_profile=views[reg.id].family_of_profile,
+            )
+    return touched
 
 
 def search(reg: Registry, proteins: list[Any], *, restrict_to: set[str] | None) -> list[Any]:
@@ -429,7 +555,9 @@ def cache_dir(release: str, *, root: Path | None = None) -> Path:
 CACHE_FORMAT = 2
 
 
-def cache_stem(component: str, object_name: str, lo: float, hi: float) -> str:
+def cache_stem(
+    component: str, object_name: str, lo: float, hi: float, *, chunk: int | None = None
+) -> str:
     """The cache's filename stem for one staged object and band.
 
     The *object* is in the key, not just the component, because Evo 1 publishes stage 2 as three
@@ -438,7 +566,10 @@ def cache_stem(component: str, object_name: str, lo: float, hi: float) -> str:
     full one. Suffixes are concatenated rather than applied with `Path.with_suffix`, which would
     read the `.02` of a band bound as the suffix to replace.
     """
-    return f"{component}--{object_name}--{lo:g}-{hi:g}"
+    stem = f"{component}--{object_name}--{lo:g}-{hi:g}"
+    # A chunked collect writes one file per chunk. `read_cache` globs the object's files
+    # and de-duplicates by record id, so the set reads back as one cache.
+    return stem if chunk is None else f"{stem}--{chunk:05d}"
 
 
 def write_cache(
@@ -601,6 +732,79 @@ def _merge_source_rows(parts: list[list[dict[str, Any]]]) -> list[dict[str, Any]
     return list(merged.values())
 
 
+def _shelve_parts(
+    part_paths: list[Path], out: Path
+) -> tuple[list[dict[str, Any]], dict[str, Path]]:
+    """Read each part once, keeping its counts and spilling its rows to one file per key.
+
+    The counts are kilobytes and are needed by every table; the rows are gigabytes and are
+    needed by exactly one. Parsing one part at a time and appending its rows as JSON lines
+    means peak memory is one part rather than all of them, and the rows are then read back a
+    line at a time by a generator that never holds the file.
+
+    Returns the per-part counts in path order, and the shelf: table key to the file holding
+    that key's rows from every part, in part order.
+    """
+    shelf_dir = out / ".assemble"
+    if shelf_dir.exists():
+        shutil.rmtree(shelf_dir)
+    shelf_dir.mkdir(parents=True)
+    counts: list[dict[str, Any]] = []
+    shelf: dict[str, Path] = {}
+    handles: dict[str, Any] = {}
+    try:
+        for path in part_paths:
+            part = json.loads(path.read_text())
+            counts.append(
+                {
+                    "release": part["release"],
+                    "band_multiple": part["band_multiple"],
+                    "sources": part["sources"],
+                }
+            )
+            for key, rows in part.get("tables", {}).items():
+                if key not in handles:
+                    # The key carries a `|`, which is fine in a filename but reads badly; the
+                    # shelf is internal and deleted, so the name only has to be unique.
+                    shelf[key] = shelf_dir / (key.replace("|", "__") + ".jsonl")
+                    handles[key] = shelf[key].open("w")
+                handle = handles[key]
+                for row in rows:
+                    handle.write(json.dumps(row) + "\n")
+            del part
+    finally:
+        for handle in handles.values():
+            handle.close()
+    return counts, shelf
+
+
+def _shelved_rows(shelf: dict[str, Path], key: str) -> Iterator[dict[str, Any]]:
+    """Every shelved row for one table key, one line at a time."""
+    path = shelf.get(key)
+    if path is None:
+        return
+    with path.open() as fh:
+        for line in fh:
+            if line.strip():
+                yield json.loads(line)
+
+
+def thresholds_for(reg: Registry) -> dict[str, Any]:
+    """The threshold block a table records for `reg`.
+
+    One definition, because the assembler needs it too when there is no initial pass to copy
+    it from, and two copies of this would drift silently — a table's thresholds are read as
+    the record of what the search actually applied.
+    """
+    return {
+        "kind": "gathering" if reg.curated_cutoffs else "pinned-e-value",
+        "e_value": None if reg.curated_cutoffs else PINNED_E_VALUE,
+        "z": None if reg.curated_cutoffs else PINNED_Z,
+        "min_model_coverage": MIN_MODEL_COVERAGE,
+        "decision_ref": "D-076",
+    }
+
+
 def assemble(
     args: argparse.Namespace, regs: list[Registry], manifests: list[dict[str, Any]]
 ) -> int:
@@ -615,26 +819,43 @@ def assemble(
     out = args.out
     views = {r.id: family_universe(r) for r in regs}
     parts_dir = out / "parts"
-    parts = [json.loads(path.read_text()) for path in sorted(parts_dir.glob("part-*.json"))]
-    print(f"assembling {len(parts)} band part(s) with the initial tables", flush=True)
+    part_paths = sorted(parts_dir.glob("part-*.json"))
+    # Only the small half of each part — the band and the per-source counts — is held. The
+    # detection rows are the large half and are shelved to one file per table key, because at
+    # A2.6's census depth a part carries about one row per record searched and eight of them
+    # parsed at once do not fit the container (D-099 sized the search, not the assembly).
+    parts, shelf = _shelve_parts(part_paths, out)
+    had_initial = any(out.glob("detections-*.json")) or (out / "initial").exists()
+    print(
+        f"assembling {len(parts)} band part(s)"
+        + (" with the initial tables" if had_initial else " with no initial pass"),
+        flush=True,
+    )
 
     # Keep the first pass's tables as written, once, before anything overwrites them. They are
     # the result that was already reported, and a superseded artefact should stay readable.
     initial_dir = out / "initial"
     if not initial_dir.exists():
-        initial_dir.mkdir(parents=True)
-        for path in sorted(out.glob("detections-*.json*")):
-            shutil.copy2(path, initial_dir / path.name)
-        print(f"  kept the initial pass in {initial_dir.relative_to(REPO)}", flush=True)
+        # Only when there is one to keep. An empty `initial/` would read as a first pass that
+        # found nothing, which is a different claim from a census that never had one.
+        first_pass = sorted(out.glob("detections-*.json*"))
+        if first_pass:
+            initial_dir.mkdir(parents=True)
+            for path in first_pass:
+                shutil.copy2(path, initial_dir / path.name)
+            print(f"  kept the initial pass in {manifest_ref_path(initial_dir)}", flush=True)
 
     with run(
-        "A2.1",
+        TASK,
         seed=SEED,
         outdir=out,
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name="run-assemble.json",
-        durable=objectstore.durable_results("a2-1"),
+        durable=durable_for(TASK, out, deliverable=args.deliverable),
+        durable_exempt=None
+        if durable_for(TASK, out, deliverable=args.deliverable)
+        else "rehearsal: --out is not the task's canonical directory",
     ) as m:
         m.parameter("assembled_parts", [part["band_multiple"] for part in parts])
         m.parameter("sample_seed", SEED)
@@ -647,21 +868,44 @@ def assemble(
             for reg in regs:
                 view = views[reg.id]
                 stem = f"detections-{reg.id}-{policy_id}-{release}"
-                initial_table = json.loads((initial_dir / f"{stem}.json").read_text())
-                rows: list[dict[str, Any]] = []
+                # A2.1 deepened a first pass, so the initial table was always there to merge
+                # and to copy the table's own metadata from. A2.6 is a census: its bands start
+                # at multiple 1 and tile the whole rate, so there is no first pass at all and
+                # this read raised FileNotFoundError — after the search, at the end of a run
+                # costing hours. The three fields the initial table supplied are all
+                # reconstructable from the manifest and the registry, which is what the
+                # searching path does for them anyway.
+                initial_path = initial_dir / f"{stem}.json"
+                initial_table = (
+                    json.loads(initial_path.read_text()) if initial_path.exists() else None
+                )
                 initial_jsonl = initial_dir / f"{stem}.jsonl"
-                if initial_jsonl.exists():
-                    rows += [
-                        json.loads(line) for line in initial_jsonl.read_text().splitlines() if line
-                    ]
-                source_rows = [initial_table["sources"]]
+                source_rows = [initial_table["sources"]] if initial_table else []
                 for part in parts:
                     if part["release"] != release:
                         continue
-                    rows += part["tables"].get(f"{policy_id}|{reg.id}", [])
                     source_rows.append(part["sources"])
 
-                detections = [_detection_from_row(row) for row in rows]
+                def _rows(
+                    initial_jsonl: Path = initial_jsonl, key: str = f"{policy_id}|{reg.id}"
+                ) -> Iterator[dict[str, Any]]:
+                    """The initial pass's rows, then every shelved band row, streamed.
+
+                    Bound as defaults rather than closed over, because this is defined inside
+                    two loops and a late-binding closure would hand every table the last
+                    table's key — the kind of bug that produces a complete-looking artefact.
+                    """
+                    if initial_jsonl.exists():
+                        with initial_jsonl.open() as fh:
+                            for line in fh:
+                                if line.strip():
+                                    yield json.loads(line)
+                    yield from _shelved_rows(shelf, key)
+
+                # `build_rows` folds its argument into per-family counters, so it never needs
+                # the detections as a list; generating them keeps the raw rows and the
+                # Detection objects from being alive at the same time.
+                detections = (_detection_from_row(row) for row in _rows())
                 sources = _merge_source_rows(source_rows)
                 searched = [s for s in sources if s.get("searched")]
                 bands = sorted({tuple(b) for s in searched for b in s.get("bands", [])})
@@ -677,11 +921,21 @@ def assemble(
                     else None
                 )
                 table = DetectionTable(
-                    task="A2.1",
+                    task=TASK,
                     detector="profile-hmmer",
                     registry=reg.id,
                     registry_version=reg.version,
-                    manifest=ManifestRef(**initial_table["manifest"]),
+                    manifest=(
+                        ManifestRef(**initial_table["manifest"])
+                        if initial_table
+                        else ManifestRef(
+                            policy_id=policy_id,
+                            release=release,
+                            path=manifest_ref_path(entry["path"]),
+                            sha256=sha256_file(entry["path"]),
+                            removed_records=manifest.get("removed", {}).get("records", 0),
+                        )
+                    ),
                     sources=sources,
                     sample=sample,
                     rows=build_rows(
@@ -689,12 +943,20 @@ def assemble(
                         universe=view.universe,
                         thresholds=view.thresholds_by_family(),
                     ),
-                    thresholds=initial_table["thresholds"],
+                    thresholds=(
+                        initial_table["thresholds"] if initial_table else thresholds_for(reg)
+                    ),
                     notes=[
-                        *initial_table["notes"],
-                        f"Assembled from the initial pass and {len(parts)} band part(s) "
-                        "(D-099). Bands are disjoint, so counts add and nothing was searched "
-                        "twice.",
+                        *(initial_table["notes"] if initial_table else []),
+                        (
+                            f"Assembled from the initial pass and {len(parts)} band part(s) "
+                            "(D-099). Bands are disjoint, so counts add and nothing was "
+                            "searched twice."
+                            if initial_table
+                            else f"Assembled from {len(parts)} band part(s) with no initial "
+                            "pass: the bands start at multiple 1 and tile the whole rate, so "
+                            "every record the table claims was read by one of them."
+                        ),
                     ],
                 )
                 check_route_coverage(table)
@@ -706,12 +968,22 @@ def assemble(
                     )
                 table.write(out / f"{stem}.json")
                 m.output_file(out / f"{stem}.json", role="per-family hit table (assembled)")
-                if detections:
-                    jsonl = out / f"{stem}.jsonl"
-                    jsonl.write_text(
-                        "\n".join(detection_rows(detections, extra={"manifest": policy_id})) + "\n"
-                    )
+                # The generator above is spent, so the record-level file streams a fresh pass
+                # rather than a retained list: joining millions of rows into one string to
+                # write it would cost more memory than holding the detections did.
+                jsonl = out / f"{stem}.jsonl"
+                written = 0
+                with jsonl.open("w") as fh:
+                    for line in detection_rows(
+                        (_detection_from_row(row) for row in _rows()),
+                        extra={"manifest": policy_id},
+                    ):
+                        fh.write(line + "\n")
+                        written += 1
+                if written:
                     m.output_file(jsonl, role="record-level detections (assembled)")
+                else:
+                    jsonl.unlink()
                 survival = table.survival()
                 print(
                     f"  {stem}: {survival['families_with_a_hit']:,} of "
@@ -719,6 +991,11 @@ def assemble(
                     f"({survival['estimate_kind']})",
                     flush=True,
                 )
+    # The shelf is an intermediate, and at census depth it is as large as the parts it came
+    # from. The parts are the durable copy; this is scratch and goes.
+    shelf_dir = out / ".assemble"
+    if shelf_dir.exists():
+        shutil.rmtree(shelf_dir)
     return 0
 
 
@@ -733,6 +1010,24 @@ def main(argv: list[str] | None = None) -> int:
         "--limit-records", type=int, default=None, help="stop each source early; probing only"
     )
     parser.add_argument("--plan", action="store_true", help="print what would be read, then stop")
+    parser.add_argument(
+        "--task",
+        default=TASK_DEFAULT,
+        help="the task this run belongs to, which chooses the durable prefix its tables "
+        "land under. A2.6's census pass must not write over A2.1's sampled tables: they "
+        "are two measurements at two depths and the comparison between them is part of "
+        "the result (D-222). (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--chunk-records",
+        type=int,
+        default=CHUNK_RECORDS,
+        help="how many records to gene-call and search at a time. A band is read as a "
+        "stream of chunks rather than one list, because at census depth a single staged "
+        "object is the whole release: OpenGenome's stage-2 split holds 2,652,947 "
+        "records. The chunk size changes no result, only the peak memory "
+        "(default: %(default)s)",
+    )
     parser.add_argument(
         "--band",
         help=(
@@ -784,12 +1079,21 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--allow-dirty", action="store_true", help="local iteration only")
+    parser.add_argument(
+        "--deliverable",
+        action="store_true",
+        help="publish even though --out is not the task's canonical directory. For the census "
+        "workers, which run on an instance with no checkout; never for a run by hand (D-224).",
+    )
     args = parser.parse_args(argv)
     if args.emit_hit_proteins and args.collect:
         raise SystemExit(
             "--emit-hit-proteins needs a search to emit from; --collect searches nothing. "
             "Collect the band first, then search it with --from-cache --emit-hit-proteins."
         )
+
+    global TASK
+    TASK = args.task
 
     regs = [registry(i) for i in (args.registry or sorted(REGISTRIES))]
     band: tuple[float, float] | None = None
@@ -800,6 +1104,18 @@ def main(argv: list[str] | None = None) -> int:
         # component against the declared deep rate, which is what bounds it.
         if not 0 <= band[0] < band[1]:
             raise SystemExit(f"--band {args.band} is not a half-open band with LO < HI")
+        if args.limit_records and not args.collect:
+            # A band run publishes a part, and `--assemble` reads a part as *the* result for
+            # that band. A part produced under `--limit-records` covers a few records and
+            # claims the whole band, so merging it understates every family in it while the
+            # coverage check still passes — the bands tile correctly. The guard is here
+            # rather than in review because this exact pair, a 20-record probe of band
+            # 1:126, published a part into the census prefix on 2026-10-20.
+            raise SystemExit(
+                "--limit-records with --band would publish a part covering a few records "
+                "and claiming the whole band; --assemble cannot tell the difference. Probe "
+                "without --band, or redirect the durable destination."
+            )
     manifests = load_manifests(args.manifests)
     if args.release:
         manifests = [m for m in manifests if m["manifest"]["release"] in args.release]
@@ -835,14 +1151,25 @@ def main(argv: list[str] | None = None) -> int:
     # release — and two runs sharing one `run.json` would leave the second silently overwriting
     # the first one's provenance, which A1.5 hit with two staging passes at once.
     scope = "-".join(sorted(by_release)) if len(by_release) < 3 else "all"
+    # And the band, when there is one. A2.6 runs eight bands of one release at once on one
+    # machine, and without this every worker names its provenance and its index for the
+    # release alone: eight runs would write one `run-opengenome.json`, losing seven, and
+    # eight different `index-opengenome.json` bodies under one durable key — which
+    # `repro`'s commit-keyed copy refuses outright (D-216), after the work rather than
+    # before it. A2.1 hit the same shape with two staging passes at once (A1.5).
+    if band is not None:
+        scope = f"{scope}-{band[0]:g}-{band[1]:g}"
     with run(
-        "A2.1",
+        TASK,
         seed=SEED,
         outdir=out,
         allow_dirty=args.allow_dirty,
         repo=REPO,
         manifest_name=f"run-{scope}.json",
-        durable=objectstore.durable_results("a2-1"),
+        durable=durable_for(TASK, out, deliverable=args.deliverable),
+        durable_exempt=None
+        if durable_for(TASK, out, deliverable=args.deliverable)
+        else "rehearsal: --out is not the task's canonical directory",
     ) as m:
         m.parameter("registries", [r.key for r in regs])
         m.parameter("sample_seed", SEED)
@@ -903,15 +1230,15 @@ def main(argv: list[str] | None = None) -> int:
 
             for source, row in [] if per_source else searched_sources(manifest0, release):
                 initial = SAMPLE_RATES[source.corpus_component]
-                deep = DEEP_RATES[source.corpus_component]
                 # A band is given in rate units of the *initial* design, so --band 1:10 reads
                 # "from the initial rate out to ten times it" whatever the component's rate is.
                 # That keeps one flag meaningful across sources whose rates differ.
                 lo, hi = (band[0] * initial, band[1] * initial) if band else (0.0, initial)
-                if hi > deep:
+                ceiling = rate_ceiling(TASK, source.corpus_component)
+                if hi > ceiling:
                     raise SystemExit(
                         f"--band {args.band} reaches rate {hi} for {source.corpus_component}, "
-                        f"beyond the declared deep rate {deep} (D-099). A rate past the "
+                        f"beyond {TASK}'s declared rate {ceiling} (D-099). A rate past the "
                         "pre-registered one is a new decision, not a flag."
                     )
                 label = f"{source.corpus_component}/{Path(source.key).name}"
@@ -920,6 +1247,8 @@ def main(argv: list[str] | None = None) -> int:
                     flush=True,
                 )
                 started = time.time()
+                search_seconds: dict[str, float] = {r.id: 0.0 for r in regs}
+                hits_before = {r.id: len(hits[r.id]) for r in regs}
                 if args.from_cache:
                     proteins, cached_records, stats = read_cache(
                         cache_dir(release, root=args.cache_dir),
@@ -953,35 +1282,90 @@ def main(argv: list[str] | None = None) -> int:
                         f"{stats['residues']:,} residues)",
                         flush=True,
                     )
-                else:
-                    batch: list[Any] = []
-                    for sampled in stream_source(client, source, lo=lo, hi=hi):
-                        batch.append(sampled)
-                        sampled_records[sampled.id] = sampled.record
-                        if args.limit_records and len(batch) >= args.limit_records:
-                            break
-                    read_seconds = time.time() - started
-                    print(
-                        f"  {len(batch):,} records sampled in {read_seconds / 60:.1f} min; "
-                        "calling genes",
-                        flush=True,
-                    )
-                    proteins, stats = call_genes(batch)
-                    records_here = {s.id: s.record for s in batch}
-                    del batch
-                    if args.collect:
-                        written_to = write_cache(
-                            cache_dir(release, root=args.cache_dir),
-                            cache_stem(source.corpus_component, Path(source.key).name, lo, hi),
+                    if not args.collect:
+                        search_batch(
+                            regs,
+                            views,
                             proteins,
-                            records_here,
-                            band=(lo, hi),
+                            source=source,
+                            hits=hits,
+                            search_seconds=search_seconds,
+                            emit_to=args.emit_hit_proteins,
                         )
+                    del proteins
+                else:
+                    # Chunked, not accumulated. The band used to be read into one list and
+                    # gene-called in a single call, which is fine at the pre-registered rate
+                    # and impossible at census depth: OpenGenome's stage-2 split is one
+                    # object of 2,652,947 records, so the whole release arrives as a single
+                    # source and the list is the corpus. Searching in chunks changes no
+                    # result — the detections are a union over records and every threshold
+                    # is per protein — and it is what makes the census fit a machine the
+                    # account permits instead of one it does not (AGENTS.md: check whether
+                    # the work can be split before concluding it needs a bigger machine).
+                    stats = Counter(
+                        {"records": 0, "genes": 0, "residues": 0, "records_without_genes": 0}
+                    )
+                    read_seconds = 0.0
+                    stream = stream_source(client, source, lo=lo, hi=hi)
+                    chunk_index = 0
+                    while True:
+                        if args.limit_records and stats["records"] >= args.limit_records:
+                            break
+                        want = args.chunk_records
+                        if args.limit_records:
+                            want = min(want, args.limit_records - stats["records"])
+                        t_read = time.time()
+                        batch = list(itertools.islice(stream, want))
+                        read_seconds += time.time() - t_read
+                        if not batch:
+                            break
+                        records_here = {s.id: s.record for s in batch}
+                        proteins, chunk_stats = call_genes(batch)
+                        del batch
+                        stats.update(chunk_stats)
                         print(
-                            f"  cached {stats['genes']:,} genes "
-                            f"({stats['residues']:,} residues) to {written_to}",
+                            f"  chunk {chunk_index}: {chunk_stats['records']:,} records, "
+                            f"{chunk_stats['genes']:,} genes "
+                            f"({stats['records']:,} records read so far in "
+                            f"{read_seconds / 60:.1f} min)",
                             flush=True,
                         )
+                        if args.collect:
+                            # One cache file per chunk. `read_cache` globs the object's files
+                            # and de-duplicates by record id, so several are read as one.
+                            written_to = write_cache(
+                                cache_dir(release, root=args.cache_dir),
+                                cache_stem(
+                                    source.corpus_component,
+                                    Path(source.key).name,
+                                    lo,
+                                    hi,
+                                    chunk=chunk_index,
+                                ),
+                                proteins,
+                                records_here,
+                                band=(lo, hi),
+                            )
+                            print(f"    cached to {written_to}", flush=True)
+                        else:
+                            found_any = search_batch(
+                                regs,
+                                views,
+                                proteins,
+                                source=source,
+                                hits=hits,
+                                search_seconds=search_seconds,
+                                emit_to=args.emit_hit_proteins,
+                            )
+                            # Only the records a hit points at are kept. Downstream reads
+                            # `sampled_records` to resolve a hit's route, and nothing else;
+                            # keeping every record read would put the census back in memory
+                            # by another door.
+                            for record_id in found_any:
+                                sampled_records[record_id] = records_here[record_id]
+                        del proteins, records_here
+                        chunk_index += 1
                 print(
                     f"  {stats['genes']:,} genes, {stats['residues']:,} residues "
                     f"({stats['records_without_genes']:,} records with no gene called)",
@@ -997,48 +1381,22 @@ def main(argv: list[str] | None = None) -> int:
                     "records_in_source": row.get("records"),
                     **stats,
                     "read_seconds": round(read_seconds, 1),
-                    "search_seconds": {},
+                    # A source the sample drew nothing from still costs a full pass over the
+                    # profile file — 418 MB for Pfam, 2.7 GB for RVDB — to search nothing.
+                    # Evo 1's test and valid splits are under a megabyte each, so at the
+                    # pre-registered rate they are expected to be empty, and the zero is
+                    # recorded rather than searched for.
+                    "search_seconds": {r.id: round(search_seconds[r.id], 1) for r in regs},
                 }
                 if args.collect:
-                    del proteins
                     continue
                 for reg in regs:
-                    if not proteins:
-                        # A source the sample drew nothing from still costs a full pass over
-                        # the profile file — 418 MB for Pfam, 2.7 GB for RVDB — to search
-                        # nothing. Evo 1's test and valid splits are under a megabyte each, so
-                        # at the pre-registered rate they are expected to be empty, and the
-                        # zero is recorded rather than searched for.
-                        source_row["search_seconds"][reg.id] = 0.0
-                        continue
-                    t0 = time.time()
-                    found = search(reg, proteins, restrict_to=views[reg.id].restrict_to)
-                    source_row["search_seconds"][reg.id] = round(time.time() - t0, 1)
-                    for row_hit in found:
-                        row_hit["component"] = source.component
-                        row_hit["corpus_component"] = source.corpus_component
-                    hits[reg.id].extend(found)
-                    if args.emit_hit_proteins:
-                        genes_out = emit_hit_proteins(
-                            Path(args.emit_hit_proteins),
-                            registry_id=reg.id,
-                            proteins=proteins,
-                            found=found,
-                            family_of_profile=views[reg.id].family_of_profile,
-                        )
-                        print(
-                            f"  {reg.key}: residues for {genes_out:,} hit genes written to "
-                            f"{args.emit_hit_proteins}",
-                            flush=True,
-                        )
                     print(
-                        f"  {reg.key}: {len(found):,} hits above threshold in "
-                        f"{source_row['search_seconds'][reg.id] / 60:.1f} min",
+                        f"  {reg.key}: {len(hits[reg.id]) - hits_before[reg.id]:,} hits "
+                        f"above threshold in {search_seconds[reg.id] / 60:.1f} min",
                         flush=True,
                     )
-                del proteins
                 per_source.append(source_row)
-
             if per_source and not args.collect and not dump.exists():
                 write_hits_dump(dump, hits=hits, per_source=per_source, records=sampled_records)
                 print(f"  parked the search in {dump}", flush=True)
@@ -1069,7 +1427,7 @@ def main(argv: list[str] | None = None) -> int:
                 ref = ManifestRef(
                     policy_id=manifest["policy"]["id"],
                     release=manifest["release"],
-                    path=str(entry["path"].relative_to(REPO)),
+                    path=manifest_ref_path(entry["path"]),
                     sha256=sha256_file(entry["path"]),
                     removed_records=manifest.get("removed", {}).get("records", 0),
                 )
@@ -1106,7 +1464,7 @@ def main(argv: list[str] | None = None) -> int:
                             )
                         )
                     table = DetectionTable(
-                        task="A2.1",
+                        task=TASK,
                         detector="profile-hmmer",
                         registry=reg.id,
                         registry_version=reg.version,
@@ -1134,13 +1492,7 @@ def main(argv: list[str] | None = None) -> int:
                             universe=view.universe,
                             thresholds=view.thresholds_by_family(),
                         ),
-                        thresholds={
-                            "kind": "gathering" if reg.curated_cutoffs else "pinned-e-value",
-                            "e_value": None if reg.curated_cutoffs else PINNED_E_VALUE,
-                            "z": None if reg.curated_cutoffs else PINNED_Z,
-                            "min_model_coverage": MIN_MODEL_COVERAGE,
-                            "decision_ref": "D-076",
-                        },
+                        thresholds=thresholds_for(reg),
                         notes=[
                             f"{excluded} hits fell on records this reading removes and are "
                             "excluded from the surviving set; they are candidate conformance "
@@ -1195,7 +1547,7 @@ def main(argv: list[str] | None = None) -> int:
                 written.append(f"parts/{name}")
 
         index = {
-            "task": "A2.1",
+            "task": TASK,
             "detector": "profile-hmmer",
             "tables": sorted(written),
             "registries": [r.key for r in regs],

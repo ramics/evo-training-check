@@ -45,6 +45,19 @@ Two deliberate pieces of strictness:
   string rather than a flag so the reason is in the manifest and greppable across
   the tree, and `tests/test_repro.py` holds the list of exempt call sites so it
   can shrink but not silently grow.
+
+- **An upload keyed only by filename is destroyed by the next run of the same
+  pipeline.** The corpus bucket has no `s3:DeleteObject`, which is what makes a
+  staged corpus un-rewritable, but `PutObject` on a key that already exists
+  succeeds and the previous bytes stop being readable. A3.4 published a partial
+  `bins-pfam-38.2.json` and then the full one under one key, 94 minutes apart;
+  nothing was lost because the replaced object was the worse of the two, which is
+  luck rather than a property. So every output now goes to two keys: the stable
+  one it has always had, which readers keep using, and a commit-keyed twin under
+  `by-commit/<commit>/` that a later run of the same pipeline cannot reach.
+  Publishing different bytes under a commit that has already published is refused
+  outright, because the same code producing a different result means something
+  undeclared moved. D-216.
 """
 
 from __future__ import annotations
@@ -64,6 +77,10 @@ from pathlib import Path
 from typing import Any
 
 MANIFEST_NAME = "run.json"
+
+#: Where the commit-keyed copy of each durable output sits, under the run's own prefix.
+#: A listing that globs the prefix for results does not see into it. D-216.
+BY_COMMIT = "by-commit"
 _CHUNK = 1 << 20
 
 
@@ -182,6 +199,11 @@ class RunManifest:
     durable_exempt: str | None = None
     #: `local path -> object URI` for each output copied to durable storage.
     uploaded: dict[str, str] = field(default_factory=dict)
+    #: `local path -> object URI` for the commit-keyed copy of each output. The stable key
+    #: in `uploaded` is replaced by a later run of the same pipeline; this one is not.
+    by_commit: dict[str, str] = field(default_factory=dict)
+    #: Why this run may replace bytes its own commit already published. D-216.
+    replace_durable: str | None = None
     #: Why the upload did not happen although `durable` was set. Present only under test.
     upload_skipped: str | None = None
 
@@ -292,6 +314,8 @@ class RunManifest:
             "durable": self.durable,
             "durable_exempt": self.durable_exempt,
             "uploaded": self.uploaded,
+            "by_commit": self.by_commit,
+            "replace_durable": self.replace_durable,
             "upload_skipped": self.upload_skipped,
             "environment": {
                 "python": sys.version.split()[0],
@@ -343,17 +367,118 @@ def _client(uploader: Any) -> Any:
     return objectstore.client()
 
 
-def _upload_one(manifest: RunManifest, durable: str, path: Path, client: Any = None) -> str:
-    """Copy one local file under the durable prefix, keyed by its path relative to outdir."""
-    bucket, prefix = _split_s3(durable)
+def commit_of(manifest: RunManifest) -> str | None:
+    """The commit this run's code came from, wherever it was recorded.
+
+    In this container `repro` reads it from the checkout. On an EC2 instance there is no
+    checkout, so the launcher passes it in and the tool declares it as a `code_commit`
+    parameter; both are the same fact and either will key an object.
+    """
+    commit = manifest.git.get("commit") if manifest.git else None
+    return commit or manifest.parameters.get("code_commit") or None
+
+
+def _relative_key(manifest: RunManifest, path: Path) -> str:
     root = Path(manifest.outdir) if manifest.outdir else path.parent
     try:
         rel = path.relative_to(root)
     except ValueError:
         rel = Path(path.name)
-    key = f"{prefix}/{rel.as_posix()}" if prefix else rel.as_posix()
-    (client or _client(None)).put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
-    uri = f"s3://{bucket}/{key}"
+    return rel.as_posix()
+
+
+def durable_keys(manifest: RunManifest, durable: str, path: Path) -> tuple[str, str, str | None]:
+    """`(bucket, stable key, commit-keyed key)` for one output.
+
+    The stable key is what it has always been — the output's path under the run's prefix —
+    so everything that reads a result by name keeps finding it. The commit-keyed copy sits
+    beside it under `by-commit/<commit>/`, out of the way of a listing that globs the
+    prefix, and is the one that cannot be replaced by a later run of the same pipeline.
+
+    Two keys rather than one because the bucket has no `s3:DeleteObject` but `PutObject`
+    on an existing key succeeds regardless: un-rewritable is a property of deletion here,
+    not of the key. D-216.
+    """
+    bucket, prefix = _split_s3(durable)
+    rel = _relative_key(manifest, path)
+    stable = f"{prefix}/{rel}" if prefix else rel
+    commit = commit_of(manifest)
+    if commit is None:
+        return bucket, stable, None
+    by_commit = f"{prefix}/{BY_COMMIT}/{commit}/{rel}" if prefix else f"{BY_COMMIT}/{commit}/{rel}"
+    return bucket, stable, by_commit
+
+
+def _head(client: Any, bucket: str, key: str) -> dict[str, Any] | None:
+    """The object's metadata, or `None` if it is not there. Any other failure is raised."""
+    try:
+        return client.head_object(Bucket=bucket, Key=key)
+    except Exception as exc:  # botocore raises ClientError; this module does not import it
+        code = str(getattr(exc, "response", {}).get("Error", {}).get("Code", ""))
+        status = getattr(exc, "response", {}).get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if code in {"404", "NoSuchKey", "NotFound"} or status == 404:
+            return None
+        raise
+
+
+def _check_commit_keys(manifest: RunManifest, durable: str, client: Any) -> None:
+    """Refuse before uploading anything if this commit already published other bytes.
+
+    A re-run at the same commit producing the same bytes is a no-op and passes. One
+    producing *different* bytes means something undeclared moved — an input, the
+    environment, a parameter the tool reads but does not record — and writing it would
+    destroy the copy the earlier run's `run.json` points at. The run is finished by the
+    time this fires, so the outputs are still on disk; what it stops is the overwrite.
+    """
+    if manifest.replace_durable:
+        return
+    clashes: list[str] = []
+    for entry in manifest.outputs:
+        local = entry.get("path")
+        if not local or not Path(local).exists():
+            continue
+        bucket, _, by_commit = durable_keys(manifest, durable, Path(local))
+        if by_commit is None:
+            continue
+        head = _head(client, bucket, by_commit)
+        if head is None:
+            continue
+        published = str(head.get("Metadata", {}).get("sha256", ""))
+        if published and published != entry.get("sha256"):
+            clashes.append(
+                f"  s3://{bucket}/{by_commit}\n"
+                f"    published {published}\n"
+                f"    now       {entry.get('sha256')}"
+            )
+    if clashes:
+        raise ReproError(
+            f"{manifest.task}: this commit has already published different bytes for "
+            + f"{len(clashes)} output(s), and the bucket cannot delete what it replaces:\n"
+            + "\n".join(clashes)
+            + "\nSame code and different results means an input or a parameter moved "
+            "without being declared. Find what moved; if the replacement is intended, "
+            "pass replace_durable='<reason>' and it lands in the manifest."
+        )
+
+
+def _upload_one(manifest: RunManifest, durable: str, path: Path, client: Any = None) -> str:
+    """Copy one local file to its stable key and to its commit-keyed twin.
+
+    Returns the stable URI, which is what `run.json` has always recorded; the commit-keyed
+    URI is recorded alongside it so a reader can reach the copy no later run can replace.
+    """
+    bucket, stable, by_commit = durable_keys(manifest, durable, path)
+    body = path.read_bytes()
+    metadata = {"sha256": hashlib.sha256(body).hexdigest()}
+    commit = commit_of(manifest)
+    if commit:
+        metadata["commit"] = commit
+    handle = client or _client(None)
+    handle.put_object(Bucket=bucket, Key=stable, Body=body, Metadata=metadata)
+    uri = f"s3://{bucket}/{stable}"
+    if by_commit is not None:
+        handle.put_object(Bucket=bucket, Key=by_commit, Body=body, Metadata=metadata)
+        manifest.by_commit[str(path)] = f"s3://{bucket}/{by_commit}"
     manifest.uploaded[str(path)] = uri
     return uri
 
@@ -364,6 +489,7 @@ def _upload_outputs(manifest: RunManifest, durable: str, client: Any) -> dict[st
     Recorded with :meth:`RunManifest.output_object` as well as on disk, so a reader of
     `run.json` can find the durable copy without knowing this function's key scheme.
     """
+    _check_commit_keys(manifest, durable, client)
     uploaded: dict[str, str] = {}
     for entry in list(manifest.outputs):
         local = entry.get("path")
@@ -375,6 +501,8 @@ def _upload_outputs(manifest: RunManifest, durable: str, client: Any) -> dict[st
         uri = _upload_one(manifest, durable, path, client)
         uploaded[str(path)] = uri
         entry["durable_uri"] = uri
+        if str(path) in manifest.by_commit:
+            entry["by_commit_uri"] = manifest.by_commit[str(path)]
     return uploaded
 
 
@@ -389,6 +517,7 @@ def run(
     manifest_name: str = MANIFEST_NAME,
     durable: str | None = None,
     durable_exempt: str | None = None,
+    replace_durable: str | None = None,
     uploader: Any = None,
 ) -> Iterator[RunManifest]:
     """Wrap a pipeline run: seed RNGs, check the tree is clean, write provenance.
@@ -409,6 +538,10 @@ def run(
             is given. See this module's docstring for what it cost not to have this.
         durable_exempt: why this run's outputs need no durable copy. Mutually exclusive
             with `durable`. A reason, not a flag — it lands in the manifest.
+        replace_durable: why this run may publish bytes different from the ones its own
+            commit already published. Without it such a run is refused, because the
+            bucket has no delete and the replaced copy is what an earlier `run.json`
+            points at. A reason, not a flag — it lands in the manifest. D-216.
         uploader: object-store client. Defaults to `amazebio.objectstore.client()`,
             imported lazily so a run with no `durable` needs no boto3.
 
@@ -447,6 +580,7 @@ def run(
 
     manifest.durable = durable
     manifest.durable_exempt = durable_exempt
+    manifest.replace_durable = replace_durable
 
     failed = False
     try:

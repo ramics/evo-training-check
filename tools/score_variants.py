@@ -83,6 +83,37 @@ def plan(
     }
 
 
+def is_evolutionaryscale(spec: backends.Recipe) -> bool:
+    """Whether this checkpoint loads through EvolutionaryScale's package rather than
+    `transformers`.
+
+    ESM3-open and ESM-C are not reachable as `transformers.EsmForMaskedLM`: their published
+    access route is the `esm` package, and `amazebio.backends` records that route verbatim
+    rather than substituting one the authors did not name. The two routes differ in how the
+    model is constructed and in what its output object calls the sequence logits, and in
+    nothing else — the tokenizer, the vocabulary and the prefix arithmetic are shared, so a
+    difference between two checkpoints' scores is the model and not the reader.
+    """
+    return spec.loader.startswith("esm.models.")
+
+
+def _masked_lm_logits(model, rows):  # type: ignore[no-untyped-def]
+    """Logits from a `transformers` masked language model."""
+    return model(input_ids=rows).logits
+
+
+def _sequence_logits(model, rows):  # type: ignore[no-untyped-def]
+    """Logits over the sequence track of an EvolutionaryScale model.
+
+    ESM3 is multi-track and generative; only the sequence track is read and only through
+    this one call. Nothing here hands the model itself to the harness — `FrozenLM` closes
+    over a forward function — so `scoring.enforce_scope` still has nothing to reject and
+    the generation entry points §4 forbids stay out of reach by construction, not by
+    agreement.
+    """
+    return model(sequence_tokens=rows).sequence_logits
+
+
 def load_backend(
     spec: backends.Recipe,
     weights: str,
@@ -104,22 +135,46 @@ def load_backend(
     numbers.
     """
     import torch
-    from transformers import AutoTokenizer
 
     module, _, attribute = spec.loader.rpartition(".")
     loaded = getattr(__import__(module, fromlist=[attribute]), attribute)
-    tokenizer = AutoTokenizer.from_pretrained(weights)
-    model = loaded.from_pretrained(weights)
+
+    if is_evolutionaryscale(spec):
+        from esm.tokenization import EsmSequenceTokenizer
+
+        tokenizer = EsmSequenceTokenizer()
+        extra = {} if attribute == "ESM3" else {"use_flash_attn": False}
+        model = loaded.from_pretrained(weights, device=torch.device("cpu"), **extra)
+        # The released weights are bfloat16 and the forward mixes them with float32
+        # activations, which raises rather than casting. Scoring in float32 is both what
+        # resolves that and what the published reference numbers are in (D-220).
+        model = model.to(torch.float32)
+        logits_of = _sequence_logits
+    else:
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(weights)
+        model = loaded.from_pretrained(weights)
+        logits_of = _masked_lm_logits
+
     model.eval()
     model.requires_grad_(False)
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     vocabulary = {r: tokenizer.convert_tokens_to_ids(r) for r in scoring.AMINO_ACIDS}
-    prefix = len(tokenizer("A")["input_ids"]) - 1 - int(tokenizer.eos_token_id is not None)
+    # The whole row the tokenizer builds for one residue, so the opening and closing tokens
+    # are the checkpoint's own rather than this harness's idea of them. Taking only a prefix
+    # *count* and filling the row with zeros is what hid a missing end-of-sequence token
+    # through every protein score this project had produced (D-230): the opening id happened
+    # to be zero, so the half that was guessed right concealed the half that was dropped.
+    prefix_ids, suffix_ids = boundary_tokens(
+        list(tokenizer("A")["input_ids"]), vocabulary["A"], spec.checkpoint_id
+    )
+    prefix = len(prefix_ids)
 
     def forward(rows):  # type: ignore[no-untyped-def]
         with torch.inference_mode():
-            out = model(input_ids=torch.tensor(list(rows))).logits
+            out = logits_of(model, torch.tensor(list(rows)))
         return out.to(torch.float64).cpu().tolist()
 
     return backends.FrozenLM(
@@ -131,10 +186,33 @@ def load_backend(
         encoder=dict(vocabulary),
         mask_token_id=int(tokenizer.mask_token_id),
         prefix_tokens=prefix,
+        prefix_token_ids=prefix_ids,
+        suffix_token_ids=suffix_ids,
         forward=forward,
         batch_size=batch_size,
         progress=progress,
     )
+
+
+def boundary_tokens(
+    row: list[int], residue_id: int, checkpoint_id: str
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """What the checkpoint's tokenizer puts before and after a single residue.
+
+    Read off a real tokenised row rather than reconstructed from a count. Taking only a
+    prefix *length* is what hid a missing end-of-sequence token through every protein score
+    this project had produced (D-230): the opening id happens to be zero on these
+    checkpoints, so a row filled with zeros was right at one end and silently wrong at the
+    other, and the model was shown a truncation.
+    """
+    if row.count(residue_id) != 1:
+        raise RuntimeError(
+            f"{checkpoint_id}: the residue appears {row.count(residue_id)} times in the "
+            f"tokenised row {row}, so the boundary tokens cannot be read off it. Refusing "
+            "rather than guessing: a guessed boundary produces plausible numbers"
+        )
+    at = row.index(residue_id)
+    return tuple(row[:at]), tuple(row[at + 1 :])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -297,6 +375,25 @@ def _score(
         checkpoint(doc)
 
     column = resolve_published_column(args.published_column, spec)
+    # A missing `reference_check` is indistinguishable from a check that was skipped by
+    # accident, and that is not hypothetical: ESM3-open's first pass carried no reference
+    # block, which read as "no published column exists" when the truth was that the run was
+    # invoked without `--published`. ProteinGym v1.3 publishes an `ESM3` column. So the
+    # absence is stated with its reason — an operator who omitted the input and a benchmark
+    # that never published the number are different facts, and only one of them is a finding.
+    if args.published is None or not column:
+        doc["reference_check"] = {
+            "checkpoint": args.checkpoint,
+            "assay": assay.dms_id,
+            "compared": False,
+            "why_not": (
+                "no published zero-shot scores were supplied for this run"
+                if args.published is None
+                else f"{args.checkpoint} has no column in the published score table, so there "
+                "is no reference to reproduce"
+            ),
+        }
+        doc["published_column"] = column
     if args.published is not None and column:
         manifest.input_file(args.published, role="published zero-shot scores")
         published = proteingym.load_model_scores(args.published, assay, column)

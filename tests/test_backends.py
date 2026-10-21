@@ -8,6 +8,7 @@ bug produces plausible scores at the wrong residues and never announces itself.
 from __future__ import annotations
 
 import math
+import pathlib
 
 import pytest
 
@@ -32,6 +33,8 @@ def make(forward, **kw):  # type: ignore[no-untyped-def]
         encoder=ENCODER,
         mask_token_id=MASK_ID,
         prefix_tokens=kw.pop("prefix_tokens", 1),
+        prefix_token_ids=kw.pop("prefix_token_ids", (0,)),
+        suffix_token_ids=kw.pop("suffix_token_ids", ()),
         forward=forward,
         **kw,
     )
@@ -70,7 +73,7 @@ class TestTheOffsetConvention:
             seen.extend(list(r) for r in rows)
             return echo_forward(rows)
 
-        make(forward, prefix_tokens=0).position_log_probs(WT, [1, 4])
+        make(forward, prefix_tokens=0, prefix_token_ids=()).position_log_probs(WT, [1, 4])
         assert [r.index(MASK_ID) for r in seen] == [0, 3]
 
     def test_the_distribution_is_read_at_the_masked_index_not_at_position_minus_one(
@@ -208,3 +211,68 @@ def test_a_long_pass_reports_progress_so_its_silence_can_be_read():
 def test_a_backend_with_no_progress_callback_still_scores():
     model = make(echo_forward, batch_size=2)
     assert len(model.position_log_probs(WT, [1, 2])) == 2
+
+
+class TestTheRowCarriesBothEnds:
+    """D-230. The models are trained with a start and an end token, and a row that carries
+    only the first shows the model a truncation. It cost every protein score this project had
+    produced, and it hid because the start id is zero on all four checkpoints, so a row filled
+    with zeros was right at one end and silently wrong at the other."""
+
+    def _row(self, **kw):
+        seen = []
+
+        def forward(rows):
+            seen.extend(rows)
+            return echo_forward(rows)
+
+        make(forward, **kw).position_log_probs(WT, [1])
+        return seen[0]
+
+    def test_the_closing_token_is_in_the_row(self):
+        assert self._row(suffix_token_ids=(2,))[-1] == 2
+
+    def test_a_row_without_one_stops_at_the_last_residue(self):
+        """The old behaviour, kept as a test so the difference is visible rather than
+        remembered: with no closing token the row ends on a residue."""
+        assert self._row(suffix_token_ids=())[-1] == ENCODER[WT[-1]]
+
+    def test_the_opening_token_is_the_checkpoints_own_not_a_zero(self):
+        assert self._row(prefix_token_ids=(7,))[0] == 7
+
+    def test_adding_a_closing_token_does_not_shift_the_read_index(self):
+        """The index arithmetic counts from the front, so the distribution read for residue 1
+        must be the same with and without a suffix. If it moved, the fix would trade one
+        off-by-one for another."""
+        with_suffix = make(echo_forward, suffix_token_ids=(2,)).position_log_probs(WT, [1])
+        without = make(echo_forward, suffix_token_ids=()).position_log_probs(WT, [1])
+        assert with_suffix[1] == without[1]
+
+    def test_opening_tokens_that_disagree_with_the_index_arithmetic_are_refused(self):
+        with pytest.raises(ScoringError, match="would disagree"):
+            make(echo_forward, prefix_tokens=1, prefix_token_ids=(0, 0))
+
+
+class TestWhichCheckpointsHaveAPublishedReference:
+    """D-238. A published column is only a reference when it was computed the same way.
+    ProteinGym's ESM3 column is structure-conditioned and this harness scores the sequence
+    track alone, so pairing them manufactures a divergence out of a difference in protocol.
+    Pinned here because restoring the column would re-create exactly that."""
+
+    def test_esm3_has_no_published_column(self) -> None:
+        assert backends.recipe("esm3-sm-open-v1").published_column is None
+
+    def test_the_reason_is_recorded_where_the_column_would_be(self) -> None:
+        source = pathlib.Path(backends.__file__).read_text()
+        assert "use_structure" in source and "D-238" in source
+
+    def test_the_checkpoints_that_do_have_one_still_do(self) -> None:
+        for checkpoint, column in [
+            ("esm2_t33_650M_UR50D", "ESM2_650M"),
+            ("esm2_t36_3B_UR50D", "ESM2_3B"),
+            ("ESMC-600M", "ESMC-600M"),
+        ]:
+            assert backends.recipe(checkpoint).published_column == column
+
+    def test_the_nucleotide_arm_still_has_none(self) -> None:
+        assert backends.recipe("evo2_7b").published_column is None
