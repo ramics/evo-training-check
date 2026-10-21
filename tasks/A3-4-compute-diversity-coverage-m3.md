@@ -2,7 +2,7 @@
 id: A3.4
 title: Compute diversity coverage (M3)
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A3.2]
 blocks: [A6.1]
@@ -46,6 +46,50 @@ was never taken, so taking it is a corpus pass with its own cost and its own dec
 - The corpus summary is a distribution, not a pooled figure.
 - If the owner declines the compute, this task is `deferred` rather than dropped, so M3 appears
   in the write-up as a named commitment deliberately not run.
+
+## M3 is computed and published — 2026-10-21 (late evening)
+
+`review`. Both releases are placed and published to `corpora/results/a3-4/` from clean commits,
+with run manifests: `coverage-pfam-evo1-literal-{opengenome,opengenome2}.{json,md}`.
+
+| release | rate | families with a detection | regions placed | coverage(f) median | IQR |
+|---|---|---|---|---|---|
+| `opengenome` | 0.02 | 590 of 1,719 | 27,232 of 128,480 | 0.391 | 0.083 – 0.731 |
+| `opengenome2` | 0.01 | 811 of 1,719 | 14,142 of 66,296 | 0.333 | 0.091 – 0.600 |
+
+Restricted to the families whose interval can say anything at all (D-214), the medians fall to
+0.333 over 250 families on Evo 1 and 0.206 over 302 on Evo 2. 92 and 106 families cover every
+bin; 122 and 141 cover none.
+
+**The corpus figure is the distribution and never a pooled coverage**, as `metrics/survival.md`
+§4 requires: the families run from one bin to 421, and pooling would weight a one-bin family
+equally with a 421-bin one.
+
+**Three things in these numbers that the write-up has to carry.**
+
+- **78.8% and 78.7% of matched regions meet no bin.** Those two figures come from independently
+  sampled corpora and agree to a tenth of a point, which is what makes them a property of the
+  comparison rather than of either corpus: a profile match establishes homology far below the
+  50% identity the frozen criterion requires. Reported as its own figure and never folded into
+  coverage. A region-length check bounds how much of it the criterion itself could explain —
+  82.4% of regions sit within 0.8–1.25 of their family's model length, and only 16.5% are short
+  enough that 80% coverage of both sides is unreachable against a full-length member — so the
+  bulk of it is divergence, not arithmetic.
+- **Evo 2 reads lower on the informative families despite carrying more of them**, 0.206 against
+  0.333, because it is sampled at a tenth of Evo 1's rate: fewer records per bin, so fewer bins
+  reached. The same asymmetry D-245 exposed in the family counts shows up here, and the two
+  releases are no more comparable as coverage than as rates.
+- **Every figure is a lower bound twice over.** The detections come from a sampled search, so a
+  bin with no detection may hold surviving material nothing read; and the bins come from Pfam's
+  seed alignment, which samples each family's diversity rather than exhausting it.
+
+**Scope, stated rather than implied.** This is the Pfam registry under the `evo1-literal`
+reading. The three policy readings were checked rather than assumed: their Pfam detections are
+the identical set of (family, record) pairs on both releases — 127,077 and 65,132 pairs — so one
+placement run covers all three and the published figures carry for each. The protein registry has
+no bins artefact and no M3; building one means clustering 13,679 families' seed members, and it
+belongs with the depth decision that left that registry at its pre-registered rate (D-247)
+rather than with this task.
 
 ## State — 2026-10-21 (evening)
 
