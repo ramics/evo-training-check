@@ -82,6 +82,11 @@ DEFAULT_WORKERS_PER_RELEASE = 8
 #: no run at all, and the instance terminates itself the moment the workers finish.
 DEFAULT_HARD_STOP_MINUTES = 840
 
+#: How often the instance copies its worker logs to the store. The logs are the only thing
+#: that survives a hard stop, so the interval is what bounds how much of a timed-out run is
+#: unknowable; ten minutes against a run measured in hours costs a handful of small puts.
+HEARTBEAT_SECONDS = 600
+
 #: Records a worker holds at once. Smaller than the tool's own default because eight workers
 #: share one machine and the densest component is the one that sizes them: measured
 #: 2026-10-20, OpenGenome's stage 2 calls 20 genes per record and IMG/PR 66, so a chunk of
@@ -175,6 +180,20 @@ die() {{
   exit "${{2:-1}}"
 }}
 
+# A hard stop powers the machine off from outside this script, so neither a worker's part
+# nor `die` ever runs: on 2026-10-21 two machines spent their full fourteen hours and left
+# nothing behind at all, not even the logs that would say how far they had read (D-233).
+# This loop is what makes a run that never finishes diagnosable, and it is armed before
+# anything slow for the same reason the dead man's switch is.
+hb_iid=$(cat /var/lib/cloud/data/instance-id 2>/dev/null || echo unknown)
+(
+  while true; do
+    sleep {heartbeat_seconds}
+    aws s3 cp /opt/amazebio/ "s3://{bucket}/{prefix}/results/a2-6/logs-$hb_iid/" \
+      --recursive --exclude "*" --include "log-*.txt" --region {region} >/dev/null 2>&1 || true
+  done
+) &
+
 dnf install -y tar gzip xz >/dev/null
 
 # Amazon Linux 2023 ships python3.9 as `python3` and this project needs 3.12.
@@ -258,7 +277,7 @@ die "run complete" "$rc"
 
 WORKER_LINE = """( "$PYBIN" tools/detect_profiles.py --task {task} --manifests artifacts/a1-4 \
 --registry {registry} --release {release} --band {lo}:{hi} --out /opt/amazebio/out-{slug} \
---chunk-records {chunk} --allow-dirty --deliverable > /opt/amazebio/log-{slug}.txt 2>&1 \
+--chunk-records {chunk} --allow-dirty{deliverable} > /opt/amazebio/log-{slug}.txt 2>&1 \
 ; echo "=== {release} {lo}:{hi} exited $? ===" ) &
 pids="$pids $!"
 """
@@ -280,6 +299,26 @@ def bands(multiple: int, workers: int) -> tuple[tuple[int, int], ...]:
     return tuple((edges[i], edges[i + 1]) for i in range(workers) if edges[i] < edges[i + 1])
 
 
+def probe(releases: tuple[str, ...], band: str) -> dict[str, Any]:
+    """The single worker a timing probe runs, from a `LO:HI` string.
+
+    One release, because a rate measured over two components at once is the contention
+    figure rather than the rate, and the probe exists to cost a band honestly.
+    """
+    if len(releases) != 1:
+        raise SystemExit("--band times one release; name it with --release")
+    release = releases[0]
+    multiple = CENSUS_MULTIPLE[release]
+    lo_text, _, hi_text = band.partition(":")
+    try:
+        lo, hi = int(lo_text), int(hi_text)
+    except ValueError:
+        raise SystemExit(f"--band wants LO:HI, not {band!r}") from None
+    if not 1 <= lo < hi <= multiple:
+        raise SystemExit(f"--band {band} is outside [1, {multiple}] for {release}")
+    return {"release": release, "lo": lo, "hi": hi, "slug": f"{release}-{lo}-{hi}"}
+
+
 def plan(releases: tuple[str, ...], workers_per_release: int) -> list[dict[str, Any]]:
     """Every worker the instance will start, in the order it starts them."""
     out: list[dict[str, Any]] = []
@@ -291,10 +330,24 @@ def plan(releases: tuple[str, ...], workers_per_release: int) -> list[dict[str, 
 
 
 def worker_lines(
-    workers: list[dict[str, Any]], *, registry: str = REGISTRY, chunk: int = CHUNK_RECORDS
+    workers: list[dict[str, Any]],
+    *,
+    registry: str = REGISTRY,
+    chunk: int = CHUNK_RECORDS,
+    deliverable: bool = True,
 ) -> str:
+    """The lines that start the workers.
+
+    `deliverable` is what publishes: a worker given it writes its part to the store under
+    the census prefix, where `--assemble` reads it. A timing probe reads a sliver of one
+    band, so its part would sit beside the real ones looking like a band that had been
+    done; D-232 is the rule that a run over part of the work may not publish, and here the
+    subset is the band rather than a flag on this tool.
+    """
+    publish = " --deliverable" if deliverable else ""
     return "".join(
-        WORKER_LINE.format(task=TASK, registry=registry, chunk=chunk, **w) for w in workers
+        WORKER_LINE.format(task=TASK, registry=registry, chunk=chunk, deliverable=publish, **w)
+        for w in workers
     )
 
 
@@ -313,9 +366,11 @@ def user_data(
     code_key: str,
     workers: list[dict[str, Any]],
     hard_stop_minutes: int,
+    heartbeat_seconds: int = HEARTBEAT_SECONDS,
     registry: str = REGISTRY,
     region: str = REGION,
     chunk: int = CHUNK_RECORDS,
+    deliverable: bool = True,
 ) -> str:
     return USER_DATA.format(
         bucket=bucket,
@@ -325,7 +380,8 @@ def user_data(
         registry=registry,
         wheels=WHEELS,
         hard_stop_minutes=hard_stop_minutes,
-        worker_lines=worker_lines(workers, registry=registry, chunk=chunk),
+        heartbeat_seconds=heartbeat_seconds,
+        worker_lines=worker_lines(workers, registry=registry, chunk=chunk, deliverable=deliverable),
     )
 
 
@@ -389,6 +445,12 @@ def main(argv: list[str] | None = None) -> int:
         help="launch, print the id and stop watching; the instance is then held only "
         "by its own timer, so use it when the watcher cannot outlive the run",
     )
+    ap.add_argument(
+        "--band",
+        help="LO:HI, a timing probe: one worker over that slice of one release's band, "
+        "publishing nothing. What it buys is a measured rate before a full pass is paid "
+        "for, which is the thing the 2026-10-21 run did not have (D-233)",
+    )
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="authorize only, launch nothing")
     ap.add_argument("--print-user-data", action="store_true", help="print it and stop")
@@ -396,7 +458,11 @@ def main(argv: list[str] | None = None) -> int:
 
     root = Path(__file__).resolve().parent.parent
     releases = tuple(args.release or sorted(CENSUS_MULTIPLE))
-    workers = plan(releases, args.workers_per_release)
+    if args.band:
+        workers = [probe(releases, args.band)]
+    else:
+        workers = plan(releases, args.workers_per_release)
+    deliverable = not args.band
 
     commit, dirty = _git_head(root)
     if dirty and not args.allow_dirty:
@@ -420,6 +486,7 @@ def main(argv: list[str] | None = None) -> int:
                 hard_stop_minutes=args.hard_stop_minutes,
                 registry=args.registry,
                 chunk=args.chunk_records,
+                deliverable=deliverable,
             )
         )
         return 0
@@ -479,6 +546,7 @@ def main(argv: list[str] | None = None) -> int:
             hard_stop_minutes=args.hard_stop_minutes,
             registry=args.registry,
             chunk=args.chunk_records,
+            deliverable=deliverable,
         ),
     )
     market = ec2lib.market_options(args.spot)

@@ -610,7 +610,9 @@ class TestTheWorkersMaySaySoAndARehearsalMayNot:
     so explicitly — and if it ever stops saying so, a whole census publishes nothing."""
 
     def test_every_worker_line_declares_itself_the_deliverable(self) -> None:
-        assert "--deliverable" in launcher.WORKER_LINE
+        """Publication is a parameter now, for the probe D-233 added; the census default
+        is still that a worker publishes, and that is what must not drift."""
+        assert "--deliverable" in launcher.worker_lines(launcher.plan(("opengenome",), 1))
 
     def test_the_declaration_reaches_every_worker_in_the_rendered_user_data(self) -> None:
         workers = launcher.plan(("opengenome",), 8)
@@ -622,3 +624,66 @@ class TestTheWorkersMaySaySoAndARehearsalMayNot:
         out = pathlib.Path("/opt/amazebio/out-opengenome-1-63")
         assert detect_profiles.durable_for("A2.6", out) is None
         assert detect_profiles.durable_for("A2.6", out, deliverable=True) is not None
+
+
+class TestWhatSurvivesAHardStop:
+    """D-233. The 2026-10-21 census spent fourteen hours on two machines and published
+    nothing — no part, no exit note, no log — because the hard stop powers the machine off
+    from outside the script and both publishing paths run only when the work finishes. The
+    heartbeat is the one thing that makes a run which never finishes diagnosable, so it is
+    armed before anything slow and it is tested here rather than discovered next time."""
+
+    def test_the_logs_are_copied_on_a_timer_not_only_on_exit(self) -> None:
+        text = rendered()
+        assert "hb_iid" in text
+        assert text.count("logs-$hb_iid/") == 1
+
+    def test_the_heartbeat_is_armed_before_the_profiles_are_staged(self) -> None:
+        text = rendered()
+        assert text.index("hb_iid=") < text.index("stage_profiles.py")
+
+    def test_the_interval_is_shorter_than_the_stop_it_reports_against(self) -> None:
+        assert launcher.HEARTBEAT_SECONDS * 2 < launcher.DEFAULT_HARD_STOP_MINUTES * 60
+
+    def test_the_heartbeat_cannot_fail_the_run(self) -> None:
+        """`set -e` is on; a copy that fails while the store is briefly unreachable must
+        not be what ends a fourteen-hour pass."""
+        line = next(ln for ln in rendered().splitlines() if "logs-$hb_iid/" in ln)
+        assert line.rstrip().endswith("|| true")
+
+
+class TestATimingProbeMayNotPublish:
+    """D-232's rule, applied where the subset is the band rather than a flag. A probe reads
+    a sliver of one band; its part would sit beside the real ones under the census prefix
+    looking like a band somebody had done."""
+
+    def test_a_probe_worker_does_not_declare_itself_the_deliverable(self) -> None:
+        worker = launcher.probe(("opengenome2",), "1:4")
+        assert "--deliverable" not in launcher.worker_lines([worker], deliverable=False)
+
+    def test_a_census_worker_still_does(self) -> None:
+        workers = launcher.plan(("opengenome",), 2)
+        assert launcher.worker_lines(workers).count("--deliverable") == len(workers)
+
+    def test_the_rendered_probe_carries_no_publication(self) -> None:
+        worker = launcher.probe(("opengenome2",), "1:4")
+        assert "--deliverable" not in rendered(workers=[worker], deliverable=False)
+
+    def test_a_probe_times_one_release(self) -> None:
+        with pytest.raises(SystemExit):
+            launcher.probe(("opengenome", "opengenome2"), "1:4")
+
+    def test_a_band_outside_the_release_is_refused(self) -> None:
+        with pytest.raises(SystemExit):
+            launcher.probe(("opengenome",), "1:5000")
+
+    def test_an_inverted_band_is_refused(self) -> None:
+        with pytest.raises(SystemExit):
+            launcher.probe(("opengenome",), "9:4")
+
+    def test_a_band_that_is_not_two_numbers_is_refused(self) -> None:
+        with pytest.raises(SystemExit):
+            launcher.probe(("opengenome",), "first half")
+
+    def test_the_probe_names_its_own_output_directory(self) -> None:
+        assert launcher.probe(("opengenome2",), "1:4")["slug"] == "opengenome2-1-4"
