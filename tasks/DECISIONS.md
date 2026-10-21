@@ -10802,3 +10802,51 @@ decision has a threshold or parameter in it, the number goes in the entry.
   every survival figure in the document is a lower bound whose ceiling was not found. A limitation
   that is named, measured on a neighbouring registry and costed is evidence of the method working.
   An unstated one is not.
+
+### D-248 — The baseline's nine divergences from the published column are an alignment-content difference, and the filtering parameters do not move
+
+- **Date:** 2026-10-21
+- **Task:** B4.2 (resolving the open item B4.1 left)
+- **The question.** B4.1 scored all 31 viral assays and checked each against ProteinGym's
+  published RSALOR column. Nineteen reproduced it at or above D-208's 0.99 floor, three were
+  undetermined, nine diverged, the weakest at 0.8207 — and why was not established. A baseline
+  whose disagreement with its own published form is unexplained cannot carry §B4's attribution
+  logic, because the gap might be a harness bug and might be the method.
+- **What it is not.** Not the formula: the per-position structural factor and the log-odds ratio
+  are carried separately in B4.1's artefacts and the structural half agrees. Not the
+  coordinates: the two assays with a non-trivial `MSA_start` (1,984 and 281) compare on their
+  full variant sets once the offset is applied, and no position shift improves any assay. Not
+  the unscored multiples: of the four assays with them, one reproduces, one is undetermined and
+  two diverge, and the restricted denominators are now stated per assay rather than implied.
+- **What it is.** The two sides disagree about **which amino acids the alignment column
+  contains**. Within one position the ranking is the log-odds ratio alone, and every amino acid
+  absent from the column shares the most extreme value, so the comparison can be made exactly:
+  in the six worst assays the published column treats between 9.0% and 23.7% of compared
+  variants as absent where this implementation finds them present. No assay that reproduces the
+  column exceeds 1.7%, and across all 31 assays the reverse case — absent on our side only —
+  occurs 28 times in total. The difference runs in one direction: the published column saw a
+  narrower sequence set than this implementation does.
+- **And it is not a mis-set parameter here.** `tools/baseline_knob_probe.py` samples the
+  package's documented filtering knobs on three assays spanning the range. The defaults
+  reproduce B4.1's figures exactly. `min_seqid` is the only knob that moves anything, and it
+  moves the assays in opposite directions: the weakest improves from 0.8207 to 0.8629 at 0.5
+  while the strongest falls from 0.9985 to 0.8692 at the same setting. No single value fits
+  both, and none reaches the floor on the weakest assay. Whatever produced the published column
+  was not this package at any setting of these knobs over ProteinGym's own alignment.
+- **The parameters do not move, and that is the decision.** The sweep is a diagnostic, recorded
+  and then left alone. Choosing a filtering parameter to maximise agreement with the column the
+  baseline is being validated against would fit the baseline to its own validation, and the
+  resulting agreement would measure the fitting. D-229's parameters stand, which is also what
+  keeps the baseline parameter-free.
+- **What B4.2 therefore concludes.** The floor stands as D-208 stated it and nine assays fall
+  below it, with the reason now named and bounded. The question B4.2 exists to answer — whether
+  §B4 would rest on a straw man — is answered at the assay level, against the experiment rather
+  than against the column: this implementation is **better than the published column on 13
+  assays, indistinguishable on 13 and worse on 5**, with intervals on every difference, and only
+  three of the five worse are larger than 0.02. The baseline is at published strength, and where
+  it is not, the shortfall is in the alignment the published column was built from rather than
+  in this harness.
+- **Left open, deliberately.** Which filtering or preprocessing step produced the narrower
+  sequence set is not established, because establishing it would mean reconstructing an input
+  the benchmark does not publish. That is a limitation of the published artefact, recorded here
+  so B5 can cite it rather than rediscover it.

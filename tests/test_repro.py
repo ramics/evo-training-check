@@ -617,6 +617,12 @@ NOT_PIPELINES: dict[str, str] = {
     "ec2_exclusivity.py": "launcher; the instance publishes the seed-exclusivity pass",
     "ec2_folds.py": "launcher; the instance publishes A2.2's fold detections",
     "ec2_opengenome_contigs.py": "launcher; the instance publishes A7.4's contig tables",
+    "baseline_knob_probe.py": (
+        "a diagnostic, and deliberately not a pipeline: it samples the baseline's filtering "
+        "knobs against the published column to show that the shortfall B4.2 explains is not a "
+        "mis-set parameter. Its table must not choose a parameter, so it publishes nothing and "
+        "its findings live in D-248 and the B4.2 task file instead"
+    ),
     "ec2_detect_census.py": (
         "launcher; the instance's own detect_profiles workers publish A2.6's band parts, "
         "and the assembly that merges them runs in the session container"
