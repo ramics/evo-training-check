@@ -11,7 +11,9 @@ and therefore understates coverage rather than flattering it.
 
 This is the cheap half of A3.4. The other half — placing each surviving detection into a bin —
 needs the surviving sequence, which no A2 artefact carries (D-195), so it is a corpus pass
-with its own declared depth and is not run here.
+with its own declared depth and is not run here. What this half hands it is `per_family`:
+each family's bin assignment, positional over the seed members, with a digest of those
+members so the placement pass can prove it re-read the same list in the same order.
 
 **Per family, not globally.** A global clustering of all 34,482 members takes 18 seconds
 against about 70 minutes for 1,545 separate runs, and the specification says to cluster the
@@ -31,6 +33,7 @@ import statistics
 import sys
 import tempfile
 import time
+from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -53,11 +56,31 @@ def _md5(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _bins(item: tuple[str, tuple[str, ...]]) -> tuple[str, int, tuple[int, ...]]:
+def members_digest(members: Sequence[str]) -> str:
+    """A digest of one family's members, in the order the seed alignment lists them.
+
+    The bin assignment is positional: entry `i` is the bin of member `i`. Anything that
+    re-reads the seed to recover the sequences has to land on the same list in the same
+    order, so the digest travels with the assignment and the placement pass refuses a
+    parse that does not reproduce it.
+    """
+    digest = hashlib.blake2b(digest_size=16)
+    for member in members:
+        digest.update(member.encode("ascii"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _bins(item: tuple[str, tuple[str, ...]]) -> tuple[str, int, tuple[int, ...], str]:
     accession, members = item
     with tempfile.TemporaryDirectory(prefix="amazebio-bins-") as scratch:
         assignment = diversity.cluster_members(members, workdir=Path(scratch))
-    return accession, len(members), assignment
+    return accession, len(members), assignment, members_digest(members)
+
+
+def family_entry(family: diversity.FamilyBins, digest: str) -> dict[str, Any]:
+    """One family's published record: its counts, its bin assignment and its members' digest."""
+    return {**family.to_dict(), "assignment": list(family.assignment), "members_digest": digest}
 
 
 def build(seed: Path, dat: Path, *, workers: int, limit: int | None = None) -> dict[str, Any]:
@@ -76,11 +99,15 @@ def build(seed: Path, dat: Path, *, workers: int, limit: int | None = None) -> d
 
     started = time.time()
     out: dict[str, diversity.FamilyBins] = {}
+    digests: dict[str, str] = {}
     with ProcessPoolExecutor(max_workers=workers) as pool:
-        for n, (accession, members, assignment) in enumerate(pool.map(_bins, items), start=1):
+        for n, (accession, members, assignment, digest) in enumerate(
+            pool.map(_bins, items), start=1
+        ):
             out[accession] = diversity.FamilyBins(
                 accession=accession, members=members, assignment=assignment
             )
+            digests[accession] = digest
             if n % 100 == 0 or n == len(items):
                 rate = n / max(time.time() - started, 1e-9)
                 print(
@@ -94,7 +121,7 @@ def build(seed: Path, dat: Path, *, workers: int, limit: int | None = None) -> d
     return {
         "task": TASK,
         "design_ref": "§A3",
-        "decisions": ["D-195", "D-205", "D-206"],
+        "decisions": ["D-195", "D-205", "D-206", "D-239"],
         "registry": {"id": "pfam", "version": "38.2", "members_from": "Pfam-A.seed.gz"},
         "seed_md5": SEED_MD5,
         "parameters": {
@@ -124,7 +151,10 @@ def build(seed: Path, dat: Path, *, workers: int, limit: int | None = None) -> d
             "median": round(statistics.median(widths), 4),
             "families_wider_than_half_the_range": sum(1 for w in widths if w > 0.5),
         },
-        "per_family": [b.to_dict() for b in sorted(out.values(), key=lambda b: b.accession)],
+        "per_family": [
+            family_entry(b, digests[b.accession])
+            for b in sorted(out.values(), key=lambda b: b.accession)
+        ],
     }
 
 
@@ -151,6 +181,18 @@ def summarise(doc: dict[str, Any]) -> str:
     )
 
 
+def durable_destination(limit: int | None) -> tuple[str | None, str | None]:
+    """Where this run publishes, and why it does not — `repro.run(durable=, durable_exempt=)`.
+
+    `--limit` reads the first N families, so its denominator is a fragment of the pinned
+    universe wearing the published artefact's name. The result bucket has no delete, so a
+    subset that publishes is permanent (D-232): the flag blocks publication instead.
+    """
+    if limit is not None:
+        return None, f"--limit {limit}: a probe over part of the family universe, not a denominator"
+    return objectstore.durable_results("a3-4"), None
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -170,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
             "denominator must come from the pinned release, so this is a refusal, not a warning."
         )
 
+    durable, exempt = durable_destination(args.limit)
     args.outdir.mkdir(parents=True, exist_ok=True)
     try:
         with repro.run(
@@ -178,13 +221,14 @@ def main(argv: list[str] | None = None) -> int:
             outdir=args.outdir,
             allow_dirty=args.allow_dirty,
             manifest_name="run-bins.json",
-            durable=objectstore.durable_results("a3-4"),
+            durable=durable,
+            durable_exempt=exempt,
         ) as manifest:
             manifest.parameter("identity", diversity.IDENTITY)
             manifest.parameter("coverage", diversity.COVERAGE)
             manifest.parameter("cov_mode", diversity.COV_MODE)
             manifest.parameter("members_from", "Pfam-A.seed.gz")
-            manifest.parameter("decisions", ["D-195", "D-205", "D-206"])
+            manifest.parameter("decisions", ["D-195", "D-205", "D-206", "D-239"])
             manifest.parameter("limit", args.limit)
             manifest.input_file(args.seed, role="pfam seed alignment")
             manifest.input_file(args.dat, role="pfam family metadata")

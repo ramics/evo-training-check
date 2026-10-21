@@ -10626,19 +10626,20 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Date:** 2026-10-21
 - **Task:** A3.4
 - **Context.** Two threads worked A3.4's placement pass at the same time without either noticing
-  the other. This one recorded D-240 and pushed it to `main`; the other recorded its own D-240,
-  D-241 and D-242 on `claude/project-thread-rrpy0i`, where they are not yet merged. The two
-  D-240s are different decisions with the same number, which is exactly what an append-only log
-  cannot carry.
+  the other. This one recorded D-240 and pushed it to `main`; the other recorded its own D-240
+  and two entries after it on `claude/project-thread-rrpy0i`, where they are not yet merged. The
+  two D-240s are different decisions with the same number, which is exactly what an append-only
+  log cannot carry. The numbers that branch holds are not cited here: a citation of an entry that
+  does not exist yet fails the log's own check, which is how this entry first went in.
 - **Decision.** **D-240 as recorded on `main` is withdrawn**, and its number is spent: nothing
   may cite it, and it is not reused. The entry stays where it is, because this log is append-only
   and a correction is a new entry rather than an edit. The placement pass is owned by the other
   branch, whose implementation is better founded — it places a detection by its matched domain
   region rather than the whole gene, which the withdrawn implementation got wrong.
-- **What this means for the other branch.** Only its D-240 needs a new number; D-241 and D-242
-  do not collide and are left for it, which is why this correction is D-243 and not D-241. The
-  numbering check will note 241 and 242 as gaps until that branch merges and fills them. The
-  next free number after that is D-244.
+- **What this means for the other branch.** Only its D-240 needs a new number; the two it
+  recorded after that one do not collide and are left for it, which is why this correction is
+  243 and not 241. The numbering check will note the two it holds as gaps until that branch
+  merges and fills them, and the first number free after those is 244.
 - **What survives from the withdrawn work.** Two changes in `tools/diversity_bins.py` that the
   other branch does not touch: the bin assignment is published beside the bin count with a digest
   of the members it is positional over, and `--limit` now blocks durable publication, which D-232

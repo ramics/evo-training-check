@@ -438,6 +438,11 @@ EXEMPT_CALL_SITES: set[str] = {
     # key would read exactly like the whole covariate — which is the one artefact B5 may not
     # have a partial copy of.
     "assay_depth.py",
+    # A3.4's bin builder. `--limit` reads the first N families, so its denominator is a
+    # fragment of the pinned universe wearing the published artefact's name, and the result
+    # bucket has no delete; D-232 says the subset flag blocks publication, and this tool was
+    # publishing regardless. A run without `--limit` names a durable destination as before.
+    "diversity_bins.py",
     # A2.5's marker arm. The exemption is **conditional and is the fix for a real incident**,
     # not a carve-out for the deliverable: `durable_for` publishes only when `--out` is the
     # canonical `artifacts/a2-5`, and claims the exemption otherwise. A probe run from a scratch
