@@ -151,6 +151,12 @@ corpus-scale evaluator uses — instead of comparing taxon names the way this ta
 it reads the digest from the publisher's own captured file listing rather than from a second
 register entry. Two tools agreeing is weaker evidence than one tool running the rule.
 
+**The fold list is on PR #36**, which carries X1.9's branch, as a comment — not in a thread,
+because X1.9's own session is not reachable from this project's threads and a conversation
+whoever merges cannot see is not a handover. The three items are above; the order axis is the
+one that blocks, since 308 is already a reported figure and a producer emitting only the family
+rank would leave it with nothing behind it.
+
 Two threads measuring one figure is the third instance of this failure on record here, and it
 cost more than the figure was worth. The cheap check before regenerating anything:
 `git log --all --grep` for the figure's name.
