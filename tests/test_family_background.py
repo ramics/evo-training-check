@@ -130,3 +130,31 @@ def test_the_classes_partition_the_detected_set():
     }
     out = tool.restrict(detected, _table())
     assert out["viral_only"] + out["shared"] + out["unmeasurable"] == out["detected"]
+
+
+def test_the_shared_share_is_taken_of_the_judgeable_families_only():
+    """An unjudgeable family is not a quiet denominator: it belongs to neither side."""
+    detected = {
+        "release": "opengenome",
+        "detector": "profile",
+        "path": "x",
+        "source_keys": None,
+        "accessions": ["PF00001", "PF00002", "PF00003", "PF00004"],
+    }
+    out = tool.restrict(detected, _table())
+    assert out["judgeable"] == 3
+    assert out["shared_share_of_judgeable"] == pytest.approx(2 / 3)
+
+
+def test_a_detected_set_the_curated_section_cannot_judge_at_all_has_no_share():
+    detected = {
+        "release": "opengenome",
+        "detector": "profile",
+        "path": "x",
+        "source_keys": None,
+        "accessions": ["PF00004"],
+    }
+    out = tool.restrict(detected, _table())
+    assert out["judgeable"] == 0
+    assert out["shared_share_of_judgeable"] is None
+    assert tool.share(out["shared_share_of_judgeable"]) == "—"

@@ -300,6 +300,12 @@ def restrict(
         "viral_only": len(viral_only),
         "shared": len(rows) - len(viral_only) - len(unmeasurable),
         "shared_endogenous_only": len(endogenous_only),
+        "judgeable": len(rows) - len(unmeasurable),
+        "shared_share_of_judgeable": (
+            None
+            if len(rows) == len(unmeasurable)
+            else (len(rows) - len(viral_only) - len(unmeasurable)) / (len(rows) - len(unmeasurable))
+        ),
         "variants": counts,
         "comparability": (
             "every variant here is the same detector at the same depth over the same corpus as "
@@ -421,6 +427,11 @@ def build(
     }
 
 
+def share(fraction: float | None) -> str:
+    """A fraction as a percentage, or a dash where there was nothing to take it of."""
+    return "—" if fraction is None else f"{fraction:.1%}"
+
+
 def report(doc: dict[str, Any]) -> str:
     classes = doc["summary"]["classes"]
     second = doc["second_instrument"]
@@ -486,12 +497,21 @@ def report(doc: dict[str, Any]) -> str:
             "not be quoted as though they were.",
         ]
     else:
+        universe_share = doc["summary"]["classes"]["shared"] / doc["summary"]["measured"]
         lines += ["", "## The detected sets", ""]
         for one in doc["detected_sets"]:
             lines += [
                 f"**{one['release']}, {one['detector']}** — {one['detected']} detected "
                 f"families: {one['viral_only']} with no curated non-viral occurrence, "
                 f"{one['shared']} shared, {one['unmeasurable']} unjudgeable.",
+                "",
+                f"Among the {one['judgeable']} the curated section can judge, "
+                f"{share(one['shared_share_of_judgeable'])} are shared, against "
+                f"{share(universe_share)} over the whole universe — "
+                f"{one['shared_share_of_judgeable'] / universe_share:.2f} times as often. Detected "
+                "families are not a random draw from the universe, and this is the direction "
+                "of the difference: a family with cellular members is easier to detect, so "
+                "weighting by what was found makes the sharing commoner rather than rarer.",
                 "",
                 "| variant | excluding unjudgeable | including unjudgeable |",
                 "|---|---|---|",
@@ -543,16 +563,14 @@ def main(argv: list[str] | None = None) -> int:
     universe = sorted(meta)
 
     try:
-        with (
-            repro.run(
-                TASK,
-                seed=None,  # two forward passes and a set of lookups; nothing here is random
-                outdir=args.outdir,
-                allow_dirty=args.allow_dirty,
-                manifest_name="run-background.json",
-                durable=objectstore.durable_results(TASK),
-            ) as manifest
-        ):
+        with repro.run(
+            TASK,
+            seed=None,  # two forward passes and a set of lookups; nothing here is random
+            outdir=args.outdir,
+            allow_dirty=args.allow_dirty,
+            manifest_name="run-background.json",
+            durable=objectstore.durable_results(TASK),
+        ) as manifest:
             manifest.parameter("background_release", SPROT_RELEASE)
             manifest.parameter("background_md5", SPROT_MD5)
             manifest.parameter("published_entries", SPROT_ENTRIES)
