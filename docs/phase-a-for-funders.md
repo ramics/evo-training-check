@@ -440,16 +440,17 @@ families of §3.5 are only those *named* for a denylisted group, and nothing sto
 a group being carried by a family with a neutral name; the label join demonstrates it, picking up
 *Picobirnaviridae* and *Circoviridae* records that no named family flagged. In the other direction,
 the label arm can confirm a group only where a record is labelled, so an unlabelled hit on a named
-family is unrefuted rather than cleared, and Evo 1's 173 hits on those families stay open
+family is unrefuted rather than cleared. The two routes meet on 17 records, which carry a denylisted
+family label and were also detected by a family named for a denylisted group; 14 of the 31 labelled
+records are reached by the label route alone, and Evo 1's 173 hits on named families stay open
 permanently for want of accessions.
 
 The largest block of those hits illustrates how little a name settles. Families named for
 *Poxviridae* carry 241 of the 388 Evo 2 hits and 158 of the 173 on Evo 1, overwhelmingly `Pox_D5`
 with `Pox_A32`, `Pox_A22` and `Pox_VLTF3` behind it, while no record in the set carries a
 *Poxviridae* label. D5, A32 and VLTF3 are replication and packaging machinery shared across
-*Nucleocytoviricota* rather than poxvirus-specific, and where these records are labelled at all they
-come back as giant algal viruses or phage. That is a prior pointing at homologs, not a measurement,
-and the alignment arm of §8 is what would settle it.
+*Nucleocytoviricota* rather than poxvirus-specific, which is a prior pointing at homologs rather
+than a measurement; the alignment arm of §8 is what would settle it.
 
 Two further limits stand in their own right. Result 2 concerns which ranks carry labels; label
 correctness is a separate measurement and a separate claim. And agreement between the three policy
