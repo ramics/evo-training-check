@@ -200,7 +200,10 @@ The implication for a filter's author is the opposite of defeatism: a rule that 
 through the reference's own synonym and merge records, pinned to a dated release and re-validated on
 a stated interval, degrades more slowly and degrades visibly. At the observed 4.34% per year,
 holding unnamed new material below 1% requires re-validation about every 0.2 years. None of the
-policy statements this project transcribed names an interval at which its list is re-checked.
+policy statements this project transcribed names an interval at which its list is re-checked. The
+disclosure standard that came out of this work asks, in item C1, that annotation sources be cited as
+dated releases with digests rather than as version strings; this result argues for a companion item
+requiring a stated re-validation interval for any rule written as a list of names.
 
 ## 5. Result 3: what the released corpora contain, by sequence
 
