@@ -8,9 +8,11 @@ the manifest from evidence into decoration.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import subprocess
+from typing import ClassVar
 
 import pytest
 
@@ -24,6 +26,39 @@ from amazebio.repro import (
     sha256_file,
     tool_version,
 )
+
+
+class _NotFound(Exception):
+    """What botocore raises for a `head_object` on a key that is not there."""
+
+    response: ClassVar[dict] = {
+        "Error": {"Code": "404"},
+        "ResponseMetadata": {"HTTPStatusCode": 404},
+    }
+
+
+def _missing():
+    return _NotFound()
+
+
+class Store:
+    """An object store that records what it was given, and refuses nothing.
+
+    `Metadata` is kept because the overwrite guard reads the published digest out of it:
+    a fake that dropped it would make the guard untestable and the test would pass.
+    """
+
+    def __init__(self, existing: dict[str, dict] | None = None) -> None:
+        self.objects: dict[str, dict] = dict(existing or {})
+
+    def put_object(self, *, Bucket, Key, Body, Metadata=None, **kw):
+        self.objects[f"s3://{Bucket}/{Key}"] = {"Body": Body, "Metadata": Metadata or {}}
+
+    def head_object(self, *, Bucket, Key):
+        found = self.objects.get(f"s3://{Bucket}/{Key}")
+        if found is None:
+            raise _missing()
+        return {"Metadata": found["Metadata"], "ContentLength": len(found["Body"])}
 
 
 def _git_repo(path):
@@ -342,8 +377,11 @@ class TestDurability:
         puts = {}
 
         class FakeClient:
-            def put_object(self, *, Bucket, Key, Body):
+            def put_object(self, *, Bucket, Key, Body, **kw):
                 puts[f"s3://{Bucket}/{Key}"] = Body
+
+            def head_object(self, *, Bucket, Key):
+                raise _missing()
 
         with run(
             "A9.9",
@@ -387,6 +425,24 @@ class TestDurability:
 #: the local-only default visible. A legitimately exempt new tool goes here with a reason in
 #: the same commit, so adding one is a deliberate, reviewed act rather than a default.
 EXEMPT_CALL_SITES: set[str] = {
+    # B4.1's baseline, conditional on `--out` like the others here. `--assay` makes a rehearsal
+    # over one assay cheap, and a one-assay table published under the deliverable's key would
+    # read exactly like the full 31.
+    "baseline_scores.py",
+    # B2.4's register, conditional on `--out` exactly as the three below are. The register is a
+    # committed file, so a rehearsal that published would put a draft of a deliverable under the
+    # real prefix permanently; pointing `--out` at `artifacts/b2-4` publishes as normal.
+    "assay_register.py",
+    # B3.4's depth covariate, conditional on `--out` like the rest. `--only` runs part of the
+    # alignment set, and a table covering three of 28 targets published under the deliverable's
+    # key would read exactly like the whole covariate — which is the one artefact B5 may not
+    # have a partial copy of.
+    "assay_depth.py",
+    # A3.4's bin builder. `--limit` reads the first N families, so its denominator is a
+    # fragment of the pinned universe wearing the published artefact's name, and the result
+    # bucket has no delete; D-232 says the subset flag blocks publication, and this tool was
+    # publishing regardless. A run without `--limit` names a durable destination as before.
+    "diversity_bins.py",
     # A2.5's marker arm. The exemption is **conditional and is the fix for a real incident**,
     # not a carve-out for the deliverable: `durable_for` publishes only when `--out` is the
     # canonical `artifacts/a2-5`, and claims the exemption otherwise. A probe run from a scratch
@@ -401,6 +457,37 @@ EXEMPT_CALL_SITES: set[str] = {
     # truncated table published under a commit's key would be permanent and would read
     # exactly like a complete one, so `--limit` refuses to publish at all.
     "opengenome_contigs.py",
+    # A7.3's JSON-tree count, conditional on the same principle. The full pass publishes to
+    # `corpora/results/a7-3/` like any other result; the exemption is claimed only when
+    # `--max-records` bounds the read, which marks the artefact `partial` and the verdict
+    # `not_measured`. A bounded read that reached the durable prefix would be permanent and
+    # would sit beside the real count looking exactly like it — which is how a 20-record part
+    # landed in A2.6's census prefix on 2026-10-20.
+    "evo2_json_tree.py",
+    # A7.3's repeated-accession pass, conditionally, on the same principle as the two above:
+    # the full pass publishes, and the exemption is claimed only when `--max-headers` bounds
+    # the read. A bounded read answers the question for a prefix of the release and would be
+    # indistinguishable in the prefix from an answer for the whole of it.
+    "evo2_duplicates.py",
+    # A2.1 and A2.6's profile search, conditionally, and for the same incident one task over.
+    # `detect_segmented.py`'s entry above describes the failure; on 2026-10-20 it happened
+    # again here, because the lesson was fixed in one tool rather than in the shape both
+    # share. An end-to-end rehearsal of `--assemble`, run from a scratch directory with three
+    # synthetic band parts, published six tables to `corpora/results/a2-6/` under the exact
+    # names the census will use (D-224). `durable_for` now publishes only from the task's
+    # canonical `artifacts/<task>` directory and claims the exemption otherwise.
+    "detect_profiles.py",
+    # B2.3's control set, conditionally and for the same two reasons as the tools above: a
+    # run written outside the task's canonical directory is a rehearsal, and a `--max-rows`
+    # run has not seen the whole release. A bounded corpus-presence count is the dangerous
+    # one here — it looks exactly like a complete count and would understate presence, which
+    # is the direction that makes the control look weaker than it is.
+    "control_set.py",
+    # B1.2's reference-check table, conditionally: it reads the score artefacts already on
+    # disk and writes a summary of them, so a run pointed at a scratch directory is a
+    # rehearsal over whatever happens to be there. From the canonical directory it publishes
+    # like any other result.
+    "scoring_summary.py",
 }
 
 
@@ -511,6 +598,17 @@ NOT_PIPELINES: dict[str, str] = {
     "policies.py": "verifies the quotes in policies/ against their sources; writes nothing",
     "specquotes.py": "checks spec quotes against the captures; writes nothing",
     "specs.py": "validates the filter policy specs; writes nothing",
+    "stage_assay_msas.py": (
+        "pulls B4.1's alignments and structures out of the published archives into data/, "
+        "which `metrics/` describes as a cache of pinned inputs rather than a result. It "
+        "writes a digest manifest beside them; nothing it produces is a measurement"
+    ),
+    "assay_licences.py": (
+        "acquires B2.4's licence evidence into assays/licences.json, which is committed. It is "
+        "the one online step in B2.4 and is deliberately outside the guard: a run(...) block "
+        "fetching the web would make the register's inputs change under it, and the register "
+        "that does run under the guard reads this file offline"
+    ),
     # EC2 launchers. The measurement happens on the instance and is published to object
     # storage from there; the launcher only tars the payload and *downloads* finished
     # artefacts into `artifacts/`, which `metrics/` describes as a cache.
@@ -519,6 +617,16 @@ NOT_PIPELINES: dict[str, str] = {
     "ec2_exclusivity.py": "launcher; the instance publishes the seed-exclusivity pass",
     "ec2_folds.py": "launcher; the instance publishes A2.2's fold detections",
     "ec2_opengenome_contigs.py": "launcher; the instance publishes A7.4's contig tables",
+    "baseline_knob_probe.py": (
+        "a diagnostic, and deliberately not a pipeline: it samples the baseline's filtering "
+        "knobs against the published column to show that the shortfall B4.2 explains is not a "
+        "mis-set parameter. Its table must not choose a parameter, so it publishes nothing and "
+        "its findings live in D-248 and the B4.2 task file instead"
+    ),
+    "ec2_detect_census.py": (
+        "launcher; the instance's own detect_profiles workers publish A2.6's band parts, "
+        "and the assembly that merges them runs in the session container"
+    ),
     "ec2_proviruses.py": "launcher; the instance publishes A2.4's provirus detections",
     "ec2_select_agent_seeds.py": "launcher; the instance publishes A1.8's seed set",
     "ec2_similarity.py": "launcher; the instance publishes A1.6's similarity pass",
@@ -564,3 +672,182 @@ def test_every_tool_either_runs_under_the_guard_or_says_why_not():
         f"unexpected={sorted(outside - set(NOT_PIPELINES))} "
         f"stale={sorted(set(NOT_PIPELINES) - outside)}"
     )
+
+
+class TestTheCommitKeyedCopy:
+    """D-216. The bucket cannot delete, but it can be written over, and for most of this
+    project's life a re-run of a pipeline replaced its own earlier result in place."""
+
+    def _run(self, repo, store, *, body: str, replace=None):
+        outdir = repo / "artifacts" / "t"
+        with run(
+            "A9.9",
+            outdir=outdir,
+            repo=repo,
+            durable="s3://corpora-bucket/corpora/results/a9-9",
+            replace_durable=replace,
+            # The second run of a pair sees the first one's `artifacts/` as untracked.
+            # The commit is still recorded, which is all these tests read.
+            allow_dirty=True,
+            uploader=store,
+        ) as m:
+            (outdir / "table.json").write_text(body)
+            m.output_file(outdir / "table.json")
+        return outdir
+
+    def test_every_output_lands_under_its_commit_as_well_as_its_name(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        commit = git_state(repo)["commit"]
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        keyed = f"s3://corpora-bucket/corpora/results/a9-9/by-commit/{commit}/table.json"
+        assert stable in store.objects
+        assert keyed in store.objects
+        assert store.objects[stable]["Body"] == store.objects[keyed]["Body"]
+
+    def test_the_commit_keyed_copy_is_not_under_the_prefix_a_reader_globs(self, tmp_path):
+        """A tool listing `corpora/results/a9-9/*.json` must not start finding one result
+        once per commit that ever produced it."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        prefix = "s3://corpora-bucket/corpora/results/a9-9/"
+        alongside = [
+            k for k in store.objects if k.startswith(prefix) and "/" not in k[len(prefix) :]
+        ]
+        assert sorted(alongside) == [prefix + "run.json", prefix + "table.json"]
+
+    def test_two_commits_produce_two_objects(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        first = git_state(repo)["commit"]
+        (repo / "seed.txt").write_text("moved\n")
+        subprocess.run(["git", "commit", "-aqm", "second"], cwd=repo, check=True)
+        self._run(repo, store, body='{"x": 2}\n')
+        second = git_state(repo)["commit"]
+        assert first != second
+        base = "s3://corpora-bucket/corpora/results/a9-9/by-commit"
+        assert store.objects[f"{base}/{first}/table.json"]["Body"] == b'{"x": 1}\n'
+        assert store.objects[f"{base}/{second}/table.json"]["Body"] == b'{"x": 2}\n'
+        # The stable name holds the latest, as it always has.
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        assert store.objects[stable]["Body"] == b'{"x": 2}\n'
+
+    def test_rerunning_the_same_commit_over_the_same_bytes_is_a_no_op(self, tmp_path):
+        """Re-running a deterministic pipeline is a normal thing to do and must not be a
+        failure; what it writes is what is already there."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        self._run(repo, store, body='{"x": 1}\n')
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        assert store.objects[stable]["Body"] == b'{"x": 1}\n'
+
+    def test_the_same_commit_publishing_different_bytes_is_refused(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        with pytest.raises(ReproError, match="already published different bytes"):
+            self._run(repo, store, body='{"x": 999}\n')
+        # And the published copy is still the published copy.
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        assert store.objects[stable]["Body"] == b'{"x": 1}\n'
+
+    def test_the_refusal_names_the_object_and_both_digests(self, tmp_path):
+        """A refusal that does not say which object or how it differs sends whoever hits
+        it back to the console output of a run that has already finished."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        with pytest.raises(ReproError) as caught:
+            self._run(repo, store, body='{"x": 999}\n')
+        message = str(caught.value)
+        assert "by-commit" in message and "table.json" in message
+        was = hashlib.sha256(b'{"x": 1}\n').hexdigest()
+        now = hashlib.sha256(b'{"x": 999}\n').hexdigest()
+        assert was in message and now in message
+        assert "replace_durable" in message
+
+    def test_a_declared_reason_allows_the_replacement_and_is_recorded(self, tmp_path):
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        outdir = self._run(repo, store, body='{"x": 999}\n', replace="D-216 test: input repinned")
+        stable = "s3://corpora-bucket/corpora/results/a9-9/table.json"
+        assert store.objects[stable]["Body"] == b'{"x": 999}\n'
+        manifest = json.loads((outdir / MANIFEST_NAME).read_text())
+        assert manifest["replace_durable"] == "D-216 test: input repinned"
+
+    def test_the_manifest_points_at_the_copy_no_later_run_can_replace(self, tmp_path):
+        """The stable URI is the one a reader uses; the commit-keyed URI is the one a
+        citation needs, because it is the only one guaranteed to still hold these bytes."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        outdir = self._run(repo, store, body='{"x": 1}\n')
+        manifest = json.loads((outdir / MANIFEST_NAME).read_text())
+        entry = next(o for o in manifest["outputs"] if o["path"].endswith("table.json"))
+        assert entry["by_commit_uri"].endswith(f"/by-commit/{manifest['git']['commit']}/table.json")
+        assert manifest["by_commit"]
+
+    def test_a_published_digest_is_stored_beside_the_object(self, tmp_path):
+        """The guard compares digests rather than sizes, so the digest has to travel with
+        the object: two different results of the same shape are the case that matters."""
+        repo = _git_repo(tmp_path)
+        store = Store()
+        self._run(repo, store, body='{"x": 1}\n')
+        stable = store.objects["s3://corpora-bucket/corpora/results/a9-9/table.json"]
+        assert stable["Metadata"]["sha256"] == sha256_file(repo / "artifacts" / "t" / "table.json")
+        assert stable["Metadata"]["commit"] == git_state(repo)["commit"]
+
+    def test_a_run_with_no_commit_still_uploads_to_the_stable_key(self, tmp_path):
+        """On an EC2 instance there is no checkout. A tool that passes no `code_commit`
+        gets the old behaviour rather than no upload at all — the manifest already says
+        such a run cannot be traced, and losing the result as well helps nobody."""
+        store = Store()
+        outdir = tmp_path / "out"
+        with run(
+            "A9.9",
+            outdir=outdir,
+            repo=tmp_path,
+            allow_dirty=True,
+            durable="s3://corpora-bucket/corpora/results/a9-9",
+            uploader=store,
+        ) as m:
+            outdir.mkdir(parents=True, exist_ok=True)
+            (outdir / "table.json").write_text('{"x": 1}\n')
+            m.output_file(outdir / "table.json")
+        assert "s3://corpora-bucket/corpora/results/a9-9/table.json" in store.objects
+        assert not any("by-commit" in k for k in store.objects)
+
+    def test_a_code_commit_parameter_keys_the_copy_when_there_is_no_checkout(self, tmp_path):
+        """What the EC2 path actually does: the launcher knows the commit and passes it in."""
+        store = Store()
+        outdir = tmp_path / "out"
+        with run(
+            "A9.9",
+            outdir=outdir,
+            repo=tmp_path,
+            allow_dirty=True,
+            durable="s3://corpora-bucket/corpora/results/a9-9",
+            uploader=store,
+        ) as m:
+            m.parameter("code_commit", "deadbeef")
+            outdir.mkdir(parents=True, exist_ok=True)
+            (outdir / "table.json").write_text('{"x": 1}\n')
+            m.output_file(outdir / "table.json")
+        keyed = "s3://corpora-bucket/corpora/results/a9-9/by-commit/deadbeef/table.json"
+        assert keyed in store.objects
+
+    def test_a_head_failure_that_is_not_a_missing_key_is_raised(self, tmp_path):
+        """Treating every `head_object` error as absence would turn a denied permission
+        into a silent overwrite, which is the thing this guard exists to prevent."""
+        repo = _git_repo(tmp_path)
+
+        class Denied(Store):
+            def head_object(self, *, Bucket, Key):
+                raise RuntimeError("AccessDenied")
+
+        with pytest.raises(RuntimeError, match="AccessDenied"):
+            self._run(repo, Denied(), body='{"x": 1}\n')

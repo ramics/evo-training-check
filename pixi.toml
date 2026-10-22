@@ -206,8 +206,33 @@ platforms = ["linux-64"]
 [feature.score.dependencies]
 # The reference implementation for the ESM-2 checkpoints in B1.1's inventory, whose published
 # access route names `transformers.EsmForMaskedLM`.
-pytorch = ">=2.5,<3"
-transformers = ">=4.46,<6"
+pytorch = ">=2.11,<2.12"
+transformers = ">=4.57.6,<5"
+
+# ESM3-open and ESM-C are not reachable through `transformers.EsmForMaskedLM`: their
+# published access route is EvolutionaryScale's own package, and `amazebio.backends`
+# records that verbatim rather than substituting a route the authors did not name. It is a
+# PyPI dependency because it is not packaged for conda-forge. ESM3-open is the test
+# condition of the whole audit, so this is not an optional extra.
+[feature.score.pypi-dependencies]
+esm = ">=3.4.1.post1,<4"
+
+# B4.1's non-neural baseline. The method has no free parameters, but it has several specified
+# procedures — notably a sequence-weighting step that clusters the alignment at 80% identity and
+# is quadratic in its depth, which is why the authors ship a C++ backend. D-229 records the
+# choice to integrate their MIT-licensed implementation rather than reimplement it, so the
+# baseline is theirs rather than this project's reading of their paper. PyPI because it is not
+# packaged for conda-forge; the compiler is needed to build its extension.
+[feature.baseline]
+platforms = ["linux-64"]
+
+[feature.baseline.dependencies]
+cxx-compiler = ">=1.8,<2"
+biopython = ">=1.84,<2"
+numpy = ">=2,<3"
+
+[feature.baseline.pypi-dependencies]
+rsalor = ">=1.1,<2"
 
 [feature.dev.dependencies]
 pytest = ">=8.3,<9"
@@ -218,6 +243,9 @@ default = { features = [], solve-group = "main" }
 dev = { features = ["dev"], solve-group = "main" }
 # B1.2's scoring environment. See the comment on `feature.score.dependencies`.
 score = { features = ["score", "dev"], solve-group = "score" }
+# B4.1's baseline environment. Its own solve group: `rsalor` builds a C++ extension and pins
+# numpy, and resolving that beside the scoring stack would drag the whole main group.
+baseline = { features = ["baseline", "dev"], solve-group = "baseline" }
 # Its own solve group: see the comment on `feature.genomad.dependencies`.
 # `no-default-feature` because the project's `[dependencies]` pin python 3.12, and the
 # whole point of this environment is the interpreter geNomad 1.1.0 predates. It holds the
@@ -261,6 +289,10 @@ specs-check = "python3 tools/specs.py"
 decisions-check = "python3 tools/decisions.py"
 # Validate the Phase B model inventory: every checkpoint's claims cite a retrieved source.
 models-check = "python3 tools/model_inventory.py --check"
+# Validate B2.4's assay provenance and licence register against its committed evidence: a
+# traceable DOI per assay, an unrecognised licence URL, and whether the deposit whose grant the
+# project relies on is still established to be the bytes it read. See assays/README.md.
+assays-check = "python3 tools/assay_register.py --check"
 # Render each policy as prose, for eyeballing a spec against its quoted source.
 specs = "python3 tools/specs.py --describe"
 lint = "ruff check ."
@@ -275,5 +307,6 @@ check = { depends-on = [
   "policies-check",
   "specs-check",
   "models-check",
+  "assays-check",
   "test",
 ] }

@@ -88,7 +88,9 @@ CAUSE_MEANING: Mapping[Cause, str] = {
     ),
     Cause.CONTENT: (
         "present on one side and its residues are not on the other at all. This is the "
-        "only cause that bears on 'used in its entirety'."
+        "only cause that bears on 'used in its entirety'. Each record's evidence names "
+        "what its residues were looked for in, which is not always the whole of the "
+        "other side — D-217."
     ),
     Cause.UNDETERMINED: (
         "the digest needed to separate a renaming from a real absence has not been read "
@@ -142,6 +144,26 @@ class Join:
         return wilson(self.shared_with_reused, self.v1_accessions)
 
     @property
+    def reused_novelty(self) -> tuple[float, float, float]:
+        """How much of the reused subtree v1 does not have, with its interval.
+
+        The converse of :attr:`reused_coverage`, and a different question: coverage tests
+        "used in its entirety", this tests whether the subtree called a reuse is only
+        that. A reuse can be complete and still carry material the thing it reuses never
+        had, so neither number stands in for the other.
+        """
+        return wilson(len(self.only_reused), self.reused_accessions)
+
+    @property
+    def added_overlap(self) -> tuple[float, float, float]:
+        """How much of the added archive v1 already carried, with its interval.
+
+        The stated selection rule takes species with no 214.1 genome, so this is a rate
+        the rule predicts to be zero.
+        """
+        return wilson(len(self.added_also_in_v1), self.added_accessions)
+
+    @property
     def claims_entirety(self) -> bool:
         """Whether "used in its entirety" holds on accessions alone, before causes."""
         return not self.only_v1
@@ -179,11 +201,16 @@ def join(
     )
 
 
+#: What `v1_digests` was read over, when it was read over all of OpenGenome v1.
+FULL_SCOPE = "v1"
+
+
 def classify(
     result: Join,
     *,
     og2_digests: Mapping[str, str],
     v1_digests: Mapping[str, str],
+    v1_scope: str = FULL_SCOPE,
 ) -> tuple[Discrepancy, ...]:
     """Give every discrepancy a cause, or mark it as waiting on evidence.
 
@@ -195,6 +222,10 @@ def classify(
             record missing here is `undetermined`, not absent — the distinction `A7.4`
             rests on, since a missing digest and a missing sequence look the same to a
             join and mean opposite things.
+        v1_scope: what `v1_digests` was read over, in words. It travels into the evidence
+            of every `content` call made against it, because "these residues are not in
+            v1" and "these residues are not in the 158 v1 contigs of the same WGS
+            project" are different claims and only one of them was checked. D-217.
 
     Raises:
         ValueError: if a discrepancy would fall outside the closed set of causes.
@@ -237,7 +268,11 @@ def classify(
         elif not v1_digests:
             out.append(Discrepancy(accession, "og2", Cause.UNDETERMINED, "no v1 digests read yet"))
         else:
-            out.append(Discrepancy(accession, "og2", Cause.CONTENT, "these residues are not in v1"))
+            out.append(
+                Discrepancy(
+                    accession, "og2", Cause.CONTENT, f"these residues are not in {v1_scope}"
+                )
+            )
 
     for accession in result.added_also_in_v1:
         out.append(

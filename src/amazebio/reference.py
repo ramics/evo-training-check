@@ -122,6 +122,10 @@ class ReferenceCheck:
         return {
             "checkpoint": self.checkpoint,
             "assay": self.assay,
+            # Always present, and False on the stub a run writes when there is no published
+            # column to compare against. One key answers "was this checked?" for every
+            # artefact, instead of a reader inferring it from which keys are missing.
+            "compared": True,
             "variants_compared": self.variants_compared,
             "variants_ours_only": self.variants_ours_only,
             "variants_published_only": self.variants_published_only,

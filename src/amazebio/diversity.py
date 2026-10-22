@@ -21,6 +21,11 @@ than covering the shorter one alone. Erring that way splits bins more finely, wh
 `coverage(f)` and therefore understates how much of a family survived — the direction that
 cannot flatter the audit's own finding. D-206 records it.
 
+**Placing a detection is the other half**, and `place_detections` does it under the rule D-239
+fixed before any coverage figure existed: a detection joins a bin when it meets the same frozen
+criterion against any member of that bin, it may join several, and one that joins none is
+counted apart rather than absorbed.
+
 **Clustering is per family, not global.** The specification says to cluster the family's
 members, and a global pass could merge two of a family's members through a bridging sequence
 from another family. 1,719 families of a few members each is a cheap price for not having to
@@ -42,12 +47,16 @@ __all__ = [
     "COVERAGE",
     "COV_MODE",
     "IDENTITY",
+    "SEARCH_EVALUE",
+    "SEARCH_SENSITIVITY",
     "DiversityError",
     "FamilyBins",
+    "Placement",
     "SeedFamily",
     "cluster_members",
     "coverage_of",
     "iter_seed_families",
+    "place_detections",
     "temporary_workdir",
 ]
 
@@ -58,6 +67,14 @@ COVERAGE = 0.80
 #: The reading, not the specification: MMseqs2 offers no "shorter sequence" coverage mode, and
 #: mode 0 — both sequences — is the strictly harder one. D-206.
 COV_MODE = 0
+
+#: Placement searches at maximum sensitivity and with the E-value gate opened, so that the
+#: frozen 50%/80% criterion is the only thing deciding whether a detection joins a bin. Both are
+#: recorded in D-244. A default E-value would silently drop a short protein that meets the
+#: criterion, and the default prefilter would drop true matches at this identity — each of which
+#: would lower coverage without appearing anywhere in the result.
+SEARCH_EVALUE = 10000.0
+SEARCH_SENSITIVITY = 7.5
 
 #: Gap characters Stockholm uses. `.` is an insertion column, `-` a deletion.
 _GAPS = str.maketrans("", "", ".-~")
@@ -183,6 +200,120 @@ def cluster_members(
             f"(first: m{missing[0]}); a member in no bin would shrink the denominator"
         )
     return tuple(bin_of[f"m{i}"] for i in range(len(members)))
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Placement:
+    """What one family's detections cover of its bins, and what they missed.
+
+    `unplaced` is a finding rather than an error: a detection that meets the frozen criterion
+    against no member is surviving sequence the family's seed diversity does not represent, and
+    D-239 says to report it in neither the numerator nor the denominator but on its own.
+    """
+
+    accession: str
+    detections: int
+    placed: int
+    unplaced: int
+    bins_hit: tuple[int, ...]
+
+    def __post_init__(self) -> None:
+        if self.placed + self.unplaced != self.detections:
+            raise DiversityError(
+                f"{self.accession}: {self.placed} placed and {self.unplaced} unplaced do not "
+                f"account for {self.detections} detections"
+            )
+
+
+def place_detections(
+    members: Sequence[str],
+    detections: Mapping[str, str],
+    assignment: Sequence[int],
+    *,
+    accession: str,
+    workdir: Path,
+    mmseqs: str = "mmseqs",
+    identity: float = IDENTITY,
+    coverage: float = COVERAGE,
+    cov_mode: int = COV_MODE,
+) -> Placement:
+    """Place each detection into every bin it meets the frozen criterion against (D-239).
+
+    One detection may hit several bins and each counts: M3 asks which parts of a family's
+    diversity are represented in the surviving corpus, not where a given sequence belongs. The
+    criterion is the same 50% identity over 80% coverage at `--cov-mode 0` that grouped the
+    members in the first place — a detection admitted on weaker evidence than the members needed
+    would inflate coverage, which is the one direction this audit must not err in.
+
+    `detections` maps a name to its residues; `assignment` is `cluster_members`' output for the
+    same `members`, in the same order.
+    """
+    if len(assignment) != len(members):
+        raise DiversityError(
+            f"{accession}: {len(assignment)} bin assignments for {len(members)} members"
+        )
+    if not detections:
+        return Placement(accession=accession, detections=0, placed=0, unplaced=0, bins_hit=())
+    workdir.mkdir(parents=True, exist_ok=True)
+    targets = workdir / "members.faa"
+    targets.write_text("".join(f">m{i}\n{s}\n" for i, s in enumerate(members)))
+    names = sorted(detections)
+    queries = workdir / "detections.faa"
+    queries.write_text("".join(f">d{i}\n{detections[n]}\n" for i, n in enumerate(names)))
+    table = workdir / "hits.m8"
+    argv = [
+        mmseqs,
+        "easy-search",
+        str(queries),
+        str(targets),
+        str(table),
+        str(workdir / "tmp"),
+        "--min-seq-id",
+        f"{identity:g}",
+        "-c",
+        f"{coverage:g}",
+        "--cov-mode",
+        str(cov_mode),
+        "-e",
+        f"{SEARCH_EVALUE:g}",
+        "-s",
+        f"{SEARCH_SENSITIVITY:g}",
+        "--alignment-mode",
+        "3",
+        "--max-seqs",
+        str(max(len(members), 300)),
+        "--threads",
+        "1",
+        "-v",
+        "1",
+    ]
+    result = subprocess.run(argv, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise DiversityError(
+            f"{accession}: mmseqs easy-search exited {result.returncode}: "
+            f"{(result.stderr or result.stdout).strip()[:400]}"
+        )
+    if not table.exists():
+        raise DiversityError(f"{accession}: mmseqs produced no hit table at {table}")
+
+    hit_bins: set[int] = set()
+    placed: set[str] = set()
+    for line in table.read_text().splitlines():
+        if not line.strip():
+            continue
+        fields = line.split("\t")
+        query, target = fields[0], fields[1]
+        if not query.startswith("d") or not target.startswith("m"):
+            raise DiversityError(f"{accession}: unreadable hit row {line[:120]!r}")
+        placed.add(query)
+        hit_bins.add(assignment[int(target[1:])])
+    return Placement(
+        accession=accession,
+        detections=len(names),
+        placed=len(placed),
+        unplaced=len(names) - len(placed),
+        bins_hit=tuple(sorted(hit_bins)),
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True)

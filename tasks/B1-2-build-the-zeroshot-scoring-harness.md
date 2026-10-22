@@ -33,6 +33,37 @@ Scope limits in §4 apply strictly.
 - §4 limits are enforced by the harness, not just by convention.
 - Determinism verified; reference numbers reproduced where available.
 
+## State — 2026-10-22
+
+`review`. **The common test set is now nine assays wide, which closes the only carry-over the
+block below left.** Table regenerated and published from a clean tree at `6833d53`:
+`artifacts/b1-2/reference-check.md` and `.json`, and the same two objects under
+`corpora/results/b1-2/`, over 36 score artefacts in the same prefix.
+
+**36 runs, every one bitwise identical on a re-score. 27 have a published column and all 27
+reproduce it**, the lowest agreement 0.9957; the nine `esm2_t33_650M_UR50D` runs agree to nine
+decimal places. Four of the five roster checkpoints are scored, over the nine assays every one
+of them covers. `evo2_7b` is still not run, for the reason its roster entry gives.
+
+**What it cost, and the cost model that made it plannable.** 23 checkpoint-assay pairs, 75
+minutes wall, on this container and nothing rented. Masked-marginal scoring scales with
+distinct positions × sequence length rather than variant count: the nine-assay set is 370,227
+such units and `A0A2Z5U3Z0_9INFA_Wu_2014` alone is 311,880 of them, so the eight assays left to
+add were a fifth of the one already scored. A variant-count estimate had put the same work near
+ten hours.
+
+**One correction worth reading before trusting a capability claim about this machine.** A first
+probe at the driver's default batch size was killed on memory for `esm3-sm-open-v1` and ran four
+times over its predicted time for `esm2_t36_3B_UR50D`, which read as *these two do not fit here*.
+They do. Both had been scored here before at batch sizes recorded in their own run manifests — 1
+and 2 respectively — and at those sizes both completed all nine assays without incident. Recorded
+as D-249.
+
+**What nine assays is and is not.** A common set, not a representative one: all nine are viral
+and five come from one stability study. It supports a like-for-like comparison across these four
+checkpoints; it does not support a general ranking, and §B5 should say which of the two it is
+making.
+
 ## State — 2026-10-21
 
 `review`. The reference table is generated and published:
@@ -56,7 +87,7 @@ would be scoring a sequence nobody published, so it is not run.
 
 **What this leaves for B5.2.** The common test set is one assay wide, which is what the
 determinism and reference checks need and not what a comparison needs. Widening it is scoring
-time, not new code.
+time, not new code. _(Done on 2026-10-22 — see the block above and D-249.)_
 
 ## State — 2026-10-20
 

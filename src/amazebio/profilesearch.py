@@ -144,6 +144,27 @@ def best_model_coverage(hit: Any, model_length: int) -> float:
     return best
 
 
+def best_domain_region(hit: Any) -> tuple[int, int] | None:
+    """The hit's best-covering domain as 1-based inclusive coordinates on the protein.
+
+    The same domain :func:`best_model_coverage` measures, reported as the region of the
+    *target* it occupies. A2.1 itself has no use for this — a detection is a record, not a
+    span — but A3.4 does: its diversity bins are built from Pfam's seed alignment, whose
+    members are aligned regions and not whole proteins, so comparing a called gene against
+    them compares a protein with a domain. The region is what makes the two sides the same
+    kind of object (D-241).
+    """
+    best: tuple[float, tuple[int, int]] | None = None
+    for domain in hit.domains:
+        if domain.included is False:
+            continue
+        alignment = domain.alignment
+        covered = float(alignment.hmm_to - alignment.hmm_from + 1)
+        if best is None or covered > best[0]:
+            best = (covered, (int(alignment.target_from), int(alignment.target_to)))
+    return None if best is None else best[1]
+
+
 def call_genes(records: list[Any]) -> tuple[list[Any], dict[str, int]]:
     """Call genes on sampled nucleotide records; returns digital protein sequences and counts.
 
@@ -254,6 +275,7 @@ def search(
                 if coverage < MIN_MODEL_COVERAGE:
                     continue
                 record_id, _, gene = text_of(hit.name).partition("|")
+                region = best_domain_region(hit)
                 accepted.append(
                     {
                         "profile": query_name,
@@ -263,6 +285,10 @@ def search(
                         "score": float(hit.score),
                         "evalue": float(hit.evalue),
                         "coverage": coverage,
+                        # On the protein, 1-based inclusive; the region A3.4 places rather than
+                        # the whole gene (D-241). No artefact of A2.1's own carries it.
+                        "target_from": None if region is None else region[0],
+                        "target_to": None if region is None else region[1],
                     }
                 )
     return accepted

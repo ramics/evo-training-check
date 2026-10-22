@@ -264,3 +264,18 @@ class TestThePlanPath:
                 batch_size=8,
                 variants_source="test",
             )
+
+
+class TestWhetherTheCheckRanIsAlwaysStated:
+    """One of the four Tier-1 checkpoints has no column in the published score table, so its
+    artefact carries no comparison. A missing key cannot distinguish that from a check that
+    was skipped by accident, and the difference is the whole value of the reference arm."""
+
+    def test_a_real_comparison_says_it_compared(self) -> None:
+        ours = {f"v{i}": float(i) for i in range(30)}
+        published = {f"v{i}": float(i) + 0.01 for i in range(30)}
+        truth = {f"v{i}": float(i) * 0.5 for i in range(30)}
+        out = reference.check_against_published(
+            "some-checkpoint", "SOME_ASSAY", ours, published, truth, seed=1
+        ).to_dict()
+        assert out["compared"] is True

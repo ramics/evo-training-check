@@ -2,7 +2,7 @@
 id: A2.6
 title: Re-run profile detection at census depth
 phase: A
-status: in-progress
+status: deferred
 gate: false
 depends_on: [A2.1]
 blocks: []
@@ -136,6 +136,19 @@ widening of the existing sample, the full census, or stopping at the bound. D-07
 nested in its rate, so a wider pass extends it rather than replacing it: 0.1% to 1% costs about
 a tenth of a census and tightens the bound rather than removing it, which may be all M3 needs.
 This task's `Done when` is unchanged and unmet.
+
+## Deferred by the owner — 2026-10-21 (D-247)
+
+The census is **not bought**, and the ten-fold re-run of the protein registry is declined with
+it. Phase A proceeds without either, and its output is a write-up aimed at funders in which this
+task appears as a named commitment deliberately not run — with its costing, and the account of
+the first launch that spent about $5.40 and published nothing, left intact as part of what the
+write-up has to say about the cost of this kind of audit.
+
+`deferred` rather than dropped, as the owner's standing instruction for declined compute
+requires. Nothing blocks on it: A3.4 was unblocked on 2026-10-21 (D-236) and `blocks` is empty.
+If the census ever returns it is a cash decision, and D-247 records that this is a decision not
+to buy it rather than a judgement that it would buy nothing.
 
 ## Notes
 

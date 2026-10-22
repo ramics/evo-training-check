@@ -64,6 +64,15 @@ It is a defect in `amazebio.repro`'s durable-write path, shared by every pipelin
 Read with D-126, which put the commit in the EC2 result keys for this reason one tool at a
 time, and D-216, which is the general case.
 
+## State — 2026-10-21
+
+`review`. The implementation is on `claude/project-thread-a3vch4`, which is **open pull request
+#31** and not on `main`. A later task read this file from a container cloned at `main`, found no
+commit-keyed writes in `amazebio.repro`, took the work to have been lost with its container and
+began re-implementing it from the description below. D-242 records that, and the re-implementation
+was dropped once the pull request was found. Nothing here needs redoing; what it needs is the
+merge, which is the project owner's.
+
 ## State — 2026-10-20
 
 `review`. **Branch `claude/project-thread-a3vch4`.**
