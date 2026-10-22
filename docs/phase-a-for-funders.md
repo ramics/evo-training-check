@@ -32,7 +32,8 @@ exactly, while the only one carrying source identifiers holds 304,448 more recor
 the policy removes. A filter's output therefore cannot be checked against the filter's own product.
 
 **How virus-specific are the families?** Measured against the reviewed section of UniProtKB
-(2026_03, 575,748 entries): of the 1,719 families in the pre-registered universe, 1,265 have no
+(2026_03, 575,748 entries) [12], with a second instrument joining the same families through
+InterPro [13]: of the 1,719 families in the pre-registered universe, 1,265 have no
 curated occurrence outside viruses, 212 do, and 242 are absent from the curated section and so
 cannot be judged. Of the 1,477 that can be judged, 85.6% are virus-only. Sharing is usually thin —
 the median shared family appears in one non-viral organism — and for 15 of the 212 every non-viral
@@ -166,7 +167,7 @@ shallowly-labelled material. Attributing the shift by route is a separate measur
 ## 4. Result 2: the denylists are lists of names, and names expire
 
 A rule that names a taxon inherits the reference taxonomy's revisions. Replaying the policy's 31
-names against taxonomy releases from its own vintage to 2026-10 (A9.1, D-201, D-202):
+names against NCBI Taxonomy releases [14] from its own vintage to 2026-10 (A9.1, D-201, D-202):
 
 - *Herpesviridae* became a synonym of *Orthoherpesviridae* in January 2026. A rule naming
   *Herpesviridae* as a family scientific name now removes no herpesvirus, and its output records no
@@ -246,8 +247,8 @@ Reading labels, the component contains **no** segmented-virus records. That zero
 about labels: only 2.6% of records are decidable at family rank.
 
 Reading sequence at 10% depth, the same records carry markers of **7 of 1,285 segmented virus
-families** — 57 hits in 265,062 records, 0.54% of families (0.26-1.12%). Five distinct ICTV families
-are represented, and every one infects eukaryotes, in a component whose host rule exists to remove
+families** — 57 hits in 265,062 records, 0.54% of families (0.26-1.12%). Five distinct families of
+the ICTV taxonomy [15] are represented, and every one infects eukaryotes, in a component whose host rule exists to remove
 eukaryote-infecting viruses:
 
 | RVDB family | records | ICTV family |
@@ -348,7 +349,7 @@ And families named for a virus taxon rather than a viral structure, such as `Ebo
 the vocabulary altogether; that gap is measured and published rather than closed, with the second
 registry, whose membership is its own curators', covering it (D-083).
 
-How far the universe is virus-specific is now measured against the reviewed section of UniProtKB,
+How far the universe is virus-specific is now measured against the reviewed section of UniProtKB [12],
 with the figures in the abstract and the per-family table in the artefact (A4.5, D-250). Two
 properties of that measurement bound what it licenses. A family absent from the curated section is
 recorded as unmeasurable and never as virus-only, which is why 242 of the 1,719 are set aside rather
@@ -404,10 +405,12 @@ least automatable part of the work.
 2. Brixi G. *et al.* Genome modelling and design across all domains of life with Evo 2. *Nature*
    (2026). doi:[10.1038/s41586-026-10176-5](https://doi.org/10.1038/s41586-026-10176-5); preprint
    doi:[10.1101/2025.02.18.638918](https://doi.org/10.1101/2025.02.18.638918)
-3. `LongSafari/open-genome` dataset card, HuggingFace, retrieved 2026-10-13 and stored with digest
-   as source `S-OPENGENOME1-CARD`.
-4. `arcinstitute/opengenome2` dataset card, HuggingFace, retrieved 2026-10-13 and stored with digest
-   as source `S-OPENGENOME2-CARD`.
+3. `LongSafari/open-genome` (OpenGenome), HuggingFace datasets. Pinned at revision
+   `84369c058d192dcb607086d71679b877421e3250`, with a published sha256 per file; the dataset card
+   was retrieved 2026-10-13 and stored with its digest. HuggingFace issues no persistent identifier
+   for a dataset, so the revision hash is the pin.
+4. `arcinstitute/opengenome2` (OpenGenome2), HuggingFace datasets. Pinned at revision
+   `84d2a7e690c8bb395d1f4868822dfa031ea561c6`, same provisions as above.
 5. Camargo A. P. *et al.* IMG/VR v4: an expanded database of uncultivated virus genomes within a
    framework of extensive functional, taxonomic, and ecological metadata. *Nucleic Acids Research*
    (2023). doi:[10.1093/nar/gkac1037](https://doi.org/10.1093/nar/gkac1037)
@@ -418,9 +421,11 @@ least automatable part of the work.
    Software* **7**(72), 4296 (2022). doi:[10.21105/joss.04296](https://doi.org/10.21105/joss.04296)
 8. Eddy S. R. Accelerated profile HMM searches. *PLoS Computational Biology* **7**(10), e1002195
    (2011). doi:[10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195)
-9. Mistry J. *et al.* Pfam: the protein families database in 2021. *Nucleic Acids Research*
-   **49**(D1), D412-D419 (2021). doi:[10.1093/nar/gkaa913](https://doi.org/10.1093/nar/gkaa913).
-   Release 38.2 (EMBL-EBI, 2026-01-22) is pinned by versioned release directory and digest (D-075).
+9. Paysan-Lafosse T. *et al.* The Pfam protein families database: embracing AI/ML. *Nucleic Acids
+   Research* **53**(D1), D523-D534 (2025).
+   doi:[10.1093/nar/gkae997](https://doi.org/10.1093/nar/gkae997). Release 38.2 (EMBL-EBI,
+   2026-01-22) is pinned by versioned release directory and digest, not by the `current_release`
+   pointer (D-075).
 10. Bigot T., Temmam S., Pérot P., Eloit M. RVDB-prot, a reference viral protein database and its
     HMM profiles. *F1000Research* **8**, 530 (2019; v2 2020).
     doi:[10.12688/f1000research.18776.2](https://doi.org/10.12688/f1000research.18776.2). v32.0,
@@ -428,9 +433,25 @@ least automatable part of the work.
 11. Camargo A. P. *et al.* Identification of mobile genetic elements with geNomad. *Nature
     Biotechnology* (2024).
     doi:[10.1038/s41587-023-01953-y](https://doi.org/10.1038/s41587-023-01953-y)
-12. UniProtKB reviewed section, release 2026_03 (575,748 entries read, against the release notes'
-    published count), used as the curated background for the specificity measurement; the second
-    instrument joins the same families through InterPro. Cited by release rather than by DOI.
+12. The UniProt Consortium. UniProt: the Universal Protein Knowledgebase in 2025. *Nucleic Acids
+    Research* **53**(D1), D609-D617 (2025).
+    doi:[10.1093/nar/gkae1010](https://doi.org/10.1093/nar/gkae1010). The curated background for the
+    specificity measurement is the reviewed section at release 2026_03: 575,748 entries read,
+    against the release notes' published 575,748, of which 17,529 are viral.
+13. Blum M. *et al.* InterPro: the protein sequence classification resource in 2025. *Nucleic Acids
+    Research* **53**(D1), D444-D456 (2025).
+    doi:[10.1093/nar/gkae1082](https://doi.org/10.1093/nar/gkae1082). Used as the second instrument
+    for the specificity measurement, joining the same families through InterPro's own
+    cross-references.
+14. Schoch C. L. *et al.* NCBI Taxonomy: a comprehensive update on curation, resources and tools.
+    *Database* **2020**, baaa062 (2020).
+    doi:[10.1093/database/baaa062](https://doi.org/10.1093/database/baaa062). The decay replay uses
+    the `taxdump_archive` quarterly dumps from 2020-01-01 to 2026-10-01, 28 releases, with the
+    baseline at 2023-04-01 (D-201).
+15. ICTV Virus Metadata Resource, release `VMR_20-190822_MSL37.3`, pinned by sha256. The ICTV issues
+    no DOI for an individual Master Species List or VMR release; recent releases are archived on
+    Zenodo, but no persistent identifier was confirmed for this one, so it is cited by release name
+    and digest (D-086).
 
 Identifiers of the form A2.1 (tasks) and D-075 (decisions) refer to this project's own task files
 and append-only decision log, which are not public.
