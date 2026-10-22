@@ -10974,3 +10974,65 @@ decision has a threshold or parameter in it, the number goes in the entry.
   refused all reads on `s3://amazebio-corpora-897641797669` (403 on `ListBucket` and
   `HeadObject` alike, credentials present and resolving to `iam::...:user/claude`), which is
   with the owner. The artefact states the restriction as outstanding rather than omitting it.
+
+### D-251 — restricted to the families actually detected, the sharing rate roughly doubles on Evo 1 and the specific variant is about half the headline
+
+- **Date:** 2026-10-22
+- **Task:** A4.5 (the restriction D-250 recorded as outstanding)
+- **Context:** D-250 measured where the 1,719 pinned families live, over the whole universe, and
+  said in terms that the universe figures must not be quoted as though they were the detected-set
+  figures: detected families are not a random draw, because an abundant family is likelier to be
+  found. It recorded the restriction as blocked on the per-family tables in object storage. They
+  were not blocked. The denial was a client resolving to S3's legacy global hostname, which the
+  session proxy does not inject credentials for, so the request reached AWS signed-out and was
+  refused with a message indistinguishable from a missing grant. `objectstore.client()` had
+  pinned the regional endpoint all along; ad-hoc `boto3.client("s3", region_name=...)` calls had
+  not. The owner's identity policy was correct throughout and nothing about it was changed.
+- **What was measured.** The three classes of D-250 applied to the families each release actually
+  detected, taken from A2.1's `profile-hmmer` and A2.4's `provirus-genomad` per-family tables.
+  The lists were transcribed by `tools/detected_families.py`, which recomputes nothing and
+  reproduces each table's own published figure: **590 and 811 by profile search, 597 and 812
+  merged** — the A3.2 headline. All three readings of the published filter (charitable, literal,
+  strict) give the **same detected set** in every case, compared as sets rather than as counts,
+  so none of the figures below depends on which reading is taken.
+
+  | detected set | detected | virus-only | shared | unjudgeable | shared, of judgeable |
+  |---|---|---|---|---|---|
+  | Evo 1, profile search | 590 | 303 | 135 | 152 | 30.8% |
+  | Evo 1, merged (A3.2 headline) | 597 | 310 | 135 | 152 | 30.3% |
+  | Evo 2, profile search | 811 | 497 | 145 | 169 | 22.6% |
+  | Evo 2, merged (A3.2 headline) | 812 | 498 | 145 | 169 | 22.6% |
+
+  **The bias D-250 warned about is real and goes the unflattering way.** Over the universe,
+  14.4% of judgeable families are shared. Over what was detected it is 30.3% on Evo 1 and 22.6%
+  on Evo 2 — 2.11 and 1.57 times as often. A family with cellular members is easier to detect,
+  so weighting by what was found makes the sharing commoner, not rarer, and the universe figure
+  is an understatement of the problem rather than a conservative stand-in for it.
+
+  The pre-registered variants, each as the pair the task file fixed before any restricted count
+  existed (excluding, then including, the families the curated section cannot judge):
+
+  | detected set | `headline` | `specific` | `specific_plus_endogenous` |
+  |---|---|---|---|
+  | Evo 1, profile search | 590 | 303 – 455 | 307 – 459 |
+  | Evo 1, merged | 597 | 310 – 462 | 314 – 466 |
+  | Evo 2, profile search | 811 | 497 – 666 | 506 – 675 |
+  | Evo 2, merged | 812 | 498 – 667 | 507 – 676 |
+
+- **Decision:** The headline survival figures are **not corrected** — 597 and 812 stand, as
+  D-250 and D-158 both require, and what this changes is which sentence they support. The
+  conservative variant the write-up carries beside the headline is `specific`, reported as its
+  pair, with the universe-versus-detected ratio stated. On the merged headline that is **597,
+  of which 310 to 462 have no curated occurrence outside viruses; and 812, of which 498 to
+  667.** Neither end of a pair is quotable on its own.
+- **Alternatives rejected:** Quoting a single conservative number by folding the unjudgeable
+  families onto one side, which is the choice the pre-registered pair exists to prevent.
+  Choosing the policy reading with the most favourable restricted count — the three readings
+  were checked to agree as sets instead, which makes the question moot and is the stronger
+  result. Reporting only the universe figure now that the detected one is worse.
+- **Consequence:** A4.5's "Done when" is met and the task closes. The write-up gains a
+  measured conservative variant in place of a stated limit, and the sentence a Pfam detection
+  licenses is now quantified per release rather than asserted. The endpoint trap is pinned in
+  `objectstore.client()`'s docstring so the next session does not spend a day on it, and
+  `tools/family_background.py` loses the durable exemption granted on the grounds that no
+  `durable=` could succeed from a cloud session.

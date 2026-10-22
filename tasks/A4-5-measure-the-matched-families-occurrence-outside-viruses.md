@@ -2,7 +2,7 @@
 id: A4.5
 title: Measure the matched families' occurrence outside viruses
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A2.1]
 blocks: []
@@ -81,6 +81,20 @@ in which case the limit is published as a measured one rather than an asserted o
   in it, and that a non-viral occurrence is not proof of independent cellular ancestry.
 - The detected-set restriction is either computed from the A2.1 detection lists, or recorded as
   outstanding with the bound that is computable without them.
+
+## Result
+
+Both halves done. The universe measurement is D-250; the detected-set restriction is D-251.
+Of 1,719 families, 1,265 have no curated occurrence outside viruses, 212 do and 242 cannot be
+judged, so 85.6% of the 1,477 judgeable are virus-only, and both instruments agree on all
+1,719. Restricted to what was detected, the sharing rate is 30.3% of judgeable families on
+Evo 1 and 22.6% on Evo 2 — 2.11 and 1.57 times the universe rate, which is the bias this step
+existed to measure and it runs against the claim rather than for it. The `specific` variant of
+the merged headline is 310–462 of 597 and 498–667 of 812.
+
+The restriction was recorded as blocked on object storage for a day. It was not: the denial was
+a client resolving to S3's legacy global hostname rather than an IAM grant. See D-251 and the
+docstring on `amazebio.objectstore.client`.
 
 ## Notes
 

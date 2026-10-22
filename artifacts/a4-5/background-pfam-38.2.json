@@ -10,8 +10,121 @@
     "viral_entries_read": 17529
   },
   "design_ref": "\u00a7A4",
-  "detected_sets": [],
-  "detected_sets_outstanding": true,
+  "detected_sets": [
+    {
+      "comparability": "every variant here is the same detector at the same depth over the same corpus as its own headline; variants from different detectors are never set side by side (D-247)",
+      "detected": 590,
+      "detector": "profile-hmmer",
+      "judgeable": 438,
+      "release": "opengenome",
+      "shared": 135,
+      "shared_endogenous_only": 4,
+      "shared_share_of_judgeable": 0.3082191780821918,
+      "source": "artifacts/a4-5/detected/detected-opengenome-profile-hmmer.txt",
+      "source_keys": "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome.json corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json corpora/results/a2-1/detections-pfam-evo1-strict-opengenome.json",
+      "unmeasurable": 152,
+      "variants": {
+        "headline": {
+          "excluding_unmeasurable": 590,
+          "including_unmeasurable": 590
+        },
+        "specific": {
+          "excluding_unmeasurable": 303,
+          "including_unmeasurable": 455
+        },
+        "specific_plus_endogenous": {
+          "excluding_unmeasurable": 307,
+          "including_unmeasurable": 459
+        }
+      },
+      "viral_only": 303
+    },
+    {
+      "comparability": "every variant here is the same detector at the same depth over the same corpus as its own headline; variants from different detectors are never set side by side (D-247)",
+      "detected": 597,
+      "detector": "profile-hmmer+provirus-genomad",
+      "judgeable": 445,
+      "release": "opengenome",
+      "shared": 135,
+      "shared_endogenous_only": 4,
+      "shared_share_of_judgeable": 0.30337078651685395,
+      "source": "artifacts/a4-5/detected/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt",
+      "source_keys": "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome.json corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json corpora/results/a2-1/detections-pfam-evo1-strict-opengenome.json corpora/results/a2-4/detections-pfam-evo1-charitable-opengenome.json corpora/results/a2-4/detections-pfam-evo1-literal-opengenome.json corpora/results/a2-4/detections-pfam-evo1-strict-opengenome.json",
+      "unmeasurable": 152,
+      "variants": {
+        "headline": {
+          "excluding_unmeasurable": 597,
+          "including_unmeasurable": 597
+        },
+        "specific": {
+          "excluding_unmeasurable": 310,
+          "including_unmeasurable": 462
+        },
+        "specific_plus_endogenous": {
+          "excluding_unmeasurable": 314,
+          "including_unmeasurable": 466
+        }
+      },
+      "viral_only": 310
+    },
+    {
+      "comparability": "every variant here is the same detector at the same depth over the same corpus as its own headline; variants from different detectors are never set side by side (D-247)",
+      "detected": 811,
+      "detector": "profile-hmmer",
+      "judgeable": 642,
+      "release": "opengenome2",
+      "shared": 145,
+      "shared_endogenous_only": 9,
+      "shared_share_of_judgeable": 0.22585669781931464,
+      "source": "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer.txt",
+      "source_keys": "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome2.json corpora/results/a2-1/detections-pfam-evo1-literal-opengenome2.json corpora/results/a2-1/detections-pfam-evo1-strict-opengenome2.json",
+      "unmeasurable": 169,
+      "variants": {
+        "headline": {
+          "excluding_unmeasurable": 811,
+          "including_unmeasurable": 811
+        },
+        "specific": {
+          "excluding_unmeasurable": 497,
+          "including_unmeasurable": 666
+        },
+        "specific_plus_endogenous": {
+          "excluding_unmeasurable": 506,
+          "including_unmeasurable": 675
+        }
+      },
+      "viral_only": 497
+    },
+    {
+      "comparability": "every variant here is the same detector at the same depth over the same corpus as its own headline; variants from different detectors are never set side by side (D-247)",
+      "detected": 812,
+      "detector": "profile-hmmer+provirus-genomad",
+      "judgeable": 643,
+      "release": "opengenome2",
+      "shared": 145,
+      "shared_endogenous_only": 9,
+      "shared_share_of_judgeable": 0.2255054432348367,
+      "source": "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt",
+      "source_keys": "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome2.json corpora/results/a2-1/detections-pfam-evo1-literal-opengenome2.json corpora/results/a2-1/detections-pfam-evo1-strict-opengenome2.json corpora/results/a2-4/detections-pfam-evo1-charitable-opengenome2.json corpora/results/a2-4/detections-pfam-evo1-literal-opengenome2.json corpora/results/a2-4/detections-pfam-evo1-strict-opengenome2.json",
+      "unmeasurable": 169,
+      "variants": {
+        "headline": {
+          "excluding_unmeasurable": 812,
+          "including_unmeasurable": 812
+        },
+        "specific": {
+          "excluding_unmeasurable": 498,
+          "including_unmeasurable": 667
+        },
+        "specific_plus_endogenous": {
+          "excluding_unmeasurable": 507,
+          "including_unmeasurable": 676
+        }
+      },
+      "viral_only": 498
+    }
+  ],
+  "detected_sets_outstanding": false,
   "does_not_claim": [
     "no survival figure is corrected by anything here",
     "a non-viral occurrence is not proof of independent cellular ancestry; host genomes carry integrated viral material and such an entry is annotated to the host",
