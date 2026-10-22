@@ -39,7 +39,7 @@ for removal?
 | input | what it is | how it is verified |
 |---|---|---|
 | A2.1's published per-hit tables for Pfam on `opengenome2`, one per reading of the filter | the detected record set | all three readings read whole and **required to agree**: every taxonomy rule is unresolvable against this component (A1.4), so they cannot differ, and a disagreement means a table is not what it says it is |
-| `IMGVR_all_Sequence_information-high_confidence.tsv`, 2022-09-20 release | the family labels the filter's own rules read | the publisher's md5, taken from `S-IMGVR-V4-SEQINFO-2022-09-20` in `policies/sources.json` and computed over the bytes as they stream. The object's length is checked against the register before the read |
+| `IMGVR_all_Sequence_information-high_confidence.tsv`, 2022-09-20 release | the family labels the filter's own rules read | the publisher's own md5, read out of their captured file listing (`S-IMGVR-JGI-INVENTORY`) by release date and file name, and computed over the bytes as they stream. The object's length is checked against that listing before the read — two releases carry this file name and differ in it by 237 bytes (D-052, D-054) |
 | `policies/specs/evo1-literal.yaml`, rule `remove-denylisted-families` | the nineteen groups **and the predicate** | X1.4 machine-verifies the rule's quotations against the source PDF |
 
 **The rule is executed, not restated.** `tools/denylist_label_records.py` loads the rule and
@@ -81,6 +81,12 @@ so it is internal under X3.1.
 - The table, its summary and `run.json` are published from pinned inputs.
 - The count is reported with its three ceilings attached.
 - Frontmatter current and `python3 tools/board.py --check` passes.
+
+**The pin comes from the publisher, not from a second register entry.** X1.8 registers this
+table as `S-IMGVR-V4-SEQINFO-2022-09-20`, whose own `md5_source` names the JGI file listing it
+was transcribed from. That listing is already in the evidence store, so this pass reads the
+digest from it directly: one less transcription to keep in step, and it works whether or not
+PR #38 has merged.
 
 ## State — 2026-10-22
 

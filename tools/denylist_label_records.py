@@ -21,9 +21,12 @@ Three inputs, all pinned, none of them a corpus of sequence:
   this component every taxonomy rule is unresolvable, so the three *must* agree, and a
   disagreement would mean one of the tables is not what it says it is.
 * **The labels.** `IMGVR_all_Sequence_information-high_confidence.tsv` for the 2022-09-20
-  release, staged in object storage, verified against **the publisher's own md5** — recorded in
-  `policies/sources.json` as `S-IMGVR-V4-SEQINFO-2022-09-20` — as it streams. The digest comes
-  from that entry rather than from a literal here, so there is one place to keep in step.
+  release, staged in object storage, verified against **the publisher's own md5** as it streams.
+  That digest is read out of the publisher's captured file listing
+  (`policies/captures/jgi-imgvr-inventory.json`, `S-IMGVR-JGI-INVENTORY`) by release date and
+  file name, so the pin comes from the publisher rather than from a transcription of them —
+  which also tells the two releases answering to "IMG/VR v4" apart, since they differ in this
+  file by 237 bytes (D-052, D-054).
 * **The nineteen groups.** The `remove-denylisted-families` rule of
   `policies/specs/evo1-literal.yaml`, this project's machine-verified transcription of the
   published procedure. The rule is not reimplemented: it is *executed*, through
@@ -62,10 +65,26 @@ TASK = "X1.9"
 REPO = Path(__file__).resolve().parent.parent
 OUTDIR = REPO / "artifacts" / "x1-9"
 
-#: The source register entry whose md5 the staged label table is checked against, and where the
-#: table is held. Both are read from the entry rather than written out here.
-SOURCE_ID = "S-IMGVR-V4-SEQINFO-2022-09-20"
-SOURCES = REPO / "policies" / "sources.json"
+#: Where the label table's pin comes from: **the publisher's own file listing**, captured in the
+#: evidence store as `S-IMGVR-JGI-INVENTORY`. Their listing states every IMG/VR file's release
+#: date, size and md5sum, so the pin is read from the publisher rather than transcribed — which
+#: is `amazebio.profiles.RegistryFile`'s rule (a checksum of bytes you already hold verifies
+#: nothing) applied one register over.
+INVENTORY = REPO / "policies" / "captures" / "jgi-imgvr-inventory.json"
+SOURCE_ID = "S-IMGVR-JGI-INVENTORY"
+
+#: The release joined against, and the file within it. Two releases answer to "IMG/VR v4" and
+#: they differ by 237 bytes in this very file; D-052 and D-054 record why this is the one. The
+#: date is part of the pin rather than a default, and the size check tells the two apart.
+LABEL_RELEASE = "2022-09-20"
+LABEL_FILE = "IMGVR_all_Sequence_information-high_confidence.tsv"
+
+
+#: Where the staged copy of a published IMG/VR file lives, derived from the release and the
+#: file name rather than written out as a literal key in a second place.
+def label_table_key(release: str, file_name: str) -> str:
+    return f"corpora/imgvr/{release}/{file_name}"
+
 
 #: The spec whose rule names the groups, and the rule's id. The rule is executed, not restated.
 SPEC = REPO / "policies" / "specs" / "evo1-literal.yaml"
@@ -105,20 +124,39 @@ class Refusal(SystemExit):
 # --------------------------------------------------------------------------------------
 
 
-def source_entry() -> dict[str, Any]:
-    """The register's entry for the label table: its publisher digest and where it is held."""
-    register = json.loads(SOURCES.read_text())
-    entries = [s for s in register["sources"] if s.get("id") == SOURCE_ID]
-    if len(entries) != 1:
+def label_table_pin() -> dict[str, Any]:
+    """The publisher's own md5 and size for the label table, and where the staged copy is.
+
+    Read out of their captured file listing by release date *and* file name, and refused unless
+    that selects exactly one file: the listing holds forty-two files across ten dated releases,
+    and two of those releases carry this same file name with different bytes.
+    """
+    listing = json.loads(INVENTORY.read_text())
+    files = [
+        f
+        for f in listing["files"]
+        if f.get("file_name") == LABEL_FILE and f.get("added_date") == LABEL_RELEASE
+    ]
+    if len(files) != 1:
         raise Refusal(
-            f"{SOURCES} holds {len(entries)} entries for {SOURCE_ID}; the digest this pass "
-            "verifies against has no other source"
+            f"{INVENTORY} lists {len(files)} files named {LABEL_FILE!r} for release "
+            f"{LABEL_RELEASE}; the publisher's digest for this pass has no other source"
         )
-    entry = entries[0]
-    for field in ("md5", "held_at"):
+    entry = files[0]
+    for field in ("md5sum", "file_size"):
         if not entry.get(field):
-            raise Refusal(f"{SOURCE_ID} states no {field}, so the staged table cannot be pinned")
-    return entry
+            raise Refusal(f"{SOURCE_ID} states no {field} for {LABEL_FILE}, so it cannot be pinned")
+    return {
+        "source": SOURCE_ID,
+        "capture": str(INVENTORY.relative_to(REPO)),
+        "retrieved": listing.get("retrieved"),
+        "release": LABEL_RELEASE,
+        "file_name": LABEL_FILE,
+        "md5": entry["md5sum"],
+        "md5_source": f"{SOURCE_ID}: the publisher's own file listing, {LABEL_RELEASE}",
+        "bytes": int(entry["file_size"]),
+        "held_at": f"s3://{corpora.BUCKET}/{label_table_key(LABEL_RELEASE, LABEL_FILE)}",
+    }
 
 
 def denylist_rule() -> policyspec.Rule:
@@ -191,8 +229,9 @@ def stream_labels(
     live = int(client.head_object(Bucket=bucket, Key=key)["ContentLength"])
     if entry.get("bytes") and live != int(entry["bytes"]):
         raise Refusal(
-            f"{key}: staged object is {live} bytes, {SOURCE_ID} says {entry['bytes']}. A staged "
-            "object of a different length is a different release."
+            f"{key}: staged object is {live} bytes, the publisher's listing says "
+            f"{entry['bytes']} for the {entry['release']} release. A staged object of a "
+            "different length is a different release, and two of them carry this file name."
         )
     obj = corpora.RangedObject(client, bucket=bucket, key=key, size=live)
     reader = obj.buffered()
@@ -257,7 +296,7 @@ def stream_labels(
     md5 = digest.hexdigest()
     if md5 != entry["md5"]:
         raise Refusal(
-            f"{key}: md5 {md5} is not the publisher's {entry['md5']} for {SOURCE_ID}. Every "
+            f"{key}: md5 {md5} is not the publisher's {entry['md5']} ({SOURCE_ID}). Every "
             "label in this table would be relative to a release nobody pinned."
         )
     return found, {
@@ -270,7 +309,7 @@ def stream_labels(
 
 
 def build(client: Any) -> dict[str, Any]:
-    entry = source_entry()
+    entry = label_table_pin()
     rule = denylist_rule()
     groups = list(rule.params["names"])
     detected, tables = detected_records(client)
@@ -336,10 +375,12 @@ def build(client: Any) -> dict[str, Any]:
             },
             "label_table": {
                 "source": SOURCE_ID,
+                "capture": entry["capture"],
                 "held_at": entry["held_at"],
                 "md5": entry["md5"],
-                "md5_source": entry.get("md5_source"),
-                "revision": entry.get("revision"),
+                "md5_source": entry["md5_source"],
+                "release": entry["release"],
+                "listing_retrieved": entry["retrieved"],
                 **pass_counts,
             },
             "detection_tables": tables,
@@ -455,7 +496,7 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
             manifest.parameter("label_source", SOURCE_ID)
             manifest.parameter("release", RELEASE)
             manifest.input_file(SPEC, role="denylisted group names")
-            manifest.input_file(SOURCES, role="source register")
+            manifest.input_file(INVENTORY, role="publisher file listing (the label pin)")
             doc = build(handle)
             table = write_table(args.outdir / "denylisted-label-records.tsv", doc["rows"])
             summary_json = args.outdir / "denylisted-label-records.json"

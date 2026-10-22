@@ -58,7 +58,8 @@ def label_table(
 
 def entry_for(body: bytes, *, md5: str | None = None) -> dict:
     return {
-        "id": tool.SOURCE_ID,
+        "source": tool.SOURCE_ID,
+        "release": tool.LABEL_RELEASE,
         "held_at": "s3://bucket/corpora/imgvr/2022-09-20/table.tsv",
         "md5": md5 or hashlib.md5(body, usedforsecurity=False).hexdigest(),
         "bytes": len(body),
@@ -93,6 +94,44 @@ class _Bytes:
 # --------------------------------------------------------------------------------------
 # The rule is the published one, executed
 # --------------------------------------------------------------------------------------
+
+
+class TestTheLabelTablePin:
+    """The digest is the publisher's own, read from their captured listing.
+
+    `AGENTS.md`'s rule is that a pin is the publisher's digest and never a checksum of bytes
+    already held. The listing holds forty-two files across ten dated releases and two of those
+    releases carry this file name with different bytes, so the selection is by date *and* name.
+    """
+
+    def test_the_pin_is_the_publishers_digest_for_the_dated_release(self) -> None:
+        pin = tool.label_table_pin()
+        assert pin["source"] == "S-IMGVR-JGI-INVENTORY"
+        assert pin["release"] == tool.LABEL_RELEASE == "2022-09-20"
+        assert pin["md5"] == "a2eedc151e557a78a327d6bf9a95bd25"
+        assert pin["bytes"] == 1_888_622_388
+        assert pin["md5_source"].startswith("S-IMGVR-JGI-INVENTORY")
+
+    def test_the_staged_key_is_derived_from_the_release_and_the_file_name(self) -> None:
+        assert tool.label_table_key("2022-09-20", "x.tsv") == "corpora/imgvr/2022-09-20/x.tsv"
+        assert tool.label_table_key(tool.LABEL_RELEASE, tool.LABEL_FILE) in pin_key()
+
+    def test_the_other_release_of_the_same_file_name_is_a_different_size(self) -> None:
+        # Which is what the length check in `stream_labels` uses to tell them apart.
+        import json
+
+        listing = json.loads(tool.INVENTORY.read_text())
+        sizes = {
+            f["added_date"]: f["file_size"]
+            for f in listing["files"]
+            if f["file_name"] == tool.LABEL_FILE
+        }
+        assert len(sizes) > 1
+        assert len(set(sizes.values())) == len(sizes)
+
+
+def pin_key() -> str:
+    return tool.label_table_pin()["held_at"]
 
 
 class TestTheRuleComesFromTheSpec:
