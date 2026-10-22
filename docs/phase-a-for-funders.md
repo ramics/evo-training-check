@@ -51,13 +51,13 @@ what IMG/VR, a database of uncultivated viruses assembled from environmental met
 contains. A profile hit establishes membership of a sequence family at that family's curated
 threshold, which is weaker than a statement about function and far weaker than one about hazard. No
 hazard assessment was performed and the study was not designed as one, so these results support
-neither a claim that hazardous material survived nor a claim that none did. A targeted measurement
-is in progress and will be reported here at aggregate level only, as a count of records attributable
-to human-pathogen groups with the worst case named at group level. [Pending A4.6: insert the count
-and the named worst case, or the statement that none was established with the ceiling on what the
-method could detect.] The nearest pointer available before it is a cross-reference between detected
-family names and the denylist, which is weak for a reason §3.5 states and is kept out of this
-summary.
+neither a claim that hazardous material survived nor a claim that none did. What can be said rests on labels, and
+is this. Of the released records the search detected and could resolve to their source database
+entry, 31 carry a taxonomic label belonging to a virus family the filter's own policy names for
+removal, including one complete flavivirus genome and one human papillomavirus; none is a regulated
+select agent. Only 6.47% of detected records carry a family label at all, so 31 is a floor on a
+small window rather than a count, and Evo 1's released records carry no source accession, so the
+same question cannot be asked of that release (§3.6).
 
 The finding of this study is about process and auditability: the published filter did not do what
 its description implies.
@@ -311,33 +311,87 @@ terminase, 10 a portal and 4 a prohead protease. IMG/VR assembles uncultivated v
 environmental metagenomes, and phages of bacteria are most of what it holds.
 
 Against that background, detected families also carry names referring to the groups the policy
-denylists, and the count depends on the matching rule, so the rule comes with it. Reducing each
-denylisted family name to its stem (`adenovir`, `calicivir`, `flavivir` and so on) and matching
-case-insensitively against each family's Pfam identifier and description gives 9 such families in
-Evo 1's detected set and 40 in Evo 2's. The 40 include 14 *Flaviviridae* domains — NS1, NS2B, the
-NS3 protease and helicase, NS4A, NS4B, the NS5 polymerase and thumb, and the capsid, M and E
-glycoproteins — the rest named for *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*,
-*Papillomaviridae*, *Adenoviridae*, *Caliciviridae*, *Picornaviridae*, *Retroviridae* and
-*Geminiviridae*. The two counts come from samples at different rates and do not rank the releases.
+denylists. The count depends entirely on the matching rule, so the rule was written down before
+anything was counted (A4.6). The group list is the 19 families named in the policy's own
+remove-step, with nothing added. A family refers to a group if its Pfam identifier or description
+contains the family name, the virus noun, the adjective or the subfamily form, or if the group's
+stem (`Flavi`, `Pox`, `Gemini`) appears as a whole token of the identifier, tokens being runs of
+letters and digits between non-alphanumeric characters. No detected family touches two groups.
 
-The rule's influence is large enough to report as a range. Pfam identifiers are abbreviations, so
-the stems match none of them alone and the figure rests on the descriptions; a rule built from
-shorter prefixes gives 33 by identifier alone and 41 by identifier or description on Evo 2's set,
-against 9 on Evo 1 either way (A4.5's independent recount, D-252). A reader reproducing 40 from
-identifiers will get a different number.
+Under that rule, 41 of the 1,719 families refer to a denylisted group: 9 are in Evo 1's detected set
+and all 41 in Evo 2's, carrying 173 and 388 hits. *Flaviviridae* accounts for 15, spanning capsid,
+prM/M, envelope E, NS1, NS2B, the NS3 protease and helicase, NS4A, NS4B and the NS5 polymerase;
+*Geminiviridae* 6, *Poxviridae* 5, *Adenoviridae*, *Hantaviridae* and *Retroviridae* 3 each,
+*Papillomaviridae* and *Picornaviridae* 2 each, *Caliciviridae* and *Rhabdoviridae* 1 each. Nine of
+the 19 groups, among them *Coronaviridae*, *Filoviridae* and *Herpesviridae*, name no detected
+family. The two per-release counts come from samples at different rates and do not rank the
+releases.
 
-The weakness is specific, and this project rejects the same mechanism elsewhere: a Pfam family's
-name records where its curators built it, so matching on names is evidence for constructing a list
-rather than a mechanism for applying one (D-166). A hit on `Flavi_NS5` establishes that a protein in
-the released corpus clears Pfam's curated threshold for that family, and leaves open whether the
-record belongs to a flavivirus or carries a distant homolog of a flavivirus domain in environmental
-sequence. Settling that is a per-hit comparison against the registries' own taxonomy, listed in §8;
-the hazard measurement now running is what answers the reader's first question, and the slot for its
-result is in the abstract.
+Reading identifiers alone gives 31, the floor, because the ten families only the description catches
+are named for a protein rather than a taxon (`Peptidase_C5`, `Rhv`, `RVP`, `GP41` and the like). The
+rule matches group stems as whole tokens for a reason: a substring rule admits `PF22759 E217_GP41`,
+a phage baseplate protein whose identifier contains the string `GP41` that a retroviral envelope
+family also carries, which is the "macrophage" failure of §3.3 in another guise.
+
+The weakness of the whole observation is specific, and this project rejects the same mechanism
+elsewhere: a Pfam family's name records where its curators built the model, so matching on names is
+evidence for constructing a list rather than a mechanism for applying one (D-166). A hit on
+`Flavi_NS5` establishes that a protein in the released corpus clears Pfam's curated threshold for
+that family, and leaves open whether the record is a flavivirus or an environmental sequence
+carrying a distant homolog. That is settled per record, by label, in §3.6.
 
 The substring blind spot of §3.3 closes here: of the seven families admitted to the universe because
 "macrophage" contains "phage", none is detected on Evo 1 and two on Evo 2, and every hit on those
 two falls on an IMG/PR plasmid record (D-252).
+
+### 3.6 What the detected records are, by their own labels
+
+The names above describe models. The records behind the hits can be joined to the source database's
+own taxonomy, and that join answers the question a reader asks first (A4.6).
+
+It can be run on one release only. The per-hit tables name the record behind each hit, and for Evo 2
+those names are public IMG accessions, while Evo 1's are training identifiers, because its released
+viral component carries no source accession (§6). Of the 57,487 distinct records the profile search
+hits across both releases, 19,646 can be looked up and 37,278 cannot, and every one of the latter is
+Evo 1's. Every figure in this subsection is Evo 2's alone.
+
+A ceiling bounds all of it: 6.47% of those 19,646 records carry a family label and 5.71% an order
+label, so a negative result here means not labelled, never not present, and each count is a floor
+over a 6.5% window.
+
+| label on the record, from the source database | records |
+|---|---|
+| one of the 19 denylisted families | 31 |
+| one of the 12 denylisted orders | 308 |
+
+The denylisted family labels are *Picobirnaviridae* 10, *Geminiviridae* 8, *Papillomaviridae*,
+*Picornaviridae* and *Rhabdoviridae* 3 each, and *Circoviridae*, *Flaviviridae*, *Hantaviridae* and
+*Retroviridae* 1 each; the order labels are led by *Picornavirales* at 226. *Picobirnaviridae* and
+*Circoviridae* name no detected family but do label detected records, so the two arms are
+independent and the name arm alone would have missed them.
+
+Against the project's pinned Select Agents and Toxins List, as codified 2024-06-01, no detected
+record carries a label naming a select agent. Three of the denylisted families in the table contain
+select agents, and in each case the labelled species is a different one: the single *Flaviviridae*
+record is Entebbe bat virus, and the *Picornaviridae* records are a *Hepatovirus*, *Aichivirus E*
+and one labelled no deeper than the family. Eight of the 31 are labelled only to family, so for
+those the comparison is unanswerable rather than negative.
+
+Under a severity rank fixed before the result was read — a select agent, then a species an authority
+names as human-infecting, then a species the ICTV metadata resource calls `vertebrates`, then any
+other labelled species, then unlabelled — the top tier is empty. One record is a human virus:
+*Gammapapillomavirus 7*, a commensal of skin and oral mucosa whose infections the ICTV chapter
+describes as usually asymptomatic. The most complete record is the flavivirus, labelled Entebbe bat
+virus and hit by all 15 detected *Flaviviridae* families across the whole polyprotein, with scores
+to 737.8 against a threshold of 25.0; for that record the distant-homolog reading is excluded, since
+label and sequence agree, and what is in the released corpus is a flavivirus genome. Entebbe bat
+virus was isolated from bat tissue in Uganda in 1957, has no known vector, and neither the ICTV nor
+the European Virus Archive records human infection. Eight of the 31 are plant viruses, mostly
+begomoviruses of tomato, potato and okra.
+
+Whether a record bearing a denylisted label in the source database is a conformance failure of the
+published procedure is a separate question, decided against record-level evidence under the three
+readings (A7.1, A7.2), and this result does not assert it.
 
 ## 4. Result 2: the reach of the rules that name organisms
 
@@ -460,6 +514,10 @@ these results describe auditability and reach. Every sampled count is a lower bo
 work covers two releases of one model family, and the protein-model arm is a policy comparison over
 a staged proxy corpus.
 
+Hazard statements are narrower still than the counts. They rest on the source database's labels,
+reached by the accession the release carries, so they cover Evo 2 and 6.47% of its detected records,
+and they are floors over that window. No alignment arm has been run.
+
 Two further limits stand in their own right. Result 2 concerns which ranks carry labels; label
 correctness is a separate measurement in this project and a separate claim. And agreement between
 the three policy readings is a property of these corpora's metadata, which falls short of evidence
@@ -475,12 +533,12 @@ Depth parity between the registries. About ten hours of local compute and no exp
 equal-rate pair already supports the cross-registry statements made here, so the deeper pass would
 raise one bound without enabling a new comparison.
 
-Taxonomic placement of the detections. §3.5 records 40 detected families whose names refer to
-denylisted virus groups, which name-matching alone cannot turn into a taxonomic claim. The
-measurement that would is a per-hit comparison against the registries' own taxonomy, reporting for
-each detection whether the record carries a coherent set of that taxon's domains or a single distant
-homolog. It is the most direct answer available to the question a reader asks first, and it is new
-work.
+Taxonomic placement by sequence. §3.6 settles by label the 6.47% of detected records that carry
+one. An alignment arm would settle the rest: for each detection, whether the record carries a
+coherent set of a denylisted taxon's domains or a single distant homolog, compared against the
+registries' own sequences rather than their labels. It is the most direct answer available to the
+question a reader asks first, it covers the 93.5% of detected records labels cannot reach, and it is
+new work.
 
 Breadth. The audit runs behind one interface taking a policy, a corpus and a set of detectors, so
 the marginal cost of the next release is staging its corpus and transcribing its policy. Results 1
