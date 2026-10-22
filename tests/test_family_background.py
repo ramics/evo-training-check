@@ -158,3 +158,28 @@ def test_a_detected_set_the_curated_section_cannot_judge_at_all_has_no_share():
     assert out["judgeable"] == 0
     assert out["shared_share_of_judgeable"] is None
     assert tool.share(out["shared_share_of_judgeable"]) == "—"
+
+
+def test_the_substring_admitted_families_in_a_detected_set_are_named():
+    """The audit's blind spot is only interesting where it actually reached a detection."""
+    detected = {
+        "release": "opengenome",
+        "detector": "profile",
+        "path": "x",
+        "source_keys": None,
+        "accessions": ["PF00001", "PF00003"],
+    }
+    out = tool.restrict(detected, _table(), host_substring_only=["PF00003", "PF00009"])
+    assert out["admitted_by_host_word_only_detected"] == ["PF00003"]
+
+
+def test_a_detected_set_with_no_substring_family_says_so_with_an_empty_list():
+    detected = {
+        "release": "opengenome",
+        "detector": "profile",
+        "path": "x",
+        "source_keys": None,
+        "accessions": ["PF00001"],
+    }
+    out = tool.restrict(detected, _table(), host_substring_only=["PF00003"])
+    assert out["admitted_by_host_word_only_detected"] == []
