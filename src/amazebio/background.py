@@ -78,7 +78,22 @@ _PFAM_DR = re.compile(rb"^DR   Pfam; (PF\d{5});")
 #: The organism-lineage line. The first element of the lineage is the superkingdom-level term,
 #: and `Viruses` there is UniProt's own viral annotation — the same annotation ESM3's denylist
 #: clause (a) reads (`amazebio.seeds`). Nothing here re-derives it from a taxonomy tool.
+#:
+#: **A single-element lineage ends in a full stop, not a semicolon.** `OC   Viruses.` is the
+#: whole lineage of every entry whose organism UniProt places no deeper than the viral root,
+#: and splitting on `;` alone leaves `Viruses.`, which does not equal `Viruses` — so those
+#: entries read as cellular. That is exactly how five families were classed shared when they
+#: are not, and the second instrument is what caught it. :func:`_lineage_root` strips both.
 _OC = re.compile(rb"^OC   (.+)$")
+
+
+def _lineage_root(line: bytes) -> bytes | None:
+    """The superkingdom-level term of an `OC` line, with its terminator removed."""
+    found = _OC.match(line)
+    if found is None:
+        return None
+    return found.group(1).split(b";")[0].strip().rstrip(b".").strip()
+
 
 _OX = re.compile(rb"^OX   NCBI_TaxID=(\d+)")
 
@@ -152,9 +167,9 @@ def iter_entries(path: str | Path) -> Iterator[ReviewedEntry]:
                 accession = line[5:].split(b";")[0].strip().decode("ascii")
             elif line.startswith(b"OC   "):
                 if not lineage_seen:
-                    first = _OC.match(line)
-                    if first is not None:
-                        viral = first.group(1).split(b";")[0].strip() == b"Viruses"
+                    root = _lineage_root(line)
+                    if root is not None:
+                        viral = root == b"Viruses"
                     lineage_seen = True
             elif line.startswith(b"OX   "):
                 found = _OX.match(line)

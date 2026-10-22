@@ -148,3 +148,25 @@ def test_admitting_words_separates_bacteriophage_from_macrophage():
 
 def test_a_host_substring_word_is_recognised_as_naming_nothing_viral():
     assert "macrophage" in background.HOST_SUBSTRING_WORDS
+
+
+SINGLE_ELEMENT_LINEAGE = """\
+ID   SCAF_TOY                Reviewed;         180 AA.
+AC   Q00001;
+OC   Viruses.
+OX   NCBI_TaxID=12392;
+DR   Pfam; PF00002; Toy_other; 1.
+//
+"""
+
+
+def test_a_single_element_lineage_ends_in_a_full_stop(tmp_path):
+    """`OC   Viruses.` is a whole lineage. Splitting on `;` alone leaves `Viruses.`, which
+    read as cellular and classed five families shared when they are not."""
+    path = tmp_path / "root.dat.gz"
+    with gzip.open(path, "wb") as handle:
+        handle.write(SINGLE_ELEMENT_LINEAGE.encode("ascii"))
+    entry = next(iter(background.iter_entries(path)))
+    assert entry.viral is True
+    table = background.measure(["PF00002"], [entry])
+    assert (table["PF00002"].reviewed_viral, table["PF00002"].reviewed_non_viral) == (1, 0)
