@@ -67,17 +67,31 @@ def entry_for(body: bytes, *, md5: str | None = None) -> dict:
 
 
 class FakeDetections(FakeS3):
-    """`FakeS3` that also answers `get_object` for the three published per-hit tables."""
+    """`FakeS3` that also answers for the three per-hit tables and X1.8's family table.
 
-    def __init__(self, body: bytes, per_reading: dict[str, list[str]]) -> None:
+    `per_reading` maps a reading to its `(record_id, family_id)` hit rows, which is the shape
+    the published table has: one row per hit, so a record appears once per family it hits.
+    """
+
+    def __init__(
+        self,
+        body: bytes,
+        per_reading: dict[str, list[tuple[str, str]]],
+        named: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(body)
         self.per_reading = per_reading
+        self.named = named if named is not None else {"PF00001": "Circoviridae"}
 
     def get_object(self, Bucket: str, Key: str, Range: str | None = None) -> dict:
-        for reading, ids in self.per_reading.items():
+        for reading, rows in self.per_reading.items():
             if Key == tool.detections_key(reading):
-                rows = "".join(json.dumps({"record_id": i}) + "\n" for i in ids)
-                return {"Body": _Bytes(rows.encode())}
+                body = "".join(json.dumps({"record_id": r, "family_id": f}) + "\n" for r, f in rows)
+                return {"Body": _Bytes(body.encode())}
+        if Key == tool.NAMED_FAMILIES_KEY:
+            lines = ["accession\tname\tdenylisted_group"]
+            lines += [f"{a}\tX\t{g}" for a, g in self.named.items()]
+            return {"Body": _Bytes(("\n".join(lines) + "\n").encode())}
         return super().get_object(Bucket=Bucket, Key=Key, Range=Range)
 
 
@@ -238,22 +252,48 @@ class TestReadingTheLabelTable:
 # --------------------------------------------------------------------------------------
 
 
+HITS = [("A", "PF00001"), ("A", "PF99999"), ("B", "PF99999"), ("C", "PF00001")]
+
+
 class TestTheDetectedRecordSet:
     def test_the_three_readings_agreeing_gives_one_set(self) -> None:
-        ids = ["A", "B", "A"]
-        client = FakeDetections(b"", {r: list(ids) for r in tool.READINGS})
-        detected, tables = tool.detected_records(client)
-        assert detected == {"A", "B"}
+        client = FakeDetections(b"", {r: list(HITS) for r in tool.READINGS})
+        named, _ = tool.denylist_named_families(client)
+        detected, hits, tables = tool.detected_records(client, named)
+        assert detected == {"A", "B", "C"}
+        # Only the records whose *detected family* is one X1.8 named: B hit PF99999 only.
+        assert hits == {"A": ["PF00001"], "C": ["PF00001"]}
         assert [t["reading"] for t in tables] == list(tool.READINGS)
         assert all(t["sha256"] for t in tables)
 
     def test_a_disagreement_is_a_refusal_rather_than_a_union(self) -> None:
         # Every taxonomy rule is unresolvable against this component, so the readings cannot
         # differ here; a union would paper over a table that is not what it claims to be.
-        per_reading = {r: ["A", "B"] for r in tool.READINGS}
-        per_reading[tool.READINGS[1]] = ["A"]
+        per_reading = {r: list(HITS) for r in tool.READINGS}
+        per_reading[tool.READINGS[1]] = HITS[:1]
         with pytest.raises(SystemExit, match="disagree about which records"):
-            tool.detected_records(FakeDetections(b"", per_reading))
+            tool.detected_records(FakeDetections(b"", per_reading), {"PF00001": "Circoviridae"})
+
+    def test_hits_are_counted_from_one_named_reading(self) -> None:
+        # D-247: the detected set is the three readings' agreement, a per-record hit list is a
+        # measurement of one table, and mixing them would sum over overlapping corpora.
+        assert tool.HIT_READING in tool.READINGS
+
+    def test_the_family_axis_comes_from_x1_8s_published_table_with_its_digest(self) -> None:
+        client = FakeDetections(b"", {r: list(HITS) for r in tool.READINGS})
+        named, table = tool.denylist_named_families(client)
+        assert named == {"PF00001": "Circoviridae"}
+        assert table["key"] == tool.NAMED_FAMILIES_KEY and table["sha256"]
+
+    def test_a_family_table_of_the_wrong_shape_is_a_refusal(self) -> None:
+        class Wrong(FakeDetections):
+            def get_object(self, Bucket: str, Key: str, Range: str | None = None) -> dict:
+                if Key == tool.NAMED_FAMILIES_KEY:
+                    return {"Body": _Bytes(b"accession\tname\n PF1\tX\n")}
+                return super().get_object(Bucket=Bucket, Key=Key, Range=Range)
+
+        with pytest.raises(SystemExit, match="denylisted_group"):
+            tool.denylist_named_families(Wrong(b"", {}))
 
 
 class TestTheWritePath:
@@ -263,13 +303,16 @@ class TestTheWritePath:
 
 
 class TestTheTableItWrites:
-    def test_the_columns_are_the_five_and_carry_no_sequence(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    def test_the_columns_are_the_eight_and_carry_no_sequence(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
         rows = [
             {
                 "record_id": "A",
-                "denylisted_family": "Circoviridae",
-                "rule_outcome": "removed",
+                "pfam_families": "PF00001",
+                "denylisted_groups_named": "Circoviridae",
+                "in_label_table": True,
+                "label_family": "Circoviridae",
                 "label_method": "reference",
+                "label_rule_outcome": "removed",
                 "taxonomy": CIRCO,
             }
         ]
@@ -279,7 +322,7 @@ class TestTheTableItWrites:
         assert row.split("\t")[0] == "A"
         assert "ACGT" not in path.read_text()
 
-    def test_the_summary_states_the_floor_and_the_two_ceilings(self) -> None:
+    def test_the_summary_keeps_the_two_axes_apart(self) -> None:
         doc = {
             "summary": {
                 "release": "opengenome2",
@@ -289,13 +332,18 @@ class TestTheTableItWrites:
                     "found_in_label_table": 90,
                     "absent_from_label_table": 10,
                     "labelled_at_family_rank": 20,
-                    "denylisted_label_records": 3,
+                    "records_with_denylist_named_family_hit": 7,
+                    "of_those_in_label_table": 6,
+                    "of_those_with_a_family_label": 4,
+                    "of_those_the_label_rule_removes": 2,
+                    "records_the_label_rule_removes": 3,
                 },
-                "per_family": {"Circoviridae": 3},
-                "by_label_method": {"reference": 3},
+                "per_group_named": {"Circoviridae": 7},
+                "by_label_method": {"reference": 6},
             }
         }
         text = tool.summarise(doc)
-        assert "floor, not a census" in text
-        assert "unlabelled here rather than" in text
+        assert "Neither contains the other." in text
+        assert "A floor:" in text
+        assert "unlabelled here" in text
         assert "Internal under X3.1" in text

@@ -94,6 +94,9 @@ RULE = "remove-denylisted-families"
 #: filter, all three required to agree: on this component every taxonomy rule is unresolvable,
 #: so nothing is removed under any reading and the three record sets are the same set.
 READINGS = ("evo1-literal", "evo1-strict", "evo1-charitable")
+
+#: Per-record hit lists come from one reading, named rather than left implicit. D-247.
+HIT_READING = "evo1-literal"
 RELEASE = "opengenome2"
 COMPONENT = "IMG/VR"
 
@@ -109,7 +112,16 @@ UVIG = "UVIG"
 LINEAGE = "Taxonomic classification"
 METHOD = "Taxonomic classification method"
 
-COLUMNS = ("record_id", "denylisted_family", "rule_outcome", "label_method", "taxonomy")
+COLUMNS = (
+    "record_id",
+    "pfam_families",
+    "denylisted_groups_named",
+    "in_label_table",
+    "label_family",
+    "label_method",
+    "label_rule_outcome",
+    "taxonomy",
+)
 
 
 class Refusal(SystemExit):
@@ -174,19 +186,61 @@ def denylist_rule() -> policyspec.Rule:
     raise Refusal(f"{SPEC}: no rule {RULE!r}. The group list has no other source.")
 
 
-def detected_records(client: Any) -> tuple[set[str], list[dict[str, Any]]]:
-    """The detected Evo 2 record set, and the published tables it was read from.
+#: X1.8's published table of detected families whose Pfam name refers to a denylisted group:
+#: the family axis of the hazard check, read by key with its digest recorded. Produced by
+#: `tools/denylist_named_families.py`, whose matching rule and its two readings are that task's.
+NAMED_FAMILIES_KEY = "corpora/results/x1-8/denylist-named-families.tsv"
+
+
+def denylist_named_families(client: Any) -> tuple[dict[str, str], dict[str, Any]]:
+    """`{pfam accession: the denylisted group(s) its name refers to}`, from X1.8's table."""
+    body = client.get_object(Bucket=corpora.BUCKET, Key=NAMED_FAMILIES_KEY)["Body"].read()
+    lines = body.decode().splitlines()
+    if not lines:
+        raise Refusal(f"{NAMED_FAMILIES_KEY} is empty; the family axis has no other source")
+    header = lines[0].split("\t")
+    for column in ("accession", "denylisted_group"):
+        if column not in header:
+            raise Refusal(
+                f"{NAMED_FAMILIES_KEY} has no {column!r} column (it has {header}); this table is "
+                "X1.8's and its shape is what the join reads"
+            )
+    acc, grp = header.index("accession"), header.index("denylisted_group")
+    families = {row.split("\t")[acc]: row.split("\t")[grp] for row in lines[1:] if row.strip()}
+    return families, {
+        "key": NAMED_FAMILIES_KEY,
+        "sha256": hashlib.sha256(body).hexdigest(),
+        "families": len(families),
+    }
+
+
+def detected_records(
+    client: Any, named_families: dict[str, str]
+) -> tuple[set[str], dict[str, list[str]], list[dict[str, Any]]]:
+    """The detected record set, the hits in denylist-named families, and the tables read.
 
     Each reading's table is read whole and its digest recorded. The three sets must be equal:
     every taxonomy rule is unresolvable against this component (A1.4's finding), so the readings
     cannot differ here, and if they do then one table is not the table it claims to be.
+
+    Hits are counted from the literal reading, named in :data:`HIT_READING`: the detected *set*
+    is the agreement of all three, while a per-record hit list is a measurement of one table, and
+    mixing readings in one column would make it a sum over three overlapping corpora (D-247).
     """
     sets: dict[str, set[str]] = {}
     tables: list[dict[str, Any]] = []
+    hits: dict[str, list[str]] = {}
     for reading in READINGS:
         key = detections_key(reading)
         body = client.get_object(Bucket=corpora.BUCKET, Key=key)["Body"].read()
-        ids = {json.loads(line)["record_id"] for line in body.decode().splitlines() if line.strip()}
+        ids: set[str] = set()
+        for line in body.decode().splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            ids.add(row["record_id"])
+            if reading == HIT_READING and row["family_id"] in named_families:
+                hits.setdefault(row["record_id"], []).append(row["family_id"])
         sets[reading] = ids
         tables.append(
             {
@@ -205,7 +259,7 @@ def detected_records(client: Any) -> tuple[set[str], list[dict[str, Any]]]:
             "unresolvable against this component, so they cannot differ; one of these tables is "
             "not what it says it is."
         )
-    return first, tables
+    return first, {r: sorted(set(f)) for r, f in hits.items()}, tables
 
 
 # --------------------------------------------------------------------------------------
@@ -312,55 +366,89 @@ def build(client: Any) -> dict[str, Any]:
     entry = label_table_pin()
     rule = denylist_rule()
     groups = list(rule.params["names"])
-    detected, tables = detected_records(client)
-    print(f"{len(detected):,} detected records on {RELEASE}; reading the label table", flush=True)
+    named_families, family_table = denylist_named_families(client)
+    detected, hits, tables = detected_records(client, named_families)
+    print(
+        f"{len(detected):,} detected records on {RELEASE}, {len(hits):,} of them carrying a hit "
+        f"in one of {family_table['families']} denylist-named families; reading the label table",
+        flush=True,
+    )
 
     labels, pass_counts = stream_labels(client, entry=entry, wanted=detected)
 
-    rows: list[dict[str, Any]] = []
-    labelled_at_family = 0
-    for record_id in sorted(labels):
-        lineage, method = labels[record_id]
+    def label_outcome(lineage: str) -> tuple[str, str | None]:
+        """The record's family label, and what the published rule does when given it."""
         tag = parse_lineage_tag(lineage)
-        if tag.taxonomy.get("family"):
-            labelled_at_family += 1
-        record = policyspec.Record(id=record_id, component=COMPONENT, taxonomy=dict(tag.taxonomy))
-        # The published rule, executed rather than restated: a denylisted-label record is one
-        # this rule removes when it is given that record's own label.
+        record = policyspec.Record(id="", component=COMPONENT, taxonomy=dict(tag.taxonomy))
+        # The published rule, executed rather than restated: the record is one the filter's own
+        # denylist removes when it is handed that record's own label.
         decision = policyspec.decide(rule, record, kept_values={})
-        if decision is None or decision.outcome is not policyspec.Outcome.REMOVED:
-            continue
+        return tag.taxonomy.get("family", ""), None if decision is None else decision.outcome.value
+
+    # The per-record table: one row per detected record carrying a hit in a denylist-named
+    # family, which is the axis the hazard check's per-record work is on. The label is attached
+    # where the table has one and its absence is a column rather than a dropped row.
+    rows: list[dict[str, Any]] = []
+    for record_id in sorted(hits):
+        families = hits[record_id]
+        lineage, method = labels.get(record_id, ("", ""))
+        family, outcome = label_outcome(lineage) if lineage else ("", None)
         rows.append(
             {
                 "record_id": record_id,
-                "denylisted_family": tag.taxonomy.get("family", ""),
-                "rule_outcome": decision.outcome.value,
+                "pfam_families": "|".join(families),
+                "denylisted_groups_named": "|".join(
+                    sorted({g for f in families for g in named_families[f].split("|")})
+                ),
+                "in_label_table": record_id in labels,
+                "label_family": family,
                 "label_method": method,
+                "label_rule_outcome": outcome or "",
                 "taxonomy": lineage,
             }
         )
 
-    per_family: dict[str, int] = {}
-    for row in rows:
-        per_family[row["denylisted_family"]] = per_family.get(row["denylisted_family"], 0) + 1
-    by_method: dict[str, int] = {}
-    for row in rows:
-        by_method[row["label_method"] or "(none stated)"] = (
-            by_method.get(row["label_method"] or "(none stated)", 0) + 1
-        )
+    # The other axis, over every detected record rather than only these: which records the
+    # published denylist rule removes on the strength of IMG/VR's own label. It costs nothing
+    # extra — the same pass already read every label — and it is the figure the label arm of the
+    # hazard check reports, so the two axes are never mistaken for one number.
+    label_removed: list[str] = []
+    labelled_at_family = 0
+    for record_id, (lineage, _) in labels.items():
+        family, outcome = label_outcome(lineage)
+        if family:
+            labelled_at_family += 1
+        if outcome == policyspec.Outcome.REMOVED.value:
+            label_removed.append(record_id)
 
+    def tally(key: Any, over: list[dict[str, Any]]) -> dict[str, int]:
+        out: dict[str, int] = {}
+        for row in over:
+            out[key(row)] = out.get(key(row), 0) + 1
+        return dict(sorted(out.items()))
+
+    labelled_rows = [r for r in rows if r["in_label_table"]]
     return {
         "rows": rows,
         "summary": {
             "task": TASK,
             "design_ref": "§7",
             "question": (
-                "Of the records the audit detected in Evo 2's released viral component, which "
-                "does IMG/VR's own metadata label as belonging to one of the nineteen virus "
-                "families the published filter names for removal?"
+                "For each record the audit detected in Evo 2's released viral component on a "
+                "Pfam family whose name refers to a group the published filter names for "
+                "removal: what does IMG/VR's own metadata label that record as, and would the "
+                "published rule have removed it on the strength of that label?"
             ),
             "release": RELEASE,
             "component": COMPONENT,
+            "two_axes": (
+                "A family-named row and a denylisted label are different claims and this table "
+                "keeps them apart. `records_with_denylist_named_family_hit` counts records by "
+                "the name of the family detected on them, which is a property of Pfam's "
+                "curation; `records_the_label_rule_removes` counts records by their own IMG/VR "
+                "label, over every detected record. Neither is a subset of the other and "
+                "neither is the sum."
+            ),
             "rule": {
                 "spec": str(SPEC.relative_to(REPO)),
                 "rule": RULE,
@@ -373,6 +461,8 @@ def build(client: Any) -> dict[str, Any]:
                     "uses; this tool implements no matching rule of its own"
                 ),
             },
+            "family_axis_from": family_table,
+            "hit_reading": HIT_READING,
             "label_table": {
                 "source": SOURCE_ID,
                 "capture": entry["capture"],
@@ -389,24 +479,37 @@ def build(client: Any) -> dict[str, Any]:
                 "found_in_label_table": len(labels),
                 "absent_from_label_table": len(detected) - len(labels),
                 "labelled_at_family_rank": labelled_at_family,
-                "denylisted_label_records": len(rows),
+                "records_with_denylist_named_family_hit": len(rows),
+                "of_those_in_label_table": len(labelled_rows),
+                "of_those_with_a_family_label": sum(1 for r in labelled_rows if r["label_family"]),
+                "of_those_the_label_rule_removes": sum(
+                    1 for r in labelled_rows if r["label_rule_outcome"] == "removed"
+                ),
+                "records_the_label_rule_removes": len(label_removed),
             },
-            "per_family": dict(sorted(per_family.items())),
-            "by_label_method": dict(sorted(by_method.items())),
+            "per_group_named": tally(lambda r: r["denylisted_groups_named"], rows),
+            "per_label_family": tally(
+                lambda r: r["label_family"] or "(no family label)", labelled_rows
+            ),
+            "by_label_method": tally(lambda r: r["label_method"] or "(none stated)", labelled_rows),
             "ranks_read": list(RANKS),
             "estimate_kind": "lower_bound",
             "reading_this_table": (
-                "A row says two things and no more: IMG/VR's metadata labels this record as a "
-                "member of a family the published filter names for removal, and the audit "
-                "detected a viral protein family on it. It does not say the record is "
-                "dangerous, and it does not say the label is correct — `label_method` is "
-                "carried so a reader can see which rows rest on a geNomad prediction rather "
-                "than on a reference match. The count is a floor three times over: the "
-                "detections come from a sampled search, only a minority of IMG/VR records carry "
-                "a family label at all, and the label table covers the high-confidence subset, "
-                "so a detected record counted in `absent_from_label_table` is unlabelled *here* "
-                "rather than unlabelled in IMG/VR. No sequence was read and no residues are in "
-                "this table (D-103); the record identifiers keep it internal until X3.1."
+                "One row is one detected record whose detected Pfam family *name* refers to a "
+                "group the published filter denylists. That is a property of Pfam's curation, "
+                "not of the record: a row leaves open whether the record belongs to that group "
+                "or carries a distant homolog, which is what the label columns are for and why "
+                "`label_method` travels with every row — a label resting on a geNomad "
+                "prediction is weaker evidence than one resting on a reference match. "
+                "`label_rule_outcome` is the published denylist rule executed against that "
+                "record's own label, so `removed` means the filter would have excluded the "
+                "record had it been able to read the label, and an empty value means the label "
+                "says nothing the rule reads. A record with `in_label_table` false is "
+                "unlabelled *in this table* rather than in IMG/VR: the table covers the "
+                "high-confidence subset. The counts are a floor — the detections come from a "
+                "sampled search and most IMG/VR records carry no family label at all. No "
+                "sequence was read and no residues are here (D-103); the record identifiers "
+                "keep this table internal until X3.1."
             ),
         },
     }
@@ -422,28 +525,38 @@ def write_table(path: Path, rows: list[dict[str, Any]]) -> Path:
 
 def summarise(doc: dict[str, Any]) -> str:
     s = doc["summary"]
-    counts = s["counts"]
+    c = s["counts"]
     lines = [
-        f"X1.9 denylisted-label records — {s['release']} {s['component']}",
+        f"X1.9 per-record label table — {s['release']} {s['component']}",
         "",
-        f"{counts['detected_records']:,} detected records; "
-        f"{counts['found_in_label_table']:,} are in the pinned label table "
-        f"({counts['absent_from_label_table']:,} are not, and are unlabelled here rather than "
-        "in IMG/VR)",
-        f"{counts['labelled_at_family_rank']:,} of those carry a family label at all",
-        f"**{counts['denylisted_label_records']:,} carry a label the published rule removes**",
+        f"{c['detected_records']:,} detected records; {c['found_in_label_table']:,} are in the "
+        f"pinned label table ({c['absent_from_label_table']:,} are not, and are unlabelled here "
+        "rather than in IMG/VR)",
+        f"{c['labelled_at_family_rank']:,} of those carry a family label at all",
         "",
-        "per family:",
-    ]
-    lines += [f"  {family:24s} {n:5d}" for family, n in s["per_family"].items()]
-    lines += [
+        "the family axis — records whose detected Pfam family is named for a denylisted group:",
+        f"  **{c['records_with_denylist_named_family_hit']:,} records**, "
+        f"{c['of_those_in_label_table']:,} of them in the label table, "
+        f"{c['of_those_with_a_family_label']:,} carrying a family label, "
+        f"{c['of_those_the_label_rule_removes']:,} the published rule would remove",
         "",
-        "by label method:",
-        *(f"  {method:34s} {n:5d}" for method, n in s["by_label_method"].items()),
+        "the label axis — every detected record the published denylist rule removes on its own "
+        "label:",
+        f"  **{c['records_the_label_rule_removes']:,} records**",
         "",
-        "A floor, not a census: the detections are sampled, most IMG/VR records carry no family "
-        "label, and the label table is the high-confidence subset. The rule is the published "
-        "one, executed from the spec rather than restated here.",
+        "Different claims, never one number: the first counts by the name of the family "
+        "detected, which is a property of Pfam's curation; the second counts by the record's "
+        "own IMG/VR label. Neither contains the other.",
+        "",
+        "per denylisted group named by the detected family:",
+        *(f"  {group:34s} {n:5d}" for group, n in s["per_group_named"].items()),
+        "",
+        "label method, for the family-axis records that carry a label:",
+        *(f"  {method:38s} {n:5d}" for method, n in s["by_label_method"].items()),
+        "",
+        "A floor: the detections are sampled, most IMG/VR records carry no family label, and the "
+        "label table is the high-confidence subset. The rule is the published one, executed from "
+        "the spec rather than restated here.",
         "Internal under X3.1: the table carries record identifiers.",
     ]
     return "\n".join(lines)
@@ -484,7 +597,7 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
             seed=None,  # a join and a predicate; no RNG
             outdir=args.outdir,
             allow_dirty=args.allow_dirty,
-            manifest_name="run-denylist-label-records.json",
+            manifest_name="run-denylist-named-family-records.json",
             durable=durable,
             durable_exempt=exempt,
             replace_durable=args.replace_durable,
@@ -498,12 +611,12 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
             manifest.input_file(SPEC, role="denylisted group names")
             manifest.input_file(INVENTORY, role="publisher file listing (the label pin)")
             doc = build(handle)
-            table = write_table(args.outdir / "denylisted-label-records.tsv", doc["rows"])
-            summary_json = args.outdir / "denylisted-label-records.json"
+            table = write_table(args.outdir / "denylist-named-family-records.tsv", doc["rows"])
+            summary_json = args.outdir / "denylist-named-family-records.json"
             summary_json.write_text(json.dumps(doc["summary"], indent=2, sort_keys=True) + "\n")
-            summary_md = args.outdir / "denylisted-label-records.md"
+            summary_md = args.outdir / "denylist-named-family-records.md"
             summary_md.write_text(summarise(doc) + "\n")
-            manifest.output_file(table, role="denylisted-label records")
+            manifest.output_file(table, role="per-record label table")
             manifest.output_file(summary_json, role="summary with provenance")
             manifest.output_file(summary_md, role="summary")
     except repro.ReproError as exc:
