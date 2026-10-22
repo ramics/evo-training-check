@@ -483,6 +483,12 @@ EXEMPT_CALL_SITES: set[str] = {
     # one here — it looks exactly like a complete count and would understate presence, which
     # is the direction that makes the control look weaker than it is.
     "control_set.py",
+    # A7.5's matched-region metrics, conditionally and for both of the reasons the tools above
+    # record: `durable_for` publishes only from the canonical `artifacts/a7-5`, so a rehearsal
+    # pointed at a scratch directory cannot reach the prefix, and `--limit-records` refuses to
+    # publish at all because a table over the first N records of the list would sit in the
+    # prefix under the deliverable's own name looking exactly like the whole of it.
+    "extract_matched_regions.py",
     # B1.2's reference-check table, conditionally: it reads the score artefacts already on
     # disk and writes a summary of them, so a run pointed at a scratch directory is a
     # rehearsal over whatever happens to be there. From the canonical directory it publishes

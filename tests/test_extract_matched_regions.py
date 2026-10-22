@@ -263,6 +263,27 @@ class TestTheWritePathPreflight:
         )
 
 
+class TestWhatMayPublishAtAll:
+    """The other half of the write path: `preflight` stops a replacement, this stops a rehearsal.
+
+    A first rehearsal reaching a clean prefix is not a replacement, so the pre-flight passes it —
+    and the bucket has no delete. Both incidents behind this are named in `durable_for`.
+    """
+
+    def test_the_canonical_directory_publishes(self) -> None:
+        assert extract.durable_for(extract.OUTDIR, limit_records=None) == (
+            extract.objectstore.durable_results("a7-5")
+        )
+
+    def test_a_run_written_anywhere_else_is_a_rehearsal_and_does_not(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        assert extract.durable_for(tmp_path, limit_records=None) is None
+
+    def test_a_record_limit_does_not_publish_even_from_the_canonical_directory(self) -> None:
+        # A table over the first twenty records of the list is indistinguishable in the prefix
+        # from a table over all of it, and reads as "no match" for every record the limit cut.
+        assert extract.durable_for(extract.OUTDIR, limit_records=20) is None
+
+
 # --------------------------------------------------------------------------------------
 # End to end, offline: a stream, a gene call, a search, a table — no object storage.
 # --------------------------------------------------------------------------------------

@@ -316,7 +316,11 @@ and the implementation follows it:
 - `amazebio.profilesearch.best_domain`, `consensus_identity`, and `search(..., with_identity=…)`
   default-off.
 - `tools/extract_matched_regions.py`, with the pin checks and the write-path pre-flight before
-  the read.
+  the read, and `durable_for` beside it: the pre-flight stops a *replacement*, and a first
+  rehearsal reaching a clean prefix is not one. So publication happens only from the canonical
+  `artifacts/a7-5`, and `--limit-records` does not publish at all — the two incidents
+  `AGENTS.md` records as paid for twice in a bucket with no delete (D-193, then D-224; and the
+  probe that reached A2.6's census prefix on 2026-10-20).
 - `tests/test_extract_matched_regions.py` and a synthetic fixture under `tests/data/a7-5/`,
   whose profile is built at test time from the protein the fixture record encodes. No object
   storage and no network in any test.

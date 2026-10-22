@@ -378,6 +378,34 @@ def write_table(path: Path, rows: list[dict[str, Any]]) -> None:
     path.write_text("\n".join(out) + "\n")
 
 
+def durable_for(out: Path, *, limit_records: int | None) -> str | None:
+    """The durable prefix for this task, **or None for a run that is not its deliverable.**
+
+    The prefix follows from the task id, which says nothing about where the run was told to
+    write or how much of the record list it was told to read. Two incidents, both permanent in a
+    bucket with no `DeleteObject`:
+
+    - A rehearsal from a scratch directory published to the real results prefix, under the exact
+      names the deliverable will use, because `repro.run`'s `durable` cannot see `--outdir`
+      (D-193 in `detect_segmented.py`, then the same thing again in `detect_profiles.py`,
+      D-224). So `--outdir` is the signal that separates a rehearsal from the deliverable:
+      publish from the canonical `artifacts/a7-5` and from nowhere else.
+    - A probe run with a record limit reached A2.6's census prefix on 2026-10-20 claiming to
+      cover a whole band. A table over the first twenty records of a list is indistinguishable
+      in the prefix from a table over all of it, and reads as "no match" for every record the
+      limit cut. So `--limit-records` refuses to publish at all, which is what
+      `opengenome_contigs.py`'s `--limit` does for the same reason.
+
+    `preflight` is the other half of the write path and not a substitute for this one: it stops a
+    *replacement*, and the first rehearsal to reach a clean prefix is not a replacement.
+    """
+    if limit_records is not None:
+        return None
+    if out.resolve() != OUTDIR.resolve():
+        return None
+    return objectstore.durable_results("a7-5")
+
+
 def preflight(
     client: Any,
     *,
@@ -451,7 +479,15 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
     base = f"regions-{stem}-pfam-38.2"
     args.outdir.mkdir(parents=True, exist_ok=True)
     outputs = [args.outdir / f"{base}.{ext}" for ext in ("tsv", "json", "md")]
-    durable = objectstore.durable_results("a7-5")
+    durable = durable_for(args.outdir, limit_records=args.limit_records)
+    exempt = None
+    if durable is None:
+        exempt = (
+            f"not the deliverable: --limit-records {args.limit_records}"
+            if args.limit_records is not None
+            else f"not the deliverable: --outdir {args.outdir} is not {OUTDIR}"
+        )
+        print(f"not publishing: {exempt}; this run writes locally only", flush=True)
 
     try:
         preflight(
@@ -468,6 +504,7 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
             allow_dirty=args.allow_dirty,
             manifest_name=f"run-{base}.json",
             durable=durable,
+            durable_exempt=exempt,
             replace_durable=args.replace_durable,
         ) as manifest:
             manifest.parameter("min_model_coverage", MIN_MODEL_COVERAGE)
