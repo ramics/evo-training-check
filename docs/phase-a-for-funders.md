@@ -144,7 +144,10 @@ reading the first, from primitive detection rows with denominators rebuilt from 
 files: 334 numbers across 16 groups, every headline figure identical (A3.3, D-215). Where a
 measurement depends on parsing an external reference, agreement is sought from a second instrument
 joining through a different source, since a re-run reproduces a parse error faithfully while an
-independent join exposes it.
+independent join exposes it. Where the reference is a published table, the pin is checked over the
+bytes actually read: the label join of §3.6 streams the publisher's 1.9 GB metadata table and
+computes its md5 in passing, reproducing the hand-built table's 315 rows cell for cell and
+confirming end to end that the staged bytes are the published bytes (X1.8).
 
 ## 3. Result 1: the contents of the released corpora
 
@@ -345,15 +348,23 @@ counts among those "containing papillomaviruses that infect humans". The chapter
 healthy skin "harbors a large spectrum of different papillomavirus types belonging to different
 genera" and that "the majority of viral infections are subclinical", and it states that its
 epidemiological and biological data "is primarily available for the viral types belonging to" a
-different genus (ICTV 2026). The most complete record is the flavivirus: labelled Entebbe bat
-virus and hit by all 15 detected *Flaviviridae* families across the whole polyprotein, with scores
-to 737.8 against a threshold of 25.0. There the distant-homolog reading is excluded, since label
-and sequence agree, and what is in the released corpus is a flavivirus genome; Entebbe bat virus
-is a bat-associated flavivirus with no known vector and is not one of the three *Flaviviridae*
-species on the select-agent list, and no human infection is recorded for it in the ICTV and
-European Virus Archive entries retrieved for this work, which are cited by retrieval rather than
-from a stored capture. Eight of the 31 are plant viruses, mostly
-begomoviruses of tomato, potato and okra.
+different genus (ICTV 2026).
+
+The most complete record is the flavivirus: labelled Entebbe bat virus and hit by all 15 detected
+*Flaviviridae* families across the whole polyprotein, with scores to 737.8 against a threshold of
+25.0. There the distant-homolog reading is excluded, since label and sequence agree, and what is
+in the released corpus is a flavivirus genome. The species sits in the authority's "Unknown
+vector, Entebbe bat virus group", and the genus description notes that "some orthoflaviviruses
+transmit between rodents or bats without known arthropod vectors" (ICTV 2026b). Whether it infects
+people is an absence rather than a statement, and is recorded as one: the chapter's pathogenicity
+section reports that "more than 50% of known orthoflaviviruses have been associated with human
+disease", naming yellow fever, dengue, Zika, Japanese encephalitis, West Nile and tick-borne
+encephalitis viruses, and this species is not among them. Its name occurs twice in the whole
+chapter, both times in the vector-group table, on a search of the full text for the species name
+and for `human`, `patient`, `disease` and `encephalitis`. A genus list that omits a species is
+weaker evidence than a sentence about that species, so what is published here is the silence and
+the terms searched, rather than a claim that no human infection is recorded. Eight of the 31 are
+plant viruses, mostly begomoviruses of tomato, potato and okra.
 
 Whether a record bearing a denylisted label in the source database is a conformance failure of the
 published procedure is a separate question, decided against record-level evidence under the three
@@ -515,12 +526,19 @@ e1002195. doi:[10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcb
 EurekAlert (2026) Evo 2 brings artificial intelligence closer to reading and writing the language
 of life. News release, 20 July 2026, AAAS. https://www.eurekalert.org/news-releases/1136823
 (retrieved 2026-10-22). Quoted for how the release's safeguard is reported, not as evidence about
-the corpus.
+the corpus. The page carries no redistribution licence, so the quoted sentence and the page's
+digest are recorded in the source store rather than the page itself, and the quotation was checked
+at retrieval rather than on every build (X1.8).
 
-ICTV (2026) Papillomaviridae. *ICTV Report*, 10th edition, online chapter.
+ICTV (2026a) Papillomaviridae. *ICTV Report*, 10th edition, online chapter.
 https://ictv.global/report/chapter/papillomaviridae/papillomaviridae (retrieved 2026-10-22, CC BY
-4.0). Stored as a capture with its sha256, and the quotations above are machine-verified against it
+4.0). Stored as a capture with its sha256; the quotations above are machine-verified against it
 (X1.8).
+
+ICTV (2026b) *Orthoflavivirus*. *ICTV Report*, 10th edition, online chapter. (retrieved 2026-10-22,
+CC BY 4.0). Stored and machine-verified on the same terms. The chapter places the species under a
+renamed genus while the metadata resource pinned here carries the older name, which is the churn of
+§6 met in one row.
 
 Hyatt D. *et al.* (2010) Prodigal: prokaryotic gene recognition and translation initiation site
 identification. *BMC Bioinformatics* **11**, 119.
@@ -534,6 +552,8 @@ and digest.
 Jackson J. (2025) Introducing Evo 2, a predictive and generative genomic AI for all domains of
 life. *Phys.org*, 3 March 2025.
 https://phys.org/news/2025-03-evo-generative-genomic-ai-domains.html (retrieved 2026-10-22).
+Recorded on the same terms as the preceding entry: wording and digest in the store, checked at
+retrieval only.
 
 Larralde M. (2022) Pyrodigal: Python bindings and interface to Prodigal. *Journal of Open Source
 Software* **7**(72), 4296. doi:[10.21105/joss.04296](https://doi.org/10.21105/joss.04296).
