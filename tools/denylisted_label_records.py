@@ -371,6 +371,41 @@ def build(client: Any, dat: Path, vmr_path: Path) -> dict[str, Any]:
                 "the pin is a third state, not a hostless record."
             ),
         },
+        # Four counts of four different things circulated for this result at once (308, 314,
+        # 315, 31), which is the 41-versus-42 lesson again: a figure two methods get
+        # differently is a figure a reader gets differently too. So the artefact carries the
+        # mapping rather than leaving it to prose, and every figure here names its axis, its
+        # rank and its component.
+        "denominators": {
+            "axis": (
+                "label — the record's own IMG/VR label is one of the denylisted taxa. The other "
+                "axis in this project is the NAME axis: the Pfam family that detected a record "
+                "is named for a denylisted group, which is a property of Pfam's curation and "
+                "not of the record. The two are different questions with different answers and "
+                "neither set contains the other."
+            ),
+            "components": (
+                "IMG/VR only. Every row is an IMG/VR record, because the label table is "
+                "IMG/VR's; the plasmid records among the detections are counted in "
+                "plasmid_records_set_aside and appear in no row."
+            ),
+            "figures": {
+                "31": "records whose FAMILY label is on the denylist. The article's sentence.",
+                "308": "records whose ORDER label is on the denylist. Never quote it without "
+                "the rank: it is not a different count of the same thing as 31.",
+                "24": "records carrying both.",
+                "315": "either rank — the row count of this table, and 31 + 308 - 24.",
+                "1272": "records carrying any family label at all: the window all of the above "
+                "sit inside.",
+                "19646": "IMG/VR records detected and joined, the denominator of that window.",
+            },
+            "use_which": (
+                "A later figure about what the filter's own policy names should use 31, with "
+                "the rank stated and the 1,272-record window attached. 315 is quotable only as "
+                "'either rank'. A per-record figure on the name axis belongs to that axis's "
+                "own table and is not comparable with any of these."
+            ),
+        },
         "does_not_claim": [
             "that a labelled record is a conformance failure of the published procedure: the "
             "label is the source database's, reached by accession, and A7.1 and A7.2 own that "

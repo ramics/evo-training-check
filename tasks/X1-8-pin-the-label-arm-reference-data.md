@@ -98,6 +98,44 @@ out of the published policy's scope by its own words and has no viral taxonomy t
 Anything else resolves to nothing, which is the whole of Evo 1's released viral component, and
 the tool refuses rather than reporting a floor as a count.
 
+## Which number is which
+
+Four counts of four different things were in circulation for this one result — 31, 308, 314 and
+315 — and 308 had already been reported upwards. **None of them is wrong and none of them
+replaces another.** The mapping now travels inside the artefact (`denominators` in the summary)
+rather than in prose, because this is the 41-versus-42 lesson again: a figure two methods get
+differently is a figure a reader gets differently too.
+
+Two axes, and neither set contains the other:
+
+* **The label axis** — the record's own IMG/VR label is one of the denylisted taxa. This is a
+  property of the record. Of 19,646 detected IMG/VR records, **1,272 carry a family label at
+  all**, and within that window **31** carry a denylisted *family* label, **308** a denylisted
+  *order* label, **24** both, so **315** carry either. 31 + 308 − 24 = 315, which is this
+  table's row count.
+* **The name axis** — the Pfam family that detected a record is *named* for a denylisted group.
+  This is a property of Pfam's curation, not of the record: **41 families**, and per record it
+  is X1.9's figure of 319, being 314 IMG/VR records and 5 IMG/PR.
+
+So **314 is not a corrected 308**: one counts records detected by a denylist-named family and
+the other counts records carrying a denylisted order label. The hand-built 308 was right, and it
+needs its rank said out loud, which is the only thing that was missing. **A later figure about
+what the filter's own policy names should use 31**, with the rank stated and the 1,272-record
+window attached; 315 is quotable only as "either rank"; a name-axis figure is not comparable
+with any of them.
+
+**One more table than the project needs.** X1.9, on another branch, regenerated the per-record
+table too, as `tools/denylist_label_records.py` — a name one letter from this task's
+`tools/denylisted_label_records.py`. Both reproduce the hand-built figures and agree on
+everything they both measure (31 on the label axis, 19,646 joined, 562 plasmid records aside,
+the publisher's md5 over the whole stream). They differ in what each adds: X1.9 executes the
+published rule through `policyspec.decide` instead of comparing names, and reads the pin from
+the publisher's own captured listing; this one also carries the order axis and the VMR host
+column, and reproduces the 315-row table cell for cell. The duplication is a decision for
+whoever merges these two branches, not something to resolve by deleting a tool from inside one
+of them — it is recorded here so the choice is made on purpose. Two threads measuring one figure
+is the recurring failure this project already has on record.
+
 **Hit columns are per route, never summed.** D-247's rule is that a single-detector figure is
 not set beside a merged one, so the profile-search and provirus-route hits are separate columns.
 The label arm's per-record work covers the profile route only, because A2.4 publishes no per-hit

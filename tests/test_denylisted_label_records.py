@@ -82,3 +82,27 @@ class TestPins:
         from amazebio import ictv
 
         assert tool.VMR_RELEASE in ictv.RELEASES
+
+
+class TestDenominators:
+    """The mapping between the four counts that circulated for this result.
+
+    308 had been reported upwards before the axes were written down. The arithmetic below is
+    the only thing that distinguishes "a corrected count" from "a count of something else",
+    so it is asserted rather than described.
+    """
+
+    def test_the_figures_block_names_every_count_in_circulation(self):
+        keys = {"31", "308", "24", "315", "1272", "19646"}
+        source = (TOOLS / "denylisted_label_records.py").read_text()
+        for key in keys:
+            assert f'"{key}":' in source, f"{key} is not mapped in the denominators block"
+
+    def test_the_label_axis_identity(self):
+        """315 is the union of the two ranks, not a third measurement."""
+        family, order, both = 31, 308, 24
+        assert family + order - both == 315
+
+    def test_the_rank_is_part_of_the_figure(self):
+        source = (TOOLS / "denylisted_label_records.py").read_text()
+        assert "Never quote it without" in source, "308 must carry its rank"
