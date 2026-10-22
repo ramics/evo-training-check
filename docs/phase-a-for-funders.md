@@ -315,14 +315,25 @@ of anything. No measurement in Phase A speaks to hazard, and none should be read
 **Family presence, not genome presence.** The counts are of distinct family identifiers from two
 registries whose membership was fixed before any search: Pfam's selection is by its own family-level
 naming, against a keyword vocabulary frozen before anything was searched; a clan-level selection was
-rejected after measuring that it would be 6,698 families of which 6,132 are not viral (D-075). Two
-properties of that vocabulary need stating precisely. It omits `integrase` and `transposase`, so
-neither word can by itself admit a family — but a family whose name contains one and which also
-carries another viral word, such as `PF00589 Phage_integrase` on "phage", is in the set, and several
-of the 1,719 name mobile-element machinery this way. And families named for a virus taxon rather
-than a viral structure, such as `Ebola_NP`, fall outside the vocabulary altogether; that gap is
-measured and published rather than closed, with the second registry, whose membership is its own
-curators', covering it (D-083). What has *not* been measured until now is, per detected family,
+rejected after measuring that it would be 6,698 families of which 6,132 are not viral (D-075). Three
+properties of that vocabulary need stating precisely, and all three are measured rather than
+asserted.
+
+It omits `integrase` and `transposase`, so neither word can by itself admit a family — but a family
+whose name contains one and also carries another viral word, such as `PF00589 Phage_integrase` on
+"phage", is in the set, and several of the 1,719 name mobile-element machinery this way.
+
+It matches substrings without word boundaries, so "macrophage" matches "phage" and a handful of
+cellular host families entered the universe on that alone; "coat protein" admits a plant pollen coat
+protein the same way. The direction this cuts is the opposite of the one that would favour the
+result: a cellular family in the denominator contributes a near-certain zero, so it makes the
+survival fraction slightly conservative rather than inflated. The denominator is therefore reported
+as measured rather than corrected — it was pre-registered and every published figure rests on it
+(A4.5, with its counts to be cited from that task's artefact).
+
+And families named for a virus taxon rather than a viral structure, such as `Ebola_NP`, fall outside
+the vocabulary altogether; that gap is measured and published rather than closed, with the second
+registry, whose membership is its own curators', covering it (D-083). What has *not* been measured until now is, per detected family,
 whether that family occurs only in viruses; a curated-background measurement is in progress (A4.5)
 and its figures are not in this draft. Until it lands, the established claim is that a viral protein
 family is present, not that a viral genome is.
