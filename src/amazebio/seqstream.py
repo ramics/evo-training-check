@@ -24,7 +24,7 @@ yields is for computing on, not for keeping.
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any
 
 from amazebio.conformance import parse_lineage_tag
@@ -32,7 +32,12 @@ from amazebio.corpora import LINEAGE_WINDOW, LineageError, tag_of
 from amazebio.detect import in_band
 from amazebio.policyspec import Record
 
-__all__ = ["SampledRecord", "iter_fasta_sampled", "iter_stage2_sampled"]
+__all__ = [
+    "SampledRecord",
+    "iter_fasta_sampled",
+    "iter_fasta_selected",
+    "iter_stage2_sampled",
+]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -148,17 +153,80 @@ def iter_fasta_sampled(
     decided from the header, so an unsampled entry's residues are discarded as they stream rather
     than accumulated.
     """
+    yield from _iter_fasta(
+        stream,
+        component=component,
+        keep=lambda record_id: in_band(record_id, seed=seed, lo=lo, hi=hi),
+        chunk=chunk,
+    )
+
+
+def iter_fasta_selected(
+    stream: Any,
+    *,
+    component: str,
+    ids: Iterable[str],
+    chunk: int = 8 << 20,
+    stop_when_complete: bool = True,
+) -> Iterator[SampledRecord]:
+    """Yield the entries of a FASTA stream whose identifier is in `ids`, with sequence.
+
+    The sibling of :func:`iter_fasta_sampled` for the case where the records are *named* rather
+    than sampled: A7.5 re-reads a handful of records whose identifiers a published table already
+    carries, so membership is a set lookup and not a hash band (D-078). Same stream contract,
+    same `SampledRecord`, same discarding of an unwanted entry's residues as they pass.
+
+    `stop_when_complete` ends the stream once every requested identifier has been seen, which a
+    band selector can never do because it cannot know it is finished. It changes nothing a caller
+    can observe except the time taken and the bytes read: an identifier not seen by the early stop
+    and one not seen by the end of the object are the same absence, since the stop happens only
+    after the last requested record has been yielded. A second entry carrying an identifier
+    already yielded is the one thing it hides, so a caller that has to count duplicate headers
+    passes `stop_when_complete=False` and reads the object through.
+    """
+    wanted = set(ids)
+    remaining = set(wanted)
+    for record in _iter_fasta(
+        stream,
+        component=component,
+        keep=lambda record_id: record_id in wanted,
+        chunk=chunk,
+    ):
+        remaining.discard(record.id)
+        yield record
+        if stop_when_complete and not remaining:
+            return
+
+
+def _iter_fasta(
+    stream: Any,
+    *,
+    component: str,
+    keep: Callable[[str], bool],
+    chunk: int,
+) -> Iterator[SampledRecord]:
+    """The FASTA loop both selectors share: `keep` decides from the identifier alone.
+
+    Factored out for A7.5 rather than parameterising `iter_fasta_sampled`, whose signature is
+    cited from A2.1 and A3.4. `keep` is called with the header's first token and never with an
+    empty one, so a headerless or blank-named entry is dropped by the same rule in both.
+    """
     record_id: str | None = None
-    keep = False
+    wanted = False
     parts: list[str] = []
     tail = b""
 
     def emit() -> Iterator[SampledRecord]:
-        if record_id is not None and keep:
+        if record_id is not None and wanted:
             yield SampledRecord(
                 record=Record(id=record_id, component=component),
                 sequence="".join(parts),
             )
+
+    def header_of(raw: bytes) -> tuple[str, bool]:
+        header = raw[1:].decode("utf-8", "replace").strip()
+        token = header.split()[0] if header.split() else ""
+        return token, bool(token) and keep(token)
 
     while True:
         block = stream.read(chunk)
@@ -170,19 +238,15 @@ def iter_fasta_sampled(
         for raw in lines:
             if raw.startswith(b">"):
                 yield from emit()
-                header = raw[1:].decode("utf-8", "replace").strip()
-                record_id = header.split()[0] if header.split() else ""
-                keep = bool(record_id) and in_band(record_id, seed=seed, lo=lo, hi=hi)
+                record_id, wanted = header_of(raw)
                 parts = []
-            elif keep:
+            elif wanted:
                 parts.append(raw.decode("ascii", "replace").strip())
     if tail:
         if tail.startswith(b">"):
             yield from emit()
-            header = tail[1:].decode("utf-8", "replace").strip()
-            record_id = header.split()[0] if header.split() else ""
-            keep = bool(record_id) and in_band(record_id, seed=seed, lo=lo, hi=hi)
+            record_id, wanted = header_of(tail)
             parts = []
-        elif keep:
+        elif wanted:
             parts.append(tail.decode("ascii", "replace").strip())
     yield from emit()

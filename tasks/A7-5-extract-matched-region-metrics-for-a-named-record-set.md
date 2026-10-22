@@ -2,7 +2,7 @@
 id: A7.5
 title: Extract matched-region metrics for a named record set
 phase: A
-status: ready
+status: in-progress
 gate: false
 depends_on: [A2.1]
 blocks: []
@@ -271,6 +271,28 @@ so it is not counted here; the bytes actually read are recorded.
 It must run in `us-east-1`. 11.22 GB is free in-region and metered out of it, which is the test
 `AGENTS.md` sets for a pass of this shape.
 
+### Whether the read can be narrowed — asked, and it cannot, today
+
+The forty minutes is one sequential pass over an object with no index, so the question worth
+asking before buying it is whether less of it could be read.
+
+- **It is not block-compressed.** The object's gzip header was read — 20 bytes, `head_object`
+  plus one ranged GET, no write — and carries `FLG=0x08`: a file name and no extra field, so it
+  is plain gzip and not BGZF. A ranged GET into the middle of it cannot be inflated, which is
+  what would have made a named-record read cheap.
+- **Nothing maps an identifier to an offset.** IMG/VR accessions carry no position, the component
+  is one object rather than shards, and A2.1's hit tables record the record id and not where in
+  the object it sits.
+- **The one real option is to pay this pass once and keep the index.** A zran-style access index
+  — the inflate window captured every so often — makes later ranged reads of named records a
+  matter of seconds. It is built *during* a pass, so the first pass still costs forty minutes,
+  the index is a few megabytes staged beside the object, and it needs a dependency this project
+  does not have (`indexed_gzip` or equivalent). It is worth buying only if more passes of this
+  shape are coming; for one question it is forty minutes either way.
+
+So: **no cheaper first pass exists.** Whether the second one should be cheap is a decision for
+the project owner, and it belongs with the pass, not inside this tool.
+
 ## Done when
 
 - `iter_fasta_selected`, `best_domain`, `consensus_identity` and the CLI exist, with the tests
@@ -285,9 +307,25 @@ It must run in `us-east-1`. 11.22 GB is free in-region and metered out of it, wh
 
 ## State — 2026-10-22
 
-`ready`. The design above is this task's first deliverable and nothing has been run. The
-implementation is next, and the pass itself waits on the project owner's yes for ~40 minutes of
-container time.
+`in-progress` on branch **`claude/project-thread-ff52l2`**. The design above was written first
+and the implementation follows it:
+
+- `amazebio.seqstream.iter_fasta_selected`, with the shared FASTA loop factored behind a
+  `keep(record_id)` predicate. `iter_fasta_sampled`'s signature and behaviour are untouched and
+  its existing tests cover the refactor.
+- `amazebio.profilesearch.best_domain`, `consensus_identity`, and `search(..., with_identity=…)`
+  default-off.
+- `tools/extract_matched_regions.py`, with the pin checks and the write-path pre-flight before
+  the read.
+- `tests/test_extract_matched_regions.py` and a synthetic fixture under `tests/data/a7-5/`,
+  whose profile is built at test time from the protein the fixture record encodes. No object
+  storage and no network in any test.
+
+**The corpus pin was verified live**: the staged object is 11,220,266,895 bytes, which is what
+the source declares.
+
+**The pass has not been run.** It is ~40 minutes of container time and no money, and it waits on
+the project owner.
 
 ## Notes
 
