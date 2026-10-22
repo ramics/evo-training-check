@@ -126,6 +126,21 @@ regenerated to 41, so the per-record copy predates the rule that settled it. Thi
 rests on pinned inputs and states its rule; the older figure rests on neither and is superseded
 rather than matched.
 
+## What this task left in the results prefix, permanently
+
+Three keys and a manifest in `corpora/results/x1-9/` are from the first pass and describe a
+shape that no longer exists: `denylisted-label-records.{tsv,json,md}` and
+`run-denylist-label-records.json`. That pass keyed the table on the *label* axis alone, which
+gave 31 records and did not reconcile with anything published, and it had no component column.
+The bucket has no `s3:DeleteObject`, so they cannot be removed.
+
+They are recorded here rather than left to be rediscovered. The live table is
+`denylist-named-family-records*`; anything reading `denylisted-label-records.*` is reading the
+first attempt, whose figure is a subset of one axis of the current table and is reported in it
+as `records_the_label_rule_removes`. The cost of learning this was four permanent keys, which
+is the same lesson A1.3's four 0-byte objects and A4.5's `.write-probe` record: in a bucket that
+cannot delete, the first run of a tool is a publication.
+
 ## State — 2026-10-22
 
 `review`, on branch `claude/project-thread-ff52l2` (with A7.5, which consumes the IMG/VR list).
