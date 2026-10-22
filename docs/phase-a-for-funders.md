@@ -166,8 +166,41 @@ names against taxonomy releases from its own vintage to 2026-10 (A9.1, D-201, D-
 - The slope is the same either side of the filter's vintage, so this is a property of specifying a
   filter as a list of names, not a criticism of one list.
 
-A static name list and a computed rule decay differently: the realm-based rule lost 8.39% relative
-against the name list's 14.06%.
+A static name list and a computed rule decay differently: asked of each release, descent from an
+ICTV realm covers 96.57% at the baseline and 88.47% in 2026-10, a relative decline of 8.39% against
+the name list's 14.06%. The computed rule ages more slowly and is not immune, and what it declines
+to is the taxonomy's own incompleteness: 11.5% of viral taxa at 2026-10 descend from no realm.
+
+### 4.1 Why not simply update the names?
+
+Because it would fix little and measure the wrong object. Three points, in order of weight.
+
+Renaming is not what drives the loss. Of the gap at 2026-10, 44,261 viral taxa — 15.18% of the
+viral taxonomy — are new material the baseline did not contain, are not reachable from it through
+NCBI's merge records, and no frozen name reaches. Against that, 787 taxa were renamed, 890
+renumbered and 7,723 re-ranked. Resolving every synonym restores three names; it does not reach any
+of the 44,261. The two quantities are reported separately and never summed, because a rename that
+moves no sequence is not decay.
+
+Resolving a synonym can silently change a rule's scope. *Reoviridae* survives in the pinned
+taxonomy only as a synonym of *Reovirales*, which is an order, not a family. Following that synonym
+would convert a family rule into an order rule — on the corpus used for the cross-filter
+comparison, 90,530 additional records at 90% identity. That is auditing a stricter filter than the
+one published. What the looser reading would have reached is recorded as a separate quantity
+(`loose_only_members`) and never folded into a result (D-199).
+
+Where the literal reading measures vocabulary rather than the filter, the audit does substitute, and
+says so. The specificity rule declares `require_rank: realm`, a rank NCBI has never used; run
+literally it finds no realm on any record and removes the entire viral corpus, which is a unit
+mismatch reported as a filter result. It is therefore resolved to descent from one of the six ICTV
+realms, and the substitution travels in the artefact's `name_resolution` field. The distinction is
+between patching a rule that cannot execute and patching one that executes and fails.
+
+The implication for a filter's author is the opposite of defeatism: a rule that resolves taxa
+through the reference's own synonym and merge records, pinned to a dated release and re-validated on
+a stated interval, degrades more slowly and degrades visibly. At the observed 4.34% per year,
+holding unnamed new material below 1% requires re-validation about every 0.2 years. None of the
+policy statements this project transcribed names an interval at which its list is re-checked.
 
 ## 5. Result 3: what the released corpora contain, by sequence
 
