@@ -29,3 +29,10 @@ dist/
 uv.lock
 .venv/
 .claude/worktrees/
+
+# A4.5's artefact is the exception, and deliberately so. It is a 1,719-row table of a few
+# hundred kilobytes, the results bucket is unreachable from the session that produced it, and
+# the write-up cites it per figure — so the repository is its durable home. See
+# tasks/A4-5-measure-the-matched-families-occurrence-outside-viruses.md.
+!/artifacts/a4-5/
+!/artifacts/a4-5/**
