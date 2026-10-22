@@ -1,7 +1,7 @@
 {
   "by_commit": {
-    "artifacts/a4-5/background-pfam-38.2.json": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/525b319a79851e1113e0178cee786f4675d3a95c/background-pfam-38.2.json",
-    "artifacts/a4-5/background-pfam-38.2.md": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/525b319a79851e1113e0178cee786f4675d3a95c/background-pfam-38.2.md"
+    "artifacts/a4-5/background-pfam-38.2.json": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/b76faad59972a605eea12582c6f8db6a9785b51c/background-pfam-38.2.json",
+    "artifacts/a4-5/background-pfam-38.2.md": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/b76faad59972a605eea12582c6f8db6a9785b51c/background-pfam-38.2.md"
   },
   "durable": "s3://amazebio-corpora-897641797669/corpora/results/a4-5",
   "durable_exempt": null,
@@ -10,11 +10,11 @@
     "platform": "Linux-6.18.44-fc-v140-x86_64-with-glibc2.39",
     "python": "3.12.15"
   },
-  "finished_at": "2026-10-22T11:01:01.222232+00:00",
+  "finished_at": "2026-10-22T11:13:34.369143+00:00",
   "git": {
     "available": true,
     "branch": "claude/project-thread-4bnr9t",
-    "commit": "525b319a79851e1113e0178cee786f4675d3a95c",
+    "commit": "b76faad59972a605eea12582c6f8db6a9785b51c",
     "dirty": false,
     "dirty_paths": []
   },
@@ -59,20 +59,20 @@
   "notes": [],
   "outputs": [
     {
-      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/525b319a79851e1113e0178cee786f4675d3a95c/background-pfam-38.2.json",
-      "bytes": 947606,
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/b76faad59972a605eea12582c6f8db6a9785b51c/background-pfam-38.2.json",
+      "bytes": 947890,
       "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/background-pfam-38.2.json",
       "path": "artifacts/a4-5/background-pfam-38.2.json",
       "role": "table",
-      "sha256": "8c3512684bc47f5b15d9e9572f5a3d13369d9d73161fbf99c91468b7f8cf9f63"
+      "sha256": "528fc843cf0780b1df069a6811882a8e9bda60f27ffbc5c9adf5338dcabf99b3"
     },
     {
-      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/525b319a79851e1113e0178cee786f4675d3a95c/background-pfam-38.2.md",
-      "bytes": 4134,
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/b76faad59972a605eea12582c6f8db6a9785b51c/background-pfam-38.2.md",
+      "bytes": 4612,
       "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/background-pfam-38.2.md",
       "path": "artifacts/a4-5/background-pfam-38.2.md",
       "role": "summary",
-      "sha256": "f2c31f15a64dbf87c8c9950d0a6df84552fae3efbcdb5cd39425075b6e421cb7"
+      "sha256": "b819677c4ce623cc78f81fce87d03e2adaa1fe53a06c9057c6f9e309a8014a31"
     }
   ],
   "parameters": {
@@ -85,7 +85,7 @@
   },
   "replace_durable": null,
   "seed": null,
-  "started_at": "2026-10-22T10:59:23.906424+00:00",
+  "started_at": "2026-10-22T11:11:55.737310+00:00",
   "task": "A4.5",
   "tools": {},
   "upload_skipped": null,

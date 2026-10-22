@@ -12,6 +12,7 @@
   "design_ref": "\u00a7A4",
   "detected_sets": [
     {
+      "admitted_by_host_word_only_detected": [],
       "comparability": "every variant here is the same detector at the same depth over the same corpus as its own headline; variants from different detectors are never set side by side (D-247)",
       "detected": 590,
       "detector": "profile-hmmer",
@@ -40,6 +41,7 @@
       "viral_only": 303
     },
     {
+      "admitted_by_host_word_only_detected": [],
       "comparability": "every variant here is the same detector at the same depth over the same corpus as its own headline; variants from different detectors are never set side by side (D-247)",
       "detected": 597,
       "detector": "profile-hmmer+provirus-genomad",
@@ -68,6 +70,10 @@
       "viral_only": 310
     },
     {
+      "admitted_by_host_word_only_detected": [
+        "PF01566",
+        "PF06761"
+      ],
       "comparability": "every variant here is the same detector at the same depth over the same corpus as its own headline; variants from different detectors are never set side by side (D-247)",
       "detected": 811,
       "detector": "profile-hmmer",
@@ -96,6 +102,10 @@
       "viral_only": 497
     },
     {
+      "admitted_by_host_word_only_detected": [
+        "PF01566",
+        "PF06761"
+      ],
       "comparability": "every variant here is the same detector at the same depth over the same corpus as its own headline; variants from different detectors are never set side by side (D-247)",
       "detected": 812,
       "detector": "profile-hmmer+provirus-genomad",

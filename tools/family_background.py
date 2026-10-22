@@ -262,7 +262,9 @@ def read_detected(path: Path, universe: set[str]) -> dict[str, Any]:
 
 
 def restrict(
-    detected: dict[str, Any], table: dict[str, background.FamilyBackground]
+    detected: dict[str, Any],
+    table: dict[str, background.FamilyBackground],
+    host_substring_only: Iterable[str] = (),
 ) -> dict[str, Any]:
     """The three variants for one detected set, each with and without the unjudgeable families.
 
@@ -272,6 +274,7 @@ def restrict(
     """
     rows = [table[a] for a in detected["accessions"]]
     classes = {a: background.classify(table[a]) for a in detected["accessions"]}
+    substring = sorted(set(host_substring_only) & set(detected["accessions"]))
     unmeasurable = [a for a, c in classes.items() if c == "unmeasurable"]
     viral_only = [a for a, c in classes.items() if c == "viral_only"]
     endogenous_only = [
@@ -300,6 +303,7 @@ def restrict(
         "viral_only": len(viral_only),
         "shared": len(rows) - len(viral_only) - len(unmeasurable),
         "shared_endogenous_only": len(endogenous_only),
+        "admitted_by_host_word_only_detected": substring,
         "judgeable": len(rows) - len(unmeasurable),
         "shared_share_of_judgeable": (
             None
@@ -421,7 +425,7 @@ def build(
             "no_curated_viral_entry_but_cellular_ones": len(cellular_only),
             "no_curated_viral_entry_but_cellular_ones_families": cellular_only,
         },
-        "detected_sets": [restrict(d, table) for d in (detected or [])],
+        "detected_sets": [restrict(d, table, host_only) for d in (detected or [])],
         "detected_sets_outstanding": not detected,
         "per_family": rows,
     }
@@ -512,6 +516,15 @@ def report(doc: dict[str, Any]) -> str:
                 "families are not a random draw from the universe, and this is the direction "
                 "of the difference: a family with cellular members is easier to detect, so "
                 "weighting by what was found makes the sharing commoner rather than rarer.",
+                "",
+                f"Of the {len(audit['admitted_by_host_word_only'])} families admitted only "
+                f"because a keyword is a substring of a host word, "
+                f"{len(one['admitted_by_host_word_only_detected'])} are in this detected set"
+                + (
+                    f" ({', '.join(one['admitted_by_host_word_only_detected'])})."
+                    if one["admitted_by_host_word_only_detected"]
+                    else "."
+                ),
                 "",
                 "| variant | excluding unjudgeable | including unjudgeable |",
                 "|---|---|---|",

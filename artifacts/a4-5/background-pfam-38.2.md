@@ -29,6 +29,8 @@ the 1,719 universe is pre-registered and is not corrected here. A cellular famil
 
 Among the 438 the curated section can judge, 30.8% are shared, against 14.4% over the whole universe — 2.15 times as often. Detected families are not a random draw from the universe, and this is the direction of the difference: a family with cellular members is easier to detect, so weighting by what was found makes the sharing commoner rather than rarer.
 
+Of the 7 families admitted only because a keyword is a substring of a host word, 0 are in this detected set.
+
 | variant | excluding unjudgeable | including unjudgeable |
 |---|---|---|
 | `headline` | 590 | 590 |
@@ -38,6 +40,8 @@ Among the 438 the curated section can judge, 30.8% are shared, against 14.4% ove
 **opengenome, profile-hmmer+provirus-genomad** — 597 detected families: 310 with no curated non-viral occurrence, 135 shared, 152 unjudgeable.
 
 Among the 445 the curated section can judge, 30.3% are shared, against 14.4% over the whole universe — 2.11 times as often. Detected families are not a random draw from the universe, and this is the direction of the difference: a family with cellular members is easier to detect, so weighting by what was found makes the sharing commoner rather than rarer.
+
+Of the 7 families admitted only because a keyword is a substring of a host word, 0 are in this detected set.
 
 | variant | excluding unjudgeable | including unjudgeable |
 |---|---|---|
@@ -49,6 +53,8 @@ Among the 445 the curated section can judge, 30.3% are shared, against 14.4% ove
 
 Among the 642 the curated section can judge, 22.6% are shared, against 14.4% over the whole universe — 1.57 times as often. Detected families are not a random draw from the universe, and this is the direction of the difference: a family with cellular members is easier to detect, so weighting by what was found makes the sharing commoner rather than rarer.
 
+Of the 7 families admitted only because a keyword is a substring of a host word, 2 are in this detected set (PF01566, PF06761).
+
 | variant | excluding unjudgeable | including unjudgeable |
 |---|---|---|
 | `headline` | 811 | 811 |
@@ -58,6 +64,8 @@ Among the 642 the curated section can judge, 22.6% are shared, against 14.4% ove
 **opengenome2, profile-hmmer+provirus-genomad** — 812 detected families: 498 with no curated non-viral occurrence, 145 shared, 169 unjudgeable.
 
 Among the 643 the curated section can judge, 22.6% are shared, against 14.4% over the whole universe — 1.57 times as often. Detected families are not a random draw from the universe, and this is the direction of the difference: a family with cellular members is easier to detect, so weighting by what was found makes the sharing commoner rather than rarer.
+
+Of the 7 families admitted only because a keyword is a substring of a host word, 2 are in this detected set (PF01566, PF06761).
 
 | variant | excluding unjudgeable | including unjudgeable |
 |---|---|---|
