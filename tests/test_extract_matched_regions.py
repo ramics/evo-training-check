@@ -385,6 +385,60 @@ class TestTheTableItWrites:
         assert not any("sequence" in key for key in row)
 
 
+class TestTheMeterOnTheCorpusPass:
+    """The pass reports where it is, and what it read is recorded rather than assumed.
+
+    Both halves were missing: progress was printed when a record was *found*, and with 314
+    accessions in an 11.22 GB object that is one line at the start and the next at the end
+    (D-192). And the design asks the run to record the bytes actually read, because the early
+    stop's saving cannot be predicted from the identifiers.
+    """
+
+    def source(self, body: bytes):  # type: ignore[no-untyped-def]
+        from amazebio import corpora
+
+        return corpora.StagedSource(
+            key="corpora/test/imgvr.fasta.gz",
+            release="opengenome2",
+            component="IMG/VR",
+            corpus_component="imgvr",
+            reader="fasta",
+            evidence=corpora.Evidence(note="test"),
+            why="test",
+            gzipped=True,
+            bytes=len(body),
+        )
+
+    def test_the_meter_measures_the_compressed_object_the_pin_declares(self) -> None:
+        import gzip
+
+        from conftest import FakeS3
+
+        body = gzip.compress(b">a\nACGTACGTAA\n>b\nTTTTTTTTTT\n>c\nGGGGGGGGGG\n")
+        source = self.source(body)
+        records, meter = extract.open_records(FakeS3(body), source, ["a", "c"])
+        got = [r.id for r in records]
+        assert got == ["a", "c"]
+        # Compressed bytes, because the object's declared length is the compressed one and a
+        # share of an unknown decompressed total would have an invented denominator.
+        assert 0 < meter.bytes_read <= source.bytes
+        assert meter.tell() == meter.bytes_read
+
+    def test_the_line_it_would_print_names_the_object_and_what_is_left(self) -> None:
+        from amazebio import progress
+
+        meter = progress.beating(
+            __import__("io").BytesIO(b"x" * 100),
+            total=1000,
+            label="corpora/opengenome2/fasta/plasmids_phage/imgvr.fasta.gz",
+            every=10,
+            out=lambda _: None,
+        )
+        meter.read(100)
+        assert "imgvr.fasta.gz" in meter.line()
+        assert "left" in meter.line()
+
+
 class _PfamLike:
     """A registry stand-in: curated cutoffs off, so the fixture HMM needs no GA line."""
 

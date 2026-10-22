@@ -58,7 +58,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import corpora, objectstore, policyspec, repro
+from amazebio import corpora, objectstore, policyspec, progress, repro
 from amazebio.conformance import RANKS, parse_lineage_tag
 
 TASK = "X1.9"
@@ -292,7 +292,6 @@ def stream_labels(
     *,
     entry: dict[str, Any],
     wanted: set[str],
-    progress_every: int = 400 << 20,
 ) -> tuple[dict[str, tuple[str, str]], dict[str, Any]]:
     """`{record_id: (lineage, method)}` for the wanted records, and the pass's own counts.
 
@@ -308,7 +307,9 @@ def stream_labels(
             "different length is a different release, and two of them carry this file name."
         )
     obj = corpora.RangedObject(client, bucket=bucket, key=key, size=live)
-    reader = obj.buffered()
+    # The heartbeat belongs to the reader, not to this loop: `amazebio.progress` is where that
+    # argument lives, and a bespoke copy of it here would be a second thing to keep in step.
+    reader = progress.beating(obj.buffered(), total=live, label=key)
 
     digest = hashlib.md5(usedforsecurity=False)
     found: dict[str, tuple[str, str]] = {}
@@ -316,15 +317,12 @@ def stream_labels(
     columns: dict[str, int] = {}
     rows = 0
     tail = b""
-    read = 0
-    announced = 0
     started = time.time()
     while True:
         block = reader.read(1 << 22)
         if not block:
             break
         digest.update(block)
-        read += len(block)
         data = tail + block
         lines = data.split(b"\n")
         tail = lines.pop()
@@ -350,14 +348,6 @@ def stream_labels(
                     fields[columns[LINEAGE]] if columns[LINEAGE] < len(fields) else "",
                     fields[columns[METHOD]] if columns[METHOD] < len(fields) else "",
                 )
-        if read - announced >= progress_every:
-            announced = read
-            print(
-                f"  {read / 1e9:.2f}/{live / 1e9:.2f} GB, {rows:,} rows, "
-                f"{len(found):,}/{len(wanted):,} wanted found, "
-                f"{(time.time() - started) / 60:.1f} min",
-                flush=True,
-            )
     if tail.strip() and header is not None:
         fields = tail.decode("utf-8", "replace").rstrip("\r").split("\t")
         rows += 1
@@ -374,7 +364,7 @@ def stream_labels(
             "label in this table would be relative to a release nobody pinned."
         )
     return found, {
-        "bytes_read": read,
+        "bytes_read": reader.bytes_read,
         "object_bytes": live,
         "md5_verified": True,
         "rows": rows,

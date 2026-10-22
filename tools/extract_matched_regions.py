@@ -42,7 +42,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import corpora, objectstore, profilesearch, repro
+from amazebio import corpora, objectstore, profilesearch, progress, repro
 from amazebio.profiles import MIN_MODEL_COVERAGE, registry
 from amazebio.seqstream import iter_fasta_selected
 
@@ -122,12 +122,25 @@ def resolve_source(client: Any) -> Any:
     return source
 
 
-def stream_records(client: Any, source: Any, ids: list[str]) -> Iterator[Any]:
-    """The named records, with sequence, streamed out of the staged object.
+def open_records(
+    client: Any, source: Any, ids: list[str]
+) -> tuple[Iterator[Any], progress.Beating]:
+    """The named records with sequence, and the meter measuring the pass that finds them.
 
-    Object storage offers no index into a gzip stream, so the cost is one sequential pass and the
-    records are found on the way past. `iter_fasta_selected` ends the pass once every requested
-    identifier has been seen.
+    Object storage offers no index into a gzip stream, so the cost is one sequential pass and
+    the records are found on the way past. `iter_fasta_selected` ends the pass once every
+    requested identifier has been seen.
+
+    The meter is returned rather than kept private for two reasons. It reports progress on a
+    byte interval while the pass runs — the records are sparse (314 accessions in 11.22 GB), so
+    a line printed when one is *found* says nothing about the long stretches between them, which
+    is the silence D-192 is about. And the bytes it counts are what the run records: the early
+    stop's saving cannot be predicted from the identifiers, so how much was actually read is a
+    measurement rather than a derivation.
+
+    It wraps the compressed reader, because the object's declared length is the compressed one
+    and a share of an unknown decompressed total would be a fraction with an invented
+    denominator.
     """
     obj = corpora.RangedObject(
         client,
@@ -138,12 +151,13 @@ def stream_records(client: Any, source: Any, ids: list[str]) -> Iterator[Any]:
             f"    reconnect {attempt} at byte {pos:,}: {exc}", file=sys.stderr
         ),
     )
-    reader: Any = obj.buffered()
+    meter = progress.beating(obj.buffered(), total=source.bytes, label=source.key)
+    reader: Any = meter
     if source.gzipped:
         from amazebio.uniref import GunzipStream
 
         reader = GunzipStream(reader)
-    yield from iter_fasta_selected(reader, component=source.component, ids=ids)
+    return iter_fasta_selected(reader, component=source.component, ids=ids), meter
 
 
 def resolve_profiles(accessions: list[str]) -> tuple[Any, Any, dict[str, str]]:
@@ -260,7 +274,8 @@ def build(
             flush=True,
         )
 
-    for record in stream_records(client, source, wanted):
+    records, meter = open_records(client, source, wanted)
+    for record in records:
         seen.append(record.id)
         chunk.append(record)
         if len(chunk) >= CHUNK_RECORDS:
@@ -321,6 +336,10 @@ def build(
         "records_with_a_region": len({r["record_id"] for r in table}),
         "accessions_with_a_region": len({r["accession"] for r in table}),
         "seconds": round(time.time() - started, 1),
+        # Measured, not derived: the early stop ends the pass once every requested identifier
+        # has been seen, and how much that saves cannot be predicted from the identifiers.
+        "bytes_read": meter.bytes_read,
+        "stopped_early": bool(source.bytes) and meter.bytes_read < int(source.bytes),
         "rows": table,
         "reading_this_table": (
             "One row is one matched region: one profile against one called gene, the "
@@ -354,6 +373,12 @@ def summarise(doc: dict[str, Any]) -> str:
         )
     if doc["records_without_genes"]:
         lines.append(f"{doc['records_without_genes']:,} records had no gene called")
+    if doc.get("bytes_read"):
+        lines.append(
+            f"{doc['bytes_read'] / 1e9:.2f} of {doc['source_bytes'] / 1e9:.2f} GB read in "
+            f"{doc['seconds'] / 60:.1f} min"
+            + (" — the stream stopped early" if doc.get("stopped_early") else "")
+        )
     strongest = sorted(doc["rows"], key=lambda r: r["score"], reverse=True)[:5]
     if strongest:
         lines += [
