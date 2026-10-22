@@ -57,8 +57,14 @@ hazard assessment was performed and the study was not designed as one, so these 
 neither a claim that hazardous material survived nor a claim that none did. The finding is about
 process and auditability: the published filter did not do what its description implies.
 
-One pointer deserves recording with its weakness attached. Of the families detected, 40 carry Pfam
-names referring to the virus groups the policy itself denylists — 14 of them *Flaviviridae* domains,
+A hazard figure is being measured and will be reported here at aggregate level only: a count of
+records attributable to human-pathogen groups and the worst case named at group level, with no
+record identifiers, accessions, coordinates or sequence, and nothing a reader could use to locate
+the material. [Pending A4.6: insert the count and the named worst case, or the statement that none
+was established together with the ceiling on what the method could detect.]
+
+One pointer deserves recording with its weakness attached, and it is not that figure. Of the
+families detected, 40 carry Pfam names referring to the virus groups the policy itself denylists — 14 of them *Flaviviridae* domains,
 the rest spanning *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*, *Papillomaviridae*, *Adenoviridae*,
 *Caliciviridae*, *Picornaviridae*, *Retroviridae* and *Geminiviridae* — 9 of them in Evo 1's
 component and all 40 in Evo 2's. That is a cross-reference between family names and the denylist,
@@ -334,6 +340,9 @@ for *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*, *Papillomaviridae*, *Adenovir
 *Caliciviridae*, *Picornaviridae*, *Retroviridae* and *Geminiviridae*. Nine appear in Evo 1's
 detected set and all 40 in Evo 2's, at the sampling rates of §3; the two counts are not rates and do
 not rank the releases.
+
+That count is the ambiguity rather than the answer, and the hazard measurement now running is what
+resolves it; the slot for its result is in the abstract.
 
 The weakness of that observation is specific, and this project has rejected the same mechanism
 elsewhere. A Pfam family's name records where its curators built it, and matching on names is
