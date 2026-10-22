@@ -12,9 +12,14 @@ hosts were excluded from the training corpora, and both releases publish those c
 (Nguyen et al. 2024, Brixi et al. 2026). This study searches the released artefacts by sequence and
 then executes the stated policy against them to account for what the search returns.
 
-Profile search finds viral protein families in both corpora: at least 597 of 1,719 viral Pfam
-families in Evo 1's released component and 812 in Evo 2's, each a lower bound from a 1-2% sample
-whose accumulation curve continues to rise. In a targeted sweep of Evo 1's component the taxonomic
+Both ends of the pipeline are in hand: the source database the filter was applied to, read from the
+publisher's primary table, and the released corpora, staged from pinned revisions. Profile search
+finds viral protein families in both corpora: at least 597 of 1,719 viral Pfam families in Evo 1's
+released component and 812 in Evo 2's, each a lower bound from a 1-2% sample whose accumulation
+curve continues to rise. Evo 1's detections sit in the training data itself, since the component
+searched and OpenGenome2's JSON training format agree to the record and to the nucleotide; Evo 2's
+sit in the only representation carrying source accessions, which exceeds that training format by
+304,448 records and admits no record-level join to it. In a targeted sweep of Evo 1's component the taxonomic
 labels report zero segmented-virus records while profile search over the same records recovers
 markers of five eukaryote-infecting virus families, one of them named on the policy's own denylist.
 
@@ -63,10 +68,29 @@ and in a shorter form, where the curation step is reported as accomplished.
 Model behaviour is one claim. The claim underneath it, which this study tests, is about what the
 published corpus contains.
 
+This study holds both ends of the pipeline. The source database the filter was applied to, IMG/VR
+v4.1, was read from the publisher's own primary table, and the released corpora were staged from the
+publishers' pinned revisions. The filter's input and its published output are therefore both in
+hand, and each detection can be placed in one or the other.
+
 A profile search over the surviving records returns hits. At a 1-2% sample, Evo 1's released viral
 component carries at least 597 of 1,719 viral Pfam families and Evo 2's at least 812, and a sweep
 of Evo 1's component recovers markers of five eukaryote-infecting virus families in records whose
 taxonomic labels report none. Those are §3.
+
+For Evo 1 those detections sit in the training data itself. The component searched is `stage2`,
+Evo 1's released viral component, which OpenGenome2 republishes as its JSON training format: the
+two agree to the record and to the nucleotide, 2,653,047 records and 36,236,025,613 nucleotides,
+with both deltas at zero (§6). The search therefore ran over the preprocessed corpus the models
+were trained on, not over a staging artefact.
+
+For Evo 2 the same sentence cannot be written, and the reason is the release's own publishing
+choice. The component searched is `imgvr.fasta.gz`, the only representation carrying source
+accessions, which exceeds the training format by 304,448 records. Records in the training format
+carry a bare text field and no accession, so the two representations admit no record-level join, and
+each Evo 2 detection is located in the released component without being attributable to the trained
+copy. Result 4 therefore arrives in the lead: for one release the audit reaches the training data,
+and for the other the published artefacts prevent it.
 
 On inspection the hits are explicable, and the explanation is the substance of the study. The
 procedure, applied to IMG/VR, runs in five steps: retain records the database flags as
@@ -145,10 +169,10 @@ independent join exposes it.
 
 ## 3. Result 1: the contents of the released corpora
 
-| release | records searched | viral Pfam families detected, of 1,719 |
-|---|---|---|
-| Evo 1 (`opengenome`) | 53,140 of 2,653,047 (2%) | 597 (34.7%) |
-| Evo 2 (`opengenome2`) | 30,859 (1%) | 812 (47.2%) |
+| release | component searched | records searched | viral Pfam families detected, of 1,719 |
+|---|---|---|---|
+| Evo 1 (`opengenome`) | `stage2`, identical to the training format | 53,140 of 2,653,047 (2%) | 597 (34.7%) |
+| Evo 2 (`opengenome2`) | `imgvr` + `imgpr`, the accession-carrying representation | 30,859 (1%) | 812 (47.2%) |
 
 The profile route accounts for 590 and 811 of those families. The remainder arrive by the integrated
 route, which over 375 and 300 sampled bacterial genomes called 128 and 178 integrated regions
