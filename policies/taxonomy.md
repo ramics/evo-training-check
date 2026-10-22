@@ -13,6 +13,7 @@ reference data a reader needs in order to re-execute it.
 | `S-IMGVR-V4-SEQINFO-2022-09-20` | the per-record family and order labels the filter's rules read | no — 1.9 GB and access-gated; staged in object storage at the publisher's md5 |
 | `S-ICTV-VMR-MSL37-3` | the host of a labelled species, from its `Host source` column | no — pinned input, held in git-ignored `data/` |
 | `S-ICTV-REPORT-PAPILLOMAVIRIDAE` | what the taxonomic authority says about one genus | yes, CC BY 4.0 |
+| `S-ICTV-REPORT-ORTHOFLAVIVIRUS` | the natural history of the one named record in the worst case | yes, CC BY 4.0 |
 
 ## The two tables, and the questions they cannot answer
 
@@ -57,6 +58,39 @@ particular — not this one — and says so itself:
 [source: S-ICTV-REPORT-PAPILLOMAVIRIDAE, Biology section]
 > Epidemiological and biological data is primarily available for the viral types belonging to
 > the genus
+
+## The named record's natural history, quoted and — where it is a silence — labelled as one
+
+Tier 3's most complete record is labelled with a flavivirus species, and two things said about
+it travelled through this project as recollection until now. Both are in the authority's own
+chapter. Its species table heads the group the species sits in:
+
+[source: S-ICTV-REPORT-ORTHOFLAVIVIRUS, species table]
+> Unknown vector, Entebbe bat virus group
+
+And the genus description says that such members exist and how they move:
+
+[source: S-ICTV-REPORT-ORTHOFLAVIVIRUS, Distinguishing features]
+> Some orthoflaviviruses transmit between rodents or bats without known arthropod vectors
+
+**The third claim is a silence, and is recorded as one.** That no human infection is recorded
+for the species is not a statement in any source read here; it is the absence of one. The
+chapter's pathogenicity section does name the genus's human pathogens by species:
+
+[source: S-ICTV-REPORT-ORTHOFLAVIVIRUS, Pathogenicity]
+> More than 50% of known orthoflaviviruses have been associated with human disease, including
+> many important human pathogens such as yellow fever virus, dengue virus, Zika virus, Japanese
+> encephalitis virus, West Nile virus and tick-borne encephalitis virus
+
+That list does not include this species, and the species name occurs twice in the whole chapter,
+both times in the vector-group table — searched 2026-10-22 over the full chapter text for the
+species name and for `human`, `patient`, `disease` and `encephalitis`. A list of a genus's human
+pathogens that omits a species is weaker evidence than a sentence about that species, and under
+`policies/README.md`'s rule a silence is labelled, never upgraded. Note also that the chapter has
+moved the species under a renamed genus while the MSL37.3 pin this project joins against carries
+the older name — the churn A9.1 measures, met here in one row.
+
+## Where the quotations end and the attributions begin
 
 That last sentence is the reason the quotations are here at all. An earlier draft of the label
 arm attributed to this chapter a description of the genus as "found on the skin and oral mucosa
