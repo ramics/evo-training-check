@@ -42,7 +42,7 @@ Two small text files and two pins.
 
 | input | what it is |
 |---|---|
-| `--records FILE` | one record identifier per line, or a TSV whose first column is the identifier. A leading `record_id` header and `#` comments are skipped, so a published per-record table is passed as it stands. **Use X1.9's `denylisted-label-records-imgvr.tsv`** from `corpora/results/x1-9/`: 314 viral records, derived from pinned inputs with a digest. Not the hand-built 308-row copy under `/mnt/project-files/hazard-check/`, which X1.9 does not reproduce — it predates the rule that settled the family count, and the gap is explained there. |
+| `--records FILE` | one record identifier per line, or a TSV whose first column is the identifier. A leading `record_id` header and `#` comments are skipped, so a published per-record table is passed as it stands. **Pass a published per-component table** — X1.9's `denylisted-label-records-imgvr.tsv` under `corpora/results/x1-9/` — and not an ad-hoc copy, so the record set carries a digest. |
 | `--profiles FILE` | one Pfam accession per line, or a TSV whose first column is the accession. Same header handling, so `/mnt/project-files/hazard-check/denylist-named-families.tsv` (41 rows) is passed as it stands. |
 | corpus pin | Evo 2's viral component, `…/fasta/plasmids_phage/imgvr.fasta.gz`, 11,220,266,895 bytes. |
 | registry pin | Pfam 38.2 under `data/profiles/pfam/38.2/`: `Pfam-A.hmm.dat.gz` and `Pfam-A.hmm.gz`. |
@@ -264,14 +264,14 @@ Module loaded by `importlib`, as `tests/test_place_detections.py` loads its tool
 | step | basis | this pass |
 |---|---|---|
 | stream `imgvr.fasta.gz`, 11.22 GB | A2.6's measured ~2 core-hours over the 35 GB of staged components (`/mnt/project-files/a3-4/cost.md`), ≈0.057 core-h/GB | **~38 min, one core, read-bound** |
-| gene calling | pyrodigal metagenomic, 1,103 genes/s/core measured; A2.1's density ≈19 genes/record over 308 records ≈ 6,000 genes | ~6 s |
+| gene calling | pyrodigal metagenomic, 1,103 genes/s/core measured; A2.1's density ≈19 genes/record over ~315 records ≈ 6,000 genes | ~6 s |
 | profile search | A2.1's measured 2.19 ms/gene on this release is against all 1,719 selected models; 41 models is 2.4% of that | under a minute, model loading included |
 | **wall clock** | | **~40 minutes** |
 | **money** | in-region GET traffic is unmetered; a few thousand requests | **nothing rented, a fraction of a cent** |
 
 A gzip stream offers no index, so the one sequential pass is the floor and a single thread is
-the ceiling: the 308 records are 0.0016% of the component, and reading to find them is the whole
-cost. The early stop can only shorten it, by an amount nobody can predict from the identifiers,
+the ceiling: a few hundred records are a ten-thousandth of a percent of the
+component, and reading to find them is the whole cost. The early stop can only shorten it, by an amount nobody can predict from the identifiers,
 so it is not counted here; the bytes actually read are recorded.
 
 It must run in `us-east-1`. 11.22 GB is free in-region and metered out of it, which is the test
@@ -335,11 +335,20 @@ and the implementation follows it:
 the source declares.
 
 **The input list changed under this task while it was being written, and that is the point of
-keeping the selection outside the tool.** X1.9 derived the record list from pinned inputs and
-does not reproduce the hand-built 308: the nearest derived figure is 314 viral records, with five
-plasmid records counted apart. So the pass reads X1.9's published per-component table, and this
-file's Inputs section names it. Nothing in the tool changes, because the record set was always an
-input.
+keeping the selection outside the tool.** Two threads regenerated the label arm's per-record
+table from pins within the hour, and between them the figures in circulation were 31, 308, 314,
+315 and 319. They are **different axes of the same table, and neither set contains the other**:
+
+- *label* axis, what the published rules read on the record's own label — 31 records carry a
+  denylisted **family** label, 308 a denylisted **order** label, 24 both, so 315 carry either;
+- *name* axis, what the detected Pfam family is **named** for — 319 records, 314 viral and 5
+  plasmid.
+
+So the hand-built 308 is reproduced, on the order axis; "308 is superseded by 314" compares two
+axes and is not a correction. **Which axis the question is about is the caller's to state**, and
+whichever table it names must be the published per-component one. This tool measures the record
+set it is handed and asserts nothing about how it was chosen — which is why the selection stayed
+outside it. Nothing in the tool changes.
 
 **The pass has not been run.** It is ~40 minutes of container time and no money, and it waits on
 the project owner.
