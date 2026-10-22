@@ -7,7 +7,11 @@ import io
 import pytest
 
 from amazebio.detect import in_sample
-from amazebio.seqstream import iter_fasta_sampled, iter_stage2_sampled
+from amazebio.seqstream import (
+    iter_fasta_sampled,
+    iter_fasta_selected,
+    iter_stage2_sampled,
+)
 
 TAG = "r__Duplodnaviria;k__Heunggongvirae;p__Uroviricota;c__Caudoviricetes;;;;"
 
@@ -78,6 +82,46 @@ def test_fasta_records_carry_no_taxonomy_because_the_component_carries_none():
     got = list(iter_fasta_sampled(io.BytesIO(b">A\nACGT\n"), component="IMG/VR", seed=1, hi=1))
     assert got[0].record.component == "IMG/VR"
     assert not got[0].record.taxonomy
+
+
+# --------------------------------------------------------------------------------------
+# Selection by name, and the one thing the early stop hides
+# --------------------------------------------------------------------------------------
+
+
+def test_selected_yields_the_named_entries_in_file_order():
+    fasta = b">A one\nACGT\nACGT\n>B\nTTTT\n>C three\nGGGG\n"
+    got = list(iter_fasta_selected(io.BytesIO(fasta), component="IMG/VR", ids={"C", "A"}))
+    assert [(r.id, r.sequence) for r in got] == [("A", "ACGTACGT"), ("C", "GGGG")]
+
+
+def test_the_early_stop_hides_a_second_entry_under_an_identifier_already_yielded():
+    """The docstring says so; this is what makes it a property rather than a hope.
+
+    It is the behaviour that bit A7.5. Evo 2's viral component repeats accessions — A7.3 counts
+    1,775 of them, one appearing 161 times — with different residues under one name, so a pass
+    that stops at the first sighting of the last requested identifier reports entry counts
+    truncated at whatever byte the stop fell on. The identifier set is the same either way,
+    which is exactly why the bug was invisible until a column counted entries.
+    """
+    fasta = b">A\nAAAA\n>B\nTTTT\n>A\nGGGG\n>C\nCCCC\n"
+    ids = {"A", "B"}
+    stopped = list(iter_fasta_selected(io.BytesIO(fasta), component="x", ids=ids))
+    whole = list(
+        iter_fasta_selected(io.BytesIO(fasta), component="x", ids=ids, stop_when_complete=False)
+    )
+    # Same identifiers...
+    assert {r.id for r in stopped} == {r.id for r in whole} == ids
+    # ...and not the same entries: the repeat of A is only in the complete read.
+    assert [r.sequence for r in stopped] == ["AAAA", "TTTT"]
+    assert [r.sequence for r in whole] == ["AAAA", "TTTT", "GGGG"]
+
+
+def test_an_identifier_the_stream_never_carries_is_simply_absent():
+    ids = {"A", "ABSENT"}
+    got = list(iter_fasta_selected(io.BytesIO(b">A\nACGT\n"), component="x", ids=ids))
+    assert [r.id for r in got] == ["A"]
+    assert ids - {r.id for r in got} == {"ABSENT"}
 
 
 # --------------------------------------------------------------------------------------

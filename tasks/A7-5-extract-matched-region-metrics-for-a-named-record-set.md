@@ -379,6 +379,22 @@ collision on that key without the `entry` column.
 records across 41 families; the `entry` column is additive and nothing it fixed changed a
 measurement. That is the check that the fix was a fix and not a rewrite.
 
+### The published table's entry counts were truncated, so the pass ran a third time
+
+The second pass read with the early stop on, which leaves the object unread from the first
+sighting of the last requested accession — 4.7 MB in that run. The identifier set is complete
+either way, which is why this was invisible until the `entry` column arrived: a repeat entry
+lying in that final 4.7 MB would be absent from the table and uncounted in `entries_read`,
+`records_repeated` and `entries_per_record_max`. Those are counts, and a count truncated at an
+arbitrary byte is not one.
+
+So the deliverable reads the object through (the selector keeps the capability for a caller that
+only wants presence, and the `read` parameter in the output states which was done), and the pass
+was run again on that basis. The library's docstring already warned that a second entry under an
+already-yielded identifier is the one thing the stop hides; what was missing was a test pinning
+it, which `tests/test_seqstream.py` now carries, because the identifier set being identical is
+exactly what made the gap invisible.
+
 ### Two things the published summary says badly
 
 Fixed in the tool, and **not re-run for them**, because the numbers in the table are right and
