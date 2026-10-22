@@ -91,10 +91,15 @@ existing signature**: A2.1's and A3.4's calls are what they were, and `tests/tes
 covers the refactor as it stands.
 
 `iter_fasta_selected` adds one thing a band selector cannot have: `stop_when_complete=True`
-ends the stream once every requested identifier has been seen. Correctness does not depend on
-it — the missing-identifier report is the same either way, since an identifier not seen by the
-end of the stream and one not seen before the early stop are only equal when the stop happens
-after the last wanted record, which is exactly its condition.
+ends the stream once every requested identifier has been seen. **This tool does not use it, and
+the reason is worth keeping.** It was defensible only while nothing a caller could observe
+depended on it, which stopped being true when the `entry` column arrived: an accession repeats
+in this object with different residues under it, so a pass that stops at the first sighting of
+the last accession would report `entries_read`, `records_repeated` and `entries_per_record_max`
+over however much of the object it happened to reach — a figure that looks like a census and is
+truncated at an arbitrary byte. The saving was never predictable from the identifiers. The
+selector keeps the capability for a caller that wants it; the deliverable reads through, and the
+`read` parameter in the output says so.
 
 **`src/amazebio/profilesearch.py` — one refactor and one new measurement.**
 

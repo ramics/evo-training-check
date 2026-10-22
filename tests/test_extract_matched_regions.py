@@ -506,3 +506,36 @@ class TestTheDocumentItWrites:
         assert "0 of 3 requested records found" in text
         assert "not in the staged object" in text
         json.dumps(doc)  # the document has to stay serialisable
+
+
+class TestTheObjectIsReadThrough:
+    """The entry counts are counts, so the pass may not stop at the last requested accession.
+
+    `iter_fasta_selected` can stop as soon as every requested identifier has been seen, and this
+    tool used it that way until the `entry` column arrived. An accession repeats in this object
+    with different residues under it, so a stop at the first sighting of the last accession
+    reports the repeat counts over however much of the object it happened to reach — a figure
+    that looks like a census and is truncated at an arbitrary byte.
+    """
+
+    def test_open_records_asks_for_a_complete_read(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        seen: dict[str, object] = {}
+
+        def fake_selected(stream, **kwargs):  # type: ignore[no-untyped-def]
+            seen.update(kwargs)
+            return iter(())
+
+        class Source:
+            key = "k"
+            bytes = 10
+            gzipped = False
+            component = "IMG/VR"
+
+        class FakeObject:
+            def buffered(self):  # type: ignore[no-untyped-def]
+                return io.BytesIO(b"")
+
+        monkeypatch.setattr(extract, "iter_fasta_selected", fake_selected)
+        monkeypatch.setattr(extract.corpora, "RangedObject", lambda *a, **k: FakeObject())
+        extract.open_records(FakeClient(), Source(), ["r1"])
+        assert seen["stop_when_complete"] is False
