@@ -11036,3 +11036,41 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `objectstore.client()`'s docstring so the next session does not spend a day on it, and
   `tools/family_background.py` loses the durable exemption granted on the grounds that no
   `durable=` could succeed from a cloud session.
+
+### D-252 — the restricted figure stays family-counted, and the substring blind spot reaches no in-scope detection
+
+- **Date:** 2026-10-22
+- **Task:** A4.5 (addendum to D-251, prompted by a parallel join built for the browsable index)
+- **Context:** A second join of A4.5's classes onto A2.1's per-family tables, built independently
+  for Imo's hit index, reproduced the detected counts and then offered a **hit-weighted** view:
+  across both releases pooled, 194,776 hits fall 47.5% in `viral_only` families, 40.8% in
+  `shared` and 11.7% in `unmeasurable`. It was offered rather than published, which was right.
+- **Decision: the restricted figure stays family-counted, as pre-registered.** D-251's cut was
+  fixed in the task file before any restricted number existed, and hit-weighting is one of
+  several defensible weightings — hits or records, per release or pooled, and whether to include
+  the plasmid component at all. Choosing among them after seeing that one is less flattering
+  than another measures the choice, not the corpus. A hit-weighted variant is Imo's call to
+  commission, pre-registered first, not something to adopt because a number arrived.
+  **Two defects it would carry as computed, both verified here from the published tables:** it
+  pools the two releases, which this project does not do for any other figure, and it pools
+  IMG/VR with IMG/PR, so part of it measures the plasmid component the filter never claimed to
+  cover (`PF00589`'s Evo 2 hits split 1,388 `unresolved` and 533 `out_of_scope`).
+- **Measured, and a cleaner statement than D-250 could make.** Of the seven families admitted to
+  the universe only because a selection keyword is a substring of a host word, **none is detected
+  on Evo 1 and two are on Evo 2** — `PF01566 Nramp` (13 hits, best 290.4–484.7 bits) and
+  `PF06761 IcmF-related` (7 hits). Every one of those 20 profile-search hits is on an
+  `IMGPR_plasmid_*` record, and A2.4 adds a single `PF06761` prophage hit on the GTDB component.
+  So the substring artefact contributes **2 of 811 detected families on Evo 2 and 0 of 590 on
+  Evo 1**, and not one of their hits lies on the route the filter is about. The artefact now
+  names them per detected set.
+- **One correction to how that is worded.** The route label is reading-dependent: those hits are
+  `out_of_scope` under the charitable and literal readings and `retained_by_design` under the
+  strict one. The reading-independent statement, and the one to publish, is that **no reading of
+  the filter counts them as a failure of it** — not that they are "out of scope", which is true
+  of only two readings in three.
+- **Also found, and it corrects a standing project claim:** A2.1's per-hit `.jsonl` files **do**
+  carry `record_id` per hit — real IMG accessions such as `IMGPR_plasmid_2744054760_000005`. The
+  note that detections are published only as per-family aggregates was taken from the `.json`
+  summaries and is wrong for the `.jsonl` beside them. Coordinates and sequence are still absent,
+  so "show me the matched region" still needs a corpus pass, but "which records matched" is
+  answerable now and the identifiers are public.
