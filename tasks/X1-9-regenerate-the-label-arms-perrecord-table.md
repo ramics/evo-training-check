@@ -2,7 +2,7 @@
 id: X1.9
 title: Regenerate the label arm's per-record table
 phase: X
-status: in-progress
+status: review
 gate: false
 depends_on: [A2.1]
 blocks: []
@@ -88,19 +88,52 @@ was transcribed from. That listing is already in the evidence store, so this pas
 digest from it directly: one less transcription to keep in step, and it works whether or not
 PR #38 has merged.
 
+## Result — 2026-10-22
+
+Ran. The table, both summaries and `run.json` are at `corpora/results/x1-9/`, published from the
+canonical directory. The pass read 1.89 GB in-region in under two minutes and verified the
+publisher's md5 over every byte of it.
+
+**The hand-built pipeline is reproduced, and the number it was built from is confirmed.** X1.8
+records the per-record table as built from "the 19,646 detected Evo 2 accessions"; this pass
+finds 20,208 detected records, of which **19,646** are in the pinned label table. The family
+axis carries **388** hits, which is exactly the figure X1.8 publishes for it. Two independent
+figures landing on the published ones is what makes the rest of this table citable.
+
+**The 562-record gap is the plasmid component, entirely.** It is not records the
+high-confidence subset left out, which is what it looked like before the component column
+existed: every one of the 19,646 detected IMG/VR records is in the label table, and all 562
+absent records are `IMGPR_plasmid_*`. The label table is IMG/VR's, so those records were never
+in it — a different statement from being unlabelled, and the counts keep them apart.
+
+**Two axes, reported separately and never summed:**
+
+| axis | what it counts | records |
+|---|---|---|
+| family | detected records whose detected Pfam family is *named* for a denylisted group | **319** — 314 IMG/VR, 5 IMG/PR |
+| label | detected records the published denylist rule removes on their own IMG/VR label | **31** |
+
+Neither set contains the other. The first is a property of Pfam's curation, the second of the
+record. Of the 314 viral records on the family axis, 97 carry a family label at all and 17 are
+ones the published rule would have removed had it been able to read that label. Across all
+19,646 labelled records, 1,272 carry a family label — 6.5%, consistent with the 6.25% ceiling
+X1.8 records.
+
+**The hand-built 308 is not reproduced and is not treated as a target.** The nearest derived
+figure is 314, the viral records on the family axis. X1.8's own account explains a difference of
+that size: the family list behind the hand-built copy was counted 42, 40 and 33/41 before it was
+regenerated to 41, so the per-record copy predates the rule that settled it. This derivation
+rests on pinned inputs and states its rule; the older figure rests on neither and is superseded
+rather than matched.
+
 ## State — 2026-10-22
 
-`in-progress`, on branch `claude/project-thread-ff52l2` (with A7.5, which consumes the table).
+`review`, on branch `claude/project-thread-ff52l2` (with A7.5, which consumes the IMG/VR list).
 
-The tool and its tests are written and green. The pass itself is ~1.9 GB of in-region reading,
-authorised by the project owner, who asked for this derivation rather than supplying the
-hand-built table.
-
-**One number to expect a disagreement about.** X1.8 records the hand-built table as built from
-"the 19,646 detected Evo 2 accessions". A2.1's published tables carry **20,208** distinct
-detected records on `opengenome2`, identically under all three readings. The difference is most
-likely the records absent from the high-confidence label table, which this pass counts and
-reports rather than absorbs — so the join is also a check on that figure.
+Tool, tests and the published tables are done. What is left is one question for the project
+owner rather than any work: whether the hand-built 308-row table should now be replaced by this
+one wherever the hazard check cites it, which is a decision about the write-up and not about
+this task.
 
 ## Notes
 
