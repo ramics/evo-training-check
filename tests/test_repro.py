@@ -425,6 +425,15 @@ class TestDurability:
 #: the local-only default visible. A legitimately exempt new tool goes here with a reason in
 #: the same commit, so adding one is a deliberate, reviewed act rather than a default.
 EXEMPT_CALL_SITES: set[str] = {
+    # A4.5's background measurement, and the only unconditional exemption here. Its outputs are
+    # a 1,719-row table and its second instrument's raw counts — under a megabyte together —
+    # and they are **committed** to `artifacts/a4-5/`, with a `.gitignore` exception written for
+    # them, because the write-up cites them per figure. A repository the figures ship from is a
+    # more durable home than a bucket for something this small. The session that produced them
+    # is also refused every read on that bucket (403 on `ListBucket` and `HeadObject` alike), so
+    # a `durable=` here would fail the run rather than persist anything. If bucket access
+    # returns, this entry should be revisited rather than kept out of habit.
+    "family_background.py",
     # B4.1's baseline, conditional on `--out` like the others here. `--assay` makes a rehearsal
     # over one assay cheap, and a one-assay table published under the deliverable's key would
     # read exactly like the full 31.
