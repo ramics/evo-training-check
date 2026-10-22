@@ -47,6 +47,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from amazebio import objectstore
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from amazebio.objectstore import REGION, split_uri
@@ -288,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
 
     bucket, _ = split_uri(os.environ["AMAZEBIO_S3_URI"])
     ec2 = boto3.client("ec2", region_name=REGION)
-    s3 = boto3.client("s3", region_name=REGION, endpoint_url="https://s3.us-east-1.amazonaws.com")
+    s3 = objectstore.client()
 
     if args.attach:
         return watch_and_collect(ec2, s3, args.attach, bucket, args, launched_here=False)

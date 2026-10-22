@@ -221,9 +221,10 @@ def main(argv: list[str] | None = None) -> int:
     import boto3
 
     from amazebio import ec2 as ec2mod
+    from amazebio import objectstore
 
     ec2 = boto3.client("ec2", region_name=REGION)
-    s3 = boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
+    s3 = objectstore.client()
     ssm = boto3.client("ssm", region_name=REGION)
 
     commit, dirty = _git_head(root)

@@ -343,13 +343,9 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("need --s3-uri, $AMAZEBIO_S3_URI, or --source")
         bucket, _, prefix = args.s3_uri[5:].partition("/")
         prefix = prefix.strip("/")
-        import boto3
         from botocore.config import Config
 
-        client = boto3.client(
-            "s3",
-            region_name=S3_REGION,
-            endpoint_url=S3_ENDPOINT,
+        client = objectstore.client(
             config=Config(
                 retries={"max_attempts": 10, "mode": "standard"},
                 # Without these a stalled call waits on botocore's defaults and a hung one
@@ -357,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
                 # step that should take under a minute.
                 connect_timeout=15,
                 read_timeout=120,
-            ),
+            )
         )
 
     if shutil.which("mmseqs") is None and not args.skip_search:

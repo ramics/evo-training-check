@@ -34,7 +34,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from amazebio import objectstore, uniref
-from amazebio.repro import ReproError, run
+from amazebio.repro import ReproError, commit_of, run
 
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 S3_REGION = "us-east-1"
@@ -79,6 +79,12 @@ def main(argv: list[str] | None = None) -> int:
         help="put the composition table and manifest back in S3, so a run on a "
         "machine nobody can log into still reports its result",
     )
+    ap.add_argument(
+        "--replace-durable",
+        metavar="REASON",
+        help="publish even though this commit has already published different bytes "
+        "at that key, and say why. Without this a clash is refused before anything is written.",
+    )
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument(
         "--code-commit",
@@ -97,15 +103,9 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("need --s3-uri, $AMAZEBIO_S3_URI, or --source")
         bucket, _, prefix = args.s3_uri[5:].partition("/")
         prefix = prefix.strip("/")
-        import boto3
         from botocore.config import Config
 
-        client = boto3.client(
-            "s3",
-            region_name=S3_REGION,
-            endpoint_url=S3_ENDPOINT,
-            config=Config(retries={"max_attempts": 10, "mode": "standard"}),
-        )
+        client = objectstore.client(config=Config(retries={"max_attempts": 10, "mode": "standard"}))
 
     try:
         return _execute(args, tiers, client, bucket, prefix)
@@ -266,8 +266,15 @@ def _execute(
                 print(f"not uploaded (absent): {path}")
                 continue
             key = f"{prefix}/results/{rel.release}/{role}-{suffix}.json"
-            client.put_object(Bucket=bucket, Key=key, Body=path.read_bytes())
-            print(f"uploaded s3://{bucket}/{key}")
+            written = objectstore.put_once(
+                client,
+                bucket,
+                key,
+                path.read_bytes(),
+                commit=commit_of(manifest),
+                replace=args.replace_durable,
+            )
+            print(f"uploaded {written['stable']}")
 
     return 0 if report["counted_tiers_agree"] else 1
 

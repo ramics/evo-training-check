@@ -532,7 +532,7 @@ def main(argv: list[str] | None = None) -> int:
     import sys
 
     sys.path.insert(0, str(root / "src"))
-    from amazebio import corpora
+    from amazebio import corpora, objectstore
 
     bucket = args.bucket or corpora.BUCKET
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
@@ -540,7 +540,7 @@ def main(argv: list[str] | None = None) -> int:
     prefix = args.prefix or f"{RESULT_PREFIX}/{kind}/{stamp}-{commit[:12]}"
     code_key = f"{prefix}/code.tar.gz"
 
-    s3 = boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
+    s3 = objectstore.client()
     ec2 = boto3.client(
         "ec2", region_name=REGION, endpoint_url=f"https://ec2.{REGION}.amazonaws.com"
     )

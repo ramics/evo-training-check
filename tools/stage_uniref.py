@@ -31,6 +31,7 @@ come from a committed tree.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import sys
@@ -161,23 +162,15 @@ def main(argv: list[str] | None = None) -> int:
         if not args.s3_uri:
             raise SystemExit("--stage needs --s3-uri or $AMAZEBIO_S3_URI")
         bucket, key_prefix = parse_s3_uri(args.s3_uri)
-        try:
-            import boto3
-        except ImportError as exc:  # pragma: no cover - environment problem, not logic.
-            raise SystemExit("--stage needs boto3 installed") from exc
+        if importlib.util.find_spec("boto3") is None:  # pragma: no cover - environment
+            raise SystemExit("--stage needs boto3 installed")
         from botocore.config import Config
 
-        client = boto3.client(
-            "s3",
-            region_name=S3_REGION,
-            endpoint_url=S3_ENDPOINT,
-            # The pool has to cover every uploader across both sinks at once —
-            # the retained archive and the member being extracted — or threads
-            # queue on connections and the concurrency buys nothing.
+        client = objectstore.client(
             config=Config(
                 max_pool_connections=4 * args.concurrency,
                 retries={"max_attempts": 10, "mode": "standard"},
-            ),
+            )
         )
 
     try:

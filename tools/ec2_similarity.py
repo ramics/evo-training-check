@@ -41,6 +41,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from amazebio import objectstore
+
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 REGION = "us-east-1"
 AMI_PARAMETER = "/aws/service/ami-amazon-latest/al2023-ami-kernel-default-x86_64"
@@ -401,7 +403,7 @@ def main(argv: list[str] | None = None) -> int:
 
     import boto3
 
-    s3 = boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
+    s3 = objectstore.client()
     ec2 = boto3.client(
         "ec2", region_name=REGION, endpoint_url=f"https://ec2.{REGION}.amazonaws.com"
     )

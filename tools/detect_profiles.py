@@ -1596,9 +1596,7 @@ def _detection(*, family: str, reg: Registry, row: dict[str, Any], route: Any, t
 
 
 def _client() -> Any:
-    import boto3
-
-    return boto3.client("s3", endpoint_url=corpora.S3_ENDPOINT, region_name=corpora.S3_REGION)
+    return objectstore.client()
 
 
 if __name__ == "__main__":

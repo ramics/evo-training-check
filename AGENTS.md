@@ -443,6 +443,27 @@ print why. `tools/detect_segmented.py`'s `durable_for` is the worked example.
 guarded and four were not. Before closing an incident, grep for every call site with the same
 shape and fix all of them, or say in the decision entry which ones you left and why.
 
+**Never build an S3 client. Call `amazebio.objectstore.client()`.** It pins
+`endpoint_url="https://s3.us-east-1.amazonaws.com"`, and `region_name` alone does not: boto3
+resolves an S3 client with no explicit endpoint to the legacy global hostname `s3.amazonaws.com`,
+which the egress proxy does not inject credentials for, so the request arrives unsigned and comes
+back as a terse `AccessDenied` that looks exactly like a missing IAM grant. Most of a day went on
+that in October, across three wrong theories about the account, and the owner was asked to loosen
+permissions that were already correct. The tell: a real denial names
+`arn:aws:iam::…:user/…`, and a signed-out one names nobody. Pass `config=` for a wider pool or a
+longer retry chain rather than reaching for `boto3.client` to get one.
+`tests/test_objectstore_writes.py` fails the build on a new bare client, so this is enforced
+rather than remembered.
+
+**Publish a result through `repro.run(durable=...)`, or through `objectstore.put_once`.** Not
+`put_object`. The bucket's missing `s3:DeleteObject` is not immutability — `PutObject` on an
+existing key succeeds and the earlier bytes stop being readable, which is D-216. Both paths write
+the stable key and a `by-commit/<commit>/` twin a later run cannot reach, and both refuse before
+writing anything when the same commit has already published different bytes, naming the object
+and both digests. If that fires, something undeclared moved; find it rather than passing
+`replace=`. A raw `put_object` is still right for a code payload or a heartbeat, which are not
+results and are not cited.
+
 ## Reporting to the project owner
 
 Write plainly. Say what a thing is rather than citing a section number — "the model list"

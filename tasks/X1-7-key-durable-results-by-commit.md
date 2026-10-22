@@ -79,11 +79,18 @@ and was re-checked against the live store rather than against the branch:
   commit-keyed copies — which have no seven-day window — remain what a citation relies on.
 - `tools/board.py --check` passes over 75 tasks with 0 problems.
 
-**One residual, taken up separately in this branch rather than left implied.** The guard binds
-`amazebio.repro`'s durable path. Three tools publish results by calling `put_object` directly
-and so get neither the twin nor the clash check: `tools/count_clusters.py`,
-`tools/evo2_accessions.py` and `tools/uniprot_release_count.py`. That is the same defect in a
-path `repro` does not own, and it is fixed here with its own tests.
+**One residual, fixed rather than left implied — D-253.** The guard binds `amazebio.repro`'s
+durable path, and `repro` only guards what goes through `repro`. Three tools published results
+by calling `put_object` directly and so got neither the twin nor the clash check:
+`tools/count_clusters.py`, `tools/evo2_accessions.py` and `tools/uniprot_release_count.py`.
+They now go through `objectstore.put_once`, which `repro` also calls, so there is one write
+path and not two.
+
+The sweep AGENTS.md asks for before closing an incident turned up a second thing while it was
+looking. The regional S3 endpoint — the one whose absence cost most of a day in October — was
+hand-written at 26 call sites, fourteen of which a grep missed because the call spans several
+lines. All 26 now call `objectstore.client()`, and a test walks the source tree and fails the
+build on a twenty-seventh.
 
 ## Notes
 

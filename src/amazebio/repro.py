@@ -76,11 +76,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from amazebio import objectstore
+
 MANIFEST_NAME = "run.json"
 
 #: Where the commit-keyed copy of each durable output sits, under the run's own prefix.
-#: A listing that globs the prefix for results does not see into it. D-216.
-BY_COMMIT = "by-commit"
+#: A listing that globs the prefix for results does not see into it. D-216. Re-exported from
+#: `amazebio.objectstore` rather than spelled twice, so the two write paths cannot drift.
+BY_COMMIT = objectstore.BY_COMMIT
 _CHUNK = 1 << 20
 
 
@@ -362,8 +365,6 @@ def in_test_run() -> bool:
 def _client(uploader: Any) -> Any:
     if uploader is not None:
         return uploader
-    from amazebio import objectstore
-
     return objectstore.client()
 
 
@@ -411,14 +412,7 @@ def durable_keys(manifest: RunManifest, durable: str, path: Path) -> tuple[str, 
 
 def _head(client: Any, bucket: str, key: str) -> dict[str, Any] | None:
     """The object's metadata, or `None` if it is not there. Any other failure is raised."""
-    try:
-        return client.head_object(Bucket=bucket, Key=key)
-    except Exception as exc:  # botocore raises ClientError; this module does not import it
-        code = str(getattr(exc, "response", {}).get("Error", {}).get("Code", ""))
-        status = getattr(exc, "response", {}).get("ResponseMetadata", {}).get("HTTPStatusCode")
-        if code in {"404", "NoSuchKey", "NotFound"} or status == 404:
-            return None
-        raise
+    return objectstore.head(client, bucket, key)
 
 
 def _check_commit_keys(manifest: RunManifest, durable: str, client: Any) -> None:
@@ -468,17 +462,23 @@ def _upload_one(manifest: RunManifest, durable: str, path: Path, client: Any = N
     URI is recorded alongside it so a reader can reach the copy no later run can replace.
     """
     bucket, stable, by_commit = durable_keys(manifest, durable, path)
-    body = path.read_bytes()
-    metadata = {"sha256": hashlib.sha256(body).hexdigest()}
-    commit = commit_of(manifest)
-    if commit:
-        metadata["commit"] = commit
     handle = client or _client(None)
-    handle.put_object(Bucket=bucket, Key=stable, Body=body, Metadata=metadata)
-    uri = f"s3://{bucket}/{stable}"
-    if by_commit is not None:
-        handle.put_object(Bucket=bucket, Key=by_commit, Body=body, Metadata=metadata)
-        manifest.by_commit[str(path)] = f"s3://{bucket}/{by_commit}"
+    # `guard_key=None`: the clash check is `_check_commit_keys`, which has already run over
+    # every output of this run. Re-checking one output at a time here would let a run with
+    # three outputs publish the first two and refuse the third, which is the half-published
+    # state the pre-flight exists to prevent.
+    written = objectstore.put_once(
+        handle,
+        bucket,
+        stable,
+        path.read_bytes(),
+        commit=commit_of(manifest),
+        twin_key=by_commit,
+        guard_key=None,
+    )
+    uri = written["stable"]
+    if "by_commit" in written:
+        manifest.by_commit[str(path)] = written["by_commit"]
     manifest.uploaded[str(path)] = uri
     return uri
 

@@ -26,6 +26,7 @@ or silently truncate a line, and a count over a truncated read is not a count.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import os
 import time
@@ -33,13 +34,18 @@ from collections.abc import Iterator
 from typing import Any
 
 __all__ = [
+    "BY_COMMIT",
     "CORPORA_BUCKET",
     "REGION",
     "S3_ENDPOINT",
+    "ObjectStoreError",
     "S3RandomRead",
     "byte_shards",
     "client",
+    "commit_keyed",
     "durable_results",
+    "head",
+    "put_once",
     "shard_lines",
     "split_uri",
     "stream_lines",
@@ -82,8 +88,14 @@ def durable_results(task: str) -> str:
 CHUNK = 1 << 22
 
 
-def client() -> Any:
-    """An S3 client pinned to the **regional** endpoint. Do not drop `endpoint_url`.
+def client(*, config: Any = None) -> Any:
+    """An S3 client pinned to the **regional** endpoint. The only place one is constructed.
+
+    `config` is passed through for the callers that need a wider connection pool or a longer
+    retry chain — a staging upload with sixteen concurrent parts, say. It exists so that
+    needing a `botocore.config.Config` is not a reason to build a client by hand, which is
+    how the endpoint went missing in the first place. `tests/test_objectstore_writes.py`
+    fails the build if any other module under `src/` or `tools/` constructs one.
 
     `region_name` alone is not enough, and the failure it produces is misleading rather than
     loud. boto3 resolves an S3 client with no explicit endpoint to the legacy global hostname
@@ -97,7 +109,132 @@ def client() -> Any:
     """
     import boto3
 
-    return boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
+    return boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT, config=config)
+
+
+#: The segment that separates a commit-keyed copy from the stable key beside it. Shared with
+#: `amazebio.repro`, which imports it from here, so the two paths cannot drift apart.
+BY_COMMIT = "by-commit"
+
+
+class ObjectStoreError(RuntimeError):
+    """A write was refused, or a read came back as something other than data."""
+
+
+def head(client: Any, bucket: str, key: str) -> dict[str, Any] | None:
+    """The object's metadata, or `None` if it is not there. Any other failure is raised.
+
+    A missing object and a denied one are not the same answer and must not collapse into one:
+    treating a denial as "not there" is how a guard that refuses to overwrite turns into a
+    guard that overwrites whenever it cannot see.
+    """
+    try:
+        return client.head_object(Bucket=bucket, Key=key)
+    except Exception as exc:  # botocore raises ClientError; this module does not import it
+        code = str(getattr(exc, "response", {}).get("Error", {}).get("Code", ""))
+        status = getattr(exc, "response", {}).get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if code in {"404", "NoSuchKey", "NotFound"} or status == 404:
+            return None
+        raise
+
+
+def commit_keyed(key: str, commit: str) -> str:
+    """`a/b/c.json` -> `a/b/by-commit/<commit>/c.json`.
+
+    The twin sits one level in rather than beside its stable copy so that a listing which globs
+    the results prefix does not pick it up — the mistake D-246 made, where the A3.2 merge listed
+    a task's prefix recursively, read the commit-keyed twins as if they were results, and
+    unioned superseded families straight back into the headline.
+
+    `amazebio.repro` anchors the same segment at the run's *durable prefix* instead of at the
+    key's last directory, which is the same key whenever the output sits directly under that
+    prefix and a shallower one when it does not. Both are stable functions of (key, commit),
+    which is the property that matters: a later run at the same commit computes the same twin.
+    """
+    if not commit:
+        raise ValueError("commit_keyed needs a commit")
+    directory, sep, name = key.rpartition("/")
+    if not name:
+        raise ValueError(f"not an object key: {key!r}")
+    return f"{directory}{sep}{BY_COMMIT}/{commit}/{name}" if sep else f"{BY_COMMIT}/{commit}/{name}"
+
+
+#: `guard_key` default: derive the key to protect from `commit`. Distinct from `None`, which
+#: means "protect nothing", so a caller that has already run its own pre-flight can say so.
+DERIVE = "\0derive"
+
+
+def put_once(
+    client: Any,
+    bucket: str,
+    key: str,
+    body: bytes,
+    *,
+    commit: str | None = None,
+    twin_key: str | None = None,
+    guard_key: str | None = DERIVE,
+    replace: str | None = None,
+    metadata: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Publish `body` at `key`, and at a commit-keyed twin a later run cannot reach.
+
+    This is the write path D-216 is about. The corpora bucket has no `s3:DeleteObject`, which
+    reads like immutability and is not: `PutObject` on an existing key succeeds and the previous
+    bytes stop being readable. D-216 found it the ordinary way — one key held a 2,446-byte
+    partial run at 10:42 and the 215,098-byte full run at 12:16, and nothing was lost only
+    because the thing replaced was the worse of the two. That is luck, not a property.
+
+    So two keys. The **stable** key is written every time, because everything that reads a
+    result by name reads it there. The **twin** under `by-commit/<commit>/` is the copy a
+    citation can rely on, since a later run of the same pipeline at a different commit computes
+    a different twin and cannot touch this one.
+
+    **The guard, and why it is on the twin rather than on the stable key.** Overwriting the
+    stable key is the point of the stable key. Overwriting a twin means *the same code produced
+    different bytes*, which is never a re-run — it is an input, an environment or a parameter
+    that moved without being declared. That is refused before anything is uploaded, naming the
+    object and both digests, and `replace='<reason>'` is the only way past it. A caller with no
+    commit has no twin to protect, so the guard falls back to the stable key: a pipeline that
+    cannot say which code it ran is exactly the one that should not be quietly replacing
+    results. Pass `guard_key=None` to protect nothing, which is what `amazebio.repro` does
+    because it runs the same check across a whole run's outputs before uploading any of them.
+
+    `twin_key` overrides where the twin goes, for a caller whose prefix convention is not this
+    function's. `amazebio.repro` passes it: it anchors `by-commit/<commit>/` at the run's
+    durable prefix rather than at the key's last directory, and recomputing the twin here
+    instead would move every existing twin it has already published.
+
+    Returns `{"stable": uri}` and, when there is a commit, `{"by_commit": uri}` beside it.
+    """
+    digest = hashlib.sha256(body).hexdigest()
+    meta = dict(metadata or {})
+    meta["sha256"] = digest
+    if commit:
+        meta["commit"] = commit
+    twin = twin_key if twin_key is not None else (commit_keyed(key, commit) if commit else None)
+
+    if guard_key == DERIVE:
+        guard_key = twin if twin is not None else key
+    if guard_key is not None and replace is None:
+        existing = head(client, bucket, guard_key)
+        published = str((existing or {}).get("Metadata", {}).get("sha256", ""))
+        if published and published != digest:
+            raise ObjectStoreError(
+                f"s3://{bucket}/{guard_key} already holds different bytes, and this bucket "
+                f"cannot delete what it replaces:\n"
+                f"    published {published}\n"
+                f"    now       {digest}\n"
+                "Same key and different bytes means an input or a parameter moved without "
+                "being declared. Find what moved; if the replacement is intended, pass "
+                "replace='<reason>' and say why."
+            )
+
+    client.put_object(Bucket=bucket, Key=key, Body=body, Metadata=meta)
+    written = {"stable": f"s3://{bucket}/{key}"}
+    if twin is not None:
+        client.put_object(Bucket=bucket, Key=twin, Body=body, Metadata=meta)
+        written["by_commit"] = f"s3://{bucket}/{twin}"
+    return written
 
 
 def split_uri(uri: str) -> tuple[str, str]:
