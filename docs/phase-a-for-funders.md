@@ -311,14 +311,18 @@ of anything. No measurement in Phase A speaks to hazard, and none should be read
 
 **Family presence, not genome presence.** The counts are of distinct family identifiers from two
 registries whose membership was fixed before any search: Pfam's selection is by its own family-level
-naming, with `integrase` and `transposase` deliberately excluded because that machinery is shared
-with transposons, and a clan-level selection was rejected after measuring that it would be 6,698
-families of which 6,132 are not viral (D-075). The selection's known blind spot is measured and
-published rather than closed: families named for a virus taxon rather than a viral structure — such
-as `Ebola_NP` — fall outside the keyword rule, and the second registry, whose membership is its own
-curators', is what covers them (D-083). What has *not* been measured is, per detected family,
-whether that family occurs only in viruses. So the established claim is that a viral protein family
-is present, not that a viral genome is.
+naming, against a keyword vocabulary frozen before anything was searched; a clan-level selection was
+rejected after measuring that it would be 6,698 families of which 6,132 are not viral (D-075). Two
+properties of that vocabulary need stating precisely. It omits `integrase` and `transposase`, so
+neither word can by itself admit a family — but a family whose name contains one and which also
+carries another viral word, such as `PF00589 Phage_integrase` on "phage", is in the set, and several
+of the 1,719 name mobile-element machinery this way. And families named for a virus taxon rather
+than a viral structure, such as `Ebola_NP`, fall outside the vocabulary altogether; that gap is
+measured and published rather than closed, with the second registry, whose membership is its own
+curators', covering it (D-083). What has *not* been measured until now is, per detected family,
+whether that family occurs only in viruses; a curated-background measurement is in progress (A4.5)
+and its figures are not in this draft. Until it lands, the established claim is that a viral protein
+family is present, not that a viral genome is.
 
 **No claim that a filter failed to run.** On the one release where it can be checked, the filter's
 output was carried forward exactly.
@@ -345,8 +349,9 @@ retained band parts.
 
 **Per-family specificity.** The limit named in §7 is measurable: for each detected family, count its
 occurrence in curated non-viral reference proteomes and report detections against that background.
-This would convert "viral protein family present" into a quantified statement about how
-virus-specific each detection is. It is new work, not a deeper run of existing work.
+That converts "viral protein family present" into a quantified statement about how virus-specific
+each detection is. It is new work rather than a deeper run of existing work, and it is underway as
+A4.5; this draft will carry its figures once they are published with their artefact.
 
 **Breadth.** The audit runs behind one interface taking a policy, a corpus and a set of detectors,
 against a bundled fixture in one command, so the marginal cost of the next release is staging its
