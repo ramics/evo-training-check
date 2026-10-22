@@ -337,16 +337,22 @@ record is Entebbe bat virus, and the *Picornaviridae* records are a *Hepatovirus
 and one labelled no deeper than the family. Eight of the 31 are labelled only to family, so for
 those the comparison is unanswerable rather than negative.
 
-Under a severity rank fixed before the result was read — a select agent, then a species an authority
-names as human-infecting, then a species the ICTV metadata resource calls `vertebrates`, then any
-other labelled species, then unlabelled — the top tier is empty. One record is a human virus,
-*Gammapapillomavirus 7*, a commensal of skin and oral mucosa whose infections the ICTV chapter
-describes as usually asymptomatic. The most complete record is the flavivirus: labelled Entebbe bat
+Under a severity rank fixed before the result was read — a select agent, then a species an
+authority names as human-infecting, then a species the ICTV metadata resource calls `vertebrates`,
+then any other labelled species, then unlabelled — the top tier is empty. One record is a human
+virus: *Gammapapillomavirus 7* belongs to one of the genera the ICTV Papillomaviridae chapter
+counts among those "containing papillomaviruses that infect humans". The chapter reports that
+healthy skin "harbors a large spectrum of different papillomavirus types belonging to different
+genera" and that "the majority of viral infections are subclinical", and it states that its
+epidemiological and biological data "is primarily available for the viral types belonging to" a
+different genus (ICTV 2026). The most complete record is the flavivirus: labelled Entebbe bat
 virus and hit by all 15 detected *Flaviviridae* families across the whole polyprotein, with scores
-to 737.8 against a threshold of 25.0. There the distant-homolog reading is excluded, since label and
-sequence agree, and what is in the released corpus is a flavivirus genome; Entebbe bat virus was
-isolated from bat tissue in Uganda in 1957, has no known vector, and neither the ICTV nor the
-European Virus Archive records human infection. Eight of the 31 are plant viruses, mostly
+to 737.8 against a threshold of 25.0. There the distant-homolog reading is excluded, since label
+and sequence agree, and what is in the released corpus is a flavivirus genome; Entebbe bat virus
+is a bat-associated flavivirus with no known vector and is not one of the three *Flaviviridae*
+species on the select-agent list, and no human infection is recorded for it in the ICTV and
+European Virus Archive entries retrieved for this work, which are cited by retrieval rather than
+from a stored capture. Eight of the 31 are plant viruses, mostly
 begomoviruses of tomato, potato and okra.
 
 Whether a record bearing a denylisted label in the source database is a conformance failure of the
@@ -510,6 +516,11 @@ EurekAlert (2026) Evo 2 brings artificial intelligence closer to reading and wri
 of life. News release, 20 July 2026, AAAS. https://www.eurekalert.org/news-releases/1136823
 (retrieved 2026-10-22). Quoted for how the release's safeguard is reported, not as evidence about
 the corpus.
+
+ICTV (2026) Papillomaviridae. *ICTV Report*, 10th edition, online chapter.
+https://ictv.global/report/chapter/papillomaviridae/papillomaviridae (retrieved 2026-10-22, CC BY
+4.0). Stored as a capture with its sha256, and the quotations above are machine-verified against it
+(X1.8).
 
 Hyatt D. *et al.* (2010) Prodigal: prokaryotic gene recognition and translation initiation site
 identification. *BMC Bioinformatics* **11**, 119.
