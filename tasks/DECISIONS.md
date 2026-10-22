@@ -10850,3 +10850,38 @@ decision has a threshold or parameter in it, the number goes in the entry.
   sequence set is not established, because establishing it would mean reconstructing an input
   the benchmark does not publish. That is a limitation of the published artefact, recorded here
   so B5 can cite it rather than rediscover it.
+
+### D-249 — B1.2's common test set is nine assays wide, and the two larger checkpoints were never beyond this machine
+
+- **Date:** 2026-10-22
+- **Task:** B1.2 (closing the carry-over it left for B5.2)
+- **What was left.** B1.2's table was honest about its own narrowness: four checkpoints scored,
+  but only **one** assay that every one of them covered. That is enough for the two things the
+  Done-when actually tests — determinism and agreement with a published column, both of which
+  are per-run properties — and not enough for a comparison between models, which needs the same
+  material under each. The earlier reading was that widening it was scoring time rather than new
+  code.
+- **What it cost.** 23 checkpoint-assay pairs, 75 minutes wall, on this container's four cores
+  and nothing rented. The cost model that made it plannable is that masked-marginal scoring
+  scales with **distinct positions × sequence length**, not with variant count: the nine-assay
+  set is 370,227 such units, of which `A0A2Z5U3Z0_9INFA_Wu_2014` alone is 311,880 — 84% of the
+  whole. The eight remaining assays together are a fifth of the one that was already scored, so
+  the set that looked expensive to widen was almost entirely already paid for. A variant-count
+  estimate had put the same work near ten hours and would have sent this to rented hardware.
+- **The correction worth recording.** A first probe at the driver's default batch size was
+  killed on memory for `esm3-sm-open-v1` and ran four times over its predicted time for
+  `esm2_t36_3B_UR50D`, which read as *these checkpoints do not fit a 15 GB machine*. They do.
+  Both had been scored here before at batch sizes recorded in their own run manifests — 1 for
+  `esm3-sm-open-v1`, 2 for `esm2_t36_3B_UR50D` — and at those sizes both completed every assay
+  without incident. The manifests are the only reason this was recoverable: a per-run parameter
+  that a capability claim rests on has to be read from the run that established it, not assumed
+  from the tool's default. The abandoned probe is not in any artefact.
+- **What the widened table says.** 36 runs, every one bitwise identical on a re-score. 27 have a
+  published column and all 27 reproduce it, the lowest agreement 0.9957. The common test set is
+  **9 assays over 4 of the 5 roster checkpoints**; `evo2_7b` remains not run for the reason its
+  roster entry gives — the nucleotide arm needs a published coding sequence for the assay's
+  target and the benchmark publishes protein sequences — which is about what the benchmark
+  publishes and not about this machine.
+- **What this does not settle.** Nine assays is a common set, not a representative one: all nine
+  are viral and five are from one stability study, so it supports a like-for-like comparison and
+  not a general ranking. §B5 should say which of the two it is making.
