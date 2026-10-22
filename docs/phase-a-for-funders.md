@@ -48,9 +48,23 @@ a family with cellular members is easier to find. Counting only families with no
 outside viruses, Evo 1's 597 becomes 310 to 462 and Evo 2's 812 becomes 498 to 667, depending on how
 the unjudgeable families are treated.
 
-One boundary applies throughout. A profile hit establishes membership of a sequence family at that
-family's curated threshold, which is weaker than a statement about function and far weaker than one
-about hazard. Hazard assessment lies outside this work.
+What the detected material is, and what it is not. The bulk of it is bacteriophage structural and
+packaging machinery — tail, capsid, baseplate, terminase, portal, prohead protease — which is what
+IMG/VR, a database of uncultivated viruses assembled from environmental metagenomes, mostly
+contains. A profile hit establishes membership of a sequence family at that family's curated
+threshold, which is weaker than a statement about function and far weaker than one about hazard. No
+hazard assessment was performed and the study was not designed as one, so these results support
+neither a claim that hazardous material survived nor a claim that none did. The finding is about
+process and auditability: the published filter did not do what its description implies.
+
+One pointer deserves recording with its weakness attached. Of the families detected, 40 carry Pfam
+names referring to the virus groups the policy itself denylists — 14 of them *Flaviviridae* domains,
+the rest spanning *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*, *Papillomaviridae*, *Adenoviridae*,
+*Caliciviridae*, *Picornaviridae*, *Retroviridae* and *Geminiviridae* — 9 of them in Evo 1's
+component and all 40 in Evo 2's. That is a cross-reference between family names and the denylist,
+not a taxonomic assignment of the detected records: a name records where Pfam curated the family,
+and whether a given hit is a member of that taxon or a distant homolog in environmental sequence
+requires per-hit inspection this study has not done (§3.5).
 
 ## 1. The claim, and what a search of the corpora returns
 
@@ -305,6 +319,30 @@ corrected by any of this: 597 and 812 stand, and what changes is the sentence th
 The detected sets were compared as sets across the three policy readings, on both releases, and are
 identical.
 
+### 3.5 What the detected families are
+
+Read by name, the detected set is dominated by bacteriophage machinery, which matches the source
+database's composition: over the union of both releases' detected families, 378 carry `phage` in
+their Pfam name or description, 140 name a tail component, 59 a capsid, 39 a baseplate, 21 a
+terminase, 10 a portal and 4 a prohead protease. IMG/VR assembles uncultivated viruses from
+environmental metagenomes, and phages of bacteria are most of what it holds.
+
+Against that background, 40 detected families carry names referring to the groups the policy
+denylists: 14 *Flaviviridae* domains, including the NS1, NS2B, NS3 protease and helicase, NS4A,
+NS4B and NS5 polymerase domains and the capsid, M and E glycoproteins, together with families named
+for *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*, *Papillomaviridae*, *Adenoviridae*,
+*Caliciviridae*, *Picornaviridae*, *Retroviridae* and *Geminiviridae*. Nine appear in Evo 1's
+detected set and all 40 in Evo 2's, at the sampling rates of §3; the two counts are not rates and do
+not rank the releases.
+
+The weakness of that observation is specific, and this project has rejected the same mechanism
+elsewhere. A Pfam family's name records where its curators built it, and matching on names is
+evidence for constructing a list rather than a mechanism for applying one (D-166). A hit on
+`Flavi_NS5` therefore establishes that a protein in the released corpus clears Pfam's curated
+threshold for that family, and leaves open whether the record belongs to a flavivirus or carries a
+distant homolog of a flavivirus domain in environmental sequence. Settling that requires per-hit
+inspection against the registries' own taxonomy, which is new work and is listed in §8.
+
 ## 4. Result 2: the reach of the rules that name organisms
 
 The two denylists key on family and order. IMG/VR labels its records densely at coarse ranks and
@@ -453,6 +491,13 @@ equal-rate pair already supports the cross-registry statements this study makes,
 would raise one bound without enabling a new comparison, and it carries the structural guards a banded
 pass needs: one output directory per release, an identifier-prefix check of every published table
 against the release it describes, and retained band parts.
+
+Taxonomic placement of the detections. §3.5 records 40 detected families whose names refer to
+denylisted virus groups, which name-matching alone cannot turn into a taxonomic claim. The
+measurement that would is a per-hit comparison against the registries' own taxonomy, reporting for
+each such detection whether the record carries a coherent set of that taxon's domains or a single
+distant homolog. It is the most direct answer available to the question a reader asks first, and it
+is new work.
 
 Breadth. The audit runs behind one interface taking a policy, a corpus and a set of detectors, and
 against a bundled fixture in one command, so the marginal cost of the next release is staging its
