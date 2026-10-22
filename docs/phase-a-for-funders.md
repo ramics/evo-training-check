@@ -55,15 +55,12 @@ neither a claim that hazardous material survived nor a claim that none did. A ta
 is in progress and will be reported here at aggregate level only, as a count of records attributable
 to human-pathogen groups with the worst case named at group level. [Pending A4.6: insert the count
 and the named worst case, or the statement that none was established with the ceiling on what the
-method could detect.]
+method could detect.] The nearest pointer available before it is a cross-reference between detected
+family names and the denylist, which is weak for a reason §3.5 states and is kept out of this
+summary.
 
-The nearest available pointer is weak and is reported with its weakness. Matching the denylisted
-family names against each detected family's Pfam identifier and description returns 9 families in
-Evo 1's detected set and 40 in Evo 2's, 14 of them *Flaviviridae* domains and the rest spanning
-nine further denylisted groups; a stricter rule reading identifiers alone returns 33 on Evo 2's set.
-A Pfam name records where the family was curated, so this is a cross-reference to the denylist, not
-a taxonomic assignment of the detected records (§3.5). The finding of this study is about process
-and auditability: the published filter did not do what its description implies.
+The finding of this study is about process and auditability: the published filter did not do what
+its description implies.
 
 ## 1. The claim, and what a search of the corpora returns
 
@@ -204,15 +201,12 @@ evidential burdens, and only the second is an inconsistency finding.
 ### 3.1 Labels and sequence disagree on the same records
 
 A sweep of the categories known to defeat taxonomic filters ran twice over the same records of Evo
-1's component, once on labels and once on sequence (A2.5, D-187, D-190, D-193).
-
-On labels, the component holds zero segmented-virus records. That zero describes the labels, since
-2.6% of records admit a verdict at family rank.
-
-On sequence at 10% depth, the same records carry markers of 7 of 1,285 segmented virus families: 57
-hits in 265,062 records, a family-level share of 0.54% (0.26-1.12%). Five families of the ICTV
-taxonomy are represented, each of them eukaryote-infecting, in a component whose host rule exists to
-remove eukaryote-infecting viruses:
+1's component, once on labels and once on sequence (A2.5, D-187, D-190, D-193). On labels the
+component holds zero segmented-virus records, a zero that describes the labels, since 2.6% of
+records admit a verdict at family rank. On sequence at 10% depth the same records carry markers of 7
+of 1,285 segmented virus families: 57 hits in 265,062 records, a family-level share of 0.54%
+(0.26-1.12%). Five ICTV families are represented, each eukaryote-infecting, in a component whose
+host rule exists to remove eukaryote-infecting viruses:
 
 | RVDB family | records | ICTV family |
 |---|---|---|
