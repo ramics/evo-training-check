@@ -321,6 +321,7 @@ class TestTheTableItWrites:
                 "accession": "PF00001",
                 "profile": "Model_1",
                 "record_id": "r1",
+                "entry": 1,
                 "gene": "gene0",
                 "score": 101.5,
                 "threshold": 25.0,
@@ -342,6 +343,38 @@ class TestTheTableItWrites:
         assert "model_coverage" in header.split("\t")
         assert not any("sequence" in column or "residue" in column for column in extract.COLUMNS)
         assert body.split("\t")[0] == "PF00001"
+
+    def test_the_entry_column_is_what_makes_a_rows_key_unique(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """The released component repeats accessions and the repeats are not identical, so
+        (record_id, accession, gene) is not a key — the first real pass produced two rows
+        sharing it with different scores. `entry` is the occurrence that separates them."""
+        base = {
+            "accession": "PF04848",
+            "profile": "Model_1",
+            "record_id": "IMGVR_X",
+            "gene": "gene6",
+            "threshold": 25.0,
+            "model_coverage": 0.96,
+            "model_length": 120,
+            "hmm_from": 1,
+            "hmm_to": 118,
+            "target_from": 2,
+            "target_to": 160,
+        }
+        rows = [
+            {**base, "entry": 1, "score": 38.0, "identity": 0.2754},
+            {**base, "entry": 2, "score": 34.4, "identity": 0.2},
+        ]
+        path = tmp_path / "regions.tsv"
+        extract.write_table(path, rows)
+        keyed = {(r["record_id"], r["entry"], r["accession"], r["gene"]) for r in rows}
+        assert len(keyed) == 2
+        assert "entry" in extract.COLUMNS
+        assert path.read_text().count("IMGVR_X") == 2
+
+    def test_what_the_entry_column_is_for_travels_in_the_tools_own_output(self) -> None:
+        assert "does not identify an entry" in extract.ENTRY_NOTE
+        assert "fans out" in extract.ENTRY_NOTE
 
     def test_a_none_is_written_as_an_empty_field_rather_than_the_word_none(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
         rows = [{c: None for c in extract.COLUMNS}]

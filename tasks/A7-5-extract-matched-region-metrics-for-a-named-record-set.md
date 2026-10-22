@@ -173,6 +173,7 @@ remains the detection claim; identity and coverage describe the shape of the mat
 | `accession` | Pfam accession — the family id every survival count is keyed on |
 | `profile` | the model's name, which is what a hit comes back under |
 | `record_id` | the IMG/VR accession, from the FASTA header's first token |
+| `entry` | which occurrence of that accession in the staged object this region sits on. **The released component repeats accessions and the repeats are not identical**, so `record_id` alone is not a key — see the finding below |
 | `gene` | gene index on the record, as `call_genes` names it |
 | `score` | bit score of the hit |
 | `threshold` | the profile's curated gathering cutoff, sequence half |
@@ -197,6 +198,35 @@ human summary. `run-regions-<stem>.json` is `repro.run`'s manifest.
 **This table is internal.** It carries record identifiers and coordinates, which under the
 disclosure posture stay with the project owner; what a write-up may carry is the aggregate and a
 worst case named at group level (X3.1).
+
+## A finding the first pass produced: the accession is not a key
+
+The first real pass asked for 314 records and reported **551 found**, which is only possible
+because the released component carries **repeated record identifiers**. The repeats are not
+copies of one record either: two entries sharing one accession were searched against the same
+model at the same gene index and scored **38.0** and **34.4**, with identities 0.275 and 0.200,
+so they carry different proteins.
+
+That broke the output contract rather than just the summary line. A row was keyed on
+(`record_id`, `accession`, `gene`), and one pair of rows in that first table shares that key
+with different numbers in every other column — a reviewer joining on it gets a fan-out, and the
+"382 regions on 314 records" is only true if you know which entry each row sits on.
+
+Three changes, all additive:
+
+- an **`entry`** column: the accession's 1-based order of appearance in the object, so the
+  unique key is (`record_id`, `entry`, `accession`, `gene`). The entry is tagged as the records
+  stream, before their genes are called, and *not* inside `profilesearch.call_genes` — that
+  function names A2.1's proteins and its published rows must not move.
+- **`entries_read`**, `records_repeated` and `entries_per_record_max` beside `records_found`,
+  because reporting the entry count as records found is what produced "551 of 314 requested
+  records found".
+- `ENTRY_NOTE` in the tool's own output, so a reader of the table meets the warning where the
+  table is rather than here.
+
+A7.3 measures repeated accessions in this release as a finding of its own. This task did not set
+out to find them and has no business widening to measure them; what it owes is a table that
+stays checkable in their presence, and a pointer.
 
 ## The write path
 

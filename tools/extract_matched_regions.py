@@ -32,6 +32,7 @@ no residues of any kind (D-103).
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import sys
 import time
@@ -212,6 +213,10 @@ COLUMNS = (
     "accession",
     "profile",
     "record_id",
+    # Which occurrence of that accession in the staged object this region sits on. The released
+    # component repeats accessions and the repeats are not identical, so `record_id` alone does
+    # not identify an entry and a table keyed on it fans out. See `ENTRY_NOTE`.
+    "entry",
     "gene",
     "score",
     "threshold",
@@ -222,6 +227,19 @@ COLUMNS = (
     "hmm_to",
     "target_from",
     "target_to",
+)
+
+#: What the `entry` column is for, carried into the output rather than left in a task file.
+ENTRY_NOTE = (
+    "The released component repeats record identifiers, so an accession does not identify an "
+    "entry: a pass reads more FASTA entries than it has distinct requested accessions, and the "
+    "repeats are not identical — measured 2026-10-22, two entries sharing one accession carried "
+    "different proteins at the same gene index, scoring 38.0 and 34.4 against the same model. "
+    "`entry` is the accession's 1-based order of appearance in the object, so the key that is "
+    "unique is (`record_id`, `entry`, `accession`, `gene`); joining on `record_id` alone fans "
+    "out. `entries_read` against `records_found` is how far apart the two are in this pass. "
+    "A7.3 measures repeated accessions in this release as a finding of its own; this column is "
+    "what keeps this table checkable in their presence."
 )
 
 IDENTITY_DEFINITION = (
@@ -275,9 +293,19 @@ def build(
         )
 
     records, meter = open_records(client, source, wanted)
+    occurrences: Counter[str] = Counter()
     for record in records:
+        # The accession is not unique in this object, so each entry is tagged with its order of
+        # appearance before its genes are called. Tagging here rather than in
+        # `profilesearch.call_genes` keeps A2.1's protein naming — and therefore its published
+        # rows — exactly as they were.
+        occurrences[record.id] += 1
         seen.append(record.id)
-        chunk.append(record)
+        tagged = dataclasses.replace(
+            record,
+            record=dataclasses.replace(record.record, id=f"{record.id}#{occurrences[record.id]}"),
+        )
+        chunk.append(tagged)
         if len(chunk) >= CHUNK_RECORDS:
             flush(chunk)
             chunk = []
@@ -290,11 +318,13 @@ def build(
         if accession is None:  # pragma: no cover - restrict_to makes this unreachable
             raise Refusal(f"hit under profile {row['profile']}, which was not requested")
         identity = row.get("identity")
+        record_id, _, entry = row["record_id"].partition("#")
         table.append(
             {
                 "accession": accession,
                 "profile": row["profile"],
-                "record_id": row["record_id"],
+                "record_id": record_id,
+                "entry": int(entry) if entry.isdigit() else 1,
                 "gene": row["gene"],
                 "score": round(float(row["score"]), 1),
                 "threshold": thresholds.get(row["profile"]),
@@ -307,7 +337,7 @@ def build(
                 "target_to": row.get("target_to"),
             }
         )
-    table.sort(key=lambda r: (r["record_id"], r["accession"], r["gene"]))
+    table.sort(key=lambda r: (r["record_id"], r["entry"], r["accession"], r["gene"]))
 
     return {
         "task": TASK,
@@ -325,7 +355,13 @@ def build(
             "selection": "records named by the caller; no sample, no band (D-099 untouched)",
         },
         "records_requested": len(wanted),
-        "records_found": len(seen),
+        "records_found": len(set(seen)),
+        # Entries, not records: see ENTRY_NOTE. Reporting `len(seen)` as records found is what
+        # made the first run of this pass say "551 of 314 requested records found".
+        "entries_read": len(seen),
+        "records_repeated": sum(1 for n in occurrences.values() if n > 1),
+        "entries_per_record_max": max(occurrences.values(), default=0),
+        "entry_note": ENTRY_NOTE,
         "records_missing": missing,
         "records_without_genes": totals.get("records_without_genes", 0),
         "genes_called": totals.get("genes", 0),
@@ -361,7 +397,14 @@ def summarise(doc: dict[str, Any]) -> str:
         f"A7.5 matched regions — {doc['component']}, {doc['release']}, "
         f"{doc['registry']['id']} {doc['registry']['version']}",
         "",
-        f"{doc['records_found']:,} of {doc['records_requested']:,} requested records found, "
+        f"{doc['records_found']:,} of {doc['records_requested']:,} requested records found"
+        + (
+            f", in {doc['entries_read']:,} FASTA entries — {doc['records_repeated']:,} "
+            f"accessions appear more than once in the staged object (up to "
+            f"{doc['entries_per_record_max']}), and the repeats are not identical"
+            if doc.get("entries_read", 0) > doc.get("records_found", 0)
+            else ""
+        ),
         f"{doc['genes_called']:,} genes called, {doc['profiles_searched']:,} profiles searched",
         f"{doc['regions']:,} matched regions on {doc['records_with_a_region']:,} records "
         f"across {doc['accessions_with_a_region']:,} families",
