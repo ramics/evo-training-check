@@ -48,10 +48,20 @@ about hazard. Hazard assessment lies outside this work.
 
 Evo 1 and Evo 2 state that viral genomes infecting eukaryotic hosts were excluded from their
 training corpora, and both publish those corpora openly (Nguyen et al. 2024, Brixi et al. 2026).
-The exclusion is the safeguard the releases themselves offer alongside open weights, and each paper
-supports it with model behaviour: Evo 2's materials report that the model "is less performant on
-eukaryotic viruses, as intended". That is a claim about what the model learned. The claim this
-study tests is the one underneath it, about what the published corpus contains.
+The exclusion is the safeguard the releases offer alongside open weights, and each paper supports it
+with model behaviour: Evo 2's materials report that the model "is less performant on eukaryotic
+viruses, as intended".
+
+Press coverage reassures the public with the same pairing. Coverage of the release reports that
+"Evo 2 is fully open source, including its model weights, code, and training resources", and that
+"its developers also incorporated safeguards by excluding viruses that infect eukaryotic organisms
+from the training data" (EurekAlert 2026); earlier coverage described the corpus as "carefully
+curated to exclude genomic sequences from viruses that infect eukaryotic hosts", with the purpose
+"to mitigate potential misuse" (Jackson 2025). The safeguard thus travels further than the paper,
+and in a shorter form, where the curation step is reported as accomplished.
+
+Model behaviour is one claim. The claim underneath it, which this study tests, is about what the
+published corpus contains.
 
 A profile search over the surviving records returns hits. At a 1-2% sample, Evo 1's released viral
 component carries at least 597 of 1,719 viral Pfam families and Evo 2's at least 812, and a sweep
@@ -436,6 +446,11 @@ Biotechnology*. doi:[10.1038/s41587-023-01953-y](https://doi.org/10.1038/s41587-
 Eddy S. R. (2011) Accelerated profile HMM searches. *PLoS Computational Biology* **7**(10),
 e1002195. doi:[10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195).
 
+EurekAlert (2026) Evo 2 brings artificial intelligence closer to reading and writing the language
+of life. News release, 20 July 2026, AAAS. https://www.eurekalert.org/news-releases/1136823
+(retrieved 2026-10-22). Quoted for how the release's safeguard is reported, not as evidence about
+the corpus.
+
 Hyatt D. *et al.* (2010) Prodigal: prokaryotic gene recognition and translation initiation site
 identification. *BMC Bioinformatics* **11**, 119.
 doi:[10.1186/1471-2105-11-119](https://doi.org/10.1186/1471-2105-11-119).
@@ -444,6 +459,10 @@ ICTV Virus Metadata Resource, release `VMR_20-190822_MSL37.3`, pinned by sha256 
 issues no DOI for an individual Master Species List or VMR release; recent releases are archived on
 Zenodo, and no persistent identifier was confirmed for this release, so it is cited by release name
 and digest.
+
+Jackson J. (2025) Introducing Evo 2, a predictive and generative genomic AI for all domains of
+life. *Phys.org*, 3 March 2025.
+https://phys.org/news/2025-03-evo-generative-genomic-ai-domains.html (retrieved 2026-10-22).
 
 Larralde M. (2022) Pyrodigal: Python bindings and interface to Prodigal. *Journal of Open Source
 Software* **7**(72), 4296. doi:[10.21105/joss.04296](https://doi.org/10.21105/joss.04296).
