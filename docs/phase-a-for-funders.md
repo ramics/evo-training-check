@@ -1,125 +1,128 @@
 # Auditing a training-data exclusion policy
 
-Draft of 2026-10-22. Internal to the project: `AGENTS.md` holds findings inside the project until
-the responsible-disclosure task (X3.1) has run, and that gate has not opened. Written for a reader
-comfortable with software, statistics and the AI-safety literature, who knows no biology. This
-project's own measurements cite the task and decision identifiers that carry them; those are not
-public.
+Draft of 2026-10-22, internal to the project. `AGENTS.md` holds findings inside the project until
+the responsible-disclosure task (X3.1) has run, and that gate remains closed. Citations of the form
+(Author Year) are listed at the end; identifiers of the form A2.1 and D-075 refer to this project's
+task files and append-only decision log, which are private.
 
 ## Abstract
 
-Two openly released genome models, Evo 1 and Evo 2, state that viral genomes infecting eukaryotic
-hosts were excluded from their training data, and both publish the corpora they were trained on
-[1-4]. We executed that policy against the released artefacts and searched what survived.
+The published release materials of Evo 1 and Evo 2 state that viral genomes infecting eukaryotic
+hosts were excluded from the training corpora, and both releases publish those corpora openly
+(Nguyen et al. 2024, Brixi et al. 2026). This study executes the stated policy against the released
+artefacts and searches the surviving records for the material the policy describes.
 
-Four results. **(1) The rules that name organisms can act on a small fraction of their input.** The
-policy's two denylists key on the family and order ranks of a record's taxonomic lineage; in the
-source database, IMG/VR [5], 6.25% of 15,677,623 records carry a family label and 8.67% carry an
-order label, rising to 7.87% and 8.85% over the population the rules are handed. Evo 1's released
-component carries a family label on 2.62% of records. **(2) The denylists are written as names, and
-names expire.** Of the 31 taxon names the policy lists, three no longer denote what they denoted
-when it was written: *Herpesviridae* became a synonym of *Orthoherpesviridae* in January 2026, so a
-rule naming it removes no herpesvirus and its output does not say so. Measured reach of the list
-fell from 75.83% to 65.17% of the viral taxonomy, decaying at 4.34% per year. **(3) Sequence search
-finds viral protein families in both released corpora**: at least 597 of 1,719 viral Pfam families
-in Evo 1's component and 812 in Evo 2's, both lower bounds from 1-2% samples whose accumulation
-curves have not flattened. In a targeted sweep of Evo 1's component, taxonomic labels report zero
-segmented-virus records while sequence search over the same records finds markers of five
-eukaryote-infecting virus families, one of them named on the policy's own denylist. **(4) The
-artefact that can be audited is not the artefact that was trained on.** Evo 2 publishes its viral
-component in two representations; the one that was trained on matches Evo 1's filtered output
-exactly, while the only one carrying source identifiers holds 304,448 more records, including those
-the policy removes. A filter's output therefore cannot be checked against the filter's own product.
+Four results follow. First, the two rules that name organisms key on the family and order ranks of
+a record's taxonomic lineage, and the source database labels 6.25% of its 15,677,623 records at
+family rank and 8.67% at order rank (Camargo et al. 2023); over the population the rules are handed
+those shares are 7.87% and 8.85%, and Evo 1's released component carries a family label on 2.62% of
+records. Second, the denylists are enumerations of names, and names expire. Three of the 31 names
+have ceased to denote what they denoted when the policy was written, among them *Herpesviridae*,
+which became a synonym of *Orthoherpesviridae* in January 2026, so that a rule naming it now reaches
+no herpesvirus while reporting success; measured reach of the list fell from 75.83% to 65.17% of the
+viral taxonomy, at 4.34% per year. Third, profile search finds at least 597 of 1,719 viral Pfam
+families in Evo 1's component and 812 in Evo 2's, each a lower bound from a 1-2% sample whose
+accumulation curve continues to rise. In a targeted sweep of Evo 1's component the taxonomic labels
+report zero segmented-virus records while profile search over the same records recovers markers of
+five eukaryote-infecting virus families, one of them named on the policy's own denylist. Fourth, Evo
+2 publishes its viral component in two representations: the one that was trained on reproduces Evo
+1's filtered output exactly, while the only one carrying source identifiers holds 304,448 additional
+records, including those the policy removes, so the filter admits audit only against an artefact
+other than its own product.
 
-**How virus-specific are the families?** Measured against the reviewed section of UniProtKB
-(2026_03, 575,748 entries) [12], with a second instrument joining the same families through
-InterPro [13]: of the 1,719 families in the pre-registered universe, 1,265 have no
-curated occurrence outside viruses, 212 do, and 242 are absent from the curated section and so
-cannot be judged. Of the 1,477 that can be judged, 85.6% are virus-only. Sharing is usually thin —
-the median shared family appears in one non-viral organism — and for 15 of the 212 every non-viral
-occurrence is annotated by the curators as integrated viral material, which is a host genome
-carrying the element rather than the family having cellular members. The exception matters: the most
-heavily shared family is also one of the most frequently detected, `PF00589 Phage_integrase`, with
-421 reviewed non-viral entries across 280 organisms against 21 viral. These figures are over the
-whole universe and are **not** weighted by what was detected; detected families are not a random
-draw from the universe, so the restricted figures are outstanding and the universe figures are not a
-substitute for them (A4.5, D-250).
+Specificity of the family universe was measured against the reviewed section of UniProtKB (UniProt
+Consortium 2025), with InterPro as a second instrument (Blum et al. 2025). Of the 1,719 families,
+1,265 occur only in viruses in the curated data, 212 occur outside viruses, and 242 are absent from
+the curated section; of the 1,477 that admit a verdict, 85.6% are virus-only, and the median shared
+family appears in a single non-viral organism. The most heavily shared family is also among the most
+frequently detected, `PF00589 Phage_integrase`, at 421 reviewed non-viral entries across 280
+organisms against 21 viral. These shares describe the universe, and the measurement restricted to
+the detected families remains outstanding.
 
-**One limit bounds every number above.** A profile hit places a protein in a sequence family at that
-family's curated threshold. It is not an assessment of function or hazard, and nothing in this work
-measures whether any detected sequence would do anything harmful.
+One boundary applies throughout. A profile hit establishes membership of a sequence family at that
+family's curated threshold, which is weaker than a statement about function and far weaker than one
+about hazard. Hazard assessment lies outside this work.
 
-## 1. Why the claim is worth checking
+## 1. The claim worth checking
 
-The exclusion paragraph in a model release is load-bearing. It is the basis for describing a
-release as having handled a category of risk at the data layer, and it is cited in arguments about
-whether open weights are safe to publish.
+The exclusion paragraph in a model release carries weight. It supports the description of a release
+as having addressed a category of risk at the data layer, and it is cited in arguments about the
+safety of publishing open weights.
 
-It is also rarely checked, for mundane reasons: the policy is prose, so there is nothing to run;
-the filter's implementation is not released; and the corpora run to millions of records. The Evo
-releases are the best available case because both state a policy and both publish the corpus.
+Verification is rare, for practical reasons. The policy exists as prose, the filter's
+implementation is unpublished, and the corpora run to millions of records. The Evo releases
+are the most tractable case available, because each states a policy and each publishes its corpus.
 
-Their stated procedure, applied to IMG/VR, is five steps: keep only records the database flags as
-high-confidence; keep one representative per viral operational taxonomic unit; keep only records
+Applied to IMG/VR, the stated procedure runs in five steps: retain records the database flags as
+high-confidence; retain one representative per viral operational taxonomic unit; retain records
 whose taxonomic classification has been observed in a prokaryotic host at least twice; remove
-anything assigned to one of 19 named virus families or 12 named orders; remove records assigned no
-realm or no deeper than one of eight named high-level taxa [1,2].
+records assigned to any of 19 named virus families or 12 named orders; and remove records assigned
+no realm, or assigned no deeper than one of eight named high-level taxa (Nguyen et al. 2024, Brixi
+et al. 2026).
+
+Three questions follow from that procedure, and this study answers each: how much of its input can
+the policy act upon, whether the excluded material is detectable in the released corpora, and
+whether the claim can be verified against the artefact the filter produced.
 
 ## 2. Method
 
-### 2.1 The filter reads labels; this audit reads sequence
+### 2.1 Label search and sequence search
 
-Every rule in the published pipeline reads a metadata field attached to a record by the source
-database: a confidence flag, a cluster identifier, a host prediction, a rank in a taxonomic
-lineage. No rule reads the sequence. The filter asks what a record's annotation says it is.
+Each rule in the published pipeline reads a metadata field that the source database attached to a
+record: a confidence flag, a cluster identifier, a host prediction, or a rank in a taxonomic
+lineage. The pipeline therefore asks what a record's annotation declares it to be.
 
-The detection pass reads no labels. It translates each record into protein coding sequence with
-Prodigal in metagenomic mode — the caller IMG/VR's own annotation pipeline uses (`pyrodigal` 3.7.1,
-vendoring Prodigal 2.6.3; D-077) — and searches those proteins with profile hidden Markov models
-[6-8] against two version-pinned registries: Pfam 38.2, from which a frozen keyword rule selects
-1,719 viral families of 30,134 [9], and RVDB-prot v32.0, 13,679 families [10].
+The detection pass works from sequence alone. Records are translated into protein coding sequence
+with Prodigal in metagenomic mode, the gene caller IMG/VR's own annotation pipeline uses (Hyatt et
+al. 2010, Larralde 2022, D-077), and the resulting proteins are searched with profile hidden Markov
+models (Eddy 2011) against two version-pinned registries: Pfam 38.2, from which a frozen keyword
+rule selects 1,719 viral families of 30,134 (Paysan-Lafosse et al. 2025, D-075), and RVDB-prot
+v32.0, with 13,679 families (Bigot et al. 2019).
 
-The two instruments are independent, which is what makes the audit possible: a record carrying no
-family label is invisible to the filter's family rule and fully visible to a profile search.
+The independence of the two instruments is what makes the audit possible. A record carrying no
+family label falls outside the reach of the filter's family rule while remaining fully visible to a
+profile search.
 
-### 2.2 Thresholds, fixed before any result was seen
+### 2.2 Thresholds
 
-Pfam's own per-family gathering cutoffs are used as published. RVDB-prot uses its publisher's rule,
-E ≤ 1e-5, evaluated against a pinned database size. The pinning matters: a sequence E-value scales
-with the number of targets searched, so a fixed E-value cutoff corresponds to different bit scores
-on a sample and on a whole corpus, and a headline built on one would move with how much corpus a
-run happened to read (D-076).
+Pfam's per-family gathering cutoffs are used as published, and RVDB-prot uses its publisher's rule
+of E ≤ 1e-5 evaluated against a pinned database size. The pinning matters: a sequence E-value scales
+with the number of targets searched, so one E-value cutoff implies different bit scores on a sample
+and on a whole corpus, and a headline built that way would drift with the volume of corpus a run
+happened to read (D-076). Thresholds were recorded before any hit was inspected.
 
 ### 2.3 Sampling
 
-Sample membership is a deterministic function of the record identifier and a pinned seed —
-`blake2b(key=seed, record_id)` below `rate · 2⁶⁴`, seed 20261015 — fixed before any search ran
-(D-078). Samples at different rates are therefore nested: a deeper pass contains the shallower one,
-and the two compare directly. Every count from a sampled pass is a lower bound, because a family is
-counted only when a sampled record carried it.
+Sample membership is a deterministic function of the record identifier and a pinned seed:
+`blake2b(key=seed, record_id)` below `rate · 2⁶⁴`, seed 20261015, fixed before the first search
+(D-078). Two properties follow. Samples at successive rates nest, so a deeper pass extends the
+shallower one and the two compare directly. And each count is a lower bound, since a family enters
+the count only when a sampled record carried it.
 
-A full census is affordable and has not been bought. The current measured cost is about 3,000
-core-hours for both releases against both registries, tens of dollars at spot prices (D-098, which
-supersedes an earlier estimate thirty times too high).
+A full census costs about 3,000 core-hours across both releases and both registries, tens of dollars
+at spot prices, and remains unpurchased (D-098, which supersedes an earlier estimate thirty times
+too high).
 
-### 2.4 Second route, and verification
+### 2.4 Second detection route
 
-A second detection route covers material integrated into bacterial genomes, which the policy does
-not address: a whole-document search of both papers finds no mention of proviruses, endogenous
-elements or integrated viruses as a curation concern. Candidate regions are called with geNomad
-[11] and then searched with the same profiles.
+A second route covers material integrated into bacterial genomes, a case the policy leaves
+unaddressed: a whole-document search of both papers returns no occurrence of prophage, provirus,
+endogenous or integrated element in a data-curation context. Candidate integrated regions are called
+with geNomad (Camargo et al. 2024) and searched with the same profiles.
 
-Each policy is executed in three readings — literal, charitable and strict — and the spread is
-reported rather than resolved by choice; on these corpora the three agree exactly (D-221). Records
-whose verdict depends on a field the release does not carry are recorded as `unresolved` and never
-counted as retained. Headline counts are reproduced by a second implementation written without
-reading the first, from primitive detection rows rather than aggregates, with denominators rebuilt
-from the pinned registry files: 334 numbers across 16 groups, every headline figure identical
-(A3.3, D-215). Where a measurement depends on parsing an external reference, a second instrument
-joining through a different source is used rather than a second run of the same code: re-running a
-pass from its pins reproduces a parse error faithfully, and an independent join does not. The
-specificity measurement below is reported this way, with both instruments agreeing on all 1,719
-families.
+### 2.5 Verification
+
+Each policy executes in three readings — literal, charitable and strict — and the spread between
+them is reported as a result; on these corpora the three readings agree exactly
+(D-221). A record whose verdict depends on a field the release omits is recorded as `unresolved`,
+which is held apart from retention throughout.
+
+Headline counts are reproduced by a second implementation written without reading the first, from
+primitive detection rows rather than aggregates, with denominators rebuilt from the pinned registry
+files: 334 numbers across 16 reported groups, every headline figure identical (A3.3, D-215). Where a
+measurement depends on parsing an external reference, agreement is sought from a second instrument
+joining through a different source, since a re-run reproduces a parse error faithfully while an
+independent join exposes it.
 
 ## 3. Result 1: the reach of the rules that name organisms
 
@@ -130,126 +133,128 @@ sparsely at those two. Across all 15,677,623 records of v4.1:
 |---|---|---|
 | realm | 15,157,100 | 96.68% |
 | class | 14,965,115 | 95.46% |
-| **order** | 1,359,211 | **8.67%** |
-| **family** | 979,864 | **6.25%** |
+| order | 1,359,211 | 8.67% |
+| family | 979,864 | 6.25% |
 | genus | 32,729 | 0.21% |
 
-Over the population the denylists are handed — after the confidence gate, which keeps 5,576,197
-records — the figures are 7.87% at family and 8.85% at order. The host-association rule reads a
-different field, can be evaluated on 13.71% of that population, and removes the rest for lacking
-evidence rather than for failing the test (A4.1, D-081).
+Over the population the denylists are handed, after the confidence gate retains 5,576,197 records,
+the shares are 7.87% at family and 8.85% at order. The host-association rule reads a different field,
+admits evaluation on 13.71% of that population, and removes the remainder for want of evidence
+(A4.1, D-081).
 
-Three clarifications, each of which would otherwise be read into the table wrongly.
+Three clarifications keep the table from being read too widely. Labels are present at some rank for
+96.71% of records, so the database is well annotated and annotated at ranks the policy's names leave
+unused. The pipeline's final rule reads coarse ranks and removes 599,507 records, 3.82% of the
+release, for having no realm or terminating at one of eight named high-level taxa; it names no
+hazardous organism, and it forms part of the pipeline's reach. And the rank tallies come from two
+unrelated implementations, each re-reading the publisher's primary table, which agree on all eight
+ranks and on the record total (D-082); they also survive the database's own v4-to-v4.1 erratum,
+which moves 1,300 records at family rank and the family share from 6.24% to 6.25%.
 
-Only 3.29% of records carry no label at all. The database is well annotated; it is annotated at
-ranks the policy's names do not use.
-
-The pipeline's last rule reads coarse ranks and removes 599,507 records (3.82%) for having no realm
-or stopping at one of eight named high-level taxa. It names no hazardous organism, but it is part of
-the pipeline's reach and is reported with the ceiling.
-
-The rank tallies were produced twice, by unrelated implementations re-reading the publisher's
-primary table, and agree on all eight ranks and on the record total (D-082). They are robust to the
-database's own v4-to-v4.1 erratum, which moves 1,300 records at family rank and the family share
-from 6.24% to 6.25%.
-
-Finally, the released corpora are less well labelled than the population they were drawn from:
+The released corpora are labelled more sparsely than the population they were drawn from:
 
 | component | records | family-labelled |
 |---|---|---|
 | IMG/VR v4.1, after the confidence gate | 5,576,197 | 7.87% |
-| Evo 1's released viral component | 2,653,047 | **2.62%** |
+| Evo 1's released viral component | 2,653,047 | 2.62% |
 | Evo 2's released viral component (recovered by join) | 2,917,521 | 7.02% |
 
-The direction is what the rules predict: a keep-list built on prokaryotic host association retains
-shallowly-labelled material. Attributing the shift by route is a separate measurement.
+The direction follows from the rules, since a keep-list built on prokaryotic host association retains
+the shallowly-labelled material. Attribution of the shift by route belongs to a separate
+measurement.
 
-## 4. Result 2: the denylists are lists of names, and names expire
+## 4. Result 2: a denylist of names ages
 
-A rule that names a taxon inherits the reference taxonomy's revisions. Replaying the policy's 31
-names against NCBI Taxonomy releases [14] from its own vintage to 2026-10 (A9.1, D-201, D-202):
+A rule that names a taxon inherits every subsequent revision of the reference taxonomy. Replaying
+the 31 names against quarterly NCBI Taxonomy releases from 2020-01 to 2026-10, with the baseline at
+2023-04 (Schoch et al. 2020, A9.1, D-201, D-202), gives four findings.
 
-- *Herpesviridae* became a synonym of *Orthoherpesviridae* in January 2026. A rule naming
-  *Herpesviridae* as a family scientific name now removes no herpesvirus, and its output records no
-  failure. Two further names have failed the same way.
-- *Reoviridae* is already not a family name in the taxonomy release this project pinned — decay at
-  time zero, before any replay.
-- Measured reach of the list falls from 75.83% to 65.17% over the window, at 4.34% of the viral
-  taxonomy per year. New unnamed taxa (44,261) dominate the loss; renames (787), renumberings (890)
-  and re-ranks (7,723) are counted separately and never summed.
-- The slope is the same either side of the filter's vintage, so this is a property of specifying a
-  filter as a list of names, not a criticism of one list.
+Three names have ceased to resolve. *Herpesviridae* became a synonym of *Orthoherpesviridae* in
+January 2026, so a rule naming *Herpesviridae* as a family scientific name reaches no herpesvirus
+and reports success while doing so; *Orthopolintovirales* failed the same way in the same release;
+and *Reoviridae* had already ceased to be a family name in the taxonomy release this project pinned,
+making it decay present at time zero.
 
-A static name list and a computed rule decay differently: asked of each release, descent from an
-ICTV realm covers 96.57% at the baseline and 88.47% in 2026-10, a relative decline of 8.39% against
-the name list's 14.06%. The computed rule ages more slowly and is not immune, and what it declines
-to is the taxonomy's own incompleteness: 11.5% of viral taxa at 2026-10 descend from no realm.
+Reach falls from 75.83% to 65.17% across the window, at 4.34% of the viral taxonomy per year. New
+material dominates that loss: 44,261 viral taxa present at 2026-10 are absent from the baseline,
+unreachable from it through NCBI's merge records, and named by nothing in the list, which is 15.18%
+of the current viral taxonomy. Churn is smaller and is counted separately: 787 renamed, 890
+renumbered, 7,723 re-ranked.
 
-### 4.1 Why not simply update the names?
+A computed rule ages more slowly. Descent from an ICTV realm, asked of each release, covers 96.57%
+at the baseline and 88.47% at 2026-10, a relative decline of 8.39% against the name list's 14.06%.
+Its floor is the taxonomy's own completeness, since 11.5% of viral taxa at 2026-10 descend from no
+realm.
 
-Because it would fix little and measure the wrong object. Three points, in order of weight.
+The slope is equal either side of the filter's own vintage, so the finding concerns the practice of
+specifying a filter as an enumeration of names, and applies to any such list.
 
-Renaming is not what drives the loss. Of the gap at 2026-10, 44,261 viral taxa — 15.18% of the
-viral taxonomy — are new material the baseline did not contain, are not reachable from it through
-NCBI's merge records, and no frozen name reaches. Against that, 787 taxa were renamed, 890
-renumbered and 7,723 re-ranked. Resolving every synonym restores three names; it does not reach any
-of the 44,261. The two quantities are reported separately and never summed, because a rename that
-moves no sequence is not decay.
+### 4.1 Why the renames were left unresolved
 
-Resolving a synonym can silently change a rule's scope. *Reoviridae* survives in the pinned
-taxonomy only as a synonym of *Reovirales*, which is an order, not a family. Following that synonym
-would convert a family rule into an order rule — on the corpus used for the cross-filter
-comparison, 90,530 additional records at 90% identity. That is auditing a stricter filter than the
-one published. What the looser reading would have reached is recorded as a separate quantity
-(`loose_only_members`) and never folded into a result (D-199).
+Three reasons, in order of weight.
 
-Where the literal reading measures vocabulary rather than the filter, the audit does substitute, and
-says so. The specificity rule declares `require_rank: realm`, a rank NCBI has never used; run
-literally it finds no realm on any record and removes the entire viral corpus, which is a unit
-mismatch reported as a filter result. It is therefore resolved to descent from one of the six ICTV
-realms, and the substitution travels in the artefact's `name_resolution` field. The distinction is
-between patching a rule that cannot execute and patching one that executes and fails.
+Resolution would recover little. Of the gap at 2026-10, renaming accounts for 787 taxa against
+44,261 that no name reaches, so resolving every synonym restores three names and reaches none of the
+new material.
 
-The implication for a filter's author is the opposite of defeatism: a rule that resolves taxa
-through the reference's own synonym and merge records, pinned to a dated release and re-validated on
-a stated interval, degrades more slowly and degrades visibly. At the observed 4.34% per year,
-holding unnamed new material below 1% requires re-validation about every 0.2 years. None of the
-policy statements this project transcribed names an interval at which its list is re-checked. The
-disclosure standard that came out of this work asks, in item C1, that annotation sources be cited as
-dated releases with digests rather than as version strings; this result argues for a companion item
-requiring a stated re-validation interval for any rule written as a list of names.
+Resolution can enlarge a rule silently. *Reoviridae* survives in the pinned taxonomy as a synonym of
+*Reovirales*, an order rather than a family, so following that synonym converts a family rule into
+an order rule: on the corpus used for the cross-filter comparison, an additional 90,530 records at
+90% identity. The looser reading is computed as a separate quantity, `loose_only_members`, and is
+held out of every result (D-199).
 
-## 5. Result 3: what the released corpora contain, by sequence
+Where a literal reading measures vocabulary rather than the filter, the audit does substitute and
+declares it. The specificity rule declares `require_rank: realm`, a rank NCBI has never used; run
+literally it finds a realm on no record and removes the whole viral corpus, reporting a unit
+mismatch as a filter result. It is therefore resolved to descent from one of the six ICTV realms,
+and the substitution travels in the artefact's `name_resolution` field. The line held is between a
+rule that cannot execute, which the audit repairs and declares, and a rule that executes and fails,
+which the audit reports.
+
+The constructive reading is that durability is achievable. A rule that resolves taxa through the
+reference's own synonym and merge records, pinned to a dated release and re-validated on a stated
+interval, ages more slowly and ages visibly. At 4.34% per year, holding unnamed new material below
+1% requires re-validation about every 0.2 years. The disclosure standard arising from this work asks
+in item C1 for annotation sources cited as dated releases with digests; this result argues for a
+companion item requiring a stated re-validation interval wherever a rule is written as a list of
+names.
+
+## 5. Result 3: the contents of the released corpora
 
 | release | records searched | viral Pfam families detected, of 1,719 |
 |---|---|---|
-| Evo 1 (`opengenome`) | 53,140 of 2,653,047 (2%) | **597** (34.7%) |
-| Evo 2 (`opengenome2`) | 30,859 (1%) | **812** (47.2%) |
+| Evo 1 (`opengenome`) | 53,140 of 2,653,047 (2%) | 597 (34.7%) |
+| Evo 2 (`opengenome2`) | 30,859 (1%) | 812 (47.2%) |
 
-The profile route accounts for 590 and 811; the rest come from the integrated-element route, which
-over 375 and 300 sampled bacterial genomes found 128 and 178 integrated regions carrying 203 and 251
-viral families (A2.1, A2.4, A3.2, D-245, D-246).
+The profile route accounts for 590 and 811 of those families. The remainder arrive by the integrated
+route, which over 375 and 300 sampled bacterial genomes called 128 and 178 integrated regions
+carrying 203 and 251 viral families between them (A2.1, A2.4, A3.2, D-245, D-246).
 
-Both counts are lower bounds, and the sampling has not saturated: deepening tenfold took Evo 1 from
-470 families to 590 and Evo 2 from 492 to 811, with the accumulation curve still rising by 9% and
-18% on the last doubling of records searched. The two releases are not comparable as rates — Evo 2
-reaches 812 while sampled at a tenth of Evo 1's rate — and the first corpus is a deduplicated
-subset of the same source database, which is the documented reason the second is richer per unit of
-sequence.
+Both counts are lower bounds, and the sampling continues to yield. A tenfold deepening took Evo 1
+from 470 families to 590 and Evo 2 from 492 to 811, with the accumulation curve rising by 9% and 18%
+on the last doubling of records searched. The two releases stand at different sampling rates, Evo 2
+reaching 812 families at a tenth of Evo 1's rate, so this table ranks neither release against the
+other; Evo 1's corpus is a deduplicated subset of the same source database, which accounts for the
+second corpus being richer per unit of sequence.
 
-### 5.1 The two instruments disagree, and the disagreement is the result
+A stricter question is kept separate. Of Evo 1's 2,653,047 records, 95 survive a rule the release's
+own metadata suffices to evaluate, all of them through a single clause about unassigned
+classification (A7.1). Presence in a corpus and demonstrable non-conformance with a written policy
+are distinct claims carrying different evidential burdens, and only the second is an inconsistency
+finding. It is small, and the smallness is part of the result.
 
-A targeted sweep of categories known to defeat taxonomic filters was run twice over the same
-records of Evo 1's component: once reading labels, once reading sequence (A2.5, D-187, D-190,
-D-193).
+### 5.1 The two instruments disagree, and the disagreement is the finding
 
-Reading labels, the component contains **no** segmented-virus records. That zero is a statement
-about labels: only 2.6% of records are decidable at family rank.
+A sweep of the categories known to defeat taxonomic filters ran twice over the same records of Evo
+1's component, once on labels and once on sequence (A2.5, D-187, D-190, D-193).
 
-Reading sequence at 10% depth, the same records carry markers of **7 of 1,285 segmented virus
-families** — 57 hits in 265,062 records, 0.54% of families (0.26-1.12%). Five distinct families of
-the ICTV taxonomy [15] are represented, and every one infects eukaryotes, in a component whose host rule exists to remove
-eukaryote-infecting viruses:
+On labels, the component holds zero segmented-virus records. That zero describes the labels, since
+2.6% of records admit a verdict at family rank.
+
+On sequence at 10% depth, the same records carry markers of 7 of 1,285 segmented virus families: 57
+hits in 265,062 records, a family-level share of 0.54% (0.26-1.12%). Five families of the ICTV
+taxonomy are represented, each of them eukaryote-infecting, in a component whose host rule exists to
+remove eukaryote-infecting viruses:
 
 | RVDB family | records | ICTV family |
 |---|---|---|
@@ -262,196 +267,202 @@ eukaryote-infecting viruses:
 | FAM033562 | 1 | Spinareoviridae (*Orthoreovirus*) |
 
 *Geminiviridae* is one of the 19 families the policy denylists. *Spinareoviridae* is a successor of
-*Reoviridae*, which the policy also denylists and which the pinned taxonomy no longer carries — the
-two results meeting in one row.
+*Reoviridae*, which the policy also denylists and which the pinned taxonomy no longer carries, so
+the two results meet in a single row.
 
-Three features distinguish this from a threshold artefact: FAM000422 appears in all four bands, and
-the bands are disjoint hash samples; three independently built RVDB families converge on
-*Orthoreovirus*; and every hit cleared 50% model coverage in addition to E ≤ 1e-5, on models up to
-310 residues. Two of the seven rest on short models — FAM033562 (83 residues, 7 sequences) and
-FAM022414 (66 residues, 8) — and are the weakest of the set. The seven are not equivalent findings
-and are not quoted as such.
+Three features separate this from a threshold artefact: FAM000422 appears in all four bands, and the
+bands are disjoint hash samples; three independently built RVDB families converge on *Orthoreovirus*;
+and every hit cleared 50% model coverage in addition to E ≤ 1e-5, on models as long as 310 residues.
+Two of the seven rest on short models, FAM033562 at 83 residues over 7 sequences and FAM022414 at 66
+residues over 8, and rank as the weakest of the set. The seven differ in strength and are reported
+individually for that reason.
 
-What this does not assert is a conformance failure. Evo 2's records ship without taxonomy, so no
-published rule can be decided on them, and the project reserves the conformance claim for
-record-level evidence (A7.1). The strictest such check finds 95 records of 2,653,047 surviving a
-rule the release's own metadata suffices to evaluate, all through one clause about unassigned
-classification.
+Conformance is left open here. Evo 2's records ship without taxonomy, so no published rule admits a
+verdict on them, and the conformance claim is reserved for record-level evidence under A7.1.
 
-### 5.2 Cross-registry statements use an equal-rate pair
+### 5.2 Cross-registry comparison at equal rate
 
-The second registry is measured at a tenth the depth of the first, so comparisons between
-registries are read from an equal-rate pair, published as its own artefact
-(`corpora/results/a3-2/equal-rate-pair`, commit `238313f`):
+The second registry stands at a tenth the depth of the first, so comparisons between registries are
+read from an equal-rate pair, published as its own artefact (`corpora/results/a3-2/equal-rate-pair`,
+commit `238313f`):
 
 | release | rate | Pfam viral, of 1,719 | RVDB-prot, of 13,679 |
 |---|---|---|---|
 | Evo 1 (`opengenome`) | 0.002 | 470 = 27.34% [25.29, 29.50] | 572 = 4.18% [3.86, 4.53] |
 | Evo 2 (`opengenome2`) | 0.001 | 492 = 28.62% [26.53, 30.80] | 1,456 = 10.64% [10.14, 11.17] |
 
-Intervals are 95%. Both columns are the profile route alone, the only equal-rate pairing available,
-since the integrated-element route sampled at a third rate. Equal sampling establishes one thing:
-the gap between registries is not an artefact of depth. The two define a family differently and
-their denominators differ eightfold, so neither column ranks one registry's families against the
-other's, and no share from either is quoted without its denominator (D-161, D-247).
+Intervals are 95%. Both columns report the profile route alone, the one available equal-rate
+pairing, since the integrated route sampled at a third rate. Equal sampling establishes a single
+point: depth does not account for the gap between the registries. The two registries define a family
+differently and their denominators differ eightfold, so each column stands alone, and every share
+from either carries its denominator in the same sentence (D-161, D-247).
 
-## 6. Result 4: the auditable artefact is not the trained artefact
+### 5.3 Specificity of the family universe
 
-Evo 2's released viral component is published twice, in two file formats. The arithmetic between
-them suggested that 264,570 records the procedure removes had reached the training data. Both
+The pinned universe was measured against the reviewed section of UniProtKB at release 2026_03,
+575,748 entries read against the release notes' published 575,748, with InterPro joining the same
+families as a second instrument; the two agree on all 1,719 families (A4.5, D-250).
+
+| class | families | share |
+|---|---|---|
+| virus-only in the curated data | 1,265 | 73.6% |
+| occurring outside viruses | 212 | 12.3% |
+| absent from the curated section | 242 | 14.1% |
+
+Of the 1,477 families the curated section can judge, 85.6% occur only in viruses. Sharing is
+generally thin: the median shared family appears in one non-viral organism, and for 15 of the 212
+every non-viral occurrence carries the curators' annotation as integrated viral material, which
+describes a host genome holding the element rather than a family with cellular members.
+
+The measurement also audits the denominator it is taken against. The selection vocabulary matches
+substrings, so "macrophage" matches "phage", and 7 of the 1,719 families entered the universe on
+that basis alone, each of them a cellular host protein; 113 families have curated cellular entries
+and no curated viral entry. A cellular family in the denominator contributes a near-certain zero, so
+the denominator is conservative, and the pre-registered 1,719 therefore stands uncorrected: on a
+universe of 1,712, Evo 1's profile-route share would read 34.46% rather than 34.32%.
+
+Two properties bound what the measurement licenses. A family absent from the curated section is
+recorded as unmeasurable and never as virus-only, which is why 242 families are set aside rather
+than counted favourably. And an occurrence outside viruses is weaker evidence than independent
+cellular ancestry, because host genomes carry integrated viral material and such an entry is
+annotated to the host.
+
+The figures describe the universe. Detected families are drawn from it unevenly, since an abundant
+family is likelier to be found, so the restricted measurement over the detected set is outstanding
+and the universe shares stand in for it poorly. The relevant exception is already visible:
+`PF00589 Phage_integrase` is the most heavily shared family in the set, at 421 reviewed non-viral
+entries across 280 organisms against 21 viral, and it is also among the most frequently detected.
+
+## 6. Result 4: the auditable artefact and the trained artefact differ
+
+Evo 2's released viral component appears twice, in two file formats. The arithmetic between them
+suggested that 264,570 records removed by the procedure had reached the training data, so both
 representations were counted twice, the second time by newline counting and byte arithmetic that
-never decodes or parses the content.
+decodes and parses nothing.
 
-That suggestion is wrong, and the correct reading matters more. The representation that was trained
-on matches Evo 1's released filtered output exactly — to the record and to the nucleotide, zero on
-both deltas — so the filter's output was carried forward unchanged. The other representation, the
-only one carrying source identifiers and hence the only one a filter can be checked against, holds
-**304,448 more records** and 2.64 billion more nucleotides, including those the procedure removes
-(A7.3, A7.4).
+The suggestion proves false, and the correct reading carries further. The representation that was
+trained on reproduces Evo 1's released filtered output exactly, to the record and to the nucleotide,
+with both deltas at zero, so the filter's output passed forward unchanged. The other representation,
+the only one carrying source identifiers and therefore the only one a filter can be checked against,
+holds 304,448 additional records and 2.64 billion additional nucleotides, including those the
+procedure removes (A7.3, A7.4).
 
-The consequence is structural rather than an accusation: two representations of one component is an
-ordinary engineering convenience, and nothing in the data speaks to intent. But the filter cannot be
-verified against its own product. The remedy is cheap — publish the filtered artefact in the
-representation that carries identifiers, or publish the removal list — and it is item one of a
-fourteen-item disclosure standard, each item of which exists because a specific audit obstacle
-produced it (X5.1).
+The consequence is structural. Publishing one component in two representations is ordinary
+engineering practice, the data speaks to intent in no way, and the effect is that verification must
+run against an artefact other than the filter's product. The remedy is inexpensive: publish the
+filtered artefact in the representation carrying identifiers, or publish the removal list. It is the
+first of fourteen items in a disclosure standard whose every item arose from a specific audit
+obstacle (X5.1).
 
-One nearby number does not survive inspection and is worth recording because it would otherwise be
-repeated: 39,974 apparently repeated accessions are 39,974 surplus FASTA headers on 1,775 large
-genomes published in contigs, with zero surplus records (D-225).
+One adjacent figure dissolves on inspection and is recorded to stop its repetition: 39,974
+apparently repeated accessions are 39,974 surplus FASTA headers on 1,775 large genomes published in
+contigs, with surplus records at zero (D-225).
 
-## 7. What this work does not establish
+## 7. Scope of the claims
 
-**No hazard assessment.** A profile hit places a protein in a sequence family at that family's
-curated threshold. It says nothing about whether the sequence is functional, complete, or capable
-of anything. No measurement in Phase A speaks to hazard, and none should be read that way.
+A profile hit establishes membership of a sequence family at that family's curated threshold.
+Function, completeness and capability lie beyond it, and hazard assessment lies outside this work
+altogether. The counts therefore establish the presence of viral protein families; presence of a
+viral genome is a stronger claim, and §5.3 bounds how far the evidence carries toward it.
 
-**Family presence, not genome presence.** The counts are of distinct family identifiers from two
-registries whose membership was fixed before any search: Pfam's selection is by its own family-level
-naming, against a keyword vocabulary frozen before anything was searched; a clan-level selection was
-rejected after measuring that it would be 6,698 families of which 6,132 are not viral (D-075). Three
-properties of that vocabulary need stating precisely, and all three are measured rather than
-asserted.
+On the one release where the question can be settled, the filter's output passed forward exactly, so
+these results describe auditability and reach. Every sampled count is a lower bound. The nucleotide
+work covers two releases of one model family, and the protein-model arm is a policy comparison over
+a staged proxy corpus.
 
-It omits `integrase` and `transposase`, so neither word can by itself admit a family — but a family
-whose name contains one and also carries another viral word, such as `PF00589 Phage_integrase` on
-"phage", is in the set, and several of the 1,719 name mobile-element machinery this way.
-
-It matches substrings without word boundaries, so "macrophage" matches "phage" and a handful of
-cellular host families entered the universe on that alone; "coat protein" admits a plant pollen coat
-protein the same way. The direction this cuts is the opposite of the one that would favour the
-result: a cellular family in the denominator contributes a near-certain zero, so it makes the
-survival fraction slightly conservative rather than inflated. The denominator is therefore reported
-as measured rather than corrected — it was pre-registered and every published figure rests on it
-(A4.5, with its counts to be cited from that task's artefact).
-
-And families named for a virus taxon rather than a viral structure, such as `Ebola_NP`, fall outside
-the vocabulary altogether; that gap is measured and published rather than closed, with the second
-registry, whose membership is its own curators', covering it (D-083).
-
-How far the universe is virus-specific is now measured against the reviewed section of UniProtKB [12],
-with the figures in the abstract and the per-family table in the artefact (A4.5, D-250). Two
-properties of that measurement bound what it licenses. A family absent from the curated section is
-recorded as unmeasurable and never as virus-only, which is why 242 of the 1,719 are set aside rather
-than counted favourably. And a non-viral occurrence is not proof of independent cellular ancestry,
-because host genomes carry integrated viral material and such an entry is annotated to the host.
-What remains outstanding is the same measurement restricted to the families actually detected, which
-is the figure a reader wants and which needs the per-family detection tables. Until that exists, the
-established claim is that a viral protein family is present, not that a viral genome is.
-
-**No claim that a filter failed to run.** On the one release where it can be checked, the filter's
-output was carried forward exactly.
-
-**Lower bounds, not population figures**, for every sampled count.
-
-**One model family.** Two releases of one model family, on the nucleotide side. The protein-model
-work is a policy comparison and a staged proxy corpus, not an audit of a released protein corpus.
-
-**Label quality is out of scope.** Result 1 is about which ranks carry labels, not about whether
-labels are correct.
+Two further limits are worth stating in their own right. Result 1 concerns which ranks carry labels,
+while label correctness is a separate measurement in this project and a separate claim. And
+agreement between the three policy readings is a property of these corpora's metadata, which falls
+short of evidence that the prose is reproducible (D-221).
 
 ## 8. What further work would add
 
-**A census.** About 3,000 core-hours for both releases against both registries, tens of dollars at
-spot prices (D-098), currently deferred by an explicit costed decision (D-247). It would convert the
-headline from "at least 597 and 812" into a measured value.
+A census. About 3,000 core-hours over both releases and both registries, tens of dollars at spot
+prices (D-098), deferred by an explicit costed decision (D-247). It would convert the headline from
+"at least 597 and 812" into a measured value.
 
-**Depth parity between the registries.** About ten hours of local compute, no money. It raises a
-bound rather than enabling a comparison the equal-rate pair already supports, so it is deferred,
-with the guards a banded pass needs recorded: one output directory per release, an
-identifier-prefix check of every published table against the release it claims to describe, and
-retained band parts.
+Depth parity between the registries. About ten hours of local compute and no expenditure. The
+equal-rate pair already supports the cross-registry statements this study makes, so the deeper pass
+would raise one bound without enabling a new comparison, and it carries the structural guards a banded
+pass needs: one output directory per release, an identifier-prefix check of every published table
+against the release it describes, and retained band parts.
 
-**Specificity of the detected families.** The universe-level measurement is done (A4.5). Restricting
-it to the families actually detected — and so reporting the headline beside a variant counting only
-families with no curated occurrence outside viruses — needs the per-family detection tables, which
-are in a results bucket the audit containers currently cannot read. The three variants and the
-decision to report each as a pair, excluding and then including the unmeasurable families, are fixed
-in the task file before any restricted count exists.
+Specificity over the detected families. The universe measurement is complete; restricting it to the
+detected set, and so reporting the headline beside a variant counting only families that occur in
+viruses alone, requires the per-family detection tables, which the audit containers currently cannot
+read. The three variants, and the decision to report each as a pair that excludes and then includes
+the unmeasurable families, are fixed in the task file ahead of any restricted count.
 
-**Breadth.** The audit runs behind one interface taking a policy, a corpus and a set of detectors,
+Breadth. The audit runs behind one interface taking a policy, a corpus and a set of detectors, and
 against a bundled fixture in one command, so the marginal cost of the next release is staging its
-corpus and transcribing its policy. Both the disclosure standard and Results 1 and 2 generalise
-only as far as the number of policies tested.
+corpus and transcribing its policy. Results 1 and 2 and the disclosure standard generalise as far as
+the number of policies tested and no further.
 
-**Disclosure.** Nothing here has left the project, and nothing should until the organisations
-concerned have been contacted and given time to respond. That is weeks of calendar time and the
-least automatable part of the work.
+Disclosure. These findings remain inside the project until the organisations concerned have been
+contacted and given time to respond, which takes weeks of calendar time and careful writing, and
+which determines whether the work changes anything.
 
 ## References
 
-1. Nguyen E. *et al.* Sequence modeling and design from molecular to genome scale with Evo.
-   *Science* (2024). doi:[10.1126/science.ado9336](https://doi.org/10.1126/science.ado9336)
-2. Brixi G. *et al.* Genome modelling and design across all domains of life with Evo 2. *Nature*
-   (2026). doi:[10.1038/s41586-026-10176-5](https://doi.org/10.1038/s41586-026-10176-5); preprint
-   doi:[10.1101/2025.02.18.638918](https://doi.org/10.1101/2025.02.18.638918)
-3. `LongSafari/open-genome` (OpenGenome), HuggingFace datasets. Pinned at revision
-   `84369c058d192dcb607086d71679b877421e3250`, with a published sha256 per file; the dataset card
-   was retrieved 2026-10-13 and stored with its digest. HuggingFace issues no persistent identifier
-   for a dataset, so the revision hash is the pin.
-4. `arcinstitute/opengenome2` (OpenGenome2), HuggingFace datasets. Pinned at revision
-   `84d2a7e690c8bb395d1f4868822dfa031ea561c6`, same provisions as above.
-5. Camargo A. P. *et al.* IMG/VR v4: an expanded database of uncultivated virus genomes within a
-   framework of extensive functional, taxonomic, and ecological metadata. *Nucleic Acids Research*
-   (2023). doi:[10.1093/nar/gkac1037](https://doi.org/10.1093/nar/gkac1037)
-6. Hyatt D. *et al.* Prodigal: prokaryotic gene recognition and translation initiation site
-   identification. *BMC Bioinformatics* **11**, 119 (2010).
-   doi:[10.1186/1471-2105-11-119](https://doi.org/10.1186/1471-2105-11-119)
-7. Larralde M. Pyrodigal: Python bindings and interface to Prodigal. *Journal of Open Source
-   Software* **7**(72), 4296 (2022). doi:[10.21105/joss.04296](https://doi.org/10.21105/joss.04296)
-8. Eddy S. R. Accelerated profile HMM searches. *PLoS Computational Biology* **7**(10), e1002195
-   (2011). doi:[10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195)
-9. Paysan-Lafosse T. *et al.* The Pfam protein families database: embracing AI/ML. *Nucleic Acids
-   Research* **53**(D1), D523-D534 (2025).
-   doi:[10.1093/nar/gkae997](https://doi.org/10.1093/nar/gkae997). Release 38.2 (EMBL-EBI,
-   2026-01-22) is pinned by versioned release directory and digest, not by the `current_release`
-   pointer (D-075).
-10. Bigot T., Temmam S., Pérot P., Eloit M. RVDB-prot, a reference viral protein database and its
-    HMM profiles. *F1000Research* **8**, 530 (2019; v2 2020).
-    doi:[10.12688/f1000research.18776.2](https://doi.org/10.12688/f1000research.18776.2). v32.0,
-    13,679 profiles, pinned against the release's own metadata file (D-075).
-11. Camargo A. P. *et al.* Identification of mobile genetic elements with geNomad. *Nature
-    Biotechnology* (2024).
-    doi:[10.1038/s41587-023-01953-y](https://doi.org/10.1038/s41587-023-01953-y)
-12. The UniProt Consortium. UniProt: the Universal Protein Knowledgebase in 2025. *Nucleic Acids
-    Research* **53**(D1), D609-D617 (2025).
-    doi:[10.1093/nar/gkae1010](https://doi.org/10.1093/nar/gkae1010). The curated background for the
-    specificity measurement is the reviewed section at release 2026_03: 575,748 entries read,
-    against the release notes' published 575,748, of which 17,529 are viral.
-13. Blum M. *et al.* InterPro: the protein sequence classification resource in 2025. *Nucleic Acids
-    Research* **53**(D1), D444-D456 (2025).
-    doi:[10.1093/nar/gkae1082](https://doi.org/10.1093/nar/gkae1082). Used as the second instrument
-    for the specificity measurement, joining the same families through InterPro's own
-    cross-references.
-14. Schoch C. L. *et al.* NCBI Taxonomy: a comprehensive update on curation, resources and tools.
-    *Database* **2020**, baaa062 (2020).
-    doi:[10.1093/database/baaa062](https://doi.org/10.1093/database/baaa062). The decay replay uses
-    the `taxdump_archive` quarterly dumps from 2020-01-01 to 2026-10-01, 28 releases, with the
-    baseline at 2023-04-01 (D-201).
-15. ICTV Virus Metadata Resource, release `VMR_20-190822_MSL37.3`, pinned by sha256. The ICTV issues
-    no DOI for an individual Master Species List or VMR release; recent releases are archived on
-    Zenodo, but no persistent identifier was confirmed for this one, so it is cited by release name
-    and digest (D-086).
+Bigot T., Temmam S., Pérot P., Eloit M. (2019; v2 2020) RVDB-prot, a reference viral protein
+database and its HMM profiles. *F1000Research* **8**, 530.
+doi:[10.12688/f1000research.18776.2](https://doi.org/10.12688/f1000research.18776.2). Pinned here at
+v32.0, 13,679 profiles, against the release's own metadata file (D-075).
 
-Identifiers of the form A2.1 (tasks) and D-075 (decisions) refer to this project's own task files
-and append-only decision log, which are not public.
+Blum M. *et al.* (2025) InterPro: the protein sequence classification resource in 2025. *Nucleic
+Acids Research* **53**(D1), D444-D456.
+doi:[10.1093/nar/gkae1082](https://doi.org/10.1093/nar/gkae1082).
+
+Brixi G. *et al.* (2026) Genome modelling and design across all domains of life with Evo 2.
+*Nature*. doi:[10.1038/s41586-026-10176-5](https://doi.org/10.1038/s41586-026-10176-5). Preprint
+doi:[10.1101/2025.02.18.638918](https://doi.org/10.1101/2025.02.18.638918).
+
+Camargo A. P. *et al.* (2023) IMG/VR v4: an expanded database of uncultivated virus genomes within a
+framework of extensive functional, taxonomic, and ecological metadata. *Nucleic Acids Research*.
+doi:[10.1093/nar/gkac1037](https://doi.org/10.1093/nar/gkac1037).
+
+Camargo A. P. *et al.* (2024) Identification of mobile genetic elements with geNomad. *Nature
+Biotechnology*. doi:[10.1038/s41587-023-01953-y](https://doi.org/10.1038/s41587-023-01953-y).
+
+Eddy S. R. (2011) Accelerated profile HMM searches. *PLoS Computational Biology* **7**(10),
+e1002195. doi:[10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195).
+
+Hyatt D. *et al.* (2010) Prodigal: prokaryotic gene recognition and translation initiation site
+identification. *BMC Bioinformatics* **11**, 119.
+doi:[10.1186/1471-2105-11-119](https://doi.org/10.1186/1471-2105-11-119).
+
+ICTV Virus Metadata Resource, release `VMR_20-190822_MSL37.3`, pinned by sha256 (D-086). The ICTV
+issues no DOI for an individual Master Species List or VMR release; recent releases are archived on
+Zenodo, and no persistent identifier was confirmed for this release, so it is cited by release name
+and digest.
+
+Larralde M. (2022) Pyrodigal: Python bindings and interface to Prodigal. *Journal of Open Source
+Software* **7**(72), 4296. doi:[10.21105/joss.04296](https://doi.org/10.21105/joss.04296).
+
+Nguyen E. *et al.* (2024) Sequence modeling and design from molecular to genome scale with Evo.
+*Science*. doi:[10.1126/science.ado9336](https://doi.org/10.1126/science.ado9336).
+
+`LongSafari/open-genome` (OpenGenome), HuggingFace datasets, pinned at revision
+`84369c058d192dcb607086d71679b877421e3250` with a published sha256 per file; dataset card retrieved
+2026-10-13 and stored with its digest. HuggingFace issues no persistent identifier for a dataset, so
+the revision hash serves as the pin.
+
+`arcinstitute/opengenome2` (OpenGenome2), HuggingFace datasets, pinned at revision
+`84d2a7e690c8bb395d1f4868822dfa031ea561c6`, under the same provisions.
+
+Paysan-Lafosse T. *et al.* (2025) The Pfam protein families database: embracing AI/ML. *Nucleic
+Acids Research* **53**(D1), D523-D534.
+doi:[10.1093/nar/gkae997](https://doi.org/10.1093/nar/gkae997). Pinned here at release 38.2
+(EMBL-EBI, 2026-01-22) by versioned release directory and digest rather than by the
+`current_release` pointer (D-075).
+
+Schoch C. L. *et al.* (2020) NCBI Taxonomy: a comprehensive update on curation, resources and tools.
+*Database* **2020**, baaa062.
+doi:[10.1093/database/baaa062](https://doi.org/10.1093/database/baaa062). The decay replay uses
+`taxdump_archive` quarterly dumps from 2020-01-01 to 2026-10-01, 28 releases, baseline 2023-04-01
+(D-201).
+
+UniProt Consortium (2025) UniProt: the Universal Protein Knowledgebase in 2025. *Nucleic Acids
+Research* **53**(D1), D609-D617.
+doi:[10.1093/nar/gkae1010](https://doi.org/10.1093/nar/gkae1010). The curated background is the
+reviewed section at release 2026_03: 575,748 entries read, of which 17,529 are viral.
