@@ -42,7 +42,7 @@ Two small text files and two pins.
 
 | input | what it is |
 |---|---|
-| `--records FILE` | one record identifier per line, or a TSV whose first column is the identifier. A leading `record_id` header and `#` comments are skipped, so `/mnt/project-files/hazard-check/denylisted-label-records.tsv` (308 rows) is passed as it stands. |
+| `--records FILE` | one record identifier per line, or a TSV whose first column is the identifier. A leading `record_id` header and `#` comments are skipped, so a published per-record table is passed as it stands. **Use X1.9's `denylist-named-family-records-imgvr.tsv`** from `corpora/results/x1-9/`: 314 viral records, derived from pinned inputs with a digest. Not the hand-built 308-row copy under `/mnt/project-files/hazard-check/`, which X1.9 does not reproduce — it predates the rule that settled the family count, and the gap is explained there. |
 | `--profiles FILE` | one Pfam accession per line, or a TSV whose first column is the accession. Same header handling, so `/mnt/project-files/hazard-check/denylist-named-families.tsv` (41 rows) is passed as it stands. |
 | corpus pin | Evo 2's viral component, `…/fasta/plasmids_phage/imgvr.fasta.gz`, 11,220,266,895 bytes. |
 | registry pin | Pfam 38.2 under `data/profiles/pfam/38.2/`: `Pfam-A.hmm.dat.gz` and `Pfam-A.hmm.gz`. |
@@ -50,6 +50,12 @@ Two small text files and two pins.
 Neither list is re-derived here. Whoever asks the question owns the selection rule; this tool
 owns only what it measures, which is the division A4.5 kept and the reason the denylist name
 rule lives beside its own output rather than inside a detector.
+
+**One component per list.** This tool streams one staged object, so a record from another
+component — Evo 2's plasmid component shares the detection tables and carries an `IMGPR_` prefix
+— would be reported as missing from a corpus it was never in, which looks like a finding about
+the corpus and is not one. X1.9 publishes one table per component for exactly this, so the
+component is settled by the artefact rather than by a filter written here.
 
 ### How the pins are verified
 
@@ -111,8 +117,8 @@ declared as `input_file` and the outputs as `output_file`, refusals as `SystemEx
 reason spelled out.
 
     pixi run -e dev python tools/extract_matched_regions.py \
-        --records  /mnt/project-files/hazard-check/denylisted-label-records.tsv \
-        --profiles /mnt/project-files/hazard-check/denylist-named-families.tsv \
+        --records  artifacts/x1-9/denylist-named-family-records-imgvr.tsv \
+        --profiles artifacts/a7-5-inputs/denylist-named-families.tsv \
         --outdir   artifacts/a7-5
 
 Order of work: read and validate both lists → resolve and verify the pins → pre-flight the
@@ -327,6 +333,13 @@ and the implementation follows it:
 
 **The corpus pin was verified live**: the staged object is 11,220,266,895 bytes, which is what
 the source declares.
+
+**The input list changed under this task while it was being written, and that is the point of
+keeping the selection outside the tool.** X1.9 derived the record list from pinned inputs and
+does not reproduce the hand-built 308: the nearest derived figure is 314 viral records, with five
+plasmid records counted apart. So the pass reads X1.9's published per-component table, and this
+file's Inputs section names it. Nothing in the tool changes, because the record set was always an
+input.
 
 **The pass has not been run.** It is ~40 minutes of container time and no money, and it waits on
 the project owner.
