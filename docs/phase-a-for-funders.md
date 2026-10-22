@@ -42,8 +42,11 @@ Consortium 2025), with InterPro as a second instrument (Blum et al. 2025). Of th
 the curated section; of the 1,477 that admit a verdict, 85.6% are virus-only, and the median shared
 family appears in a single non-viral organism. The most heavily shared family is also among the most
 frequently detected, `PF00589 Phage_integrase`, at 421 reviewed non-viral entries across 280
-organisms against 21 viral. These shares describe the universe, and the measurement restricted to
-the detected families remains outstanding.
+organisms against 21 viral. Restricted to the families each release detected, sharing among
+judgeable families rises to 30.3% on Evo 1 and 22.6% on Evo 2, so the universe share understates it:
+a family with cellular members is easier to find. Counting only families with no curated occurrence
+outside viruses, Evo 1's 597 becomes 310 to 462 and Evo 2's 812 becomes 498 to 667, depending on how
+the unjudgeable families are treated.
 
 One boundary applies throughout. A profile hit establishes membership of a sequence family at that
 family's curated threshold, which is weaker than a statement about function and far weaker than one
@@ -275,11 +278,32 @@ than counted favourably. And an occurrence outside viruses is weaker evidence th
 cellular ancestry, because host genomes carry integrated viral material and such an entry is
 annotated to the host.
 
-The figures describe the universe. Detected families are drawn from it unevenly, since an abundant
-family is likelier to be found, so the restricted measurement over the detected set is outstanding
-and the universe shares stand in for it poorly. The relevant exception is already visible:
-`PF00589 Phage_integrase` is the most heavily shared family in the set, at 421 reviewed non-viral
-entries across 280 organisms against 21 viral, and it is also among the most frequently detected.
+### 3.4 Specificity of the families actually detected
+
+The universe shares above describe the pre-registered selection. Detected families are drawn from it
+unevenly, because a family with cellular members is easier to find, so the same measurement was
+restricted to the families each release detected (A4.5, D-251):
+
+| release | detected | virus-only | shared | unjudgeable | shared, among judgeable |
+|---|---|---|---|---|---|
+| Evo 1, both routes | 597 | 310 | 135 | 152 | 30.3% |
+| Evo 2, both routes | 812 | 498 | 145 | 169 | 22.6% |
+
+The bias runs against the audit. Sharing among judgeable families is 14.4% over the universe and
+30.3% and 22.6% over what was detected, 2.11 and 1.57 times as often, so the universe figure
+understates the problem instead of standing in conservatively. A reader holding 85.6% virus-only for
+the universe should hold 69.7% for Evo 1's detections and 77.4% for Evo 2's. `PF00589
+Phage_integrase` is the clearest case: the most heavily shared family in the selection, at 421
+reviewed non-viral entries across 280 organisms against 21 viral, and among the most frequently
+detected.
+
+The conservative variant was pre-registered as a pair and is quoted as one. Counting only families
+with no curated occurrence outside viruses, Evo 1's 597 becomes 310 excluding the unjudgeable
+families and 462 including them, and Evo 2's 812 becomes 498 and 667. No survival figure is
+corrected by any of this: 597 and 812 stand, and what changes is the sentence they support.
+
+The detected sets were compared as sets across the three policy readings, on both releases, and are
+identical.
 
 ## 4. Result 2: the reach of the rules that name organisms
 
@@ -429,12 +453,6 @@ equal-rate pair already supports the cross-registry statements this study makes,
 would raise one bound without enabling a new comparison, and it carries the structural guards a banded
 pass needs: one output directory per release, an identifier-prefix check of every published table
 against the release it describes, and retained band parts.
-
-Specificity over the detected families. The universe measurement is complete; restricting it to the
-detected set, and so reporting the headline beside a variant counting only families that occur in
-viruses alone, requires the per-family detection tables, which the audit containers currently cannot
-read. The three variants, and the decision to report each as a pair that excludes and then includes
-the unmeasurable families, are fixed in the task file ahead of any restricted count.
 
 Breadth. The audit runs behind one interface taking a policy, a corpus and a set of detectors, and
 against a bundled fixture in one command, so the marginal cost of the next release is staging its
