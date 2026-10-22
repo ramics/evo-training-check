@@ -301,7 +301,7 @@ Module loaded by `importlib`, as `tests/test_place_detections.py` loads its tool
 | stream `imgvr.fasta.gz`, 11.22 GB | A2.6's measured ~2 core-hours over the 35 GB of staged components (`/mnt/project-files/a3-4/cost.md`), ≈0.057 core-h/GB | **~38 min, one core, read-bound** |
 | gene calling | pyrodigal metagenomic, 1,103 genes/s/core measured; A2.1's density ≈19 genes/record over ~315 records ≈ 6,000 genes | ~6 s |
 | profile search | A2.1's measured 2.19 ms/gene on this release is against all 1,719 selected models; 41 models is 2.4% of that | under a minute, model loading included |
-| **wall clock** | | **~40 minutes** — *measured: 18.8 min on a complete read, so the basis was conservative by about half* |
+| **wall clock** | | **~40 minutes** — *measured: 14.9 min on the complete read at 13–14 MB/s, and 18.8 min on the earlier truncated one at 10 MB/s. The spread is network variance, not the early stop, which left 0.04% of the object unread. So the basis was conservative by rather more than half* |
 | **money** | in-region GET traffic is unmetered; a few thousand requests | **nothing rented, a fraction of a cent** |
 
 A gzip stream offers no index, so the one sequential pass is the floor and a single thread is
