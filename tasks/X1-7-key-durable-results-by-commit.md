@@ -2,7 +2,7 @@
 id: X1.7
 title: Key durable results by commit
 phase: X
-status: review
+status: done
 gate: false
 depends_on: []
 blocks: []
@@ -58,6 +58,32 @@ It is a defect in `amazebio.repro`'s durable-write path, shared by every pipelin
 - No existing durable key is orphaned: whatever reads results can still find them.
 - The versioning question is answered or registered as owner-blocked with what was tried.
 - `python3 tools/board.py --check` passes and CI is green.
+
+## Closed — 2026-10-22
+
+`done`. **PR #31 merged on 2026-10-22, so the implementation this file has pointed at since
+2026-10-20 is now on `main`** and nothing further was needed. Every Done-when criterion is met
+and was re-checked against the live store rather than against the branch:
+
+- Two commits produce two durable objects. `_upload_one` writes the stable key and the
+  `by-commit/<commit>/` twin, and the twins are present in the bucket for every task that has
+  published since — a3-4 carries 15 objects against 9 stable keys, b3-4 12 against 3, b4-2 9
+  against 3.
+- The same-commit case is `_check_commit_keys`, which refuses before uploading anything when
+  this commit has already published different bytes, naming the object and both digests, and
+  is escapable only through `replace_durable='<reason>'` which lands in the manifest. Covered
+  by tests in `tests/test_repro.py`; the file's 49 tests pass.
+- No key moved, so nothing is orphaned.
+- Versioning is answered: on, noncurrent versions expiring after seven days, by the owner
+  (D-218, D-219). This container can neither read nor set it, so it rests on his word, and the
+  commit-keyed copies — which have no seven-day window — remain what a citation relies on.
+- `tools/board.py --check` passes over 75 tasks with 0 problems.
+
+**One residual, taken up separately in this branch rather than left implied.** The guard binds
+`amazebio.repro`'s durable path. Three tools publish results by calling `put_object` directly
+and so get neither the twin nor the clash check: `tools/count_clusters.py`,
+`tools/evo2_accessions.py` and `tools/uniprot_release_count.py`. That is the same defect in a
+path `repro` does not own, and it is fixed here with its own tests.
 
 ## Notes
 

@@ -2,7 +2,7 @@
 id: B3.4
 title: Compute the MSA-depth covariate
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [B2.4]
 blocks: [B3.5]
@@ -32,6 +32,15 @@ training' are not separable.
 - Depth computed for every assay target.
 - Procedure documented and reproducible.
 - Covariate wired into the B5 analysis as mandatory, not optional.
+
+## Closed — 2026-10-22
+
+`done`. Merged to `main` in PR #31. Depth exists for all 31 assay targets over their 28
+alignments (`corpora/results/b3-4/depth.{json,md}` with its run manifest), the procedure is
+pinned in D-231 and reproducible from `tools/assay_depth.py`, and the covariate is wired in as
+mandatory where it can be before B5 runs: `metrics/depth.md` is binding on B3.5 and B5, states
+that every assay entering a B5 model carries a depth, and a change to it is a decision entry.
+B5.1 inherits that contract rather than choosing whether to honour it.
 
 ## State — 2026-10-21
 

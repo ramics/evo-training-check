@@ -2,7 +2,7 @@
 id: X5.1
 title: Draft the filter disclosure standard
 phase: X
-status: review
+status: done
 gate: false
 depends_on: [A0.1, A7.1]
 blocks: []
@@ -39,6 +39,19 @@ then retro-fit it to all four models and report what is missing against each.
 - All four models scored, with every gap traceable to a quoted source in `policies/`.
 - This project's own filter specifications are published in the same format.
 - Overlap with existing framework requirements is stated, so the contribution is clear.
+
+## Closed — 2026-10-22
+
+`done`. Merged to `main` in PR #31. All four Done-when criteria were met at the time of
+writing and the review carry-over is now resolved as far as it can be: **A3.3 opened on
+2026-10-21 and passed**, so the self-scored D2 cell no longer reads "neither gate has run yet".
+It stays `~` rather than becoming `✓`, because C6.3 covers the Phase C curves and has not run,
+and `docs/disclosure-standard.md` now says exactly that.
+
+The other carry-over is left open deliberately and is not a defect: the framework comparison
+rests on five frameworks read from their primary texts, and if a sixth belongs in it the one
+most likely to is a sector instrument that search did not surface. That is a question for a
+reader, not a blocker.
 
 ## State — 2026-10-20
 

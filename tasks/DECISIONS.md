@@ -2816,6 +2816,13 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-078 — The sample is a deterministic hash of the record id, and what it supports is a lower bound
 - **Date:** 2026-10-15
 - **Task:** A2.1
+- **Corrected by D-098:** the "roughly 40,000 core-hours" in the Context below is **retracted**
+  and must not be quoted as a live figure anywhere. Its benchmark searched 300 profiles against
+  2,000 short random sequences, so per-profile fixed cost dominated and real throughput was
+  understated by about three orders of magnitude; a full census is nearer 3,000 core-hours for
+  both releases against both registries, tens of dollars at spot. The sampling decision itself
+  stands on its own ground — it was pre-registered before any hit was seen — and that, not
+  cost, is why the headline comes from a sample.
 - **Context:** A profile search over the whole surviving corpus is not expensive, it is
   arithmetically out of reach. Measured on this project's own environment: 98 million
   profile-residues per second for RVDB-prot and 254 million for the Pfam viral set, on three
