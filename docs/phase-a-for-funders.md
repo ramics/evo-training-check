@@ -333,16 +333,28 @@ their Pfam name or description, 140 name a tail component, 59 a capsid, 39 a bas
 terminase, 10 a portal and 4 a prohead protease. IMG/VR assembles uncultivated viruses from
 environmental metagenomes, and phages of bacteria are most of what it holds.
 
-Against that background, 40 detected families carry names referring to the groups the policy
-denylists: 14 *Flaviviridae* domains, including the NS1, NS2B, NS3 protease and helicase, NS4A,
-NS4B and NS5 polymerase domains and the capsid, M and E glycoproteins, together with families named
-for *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*, *Papillomaviridae*, *Adenoviridae*,
-*Caliciviridae*, *Picornaviridae*, *Retroviridae* and *Geminiviridae*. Nine appear in Evo 1's
-detected set and all 40 in Evo 2's, at the sampling rates of §3; the two counts are not rates and do
-not rank the releases.
+Against that background, detected families also carry names referring to the groups the policy
+denylists, and the count depends on the matching rule, so the rule comes with it. Reducing each of
+the 19 denylisted family names to its stem (`adenovir`, `calicivir`, `flavivir` and so on) and
+matching case-insensitively against each family's Pfam identifier and its description gives 9 such
+families in Evo 1's detected set and 40 in Evo 2's. Those 40 include 14 *Flaviviridae* domains —
+NS1, NS2B, the NS3 protease and helicase, NS4A, NS4B, the NS5 polymerase and thumb, and the capsid,
+M and E glycoproteins — with the rest named for *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*,
+*Papillomaviridae*, *Adenoviridae*, *Caliciviridae*, *Picornaviridae*, *Retroviridae* and
+*Geminiviridae*. The two counts come from samples at different rates and do not rank the releases.
+
+The rule's influence is large enough to report as a range. Pfam identifiers are abbreviations, so
+the stems above match none of them on their own and the figure rests on the descriptions; a rule
+built from shorter prefixes gives 33 by identifier alone and 41 by identifier or description on Evo
+2's set, against 9 on Evo 1 either way (A4.5's independent recount, D-252). A reader who tries to
+reproduce 40 from identifiers will get a different number, which is the first reason the count
+cannot settle anything.
 
 That count is the ambiguity rather than the answer, and the hazard measurement now running is what
-resolves it; the slot for its result is in the abstract.
+resolves it; the slot for its result is in the abstract. The substring blind spot of §3.3 closes
+here too: of the seven families admitted to the universe because "macrophage" contains "phage",
+none is detected on Evo 1 and two on Evo 2, and every hit on those two falls on an IMG/PR plasmid
+record (D-252).
 
 The weakness of that observation is specific, and this project has rejected the same mechanism
 elsewhere. A Pfam family's name records where its curators built it, and matching on names is
