@@ -10885,3 +10885,92 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **What this does not settle.** Nine assays is a common set, not a representative one: all nine
   are viral and five are from one stability study, so it supports a like-for-like comparison and
   not a general ranking. §B5 should say which of the two it is making.
+
+### D-250 — a Pfam detection is a family-level claim, and 14.4% of the judgeable families also occur in curated cellular proteomes
+
+- **Date:** 2026-10-22
+- **Task:** A4.5 (new; the write-up had this measurement in further work)
+- **Context:** Every Pfam survival figure in Phase A counts families, and D-075's selection rule
+  reads a family's own ID and description. That is a statement about what a family is *named
+  for*, not a measurement of where its members live, so a detection supports "a member of this
+  protein family is present" and not "viral material is present". The write-up carried that
+  limit in its abstract and put the closing measurement in further work. This is it.
+- **What was measured.** Background: the curated (reviewed) section of UniProtKB, release
+  2026_03, pinned by the publisher's own md5 `a31b5d0756f0a8f94164bf20b703812c`. 575,748
+  entries read, matching the release notes' published total exactly — the truncation guard,
+  because a short read reports fewer shared families than there are, which is the direction
+  that flatters the claim under test. Per family: curated entries carrying it, split by whether
+  the entry's own lineage begins `Viruses`; distinct non-viral organisms; and the subset the
+  curators themselves mark as integrated viral material.
+
+  **Of the 1,719 pre-registered families: 1,265 `viral_only`, 212 `shared`, 242
+  `unmeasurable`.** Of the 1,477 the curated section can speak to, **85.6% have no curated
+  occurrence outside viruses and 14.4% do**. Sharing is mostly thin — 125 of the 212 occur in a
+  single cellular organism, and 15 are entirely curator-marked integrated viral material — but
+  139 have more non-viral curated entries than viral ones, the median shared family's non-viral
+  share is 1.000, and **113 of the 1,719 have no curated viral entry at all while having at
+  least one curated cellular entry**. The extreme is `PF00589` (`Phage_integrase`): 421
+  non-viral entries across 280 organisms against 21 viral.
+
+  **Two instruments, agreeing on all 1,719 families.** The second is InterPro's own join over
+  its own index, run for every family rather than a sample. D-245, D-246 and D-247 were each
+  one instrument agreeing with itself.
+- **Decision:**
+  **`unmeasurable` is a class of its own and takes precedence.** A family with no curated
+  occurrence has not been measured, and calling it viral-only would turn an absence of curation
+  into evidence for the claim under test. The Pfam release the universe is pinned to is not the
+  one the background's cross-references were computed against, so this class absorbs that skew
+  instead of letting it read as specificity.
+
+  **Nothing here corrects a survival figure.** The headline counts stand; what the measurement
+  changes is which sentence they support. D-158's line, restated for a different quantity and
+  for the same reason: a bound published as a correction is the error the bound exists to
+  prevent.
+
+  **A non-viral occurrence is not proof of independent cellular ancestry.** Host genomes carry
+  integrated viral material and a curated entry for such a protein is annotated to the host.
+  The curator-marked subset bounds that confusion from below; it does not resolve it.
+
+  **The conservative variants are fixed before the restricted counts exist** — `headline`,
+  `specific`, `specific_plus_endogenous`, each reported excluding and then including the
+  unjudgeable families. A cut chosen after seeing which reads better is not a measurement.
+- **The second instrument earned its cost on the first run.** It agreed on 1,714 families and
+  disagreed on five — `TMV_coat`, `Phage_min_cap2`, `Phage_scaffold`, `Minor_capsid_1`,
+  `Minor_capsid_2` — in each case over a single entry, with identical totals on both sides.
+  That is the shape of a parse bug rather than a difference of data, and it was one:
+  `OC   Viruses.` is the whole lineage of an entry UniProt places no deeper than the viral
+  root, and splitting on `;` alone leaves `Viruses.`, which is not `Viruses`. Five families
+  read as shared when they are not. **A re-run from pins would not have caught this** — it
+  would have reproduced the same wrong answer — which is the first case in this project where
+  the second instrument caught something the standing remedy could not.
+- **What the same pass says about the denominator.** The selection vocabulary matches substrings
+  with no word boundary, and **"macrophage" contains "phage"**: seven families are in the
+  universe for that reason alone — `CSF-1`, `GM_CSF`, `IcmF-related`, `Macscav_rec`, `MglA_C`,
+  `MIF`, `Nramp` — every one a cellular host protein, and the background agrees independently
+  (`Nramp`: 164 cellular entries across 132 organisms, no viral entry; `MIF`: 28 across 18,
+  none). Two more of the same shape: `SLR1-BP` is in on "coat protein" and is a plant pollen
+  coat protein, `BNIP2` on "virus" and is a human protein named for the viral partner it binds.
+
+  **The denominator is reported, not corrected.** It was pre-registered before anything was
+  searched and every published figure rests on it. A cellular family in it contributes a
+  near-certain zero, so it pushes the survival fraction *down*: 590 of 1,712 is 34.46% against
+  the published 34.32%. Measured and reported, like D-083's blind spot in the other direction.
+
+  Also recorded, because the write-up asserted it: the clause saying integrase and transposase
+  were "deliberately excluded" overstates D-075, which kept the two *words* out of the
+  vocabulary. 21 of the 1,719 name integrase, transposase or transposon, admitted on another
+  word, `PF00589` among them.
+- **Alternatives rejected:** Reference proteomes as the background, which answers occurrence per
+  organism rather than per curated entry and adds a second selection step this question does not
+  need. Correcting the 1,719 denominator, which would move published figures on an unregistered
+  rule. Folding `unmeasurable` into `viral_only`, the one error that would make the result look
+  stronger than it is. Sampling for the second instrument, when all 1,719 families cost twenty
+  minutes of a public API.
+- **Consequence:** The detected-set restriction — these classes applied to the 597 and 812
+  families actually detected — is **outstanding and not substitutable**. Detected families are
+  not a random draw from the universe, since an abundant family is likelier to be found, so the
+  universe figures above must not be quoted as though they were the detected-set figures. It
+  needs A2.1/A3.2's per-family tables, and every cloud session of this project is currently
+  refused all reads on `s3://amazebio-corpora-897641797669` (403 on `ListBucket` and
+  `HeadObject` alike, credentials present and resolving to `iam::...:user/claude`), which is
+  with the owner. The artefact states the restriction as outstanding rather than omitting it.
