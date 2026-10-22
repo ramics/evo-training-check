@@ -31,13 +31,22 @@ component in two representations; the one that was trained on matches Evo 1's fi
 exactly, while the only one carrying source identifiers holds 304,448 more records, including those
 the policy removes. A filter's output therefore cannot be checked against the filter's own product.
 
-**Two limits on what this establishes, stated here because they bound every number above.** A
-profile hit places a protein in a sequence family at that family's curated threshold; it is not an
-assessment of function or hazard, and nothing in this work measures whether any detected sequence
-would do anything harmful. And while the family counts are of distinct, pre-registered family
-identifiers drawn from two independently curated registries, we have not measured per family
-whether a detected family occurs only in viruses — so "viral protein family present" is the claim,
-not "viral genome present".
+**How virus-specific are the families?** Measured against the reviewed section of UniProtKB
+(2026_03, 575,748 entries): of the 1,719 families in the pre-registered universe, 1,265 have no
+curated occurrence outside viruses, 212 do, and 242 are absent from the curated section and so
+cannot be judged. Of the 1,477 that can be judged, 85.6% are virus-only. Sharing is usually thin —
+the median shared family appears in one non-viral organism — and for 15 of the 212 every non-viral
+occurrence is annotated by the curators as integrated viral material, which is a host genome
+carrying the element rather than the family having cellular members. The exception matters: the most
+heavily shared family is also one of the most frequently detected, `PF00589 Phage_integrase`, with
+421 reviewed non-viral entries across 280 organisms against 21 viral. These figures are over the
+whole universe and are **not** weighted by what was detected; detected families are not a random
+draw from the universe, so the restricted figures are outstanding and the universe figures are not a
+substitute for them (A4.5, D-250).
+
+**One limit bounds every number above.** A profile hit places a protein in a sequence family at that
+family's curated threshold. It is not an assessment of function or hazard, and nothing in this work
+measures whether any detected sequence would do anything harmful.
 
 ## 1. Why the claim is worth checking
 
@@ -105,7 +114,11 @@ whose verdict depends on a field the release does not carry are recorded as `unr
 counted as retained. Headline counts are reproduced by a second implementation written without
 reading the first, from primitive detection rows rather than aggregates, with denominators rebuilt
 from the pinned registry files: 334 numbers across 16 groups, every headline figure identical
-(A3.3, D-215).
+(A3.3, D-215). Where a measurement depends on parsing an external reference, a second instrument
+joining through a different source is used rather than a second run of the same code: re-running a
+pass from its pins reproduces a parse error faithfully, and an independent join does not. The
+specificity measurement below is reported this way, with both instruments agreeing on all 1,719
+families.
 
 ## 3. Result 1: the reach of the rules that name organisms
 
@@ -333,10 +346,17 @@ as measured rather than corrected — it was pre-registered and every published 
 
 And families named for a virus taxon rather than a viral structure, such as `Ebola_NP`, fall outside
 the vocabulary altogether; that gap is measured and published rather than closed, with the second
-registry, whose membership is its own curators', covering it (D-083). What has *not* been measured until now is, per detected family,
-whether that family occurs only in viruses; a curated-background measurement is in progress (A4.5)
-and its figures are not in this draft. Until it lands, the established claim is that a viral protein
-family is present, not that a viral genome is.
+registry, whose membership is its own curators', covering it (D-083).
+
+How far the universe is virus-specific is now measured against the reviewed section of UniProtKB,
+with the figures in the abstract and the per-family table in the artefact (A4.5, D-250). Two
+properties of that measurement bound what it licenses. A family absent from the curated section is
+recorded as unmeasurable and never as virus-only, which is why 242 of the 1,719 are set aside rather
+than counted favourably. And a non-viral occurrence is not proof of independent cellular ancestry,
+because host genomes carry integrated viral material and such an entry is annotated to the host.
+What remains outstanding is the same measurement restricted to the families actually detected, which
+is the figure a reader wants and which needs the per-family detection tables. Until that exists, the
+established claim is that a viral protein family is present, not that a viral genome is.
 
 **No claim that a filter failed to run.** On the one release where it can be checked, the filter's
 output was carried forward exactly.
@@ -361,11 +381,12 @@ with the guards a banded pass needs recorded: one output directory per release, 
 identifier-prefix check of every published table against the release it claims to describe, and
 retained band parts.
 
-**Per-family specificity.** The limit named in §7 is measurable: for each detected family, count its
-occurrence in curated non-viral reference proteomes and report detections against that background.
-That converts "viral protein family present" into a quantified statement about how virus-specific
-each detection is. It is new work rather than a deeper run of existing work, and it is underway as
-A4.5; this draft will carry its figures once they are published with their artefact.
+**Specificity of the detected families.** The universe-level measurement is done (A4.5). Restricting
+it to the families actually detected — and so reporting the headline beside a variant counting only
+families with no curated occurrence outside viruses — needs the per-family detection tables, which
+are in a results bucket the audit containers currently cannot read. The three variants and the
+decision to report each as a pair, excluding and then including the unmeasurable families, are fixed
+in the task file before any restricted count exists.
 
 **Breadth.** The audit runs behind one interface taking a policy, a corpus and a set of detectors,
 against a bundled fixture in one command, so the marginal cost of the next release is staging its
@@ -407,6 +428,9 @@ least automatable part of the work.
 11. Camargo A. P. *et al.* Identification of mobile genetic elements with geNomad. *Nature
     Biotechnology* (2024).
     doi:[10.1038/s41587-023-01953-y](https://doi.org/10.1038/s41587-023-01953-y)
+12. UniProtKB reviewed section, release 2026_03 (575,748 entries read, against the release notes'
+    published count), used as the curated background for the specificity measurement; the second
+    instrument joins the same families through InterPro. Cited by release rather than by DOI.
 
 Identifiers of the form A2.1 (tasks) and D-075 (decisions) refer to this project's own task files
 and append-only decision log, which are not public.
