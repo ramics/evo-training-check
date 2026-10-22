@@ -9,6 +9,7 @@ rather than as a survival fraction of zero.
 from __future__ import annotations
 
 import importlib.util
+import json
 import pathlib
 import sys
 
@@ -54,3 +55,55 @@ def test_an_unsearched_group_prints_withheld_not_zero() -> None:
     assert "withheld" in text
     assert "not evidence of absence" in text
     assert "| 0.0000 |" not in text
+
+
+class _FakeStore:
+    """A `list_objects_v2` paginator over a fixed set of keys, with a recording downloader."""
+
+    def __init__(self, keys: list[str]) -> None:
+        self.keys = keys
+        self.downloaded: list[str] = []
+
+    def get_paginator(self, _name: str) -> _FakeStore:
+        return self
+
+    def paginate(self, *, Bucket: str, Prefix: str) -> list[dict[str, object]]:
+        del Bucket
+        return [{"Contents": [{"Key": k} for k in self.keys if k.startswith(Prefix)]}]
+
+    def download_file(self, _bucket: str, key: str, dest: str) -> None:
+        self.downloaded.append(key)
+        pathlib.Path(dest).write_text(json.dumps(table(policy_id="evo1-literal")))
+
+
+def test_fetch_tables_skips_the_commit_keyed_twins(tmp_path: pathlib.Path) -> None:
+    """D-246. The twins D-216 publishes are copies of tables already merged under their stable
+    key. A recursive listing reaches them, and a twin from before a correction would union its
+    superseded families back into the headline."""
+    store = _FakeStore(
+        [
+            "corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json",
+            "corpora/results/a2-1/by-commit/deadbeef/detections-pfam-evo1-literal-opengenome.json",
+            "corpora/results/a2-1/by-commit/cafe1234/detections-pfam-evo1-literal-opengenome.json",
+        ]
+    )
+    fetched = quantify_survival.fetch_tables(tmp_path, client=store)
+    assert [key for key, _ in fetched] == [
+        "s3://"
+        + quantify_survival.objectstore.CORPORA_BUCKET
+        + "/corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json"
+    ]
+    assert not any("by-commit" in key for key in store.downloaded)
+
+
+def test_fetch_tables_does_not_reach_a_neighbouring_slug(tmp_path: pathlib.Path) -> None:
+    """`a2-1` is a prefix of `a2-10`; the listing is anchored with its trailing slash."""
+    store = _FakeStore(
+        [
+            "corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json",
+            "corpora/results/a2-10/detections-pfam-evo1-literal-opengenome.json",
+        ]
+    )
+    fetched = quantify_survival.fetch_tables(tmp_path, client=store)
+    assert len(fetched) == 1
+    assert "a2-10" not in fetched[0][0]

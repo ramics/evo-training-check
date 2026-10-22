@@ -10559,7 +10559,68 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Containment.** The retention directory is checked, not trusted: a path resolving inside the
   working tree is refused, because corpus residues may not enter the repository, `artifacts/`,
   or anything read as a result (D-103), and the durable result bucket has no delete.
+### D-241 — A detection is placed by its matched domain region, because the bins' members are regions and not whole proteins
 
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Context.** D-239 fixed the placement criterion and D-244 opened the search's own gates so
+  that criterion alone would decide. A 400-record probe run to check the pass end to end then
+  showed 93% of detections meeting no bin at all, which is far outside what D-236's record
+  counts implied. The cause is not homology. **The two sides are different kinds of object.**
+  Pfam's seed members are *aligned regions* — a median of 172 residues for one of the families
+  in the probe — while a detection is a whole gene called by Prodigal, a median of 344 residues
+  for that same family. Across the probe's 25 families the median length ratio was 1.33 and ran
+  to 3.66. The frozen criterion requires 80% coverage of **both** sequences (D-206), so any
+  detection more than about 1.25 times its member's length cannot be placed whatever its
+  identity is. Left alone, M3 would have reported a near-total absence of diversity coverage
+  while measuring a length asymmetry.
+- **Decision.** The unit placed is the detection's **matched domain region**: the region of the
+  protein occupied by the same best-covering domain `profilesearch.best_model_coverage` already
+  measures the model side of, in 1-based inclusive target coordinates, now carried on the hit
+  row and sliced out when the residues are written. A hit with no domain region is written
+  whole and counted in the run's output, so the fallback is visible. The criterion itself is
+  untouched — still 50% identity over 80% of both, at `--cov-mode 0`.
+- **Why this and not a looser criterion.** Relaxing the coverage requirement, or switching to a
+  one-sided coverage mode, would admit detections on weaker evidence than the members needed to
+  be grouped and inflate coverage — the direction D-239 refuses. Comparing like with like
+  changes the *object*, not the standard: a seed member is the part of a sequence that aligns to
+  the model, and so is the region taken here.
+- **The probe's figures are discarded.** They were read before this was fixed, they measured the
+  defect, and nothing downstream carries them. `metrics/survival.md` §4's rule is that
+  thresholds are fixed before results are inspected; what was inspected here was a construction
+  fault, and the fix is recorded before any coverage figure is kept.
+### D-242 — `main` is two days behind the work its own task files assert; A3.4 is built on the open pull request instead
+
+- **Date:** 2026-10-21
+- **Task:** X1.7 (bearing on A2.1, A3.4, A7.4, B3.4, X5.1 and anything read from `main`)
+- **Context.** A3.4's placement pass was started from a container cloned at `main`. Three tasks
+  the board carries as `review` — X1.7, B3.4, X5.1 — name deliverables that are not in that
+  tree: no commit-keyed durable writes in `amazebio.repro`, no `src/amazebio/neff.py`, no
+  `tools/assay_depth.py`, no `metrics/depth.md`, no `docs/disclosure-standard.md`. Nor is the
+  commit the published Pfam headline was measured at, `bcba835`, reachable from `main`. The
+  first reading of that was that the work had been lost with its container, and it very nearly
+  was recorded as such. It is not lost: **pull request #31 is open**, its head is `29409bc`, and
+  it carries 74 commits that `main` does not have. Since #30 merged on 2026-10-20, `main` has
+  received only task-file and decision-log commits — the narrative of the work, with none of the
+  code under it.
+- **What this costs while it stands.** A task file that asserts a finished result whose code is
+  on an unmerged branch reads, from `main`, exactly like a task file asserting a result that was
+  never produced, and the only way to tell the two apart is to go and look at the pull request.
+  It also splits the search: A3.4 was being built against `main`'s `detect_profiles.py`, which
+  is 445 lines behind the version that produced the detections A3.4 places — the chunked,
+  task-aware one on the branch.
+- **Decision.** A3.4's work is based on the pull request's head rather than on `main`, merged in
+  here, so the placement pass runs against the same search that produced its input. The residue
+  hook therefore sits inside that version's chunked `search_batch` rather than the per-source
+  loop `main` still has. Whether and when #31 merges is the project owner's call, and it is put
+  to him rather than assumed; until it does, work that reads a result from `main` has to read
+  the branch instead.
+- **What was undone.** X1.7's durable keying had been re-implemented from its task file, with
+  tests, before the pull request was found. That re-implementation is dropped rather than kept
+  beside the branch's: two implementations of one decision is worse than either.
+- **The standing lesson.** A branch that holds a finished result is an unpublished result. D-188
+  said this about artefacts that never left their container; it is the same failure one level
+  up, and the check is the same — look for the thing itself, not for the claim that it exists.
 ### D-243 — Correction: D-240 is withdrawn, and the number is spent
 
 - **Date:** 2026-10-21
@@ -10586,3 +10647,241 @@ decision has a threshold or parameter in it, the number goes in the entry.
 - **Why it happened, and the cheap guard.** Neither thread read the other's thread before
   starting. A task file that names the branch its work is on is the cheap check: A3.4's did, and
   it named this thread's branch, which is what the other thread then had to correct.
+### D-244 — The placement search runs at full sensitivity with the E-value gate open, so the frozen criterion is the only gate
+
+- **Date:** 2026-10-21
+- **Task:** A3.4
+- **Note.** Numbered 244, not 240: two threads were building this pass at the same time without
+  knowing it, and the other thread's D-240 reached `main` first and was withdrawn by its D-243.
+  This entry was written as D-240 and renumbered before merging.
+- **Context.** D-239 fixed *what* admits a detection to a bin — 50% amino-acid identity over
+  80% coverage at `--cov-mode 0`, the same three values the members were grouped by — and said
+  it is evaluated with `mmseqs easy-search`. That tool applies two further gates of its own
+  before the criterion is ever reached: a prefilter at default sensitivity, and an E-value
+  threshold of 1e-3. Neither is in the metric, and both can only remove candidates, so leaving
+  them at their defaults would mean a figure gated by three numbers of which the specification
+  names only one. Fixed here, with the bins built and before any coverage figure exists.
+- **Decision.** `-s 7.5` (maximum sensitivity), `-e 10000` (the E-value gate effectively open),
+  `--alignment-mode 3` so identity and coverage are computed from a real alignment rather than
+  inferred, and `--max-seqs` at no fewer than the family's member count so no member can be
+  dropped for being one candidate too many. The frozen criterion then decides every placement
+  on its own. Single-threaded, as the clustering is, so the result does not move with the
+  machine.
+- **Why this direction.** A missed match costs a bin, and a bin missed for a reason the metric
+  does not name is an understatement nothing in the artefact would reveal. The audit's own
+  finding is that surviving material is *more* widespread than the filters' authors expect, so
+  an unstated gate that quietly lowers coverage flatters the thing under audit. Opening the
+  gates costs search time and nothing else: the families are a few dozen members each.
+- **What it does not change.** The identity, coverage and coverage-mode values, which are
+  frozen by `metrics/survival.md` §4 M3 and D-206 and are not parameters of this pass. A
+  detection still has to meet the members' own criterion, and one that meets no bin is still
+  reported apart rather than absorbed (D-239).
+
+### D-245 — Correction to D-235: the deepened Pfam tables counted each release's detections in the other release's table; Evo 1 is 590 families, not 830, and Evo 2 is 811, not 836
+
+- **Date:** 2026-10-21
+- **Task:** A2.1 (bearing on A3.2, A3.4, A6.1 and the Phase A headline)
+- **How it surfaced.** A3.4 needs the residues behind each detection, which no artefact carries,
+  so it re-ran the deepened search over both releases from the same pins. The re-run reproduced
+  the published **band parts** exactly — Evo 1's deep band at 115,349 rows across 580 families,
+  row for row — and reproduced records, genes and residues exactly for every source
+  (53,139 / 1,006,337 / 226,983,924 on Evo 1). What it did not reproduce was the **assembled
+  table**, which holds 188,329 rows across 830 families. The gap is not a sensitivity
+  difference and not depth: 59,849 of those rows carry `IMGVR_*` and `IMGPR_*` accessions, which
+  are OpenGenome2's components. Evo 2's table carries the mirror image — Evo 1's 115,349
+  `stage2:` rows. Each release's table had been counting the other's detections as its own.
+- **The cause, exactly.** A band part names its tables by policy and registry — `evo1-literal|pfam`
+  — because within one part the release is implied. `_shelve_parts` spilled rows to one file per
+  that key, so both releases' parts landed in the same file, and each release's assembled table
+  read all of them. The per-source counts were right throughout, because those come from the
+  part's `sources` and *were* filtered by release — which is why nothing in the table's own
+  consistency checks caught it. `bands_cover_rate` was true. The nesting check passed. The
+  denominator was right. Only the numerator was wrong, and only by rows that belonged to a
+  different corpus.
+- **Corrected figures**, from the same parts, re-assembled with the release in the shelf key:
+  | release | rate | families with a hit | fraction | published in D-235 |
+  |---|---|---|---|---|
+  | `opengenome` | 0.02 | **590** of 1,719 | **34.32%** | 830, 48.28% |
+  | `opengenome2` | 0.01 | **811** of 1,719 | **47.18%** | 836, 48.63% |
+  Identical across the three readings, as before.
+- **D-099's withdrawn prose figures were right.** D-235 recorded that D-099's deepened Pfam
+  figures of 590 and 811 "do not reproduce" and withdrew them on the strength of the assembled
+  table. They reproduce exactly. The withdrawal is itself withdrawn: 590 and 811 are the
+  figures, D-099's run was sound, and what did not reproduce was the assembly that replaced it.
+- **What this changes.** Deepening ten-fold still raises survival sharply — Evo 1 from 470 to 590
+  families and Evo 2 from 492 to 811 — and still shows no saturation, so D-235's reading of
+  *depth* stands and A6.1 must still report a lower bound with no established ceiling. What
+  changes is the headline number and, more sharply, the **asymmetry between the two releases**:
+  at a tenth of Evo 1's sampling rate Evo 2 reaches 811 families against Evo 1's 590. The two
+  are not comparable as rates, and anything that reads them side by side has to say so.
+- **The fix.** The release is now part of the shelf key, with a test that varies it — every
+  existing shelf test used one release, which is how this got through. The tables are
+  re-assembled from the published parts and the re-run shallow bands, so every row in the
+  corrected tables traces to a part that can be regenerated.
+- **The lesson, which is not "add a check".** Four checks passed over a table that was wrong by
+  32%: tiling, nesting, per-source counts and the denominator. Each was a check on the *shape*
+  of the result. None asked whether a row belonged to the corpus the table is about. A2.1's
+  tables now carry rows whose identifiers name their component, so that question is answerable
+  from the artefact — and the recount that answered it was a re-run from pins, which is the
+  instrument this project already has and the only one that caught it.
+
+### D-246 — A3.2 reads only the tables lying directly under a task's prefix, not the commit-keyed twins beside them
+
+- **Date:** 2026-10-21
+- **Task:** A3.2 (bearing on X1.7, D-216 and every durable reader that lists a prefix)
+- **How it surfaced.** The corrected A2.1 tables were published, A3.2 was re-run against them,
+  and the headline came back at the old 830 and 836 anyway. The cause is a second, independent
+  fault, and it was created by the fix for D-216.
+
+- `fetch_tables` paginates `corpora/results/<slug>` recursively and takes every object whose
+  basename looks like a detection table. D-216 added a commit-keyed twin of every published
+  output under `<slug>/by-commit/<commit>/`, and `repro.durable_keys` describes that twin as
+  sitting "out of the way of a listing that globs the prefix" — which is true of a glob and
+  false of a recursive listing. So A3.2 was reading each table twice, once under its stable key
+  and once per commit that had ever published it.
+- Merging a table with a twin of itself is not a double count of records — the merge unions
+  families — so it left the shallow figures alone and was invisible until the two copies
+  *disagreed*. The moment the stable key held the correction and a twin held the superseded run,
+  the merge unioned the stale families straight back in, and the corrected headline read exactly
+  as the wrong one had. A correction that is silently undone by the store's own provenance copies
+  is worse than no correction.
+- **The rule, which the project already had.** `tools/recount.py` takes only objects lying
+  directly under a task prefix and records anything deeper as excluded with its reason. A3.2 now
+  does the same, and names the twins in `TABLES_NOT_MERGED` so the omission appears in the
+  output rather than only in the code. The prefix is also matched with its trailing slash, so
+  `a2-1` cannot reach a future `a2-10`.
+- **What this costs the earlier figures.** Nothing, as it happens: before today every twin agreed
+  with the table beside it, so every headline A3.2 has published is what the stable keys hold.
+  That is luck, not a property — the same luck D-216 was written about.
+- **The lesson, and it is the same one as D-245 pointing the other way.** D-245 was a reader
+  taking in rows from a corpus it was not about. This is a reader taking in copies of rows it had
+  already taken in. Both passed every check the project had because the checks ask what shape a
+  result has, not which objects it was built from. A pass's manifest records its inputs; what was
+  missing is anything that asks whether that list is the list the pass was supposed to read.
+  Every durable reader that lists a prefix is now in scope for that question: `recount.py` was
+  already right, `apply_policies.py` lists staged corpora rather than results, and A3.2 was the
+  one that was wrong.
+
+### D-247 — The protein registry stays at its pre-registered depth, and the census is not bought; Phase A's output is a funder-facing write-up
+
+- **Date:** 2026-10-21
+- **Task:** A2.6 (bearing on A2.1, A3.2, A6.1 and the write-up)
+- **Settled by the owner**, closing D-236 and the depth question beside it. Phase A proceeds
+  **without** the full census, the ten-fold re-run of the protein registry is **declined**, and
+  the phase's output is a write-up aimed at funders: first principles, with the places deeper
+  work would extend the study named and costed rather than quietly absent.
+- **Why the protein registry stays shallow**, laid out in full at
+  `/mnt/project-files/decisions/rvdb-prot-depth-tradeoffs.md`. Three reasons carried it.
+  - A **like-for-like comparison already exists** and costs nothing. Both registries were
+    searched at the same pre-registered rates, so Evo 1 reads 470 of 1,719 nucleotide families
+    (27.34%) against 572 of 13,679 protein families (4.18%) at one rate, and Evo 2 reads 492
+    (28.62%) against 1,456 (10.64%) at another. **Those are the profile search's own counts on
+    both sides, corrected within the hour of writing this entry:** the first version paired them
+    with the merged headline's protein counts of 582 and 1,483, which fold in A2.4's provirus
+    route at a third rate again (0.0025) and so are not an equal-rate pairing. The equal-rate
+    claim holds only one detector at a time, and the same distinction separates 590/811 from
+    597/812 on the nucleotide side. The deepened nucleotide figures answer a
+    different question — what a tenfold sample does to one registry's bound — and the two
+    questions can both be reported without buying anything.
+  - What ten hours buys is **the bound, not the interval**. The intervals are already about half
+    a percentage point wide, because the denominator is 13,679 families. Depth would raise the
+    count, on the nucleotide registry's evidence by something like a quarter to two thirds, and
+    would still be a lower bound with no ceiling established.
+  - A deeper protein pass would be **banded**, which is the structure D-245's fault lived in. The
+    specific fault is fixed and tested, but the instrument that caught it was re-running the pass
+    from its pins, and that instrument does not scale to a ten-hour pass run twice. Buying a
+    second deep number with the same structural risk and no second check is the trade that was
+    declined.
+- **What this changes on the board.** A2.6 moves to `deferred` rather than being dropped, so the
+  census appears in the write-up as a named commitment deliberately not run, with its costing and
+  the account of its failed first launch intact. Nothing now blocks on it. The census remains a
+  cash decision if it ever returns; this decision is not a judgement that it is worthless, only
+  that it is unbought.
+- **What the write-up must therefore say, in its own voice.** The protein registry is measured ten
+  times less deeply than the nucleotide one; the comparable pair is the equal-rate pair above; and
+  every survival figure in the document is a lower bound whose ceiling was not found. A limitation
+  that is named, measured on a neighbouring registry and costed is evidence of the method working.
+  An unstated one is not.
+
+### D-248 — The baseline's nine divergences from the published column are an alignment-content difference, and the filtering parameters do not move
+
+- **Date:** 2026-10-21
+- **Task:** B4.2 (resolving the open item B4.1 left)
+- **The question.** B4.1 scored all 31 viral assays and checked each against ProteinGym's
+  published RSALOR column. Nineteen reproduced it at or above D-208's 0.99 floor, three were
+  undetermined, nine diverged, the weakest at 0.8207 — and why was not established. A baseline
+  whose disagreement with its own published form is unexplained cannot carry §B4's attribution
+  logic, because the gap might be a harness bug and might be the method.
+- **What it is not.** Not the formula: the per-position structural factor and the log-odds ratio
+  are carried separately in B4.1's artefacts and the structural half agrees. Not the
+  coordinates: the two assays with a non-trivial `MSA_start` (1,984 and 281) compare on their
+  full variant sets once the offset is applied, and no position shift improves any assay. Not
+  the unscored multiples: of the four assays with them, one reproduces, one is undetermined and
+  two diverge, and the restricted denominators are now stated per assay rather than implied.
+- **What it is.** The two sides disagree about **which amino acids the alignment column
+  contains**. Within one position the ranking is the log-odds ratio alone, and every amino acid
+  absent from the column shares the most extreme value, so the comparison can be made exactly:
+  in the six worst assays the published column treats between 9.0% and 23.7% of compared
+  variants as absent where this implementation finds them present. No assay that reproduces the
+  column exceeds 1.7%, and across all 31 assays the reverse case — absent on our side only —
+  occurs 28 times in total. The difference runs in one direction: the published column saw a
+  narrower sequence set than this implementation does.
+- **And it is not a mis-set parameter here.** `tools/baseline_knob_probe.py` samples the
+  package's documented filtering knobs on three assays spanning the range. The defaults
+  reproduce B4.1's figures exactly. `min_seqid` is the only knob that moves anything, and it
+  moves the assays in opposite directions: the weakest improves from 0.8207 to 0.8629 at 0.5
+  while the strongest falls from 0.9985 to 0.8692 at the same setting. No single value fits
+  both, and none reaches the floor on the weakest assay. Whatever produced the published column
+  was not this package at any setting of these knobs over ProteinGym's own alignment.
+- **The parameters do not move, and that is the decision.** The sweep is a diagnostic, recorded
+  and then left alone. Choosing a filtering parameter to maximise agreement with the column the
+  baseline is being validated against would fit the baseline to its own validation, and the
+  resulting agreement would measure the fitting. D-229's parameters stand, which is also what
+  keeps the baseline parameter-free.
+- **What B4.2 therefore concludes.** The floor stands as D-208 stated it and nine assays fall
+  below it, with the reason now named and bounded. The question B4.2 exists to answer — whether
+  §B4 would rest on a straw man — is answered at the assay level, against the experiment rather
+  than against the column: this implementation is **better than the published column on 13
+  assays, indistinguishable on 13 and worse on 5**, with intervals on every difference, and only
+  three of the five worse are larger than 0.02. The baseline is at published strength, and where
+  it is not, the shortfall is in the alignment the published column was built from rather than
+  in this harness.
+- **Left open, deliberately.** Which filtering or preprocessing step produced the narrower
+  sequence set is not established, because establishing it would mean reconstructing an input
+  the benchmark does not publish. That is a limitation of the published artefact, recorded here
+  so B5 can cite it rather than rediscover it.
+
+### D-249 — B1.2's common test set is nine assays wide, and the two larger checkpoints were never beyond this machine
+
+- **Date:** 2026-10-22
+- **Task:** B1.2 (closing the carry-over it left for B5.2)
+- **What was left.** B1.2's table was honest about its own narrowness: four checkpoints scored,
+  but only **one** assay that every one of them covered. That is enough for the two things the
+  Done-when actually tests — determinism and agreement with a published column, both of which
+  are per-run properties — and not enough for a comparison between models, which needs the same
+  material under each. The earlier reading was that widening it was scoring time rather than new
+  code.
+- **What it cost.** 23 checkpoint-assay pairs, 75 minutes wall, on this container's four cores
+  and nothing rented. The cost model that made it plannable is that masked-marginal scoring
+  scales with **distinct positions × sequence length**, not with variant count: the nine-assay
+  set is 370,227 such units, of which `A0A2Z5U3Z0_9INFA_Wu_2014` alone is 311,880 — 84% of the
+  whole. The eight remaining assays together are a fifth of the one that was already scored, so
+  the set that looked expensive to widen was almost entirely already paid for. A variant-count
+  estimate had put the same work near ten hours and would have sent this to rented hardware.
+- **The correction worth recording.** A first probe at the driver's default batch size was
+  killed on memory for `esm3-sm-open-v1` and ran four times over its predicted time for
+  `esm2_t36_3B_UR50D`, which read as *these checkpoints do not fit a 15 GB machine*. They do.
+  Both had been scored here before at batch sizes recorded in their own run manifests — 1 for
+  `esm3-sm-open-v1`, 2 for `esm2_t36_3B_UR50D` — and at those sizes both completed every assay
+  without incident. The manifests are the only reason this was recoverable: a per-run parameter
+  that a capability claim rests on has to be read from the run that established it, not assumed
+  from the tool's default. The abandoned probe is not in any artefact.
+- **What the widened table says.** 36 runs, every one bitwise identical on a re-score. 27 have a
+  published column and all 27 reproduce it, the lowest agreement 0.9957. The common test set is
+  **9 assays over 4 of the 5 roster checkpoints**; `evo2_7b` remains not run for the reason its
+  roster entry gives — the nucleotide arm needs a published coding sequence for the assay's
+  target and the benchmark publishes protein sequences — which is about what the benchmark
+  publishes and not about this machine.
+- **What this does not settle.** Nine assays is a common set, not a representative one: all nine
+  are viral and five are from one stability study, so it supports a like-for-like comparison and
+  not a general ranking. §B5 should say which of the two it is making.

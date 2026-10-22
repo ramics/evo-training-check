@@ -175,9 +175,11 @@ Carried forward, unresolved:
    taxonomy. Was it revisited for Evo 2? No source says.
 4. **"Infect eukaryotic hosts" versus "pathogenic human viruses."** The mechanism and the
    stated aim differ in scope (§1). Which does the policy commit to?
-5. **Version of record.** The Evo 2 Methods section of the Nature paper is unretrieved
+5. **Version of record.** ~~The Evo 2 Methods section of the Nature paper is unretrieved
    (S-EVO2-NATURE-METHODS) and should be checked before publication, in case it adds procedure
-   the preprint omits.
+   the preprint omits.~~ **Closed 2026-10-20 by A7.3.** S-EVO2-NATURE-METHODS was retrieved on
+   2026-10-17 and is quotable; this entry was stale. It adds no procedure the preprint omits,
+   and what it does add is a scoping sentence that changes how the inheritance reads — §10.
 
 ## 7. The released corpora, as pinned for A1.2
 
@@ -251,7 +253,14 @@ should therefore be quoted per representation, never summed across them.
 
 ## 8. What each representation can prove, and why only one was staged
 
-The two OpenGenome2 trees hold the same sequences and are not interchangeable as evidence. From
+**Corrected by A7.3 — see §10.** The two trees were taken here to hold the same sequences, on
+the publisher's own description of the JSON as the preprocessed form of the FASTA. Counted in
+full, they do not: the JSON tree holds 2,653,047 records and the FASTA 2,957,495. Everything
+below about what each representation *carries* stands, and the sentence about them holding the
+same sequences does not.
+
+The two OpenGenome2 trees were understood to hold the same sequences and are not interchangeable
+as evidence. From
 S-OPENGENOME2-RECORD-FIELDS, reading the leading ~3 MB of four files:
 
 - **FASTA viral records carry a source accession** of the form `IMGVR_UViG_<taxon-oid>_<n>` —
@@ -325,3 +334,70 @@ taxonomy and no accession; Evo 2's carries the accession and no taxonomy. Neithe
 IMG/VR metadata three of the rules read. The accession is the more valuable of the two for A7.2,
 because it is a join key to the filter's input and a lineage tag is not — which is why A1.7's
 acquisition opens both directions on Evo 2's release and only one on Evo 1's.
+
+## 10. Settled by A7.3: one component, two representations, and only one of them was trained on
+
+§8 recorded the two OpenGenome2 trees as holding the same sequences, on the publisher's own
+description of the JSON as the preprocessed training form of the FASTA. A7.3 counted both in
+full. They do not.
+
+| | records | nucleotides |
+|---|---|---|
+| Evo 1's released viral component (A7.1) | 2,653,047 | 36,236,025,613 |
+| OpenGenome2 `json/…/imgvr_untagged/`, train + test | **2,653,047** | **36,236,025,613** |
+| OpenGenome2 `fasta/plasmids_phage/imgvr.fasta.gz` (A1.4) | 2,957,495 | 38,877,282,216 |
+
+**The training format is Evo 1's released component exactly** — zero on both deltas, not
+approximately. The FASTA representation holds 304,448 records and 2,641,256,603 nucleotides
+more, and among them are the 264,570 records the published procedure removes (A7.2).
+
+Two notes on the arithmetic. The JSON tree publishes six files; its `valid` chunk holds the same
+50 records and the same 363,466 nucleotides as its `test` chunk, at a different sha256 — gzip
+metadata, not content — so summing all six double-counts one split. The distinct total is train
+plus test. And the comparison is on counts rather than on identity: the JSON records carry no
+accession (§8), so the two representations cannot be joined record by record, and "the same
+number of records and the same number of nucleotides" is the strongest statement the published
+artefacts support. It is a strong one — the probability of two independently derived corpora
+agreeing to the nucleotide on 36.2 billion of them is not worth writing down — but it is not a
+proof of identity and is not reported as one.
+
+**The version of record scopes the inheritance, and the scoping is what makes this read
+cleanly.** S-EVO2-NATURE-METHODS was retrieved on 2026-10-17, after §6's caveat 5 was written,
+and is quotable under CC BY-NC-ND. Its data-curation section opens:
+
+[source: S-EVO2-NATURE-METHODS, §A.2.1 "Reused datasets"]
+> Our previously published OpenGenome dataset was used in its entirety as part of the training data for this study [80]. This included representative prokaryotic genomes available through GTDB release v214.1, and curated phage and plasmid sequences retrieved through IMG/VR and IMG/PR. As previously described, the OpenGenome dataset was curated to exclude genomic sequences of viruses which infect eukaryotic hosts.
+
+Three things follow, and the third is the finding.
+
+**The curation sentence is in the past tense and its subject is OpenGenome.** It states what was
+done to the dataset being reused, not a step applied to OpenGenome2. The preprint's "As in Evo 1,
+we excluded genomic sequences from viruses that infect eukaryotic hosts from the training data"
+(§1) reads as a claim about this release; the version of record's sentence reads as provenance
+on a reused one. Both are published and they do not say the same thing.
+
+**The Methods enumerate what OpenGenome2 added, and nothing viral is in the list.** The sections
+following "Reused datasets" are updated prokaryotic genomes, eukaryotic reference genomes,
+metagenomes, eukaryotic organelle genomes, eukaryotic promoters, and augmented transcript and
+genic-region derivations. IMG/VR appears three times in the whole document: in the sentence
+above, in a note that phylogenetic tags are prefixed to IMG/VR sequences, and as a row in the
+training-mix table. No new viral retrieval is described.
+
+**So the released FASTA is 304,448 records larger than the only viral component the Methods
+account for, and the training format is not.** Read together, the measurement and the quote
+agree: what was trained on is the filter's output carried forward whole, and the representation
+that carries the source accessions — the only one from which the filter can be checked at all
+(§8) — is a superset of it that the Methods do not describe.
+
+Nothing here is a claim about intent, and nothing here says the filter failed on the training
+data; measured against the training format, it did not. What it says is that the artefact a
+reader must use to audit the filter is not the artefact the filter produced, and that no
+published sentence distinguishes them.
+
+**The only published figure for the component is not reconcilable with it.** Supplementary
+Table 9 gives IMG/VR as 3% of pretraining, 2% of midtraining and 1.7% of the ablation. Those are
+shares of a training mix with upsampling, not of a corpus, so they cannot be checked against
+either 2,653,047 records or 2,957,495. There is no published record count, nucleotide count or
+removal count for the component in either Evo 2 document. This is the gap `docs/disclosure-standard.md`
+records as item **D1**, and the one that made the reconciliation A7.3 was asked for impossible
+rather than merely difficult.

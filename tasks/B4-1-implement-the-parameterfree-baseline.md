@@ -2,7 +2,7 @@
 id: B4.1
 title: Implement the parameter-free baseline
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [B2.4]
 blocks: [B4.2]
@@ -33,6 +33,13 @@ failure to training data rather than to assay difficulty.
 - Method choice and rationale recorded in DECISIONS.md.
 - Absence of any training exposure is documented and verifiable.
 
+## Closed — 2026-10-21 (evening)
+
+`done`. Every done-when condition was already met when this task reached `review`, and the one
+thing left hanging — why nine assays disagree with the published column — is answered in B4.2 and
+recorded as D-248. Nothing about the baseline itself is outstanding, so the task is closed rather
+than held at `review` while a dependent task reports on it. The state it reached is below.
+
 ## State — 2026-10-21
 
 `review`. The baseline has run over the whole collection and is published:
@@ -58,8 +65,13 @@ means their interval straddles the floor rather than clearing it:
 
 The weakest is `VRPI_BPT7_Tsuboyama_2023_2WNM` at 0.8207, and the divergences mostly do not move
 the assay-level metric: six of the nine have a difference against the experimental truth whose
-interval includes zero. **Why the nine differ is not established, and that is the open item
-here** — it is a disagreement with a published column, not with the experiment.
+interval includes zero. **Why the nine differ was the open item here, and B4.2 has since answered it** (D-248): the
+published column treats up to 23.7% of compared variants as absent from the alignment column
+where this implementation finds them present, and nowhere the reverse, so the disagreement is
+about which sequences enter the frequency count rather than about the formula, the coordinates or
+the structural term. It is a disagreement with a published column, not with the experiment — at
+the assay level this implementation is better on 13 assays, indistinguishable on 13 and worse on
+5.
 
 **Multiple substitutions are deliberately unscored**, which matters for B4.2 because the
 published column does score them. Four assays contain multiples, and in

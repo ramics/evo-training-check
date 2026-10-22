@@ -88,19 +88,35 @@ denominators reproduced from re-staged registries at their pinned digests (Pfam 
 30,134; RVDB-prot 13,679 counted against 13,679 stated). Artefacts are now in object storage under
 `corpora/results/a2-1/` — 32 objects with run manifests.
 
-**Re-run on 2026-10-21 and now backed by artefacts (D-235).** Pfam at the deepened rates is
-**830 of 1,719 families on Evo 1 (48.28%, 45.93-50.65%)** and **836 on Evo 2 (48.63%,
-46.28-51.00%)**, identical across all three readings, published under `corpora/results/a2-1/`
-from commit `bcba835`. The bands tile their rate and every shallow family is in the deepened
-set, with 360 and 344 gained. Evo 2's prose figure of 811 is within 3% of this; **Evo 1's 590
-does not reproduce and is withdrawn** — 830 is the figure. RVDB-prot's deepening has not been
-re-run and remains prose-only.
+**Re-run on 2026-10-21 and now backed by artefacts, then corrected the same evening (D-235,
+corrected by D-245).** Pfam at the deepened rates is **590 of 1,719 families on Evo 1 (34.32%,
+32.12-36.60%)** at rate 0.02 and **811 on Evo 2 (47.18%, 44.83-49.54%)** at rate 0.01, identical
+across all three readings, published under `corpora/results/a2-1/` from commit `7a0b836`.
+
+The figures first published from commit `bcba835` — 830 and 836 — were wrong by about a third.
+Each release's assembled table had been counting the other release's detections, because the
+band parts name their tables by policy and registry and the assembly's shelf keys left the
+release out. Re-running from the pins reproduced every **band part** exactly and the assembled
+table not at all, which is how it surfaced. The release is now part of the key and the tables
+are re-assembled from the published parts. D-245 has the detail, including why four of this
+project's own consistency checks passed over the wrong table.
+
+**D-099's prose figures were right and their withdrawal is withdrawn.** D-235 recorded that
+Evo 1's 590 "does not reproduce"; it reproduces exactly, as does Evo 2's 811, and what did not
+reproduce was the assembly that replaced them.
+
+The bands tile their rate and every shallow family is in the deepened set — 0 shallow families
+lost in either union, with 120 and 319 families gained over the shallow 470 and 492. Note the
+asymmetry: at a tenth of Evo 1's sampling rate Evo 2 reaches 811 families against Evo 1's 590,
+so the two cannot be read as comparable rates. RVDB-prot's deepening has not been re-run and
+remains prose-only; its tables carry no band parts and were never affected.
 
 **The superseded note, kept for the record.** The figures in the table above are the ten-fold ones
-(590/1,091 and 811/4,154) and they remain prose-only, about eighteen hours of compute from being
-backed. The shallow sample is a nested subset of the deepened one, so the agreement above is
-evidence for the method rather than for those numbers. A3.2 and A6.1 should know which of the two
-they are citing.
+(590/1,091 and 811/4,154) and were prose-only when this note was written, about eighteen hours of
+compute from being backed. They are now backed, and their family counts are the figures above.
+The shallow sample is a nested subset of the deepened one, so the agreement above is evidence for
+the method rather than for those numbers. A3.2 and A6.1 should know which of the two they are
+citing.
 
 ## Steps
 
