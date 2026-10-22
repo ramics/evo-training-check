@@ -25,4 +25,43 @@ the 1,719 universe is pre-registered and is not corrected here. A cellular famil
 
 ## The detected sets
 
-Outstanding. The per-family detection lists from A2.1/A3.2 were not reachable from the run that produced this artefact, so every figure above is over the whole pre-registered universe and none of it is weighted by what was actually detected. Detected families are not a random draw from the universe — an abundant family is more likely to be found — so the universe figures are not a substitute and must not be quoted as though they were.
+**opengenome, profile-hmmer** — 590 detected families: 303 with no curated non-viral occurrence, 135 shared, 152 unjudgeable.
+
+Among the 438 the curated section can judge, 30.8% are shared, against 14.4% over the whole universe — 2.15 times as often. Detected families are not a random draw from the universe, and this is the direction of the difference: a family with cellular members is easier to detect, so weighting by what was found makes the sharing commoner rather than rarer.
+
+| variant | excluding unjudgeable | including unjudgeable |
+|---|---|---|
+| `headline` | 590 | 590 |
+| `specific` | 303 | 455 |
+| `specific_plus_endogenous` | 307 | 459 |
+
+**opengenome, profile-hmmer+provirus-genomad** — 597 detected families: 310 with no curated non-viral occurrence, 135 shared, 152 unjudgeable.
+
+Among the 445 the curated section can judge, 30.3% are shared, against 14.4% over the whole universe — 2.11 times as often. Detected families are not a random draw from the universe, and this is the direction of the difference: a family with cellular members is easier to detect, so weighting by what was found makes the sharing commoner rather than rarer.
+
+| variant | excluding unjudgeable | including unjudgeable |
+|---|---|---|
+| `headline` | 597 | 597 |
+| `specific` | 310 | 462 |
+| `specific_plus_endogenous` | 314 | 466 |
+
+**opengenome2, profile-hmmer** — 811 detected families: 497 with no curated non-viral occurrence, 145 shared, 169 unjudgeable.
+
+Among the 642 the curated section can judge, 22.6% are shared, against 14.4% over the whole universe — 1.57 times as often. Detected families are not a random draw from the universe, and this is the direction of the difference: a family with cellular members is easier to detect, so weighting by what was found makes the sharing commoner rather than rarer.
+
+| variant | excluding unjudgeable | including unjudgeable |
+|---|---|---|
+| `headline` | 811 | 811 |
+| `specific` | 497 | 666 |
+| `specific_plus_endogenous` | 506 | 675 |
+
+**opengenome2, profile-hmmer+provirus-genomad** — 812 detected families: 498 with no curated non-viral occurrence, 145 shared, 169 unjudgeable.
+
+Among the 643 the curated section can judge, 22.6% are shared, against 14.4% over the whole universe — 1.57 times as often. Detected families are not a random draw from the universe, and this is the direction of the difference: a family with cellular members is easier to detect, so weighting by what was found makes the sharing commoner rather than rarer.
+
+| variant | excluding unjudgeable | including unjudgeable |
+|---|---|---|
+| `headline` | 812 | 812 |
+| `specific` | 498 | 667 |
+| `specific_plus_endogenous` | 507 | 676 |
+

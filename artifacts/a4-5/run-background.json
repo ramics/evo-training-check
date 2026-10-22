@@ -1,17 +1,20 @@
 {
-  "by_commit": {},
-  "durable": null,
-  "durable_exempt": "the artefact is a 1,719-row table that is committed to the repository, which is a more durable home than the results bucket for something this small; the bucket is also unreachable from this session's credentials",
+  "by_commit": {
+    "artifacts/a4-5/background-pfam-38.2.json": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/525b319a79851e1113e0178cee786f4675d3a95c/background-pfam-38.2.json",
+    "artifacts/a4-5/background-pfam-38.2.md": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/525b319a79851e1113e0178cee786f4675d3a95c/background-pfam-38.2.md"
+  },
+  "durable": "s3://amazebio-corpora-897641797669/corpora/results/a4-5",
+  "durable_exempt": null,
   "environment": {
     "machine": "x86_64",
     "platform": "Linux-6.18.44-fc-v140-x86_64-with-glibc2.39",
     "python": "3.12.15"
   },
-  "finished_at": "2026-10-22T04:26:46.322388+00:00",
+  "finished_at": "2026-10-22T11:01:01.222232+00:00",
   "git": {
     "available": true,
     "branch": "claude/project-thread-4bnr9t",
-    "commit": "f144750dfc41f9809630f5ee966fbaa7ef523b60",
+    "commit": "525b319a79851e1113e0178cee786f4675d3a95c",
     "dirty": false,
     "dirty_paths": []
   },
@@ -27,21 +30,49 @@
       "path": "data/uniprotkb/uniprot_sprot-2026_03.dat.gz",
       "role": "curated background",
       "sha256": "c87208822a56e8ae0d6bf5072c287b35e42a8b9f25e8bd771389abc5b7a29c38"
+    },
+    {
+      "bytes": 5308,
+      "path": "artifacts/a4-5/detected/detected-opengenome-profile-hmmer.txt",
+      "role": "detected: opengenome",
+      "sha256": "fb236f911ab46b3bb2f54d4e901f02bffb18820d4e24b52fbaf7873ff738d56c"
+    },
+    {
+      "bytes": 5581,
+      "path": "artifacts/a4-5/detected/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt",
+      "role": "detected: opengenome",
+      "sha256": "d95845e730865d1e5d8980bb3bfe9d25b3655883ba93383e89ce065defe1a24d"
+    },
+    {
+      "bytes": 7080,
+      "path": "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer.txt",
+      "role": "detected: opengenome2",
+      "sha256": "a9fff32df66cd7dac1c7ac5d9c64890957817f490c3b48a30fb260f827f58396"
+    },
+    {
+      "bytes": 7308,
+      "path": "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt",
+      "role": "detected: opengenome2",
+      "sha256": "ef61118f3d87ef8842b6fb1019adc3696c5d8ac971293391c186e2abc3764047"
     }
   ],
   "notes": [],
   "outputs": [
     {
-      "bytes": 942414,
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/525b319a79851e1113e0178cee786f4675d3a95c/background-pfam-38.2.json",
+      "bytes": 947606,
+      "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/background-pfam-38.2.json",
       "path": "artifacts/a4-5/background-pfam-38.2.json",
       "role": "table",
-      "sha256": "53f24959ba4a9b056d8a6f180fffd89eed8c3e3f79d0561dbd1246e7623f00d8"
+      "sha256": "8c3512684bc47f5b15d9e9572f5a3d13369d9d73161fbf99c91468b7f8cf9f63"
     },
     {
-      "bytes": 1897,
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/525b319a79851e1113e0178cee786f4675d3a95c/background-pfam-38.2.md",
+      "bytes": 4134,
+      "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/background-pfam-38.2.md",
       "path": "artifacts/a4-5/background-pfam-38.2.md",
       "role": "summary",
-      "sha256": "0fc2ee643923010d4235e488a5370237cb4e2628e03704b6af79963f538b2976"
+      "sha256": "f2c31f15a64dbf87c8c9950d0a6df84552fae3efbcdb5cd39425075b6e421cb7"
     }
   ],
   "parameters": {
@@ -54,9 +85,12 @@
   },
   "replace_durable": null,
   "seed": null,
-  "started_at": "2026-10-22T04:25:31.187905+00:00",
+  "started_at": "2026-10-22T10:59:23.906424+00:00",
   "task": "A4.5",
   "tools": {},
   "upload_skipped": null,
-  "uploaded": {}
+  "uploaded": {
+    "artifacts/a4-5/background-pfam-38.2.json": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/background-pfam-38.2.json",
+    "artifacts/a4-5/background-pfam-38.2.md": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/background-pfam-38.2.md"
+  }
 }
