@@ -129,15 +129,15 @@ def open_records(
     """The named records with sequence, and the meter measuring the pass that finds them.
 
     Object storage offers no index into a gzip stream, so the cost is one sequential pass and
-    the records are found on the way past. `iter_fasta_selected` ends the pass once every
-    requested identifier has been seen.
+    the records are found on the way past. The object is read **through**, rather than stopping
+    at the last requested accession, because the entry counts have to be counts — see the
+    comment on the call below.
 
     The meter is returned rather than kept private for two reasons. It reports progress on a
-    byte interval while the pass runs — the records are sparse (314 accessions in 11.22 GB), so
-    a line printed when one is *found* says nothing about the long stretches between them, which
-    is the silence D-192 is about. And the bytes it counts are what the run records: the early
-    stop's saving cannot be predicted from the identifiers, so how much was actually read is a
-    measurement rather than a derivation.
+    byte interval while the pass runs — the records are sparse, a few hundred accessions in
+    11.22 GB, so a line printed when one is *found* says nothing about the long stretches between
+    them, which is the silence D-192 is about. And the bytes it counts are what the run records,
+    so how much was read is a measurement rather than a derivation.
 
     It wraps the compressed reader, because the object's declared length is the compressed one
     and a share of an unknown decompressed total would be a fraction with an invented
@@ -158,7 +158,24 @@ def open_records(
         from amazebio.uniref import GunzipStream
 
         reader = GunzipStream(reader)
-    return iter_fasta_selected(reader, component=source.component, ids=ids), meter
+    return (
+        iter_fasta_selected(
+            reader,
+            component=source.component,
+            ids=ids,
+            # Read the object through. `iter_fasta_selected` can stop as soon as every requested
+            # accession has been seen once, and that was this tool's design until the `entry`
+            # column arrived: the stop was defensible precisely because it changed nothing a
+            # caller could observe. It no longer is. An accession repeats in this object with
+            # different residues under it, so a pass that stops at the first sighting of the
+            # last accession reports `entries_read`, `records_repeated` and
+            # `entries_per_record_max` over however much of the object it happened to reach —
+            # counts that look like a census and are truncated at an arbitrary byte. The saving
+            # was never predictable from the identifiers; a true count is worth more.
+            stop_when_complete=False,
+        ),
+        meter,
+    )
 
 
 def resolve_profiles(accessions: list[str]) -> tuple[Any, Any, dict[str, str]]:
@@ -354,6 +371,12 @@ def build(
             "thresholds": "the registry's own curated gathering cutoff, sequence half",
             "identity_definition": IDENTITY_DEFINITION,
             "selection": "records named by the caller; no sample, no band (D-099 untouched)",
+            "read": (
+                "the object is read through to its end rather than stopped at the last "
+                "requested accession, so `entries_read`, `records_repeated` and "
+                "`entries_per_record_max` are counts over the whole component and not over "
+                "however much of it a stop happened to reach"
+            ),
         },
         "records_requested": len(wanted),
         "records_found": len(set(seen)),
