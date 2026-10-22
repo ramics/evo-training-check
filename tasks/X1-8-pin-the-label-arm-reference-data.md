@@ -79,24 +79,39 @@ The whole-token half of the rule is there because a substring match over protein
 the `macrophage` blind spot already on record. A Pfam family's name records where its curators
 built the model, not what a record is.
 
-**The per-record table regenerates too, and the pass that does it verifies the pin.**
-`tools/denylisted_label_records.py` joins the detected Evo 2 record accessions from the A2.1
-per-hit table against `S-IMGVR-V4-SEQINFO-2022-09-20`, attaches the VMR host column, and flags
-the labels against the spec's 19 families and 12 orders. It reproduces the hand-built table
-exactly: 315 rows, every cell identical, 31 records with a denylisted family label and 308 with
-a denylisted order label, 24 with both, and 1,272 of 19,646 detected records carrying a family
-label at all.
+**The per-record table was regenerated here, reproduced exactly, and then handed over.** This
+task wrote a second producer for it before discovering that X1.9, on another branch, was writing
+one too — the duplication recorded below. The decision is that X1.9's is the producer, so this
+task's `tools/denylisted_label_records.py` has been **removed rather than left beside it**: two
+tools whose names differ by one letter is a trap for the next reader.
 
-It takes 47 seconds, because the 1.9 GB table is **streamed and never stored** — the session's
-writable disk is smaller than the file. The md5 of the whole stream is computed as it passes and
-compared with the publisher's, so this is also the first end-to-end check that the staged bytes
-are the published bytes: they are.
+**The run is kept as evidence, because it is what shows the fold loses nothing.** Joining the
+detected Evo 2 accessions to `S-IMGVR-V4-SEQINFO-2022-09-20` and flagging the labels against the
+spec's 19 families and 12 orders reproduced the hand-built table **cell for cell**: 315 rows, 31
+records with a denylisted family label, 308 with a denylisted order label, 24 with both, 1,272
+of 19,646 detected records carrying a family label at all. 47 seconds, streaming the 1.9 GB
+table rather than storing it — the session's writable disk is smaller than the file — with the
+md5 of the whole stream checked against the publisher's as it passed, which was the first
+end-to-end confirmation that the staged bytes are the published bytes. That output is at
+`corpora/results/x1-8/records/`, and it is **superseded by `corpora/results/x1-9/`**: the bucket
+has no delete, so the note is the only thing that can retire an object.
 
-Three classes of record id, kept distinct rather than filtered quietly. `IMGVR_…` records are
-what the table is about. The 562 `IMGPR_…` plasmid records are counted and set aside: IMG/PR is
-out of the published policy's scope by its own words and has no viral taxonomy to join against.
-Anything else resolves to nothing, which is the whole of Evo 1's released viral component, and
-the tool refuses rather than reporting a floor as a count.
+Three things from it fold into X1.9's tool, and the thread has been told:
+
+1. **The order axis.** X1.9 reports the family rank only. The 308 order-label records, the 24
+   carrying both, and the 315-row union are this result's other half, and 308 had already been
+   reported upwards.
+2. **The `vmr_host_source` column**, with its three states kept distinct in the row: a host, no
+   species label to ask about, and `species-not-in-MSL37.3` for a species the pinned release does
+   not contain — taxonomic churn, not a hostless virus.
+3. **The `denominators` block and its test**, so the mapping below travels inside the artefact
+   instead of in prose.
+
+One refusal is worth carrying too: three classes of record id stay distinct rather than being
+filtered quietly. `IMGVR_…` records are the subject; the 562 `IMGPR_…` plasmid records are
+counted and set aside, since IMG/PR is out of the published policy's scope by its own words and
+has no viral taxonomy to join against; and an id that resolves to nothing — the whole of Evo 1's
+released viral component — is a refusal, because skipping it would report a floor as a count.
 
 ## Which number is which
 
@@ -124,17 +139,21 @@ what the filter's own policy names should use 31**, with the rank stated and the
 window attached; 315 is quotable only as "either rank"; a name-axis figure is not comparable
 with any of them.
 
-**One more table than the project needs.** X1.9, on another branch, regenerated the per-record
-table too, as `tools/denylist_label_records.py` — a name one letter from this task's
-`tools/denylisted_label_records.py`. Both reproduce the hand-built figures and agree on
-everything they both measure (31 on the label axis, 19,646 joined, 562 plasmid records aside,
-the publisher's md5 over the whole stream). They differ in what each adds: X1.9 executes the
-published rule through `policyspec.decide` instead of comparing names, and reads the pin from
-the publisher's own captured listing; this one also carries the order axis and the VMR host
-column, and reproduces the 315-row table cell for cell. The duplication is a decision for
-whoever merges these two branches, not something to resolve by deleting a tool from inside one
-of them — it is recorded here so the choice is made on purpose. Two threads measuring one figure
-is the recurring failure this project already has on record.
+**One more table than the project needed, and the duplicate is gone.** X1.9, on another branch,
+regenerated the per-record table within the same hour, as `tools/denylist_label_records.py` — a
+name one letter from this task's `tools/denylisted_label_records.py`. Both reproduced the
+hand-built figures and agreed on everything both measured: 31 on the label axis, 19,646 records
+joined, 562 plasmid records set aside, the publisher's md5 over the whole stream.
+
+X1.9's is the producer, and this task's is deleted. The reason is provenance rather than output:
+X1.9 **executes** the published rule through `policyspec.decide` — the same code path A1.4's
+corpus-scale evaluator uses — instead of comparing taxon names the way this task's tool did, and
+it reads the digest from the publisher's own captured file listing rather than from a second
+register entry. Two tools agreeing is weaker evidence than one tool running the rule.
+
+Two threads measuring one figure is the third instance of this failure on record here, and it
+cost more than the figure was worth. The cheap check before regenerating anything:
+`git log --all --grep` for the figure's name.
 
 **Hit columns are per route, never summed.** D-247's rule is that a single-detector figure is
 not set beside a merged one, so the profile-search and provirus-route hits are separate columns.
@@ -150,18 +169,24 @@ table and so no record behind a provirus hit can be looked up at all.
   hand-built table column for column.
 - The tool states the matching rule and reports the count under both readings of it.
 - The per-record table is regenerated from the pinned inputs, and the pass that does it checks
-  the staged bytes against the publisher's digest rather than trusting the staging.
+  the staged bytes against the publisher's digest rather than trusting the staging. **Done here
+  and handed to X1.9**, whose tool is the producer; this task's duplicate is deleted and what it
+  added is listed for the fold.
 - Records whose identifiers cannot be resolved are refused, not skipped: a floor must not be
   reported as a count.
+- Every figure in the result names its axis, its rank and its component, so that 31, 308, 314 and
+  315 cannot be mistaken for four readings of one quantity.
 - `python3 tools/board.py --check` passes and CI is green.
 
 ## Result
 
-Done. **57 sources in the store, 108 quotations verified**, and both label-arm tables regenerate
-from pinned inputs and reproduce their hand-built versions cell for cell. Outputs at
-`corpora/results/x1-8/` and `corpora/results/x1-8/records/`, each with its summary and
-`run.json`, published through `repro.run(durable=...)` and so through `objectstore.put_once`,
-with the commit-keyed twins X1.7 requires.
+Done. **57 sources in the store, 108 quotations verified**, and both label-arm tables were
+regenerated from pinned inputs and reproduced their hand-built versions cell for cell. The
+family table's producer is `tools/denylist_named_families.py` here, at
+`corpora/results/x1-8/`; the per-record table's is X1.9's, at `corpora/results/x1-9/`, and this
+task's own per-record output at `corpora/results/x1-8/records/` is superseded. Everything was
+published through `repro.run(durable=...)` and so through `objectstore.put_once`, with the
+commit-keyed twins X1.7 requires.
 
 Six references, not three. The write-up's own sweep found three further claims resting on one
 session's retrieval: the two press accounts of the exclusion, and the natural history of the one
