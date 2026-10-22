@@ -42,7 +42,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import corpora, objectstore, profilesearch, repro
+from amazebio import corpora, objectstore, profilesearch, progress, repro
 from amazebio.profiles import MIN_MODEL_COVERAGE, registry
 from amazebio.seqstream import iter_fasta_selected
 
@@ -128,6 +128,12 @@ def stream_records(client: Any, source: Any, ids: list[str]) -> Iterator[Any]:
     Object storage offers no index into a gzip stream, so the cost is one sequential pass and the
     records are found on the way past. `iter_fasta_selected` ends the pass once every requested
     identifier has been seen.
+
+    The heartbeat is on the **compressed** reader, under the decompressor, so the line says how
+    far through the staged object the pass has got and what is left at the measured rate. A
+    heartbeat on the record loop would say nothing at all while the reader traverses a stretch of
+    the object holding none of the wanted records, which is the normal case when the list is a
+    few hundred accessions in 11.22 GB — D-192's failure, and `amazebio.progress` exists for it.
     """
     obj = corpora.RangedObject(
         client,
@@ -138,7 +144,7 @@ def stream_records(client: Any, source: Any, ids: list[str]) -> Iterator[Any]:
             f"    reconnect {attempt} at byte {pos:,}: {exc}", file=sys.stderr
         ),
     )
-    reader: Any = obj.buffered()
+    reader: Any = progress.beating(obj.buffered(), total=source.bytes, label=Path(source.key).name)
     if source.gzipped:
         from amazebio.uniref import GunzipStream
 
