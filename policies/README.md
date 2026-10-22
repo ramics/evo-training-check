@@ -16,6 +16,7 @@ evo.md         Evo 1 and Evo 2 — one policy lineage
 esm3-open.md   ESM3-open
 esm-c.md       ESM-C — included for the record; it states no exclusion
 esm2.md        ESM-2 — positive control
+taxonomy.md    the taxonomy and label references the filter's own rules read (X1.8)
 ```
 
 ## The one rule

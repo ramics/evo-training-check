@@ -506,6 +506,32 @@
    "note": "The tool A4.2 benchmarks, described by its authors. Two statements A4.2 relies on: that geNomad produced the data IMG/VR v4 was built from, which corroborates the dependency decomposition from a primary source rather than from the corpus alone; and that its taxonomically informed markers were annotated from ICTV Virus Metadata Resource version 19, which is the ground truth D-086 should have pinned and D-095 shows does not change the result. Retrieved 2026-10-15 and read; not stored because it is publisher content. Re-fetch from url to verify."
   },
   {
+   "id": "S-ICTV-REPORT-PAPILLOMAVIRIDAE",
+   "kind": "report_chapter",
+   "title": "ICTV Report chapter: Papillomaviridae (ICTV Online Report, 10th edition)",
+   "url": "https://ictv.global/report/chapter/papillomaviridae/papillomaviridae",
+   "licence": "CC-BY 4.0",
+   "status": "retrieved",
+   "capture": "policies/captures/ictv-report-papillomaviridae.html",
+   "sha256": "f22d581ada9d0cb033b27d51f419c8453975934b67bffe4aae2eb164d46d884b",
+   "bytes": 104682,
+   "retrieved": "2026-10-22",
+   "note": "The authority behind the one statement in the label arm that is a judgement about an organism rather than a join against a table: that a Gammapapillomavirus label names a virus of humans, and that it is the genus found on healthy skin rather than one of those associated with cancers. The quotations live in policies/taxonomy.md and are machine-verified against this capture, which is why it is stored rather than cited: the prose this replaces attributed to this chapter a description of the genus as 'found on the skin and oral mucosa of primates', which is not its wording. Licence: the page states CC BY 4.0, so a verbatim copy may be redistributed with attribution. Quotes are matched against HTML bytes, so a quotation must not span inline markup - taxon names are italicised in running text and a quote crossing an <em> fails. Dated and mutable, like S-OPENGENOME1-TREE and S-IMGVR-JGI-INVENTORY: a chapter is revised in place, so a claim from it carries its retrieval date and the digest is what detects the revision."
+  },
+  {
+   "id": "S-ICTV-VMR-MSL37-3",
+   "kind": "taxonomy_release",
+   "title": "ICTV Virus Metadata Resource VMR_20-190822_MSL37.3 (per-species lineage and host)",
+   "url": "https://ictv.global/sites/default/files/VMR/VMR_20-190822_MSL37.3.xlsx",
+   "licence": "CC-BY 4.0",
+   "status": "retrieved_not_stored",
+   "sha256": "66791e9bfea59ff051b5098d67d6a7406f972ee8ab0c759076c5e8b8f059bf32",
+   "bytes": 1563522,
+   "retrieved": "2026-10-22",
+   "revision": "VMR_20, dated 2022-08-19, MSL37.3",
+   "note": "Where every host statement in the label arm comes from: the 'Host source' column, read with amazebio.ictv.read_vmr. MSL37.3 is the taxonomy in force when IMG/VR v4 was built, which is why it and not a current release is joined against. amazebio.ictv.VMR_RELEASES has carried this sha256 since A4.2; the file was re-fetched from the publisher on 2026-10-22 and is byte-identical to it, so the pin is a live route rather than a recollection. Not stored: a pinned input belongs in git-ignored data/ under the convention in data/README.md, and an xlsx has no text for the quote checker, so this entry pins bytes and not wording. The limitation travels with the pin: the column's finest value is 'vertebrates' and it never says 'human', so a figure of the form 'N records came from human pathogens' cannot be built from it; and a species named after the pin is absent from it rather than hostless, which is a different negative."
+  },
+  {
    "id": "S-IMGVR-JGI-INVENTORY",
    "kind": "file_listing",
    "title": "JGI Data Portal file listing for the IMG/VR dataset (42 files, 10 dated releases)",
@@ -535,6 +561,27 @@
    "note": "Retrieved 2026-10-15 by the project owner, who supplied the PDF after four automated access paths were refused (OUP 403; PMC proof-of-work interstitial; the eScholarship and OSTI mirrors HTTP 202 behind a bot challenge). Not stored because the PDF states no redistribution licence, unlike the bioRxiv preprints in pdfs/. Verify against the recorded sha256. It settles three things A4.2 had to bound or report as undocumented, and D-096 records the corrections: geNomad's version is stated as 1.1.0 in Methods, twice and for the marker-based assignment specifically, with Zenodo doi 10.5281/zenodo.7015982 as reference 19 — which is the version A4.2 benchmarked; the ground truth is ICTV Taxonomy Release #37, which is the MSL D-086 pinned; and the taxonomy methods the release note and help page leave out are documented here, so the 'three undocumented methods' finding in D-084 does not survive.",
    "sha256": "06de029f5e7415eef3bfcc3bbe1eaebe57f8a964fe35a427923f922dfbec9ba1",
    "bytes": 3523561
+  },
+  {
+   "id": "S-IMGVR-V4-SEQINFO-2022-09-20",
+   "kind": "dataset_file",
+   "title": "IMG/VR v4, 2022-09-20 release: IMGVR_all_Sequence_information-high_confidence.tsv",
+   "url": "https://files.jgi.doe.gov/search/?datasets=Custom_MPI-IMG_VR&x=50",
+   "licence": "see JGI data use policy",
+   "models": [
+    "Evo 1",
+    "Evo 2",
+    "OpenGenome",
+    "OpenGenome2"
+   ],
+   "status": "retrieved_not_stored",
+   "md5": "a2eedc151e557a78a327d6bf9a95bd25",
+   "md5_source": "policies/captures/jgi-imgvr-inventory.json (S-IMGVR-JGI-INVENTORY), files[28]",
+   "bytes": 1888622388,
+   "retrieved": "2026-10-15",
+   "revision": "2022-09-20 release, publisher's analysis directory AUTO-420906",
+   "held_at": "s3://amazebio-corpora-897641797669/corpora/imgvr/2022-09-20/IMGVR_all_Sequence_information-high_confidence.tsv",
+   "note": "The per-record metadata table the published filter's two organism-naming rules read, and the source of every label figure in the hazard arm: the family and order labels themselves, and the ceiling that only 6.25% of records carry a family label at all. The digest is the publisher's own md5 from their file listing, per the rule in amazebio.profiles.RegistryFile that a pin is the publisher's digest and not a checksum of bytes already held; A1.7 verified the staged copy against it on acquisition. Not stored in the repo: 1.9 GB, and the file answers HTTP 401 unauthenticated - the bytes come from POST https://files-download.jgi.doe.gov/download_files/ with a JAMO file id, see amazebio.imgvr.download_request - so it is staged in object storage at held_at. Not quotable, and not for want of a capture: a tab-separated table states no wording. Two releases answer to 'IMG/VR v4'; this is the earlier, and D-052 and D-054 record why it is the one joined against."
   },
   {
    "id": "S-MGNIFY-2023-02-MD5SUM",
