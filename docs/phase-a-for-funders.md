@@ -25,52 +25,45 @@ same records recovers markers of five eukaryote-infecting virus families, one of
 policy's own denylist.
 
 Three measurements account for that result. The two rules that name organisms key on the family and
-order ranks of a record's lineage, and the source database labels 6.25% of its 15,677,623 records at
-family rank and 8.67% at order rank (Camargo et al. 2023); over the population the rules are handed
-those shares are 7.87% and 8.85%, and Evo 1's released component carries a family label on 2.62% of
-records. The denylists enumerate names, and names expire: three of the 31 have ceased to denote what
-they denoted when the policy was written, among them *Herpesviridae*, which became a synonym of
-*Orthoherpesviridae* in January 2026, so a rule naming it now reaches no herpesvirus while reporting
-success; measured reach of the list fell from 75.83% to 65.17% of the viral taxonomy, at 4.34% per
-year. And Evo 2 publishes its viral component twice: the representation trained on reproduces Evo
-1's filtered output exactly, while the only one carrying source identifiers holds 304,448 extra
-records, including those the policy removes, so the filter admits audit only against an artefact
-other than its own product.
+order ranks of a record's lineage, and the source database labels only 6.25% of its 15,677,623
+records at family rank and 8.67% at order rank (Camargo et al. 2023); Evo 1's released component
+carries a family label on 2.62% of records (§4). The denylists enumerate names, and names expire:
+*Herpesviridae* became a synonym of *Orthoherpesviridae* in January 2026, so a rule naming it now
+reaches no herpesvirus while reporting success, and measured reach of the 31 names fell from 75.83%
+to 65.17% of the viral taxonomy, at 4.34% per year (§5). And Evo 2's viral component is published
+twice, with the representation carrying source identifiers holding 304,448 records more than the one
+trained on, so the filter admits audit only against an artefact other than its own product (§6).
 
-Specificity was measured against the reviewed section of UniProtKB (UniProt Consortium 2025), with
-InterPro as a second instrument (Blum et al. 2025). Of the 1,719 families, 1,265 occur only in
-viruses in the curated data, 212 occur outside viruses and 242 are absent from the curated section,
-so 85.6% of the 1,477 that admit a verdict are virus-only; the median shared family appears in a
-single non-viral organism. Restricted to what each release detected, sharing among judgeable
-families rises to 30.3% on Evo 1 and 22.6% on Evo 2, because a family with cellular members is
-easier to find, and the figure a reader should hold is 69.7% virus-only for Evo 1's detections and
-77.4% for Evo 2's. Counting only families with no curated occurrence outside viruses, Evo 1's 597
-becomes 310 to 462 and Evo 2's 812 becomes 498 to 667, depending on how the unjudgeable families are
-treated.
+Are the detected families specific to viruses? Measured against the reviewed section of UniProtKB
+(UniProt Consortium 2025), with InterPro as a second instrument (Blum et al. 2025): of the 1,719
+families, 1,265 occur only in viruses in the curated data, 212 occur outside viruses and 242 are
+absent from the curated section, so 85.6% of the 1,477 that admit a verdict are virus-only, and the
+median shared family appears in a single non-viral organism. Restricted to what each release
+detected, sharing among judgeable families rises to 30.3% on Evo 1 and 22.6% on Evo 2, because a
+family with cellular members is easier to find; the figures a reader should hold are 69.7%
+virus-only for Evo 1's detections and 77.4% for Evo 2's. Counting only families with no curated
+occurrence outside viruses, Evo 1's 597 becomes 310 to 462 and Evo 2's 812 becomes 498 to 667,
+depending on how the unjudgeable families are treated.
 
-The detected material is mostly bacteriophage structural and packaging machinery — tail, capsid,
-baseplate, terminase, portal, prohead protease — which is what IMG/VR, a database of uncultivated
-viruses assembled from environmental metagenomes, mostly contains. A profile hit establishes
-membership of a sequence family at that family's curated threshold, which is weaker than a statement
-about function and far weaker than one about hazard. No hazard assessment was performed and the
-study was not designed as one, so these results support neither a claim that hazardous material
-survived nor a claim that none did. The finding is about process and auditability: the published
-filter did not do what its description implies.
-
-A hazard figure is being measured and will be reported here at aggregate level only: a count of
-records attributable to human-pathogen groups and the worst case named at group level, with no
-record identifiers, accessions, coordinates or sequence. [Pending A4.6: insert the count and the
-named worst case, or the statement that none was established together with the ceiling on what the
+Do the sequences encode anything hazardous? The detected material is mostly bacteriophage structural
+and packaging machinery — tail, capsid, baseplate, terminase, portal, prohead protease — which is
+what IMG/VR, a database of uncultivated viruses assembled from environmental metagenomes, mostly
+contains. A profile hit establishes membership of a sequence family at that family's curated
+threshold, which is weaker than a statement about function and far weaker than one about hazard. No
+hazard assessment was performed and the study was not designed as one, so these results support
+neither a claim that hazardous material survived nor a claim that none did. A targeted measurement
+is in progress and will be reported here at aggregate level only, as a count of records attributable
+to human-pathogen groups with the worst case named at group level. [Pending A4.6: insert the count
+and the named worst case, or the statement that none was established with the ceiling on what the
 method could detect.]
 
-One pointer deserves recording with its weakness attached. Matching the denylisted family names, cut
-to stems, against each detected family's Pfam identifier and description returns 9 families in Evo
-1's detected set and 40 in Evo 2's, 14 of the 40 being *Flaviviridae* domains and the rest spanning
-*Hantaviridae*, *Poxviridae*, *Rhabdoviridae*, *Papillomaviridae*, *Adenoviridae*, *Caliciviridae*,
-*Picornaviridae*, *Retroviridae* and *Geminiviridae*. A different matching rule gives 33 to 41 on
-Evo 2's set, and the spread is part of the point: a Pfam name records where the family was curated,
-so this is a cross-reference to the denylist and not a taxonomic assignment of the detected records
-(§3.5).
+The nearest available pointer is weak and is reported with its weakness. Matching the denylisted
+family names against each detected family's Pfam identifier and description returns 9 families in
+Evo 1's detected set and 40 in Evo 2's, 14 of them *Flaviviridae* domains and the rest spanning
+nine further denylisted groups; a stricter rule reading identifiers alone returns 33 on Evo 2's set.
+A Pfam name records where the family was curated, so this is a cross-reference to the denylist, not
+a taxonomic assignment of the detected records (§3.5). The finding of this study is about process
+and auditability: the published filter did not do what its description implies.
 
 ## 1. The claim, and what a search of the corpora returns
 
@@ -204,10 +197,9 @@ other; Evo 1's corpus is a deduplicated subset of the same source database, whic
 second corpus being richer per unit of sequence.
 
 A stricter question is kept separate. Of Evo 1's 2,653,047 records, 95 survive a rule the release's
-own metadata suffices to evaluate, all of them through a single clause about unassigned
-classification (A7.1). Presence in a corpus and demonstrable non-conformance with a written policy
-are distinct claims carrying different evidential burdens, and only the second is an inconsistency
-finding.
+own metadata suffices to evaluate, all through a single clause about unassigned classification
+(A7.1). Presence in a corpus and demonstrable non-conformance with a written policy carry different
+evidential burdens, and only the second is an inconsistency finding.
 
 ### 3.1 Labels and sequence disagree on the same records
 
@@ -279,12 +271,12 @@ generally thin: the median shared family appears in one non-viral organism, and 
 every non-viral occurrence carries the curators' annotation as integrated viral material, which
 describes a host genome holding the element rather than a family with cellular members.
 
-The measurement also audits the denominator it is taken against. The selection vocabulary matches
-substrings, so "macrophage" matches "phage", and 7 of the 1,719 families entered the universe on
-that basis alone, each of them a cellular host protein; 113 families have curated cellular entries
-and no curated viral entry. A cellular family in the denominator contributes a near-certain zero, so
-the denominator is conservative, and the pre-registered 1,719 therefore stands uncorrected: on a
-universe of 1,712, Evo 1's profile-route share would read 34.46% rather than 34.32%.
+The measurement also audits its own denominator. The selection vocabulary matches substrings, so
+"macrophage" matches "phage", and 7 of the 1,719 families entered the universe on that basis alone,
+each a cellular host protein; 113 families have curated cellular entries and no curated viral entry.
+A cellular family in the denominator contributes a near-certain zero, so the denominator is
+conservative and the pre-registered 1,719 stands uncorrected: on a universe of 1,712, Evo 1's
+profile-route share would read 34.46% rather than 34.32%.
 
 Two properties bound the measurement. A family absent from the curated section is recorded as
 unmeasurable, never as virus-only, which is why 242 families are set aside rather than counted
@@ -293,46 +285,44 @@ since host genomes carry integrated viral material and such an entry is annotate
 
 ### 3.4 Specificity of the families actually detected
 
-The universe shares above describe the pre-registered selection. Detected families are drawn from it
-unevenly, because a family with cellular members is easier to find, so the same measurement was
-restricted to the families each release detected (A4.5, D-251):
+The shares above describe the pre-registered selection, from which detected families are drawn
+unevenly, because a family with cellular members is easier to find. The same measurement restricted
+to the families each release detected (A4.5, D-251):
 
 | release | detected | virus-only | shared | unjudgeable | shared, among judgeable |
 |---|---|---|---|---|---|
 | Evo 1, both routes | 597 | 310 | 135 | 152 | 30.3% |
 | Evo 2, both routes | 812 | 498 | 145 | 169 | 22.6% |
 
-The bias runs against the audit. Sharing among judgeable families is 14.4% over the universe and
-30.3% and 22.6% over what was detected, 2.11 and 1.57 times as often, so the universe figure
-understates the problem instead of standing in conservatively. A reader holding 85.6% virus-only for
-the universe should hold 69.7% for Evo 1's detections and 77.4% for Evo 2's. `PF00589
-Phage_integrase` is the clearest case: the most heavily shared family in the selection, at 421
-reviewed non-viral entries across 280 organisms against 21 viral, and among the most frequently
+The bias runs against the audit. Sharing among judgeable families is 14.4% over the universe
+against 30.3% and 22.6% over what was detected, 2.11 and 1.57 times as often, so the universe figure
+understates the problem instead of standing in conservatively, and a reader holding 85.6%
+virus-only for the universe should hold 69.7% for Evo 1's detections and 77.4% for Evo 2's.
+`PF00589 Phage_integrase` is the clearest case: the most heavily shared family in the selection, at
+421 reviewed non-viral entries across 280 organisms against 21 viral, and among the most frequently
 detected.
 
 The conservative variant was pre-registered as a pair and is quoted as one. Counting only families
 with no curated occurrence outside viruses, Evo 1's 597 becomes 310 excluding the unjudgeable
-families and 462 including them, and Evo 2's 812 becomes 498 and 667. No survival figure is
-corrected by any of this: 597 and 812 stand, and what changes is the sentence they support.
-
-The detected sets were compared as sets across the three policy readings, on both releases, and are
-identical.
+families and 462 including them, and Evo 2's 812 becomes 498 and 667. No survival figure changes:
+597 and 812 stand, and what changes is the sentence they support. The detected sets, compared as
+sets across the three policy readings on both releases, are identical.
 
 ### 3.5 What the detected families are
 
-Read by name, the detected set is dominated by bacteriophage machinery, which matches the source
+Read by name, the detected set is dominated by bacteriophage machinery, matching the source
 database's composition: over the union of both releases' detected families, 378 carry `phage` in
 their Pfam name or description, 140 name a tail component, 59 a capsid, 39 a baseplate, 21 a
 terminase, 10 a portal and 4 a prohead protease. IMG/VR assembles uncultivated viruses from
 environmental metagenomes, and phages of bacteria are most of what it holds.
 
 Against that background, detected families also carry names referring to the groups the policy
-denylists, and the count depends on the matching rule, so the rule comes with it. Reducing each of
-the 19 denylisted family names to its stem (`adenovir`, `calicivir`, `flavivir` and so on) and
-matching case-insensitively against each family's Pfam identifier and its description gives 9 such
-families in Evo 1's detected set and 40 in Evo 2's. Those 40 include 14 *Flaviviridae* domains —
-NS1, NS2B, the NS3 protease and helicase, NS4A, NS4B, the NS5 polymerase and thumb, and the capsid,
-M and E glycoproteins — with the rest named for *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*,
+denylists, and the count depends on the matching rule, so the rule comes with it. Reducing each
+denylisted family name to its stem (`adenovir`, `calicivir`, `flavivir` and so on) and matching
+case-insensitively against each family's Pfam identifier and description gives 9 such families in
+Evo 1's detected set and 40 in Evo 2's. The 40 include 14 *Flaviviridae* domains — NS1, NS2B, the
+NS3 protease and helicase, NS4A, NS4B, the NS5 polymerase and thumb, and the capsid, M and E
+glycoproteins — the rest named for *Hantaviridae*, *Poxviridae*, *Rhabdoviridae*,
 *Papillomaviridae*, *Adenoviridae*, *Caliciviridae*, *Picornaviridae*, *Retroviridae* and
 *Geminiviridae*. The two counts come from samples at different rates and do not rank the releases.
 
@@ -484,7 +474,7 @@ that the prose is reproducible (D-221).
 ## 8. What further work would add
 
 A census. About 3,000 core-hours over both releases and both registries, tens of dollars at spot
-prices (D-098), deferred by an explicit costed decision (D-247). It would convert the headline from
+prices (D-098), deferred by an explicit costed decision (D-247); it would convert the headline from
 "at least 597 and 812" into a measured value.
 
 Depth parity between the registries. About ten hours of local compute and no expenditure. The
@@ -494,9 +484,9 @@ raise one bound without enabling a new comparison.
 Taxonomic placement of the detections. §3.5 records 40 detected families whose names refer to
 denylisted virus groups, which name-matching alone cannot turn into a taxonomic claim. The
 measurement that would is a per-hit comparison against the registries' own taxonomy, reporting for
-each such detection whether the record carries a coherent set of that taxon's domains or a single
-distant homolog. It is the most direct answer available to the question a reader asks first, and it
-is new work.
+each detection whether the record carries a coherent set of that taxon's domains or a single distant
+homolog. It is the most direct answer available to the question a reader asks first, and it is new
+work.
 
 Breadth. The audit runs behind one interface taking a policy, a corpus and a set of detectors, so
 the marginal cost of the next release is staging its corpus and transcribing its policy. Results 1
@@ -505,7 +495,7 @@ further.
 
 Disclosure. These findings remain inside the project until the organisations concerned have been
 contacted and given time to respond, which takes weeks of calendar time and careful writing, and
-which determines whether the work changes anything.
+determines whether the work changes anything.
 
 ## References
 
