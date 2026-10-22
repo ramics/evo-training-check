@@ -287,8 +287,9 @@ def build(
             totals[key] += value
         rows.extend(found)
         print(
-            f"  {len(seen):,}/{len(wanted):,} records read, {stats.get('genes', 0):,} genes "
-            f"searched, {len(rows):,} regions so far, {time.time() - started:.0f}s",
+            f"  {len(seen):,} entries read for {len(set(seen)):,}/{len(wanted):,} requested "
+            f"records, {stats.get('genes', 0):,} genes searched, {len(rows):,} regions so far, "
+            f"{time.time() - started:.0f}s",
             flush=True,
         )
 
@@ -417,10 +418,20 @@ def summarise(doc: dict[str, Any]) -> str:
     if doc["records_without_genes"]:
         lines.append(f"{doc['records_without_genes']:,} records had no gene called")
     if doc.get("bytes_read"):
+        left = int(doc["source_bytes"]) - int(doc["bytes_read"])
+        # The early stop fires after the last wanted record, so its saving is wherever that
+        # record happens to sit. Reporting the remainder rather than the bare fact: 4.7 MB of
+        # 11.22 GB unread is an early stop that bought nothing, and "stopped early" alone
+        # invites the reader to think it did.
         lines.append(
             f"{doc['bytes_read'] / 1e9:.2f} of {doc['source_bytes'] / 1e9:.2f} GB read in "
             f"{doc['seconds'] / 60:.1f} min"
-            + (" — the stream stopped early" if doc.get("stopped_early") else "")
+            + (
+                f" — the early stop left {left / 1e6:.1f} MB unread "
+                f"({left / int(doc['source_bytes']):.2%} of the object)"
+                if doc.get("stopped_early")
+                else " — the whole object"
+            )
         )
     strongest = sorted(doc["rows"], key=lambda r: r["score"], reverse=True)[:5]
     if strongest:

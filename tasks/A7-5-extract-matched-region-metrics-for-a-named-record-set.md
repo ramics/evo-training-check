@@ -2,7 +2,7 @@
 id: A7.5
 title: Extract matched-region metrics for a named record set
 phase: A
-status: in-progress
+status: review
 gate: false
 depends_on: [A2.1]
 blocks: []
@@ -340,6 +340,61 @@ the project owner, and it belongs with the pass, not inside this tool.
 - A pass over the hazard check's two lists produces the table, with every requested record
   either carrying rows or named in `records_missing`.
 - Frontmatter current and `python3 tools/board.py --check` passes.
+
+## Result — 2026-10-22
+
+Ran, against X1.9's published record list (314 viral records) and X1.8's published family table
+(41 accessions). The table, its document, its summary and `run.json` are at
+`corpora/results/a7-5/`.
+
+| | |
+|---|---|
+| records requested / found / missing | 314 / 314 / **0** |
+| FASTA entries those records occupy | **551** — 12 accessions repeat, one of them 44 times |
+| genes called | 15,722 |
+| matched regions | **382**, on 314 records across all 41 families |
+| rows sitting on a repeat entry | 19 |
+| bytes read | 11.22 of 11.22 GB in 18.8 min, two reconnects, both resumed in place |
+
+Every requested record carries at least one region, so `records_missing` is empty and the record
+list and the corpus agree completely — which is itself worth stating, because the first derived
+list mixed in five plasmid records and this one does not.
+
+**The strongest matches are strong.** The top region scores 737.8 against a curated threshold of
+25.0, over 99.3% of the model, at 0.616 identity to the model consensus. Identity and bit score
+are not interchangeable: the five strongest regions run from 0.460 to 0.616 identity while all
+clearing their thresholds by more than an order of magnitude, which is the distinction the
+identity definition exists to keep visible.
+
+**Key uniqueness, verified rather than assumed:** 382 rows, 382 distinct
+(`record_id`, `entry`, `accession`, `gene`) keys, no collisions. The first pass had one
+collision on that key without the `entry` column.
+
+**The region counts did not move.** The first pass and this one both report 382 regions on 314
+records across 41 families; the `entry` column is additive and nothing it fixed changed a
+measurement. That is the check that the fix was a fix and not a rewrite.
+
+### Two things the published summary says badly
+
+Fixed in the tool, and **not re-run for them**, because the numbers in the table are right and
+the prose is what was wrong — another pass is 19 minutes of reading and a second permanent
+replacement of the published keys:
+
+- The `.md` at `corpora/results/a7-5/` says "the stream stopped early". True and worth nothing:
+  the early stop left **4.7 MB of 11.22 GB** unread, 0.04%, because the last wanted record sits
+  almost at the end of the object. The tool now reports the remainder, so the reader can see
+  whether the stop bought anything. `bytes_read` in the published document already allows the
+  same arithmetic.
+- The per-chunk progress line said "551/314 records read", the same entries-as-records
+  conflation one level down from the summary. Now "551 entries read for 314/314 requested
+  records".
+
+### What the published prefix now holds
+
+This run replaced the first pass's stable keys, with the reason recorded in the manifest
+(`--replace-durable`). The first table — the one whose rows share a key — stays readable at its
+`by-commit/` twin, which is what D-216's two-key scheme is for and the first time on this branch
+that it has been the thing that saved a superseded result rather than an inconvenience.
 
 ## State — 2026-10-22
 

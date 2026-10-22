@@ -372,6 +372,39 @@ class TestTheTableItWrites:
         assert "entry" in extract.COLUMNS
         assert path.read_text().count("IMGVR_X") == 2
 
+    def test_an_early_stop_that_bought_nothing_is_reported_as_such(self) -> None:
+        """The stop fires after the last wanted record, so its saving is wherever that record
+        sits. The real pass left 4.7 MB of 11.22 GB unread — true, and worth nothing, which a
+        bare "stopped early" does not say."""
+        doc = {
+            "component": "IMG/VR",
+            "release": "opengenome2",
+            "registry": {"id": "pfam", "version": "38.2"},
+            "records_found": 314,
+            "records_requested": 314,
+            "entries_read": 551,
+            "records_repeated": 12,
+            "entries_per_record_max": 44,
+            "genes_called": 15722,
+            "profiles_searched": 41,
+            "regions": 382,
+            "records_with_a_region": 314,
+            "accessions_with_a_region": 41,
+            "records_missing": [],
+            "records_without_genes": 0,
+            "bytes_read": 11_215_568_896,
+            "source_bytes": 11_220_266_895,
+            "stopped_early": True,
+            "seconds": 1128.0,
+            "rows": [],
+        }
+        text = extract.summarise(doc)
+        assert "left 4.7 MB unread" in text
+        assert "0.04% of the object" in text
+        # And the entry count is never reported as a record count again.
+        assert "314 of 314 requested records found" in text
+        assert "in 551 FASTA entries" in text
+
     def test_what_the_entry_column_is_for_travels_in_the_tools_own_output(self) -> None:
         assert "does not identify an entry" in extract.ENTRY_NOTE
         assert "fans out" in extract.ENTRY_NOTE
