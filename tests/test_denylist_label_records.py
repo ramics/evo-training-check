@@ -303,10 +303,11 @@ class TestTheWritePath:
 
 
 class TestTheTableItWrites:
-    def test_the_columns_are_the_eight_and_carry_no_sequence(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    def test_the_columns_carry_no_sequence(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
         rows = [
             {
-                "record_id": "A",
+                "record_id": "IMGVR_A",
+                "component": "IMG/VR",
                 "pfam_families": "PF00001",
                 "denylisted_groups_named": "Circoviridae",
                 "in_label_table": True,
@@ -316,11 +317,41 @@ class TestTheTableItWrites:
                 "taxonomy": CIRCO,
             }
         ]
-        path = tool.write_table(tmp_path / "t.tsv", rows)
-        header, row = path.read_text().splitlines()
+        written = tool.write_tables(tmp_path, "t", rows)
+        header, row = written[0].read_text().splitlines()
         assert header.split("\t") == list(tool.COLUMNS)
-        assert row.split("\t")[0] == "A"
-        assert "ACGT" not in path.read_text()
+        assert row.split("\t")[0] == "IMGVR_A"
+        assert "ACGT" not in written[0].read_text()
+
+    def test_each_component_gets_its_own_list(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """The consumer streams one staged object, so a mixed list reports the other
+        component's records as missing from a corpus they were never in."""
+        rows = [
+            {c: "" for c in tool.COLUMNS} | {"record_id": "IMGVR_1", "component": "IMG/VR"},
+            {c: "" for c in tool.COLUMNS} | {"record_id": "IMGPR_1", "component": "IMG/PR"},
+        ]
+        written = {p.name: p for p in tool.write_tables(tmp_path, "t", rows)}
+        assert set(written) == {"t.tsv", "t-imgvr.tsv", "t-imgpr.tsv"}
+        assert "IMGPR_1" not in written["t-imgvr.tsv"].read_text()
+        assert written["t-imgvr.tsv"].read_text().count("\n") == 2  # header and one row
+
+
+class TestTheComponentOfARecord:
+    def test_the_two_declared_prefixes(self) -> None:
+        assert tool.component_of("IMGVR_UViG_1_1") == "IMG/VR"
+        assert tool.component_of("IMGPR_plasmid_1_1") == "IMG/PR"
+
+    def test_an_undeclared_prefix_is_a_refusal_rather_than_a_guess(self) -> None:
+        # A2.1's rows carry no component field, so the prefix is the only signal; filing a
+        # record under the wrong component joins it against a table that cannot contain it.
+        with pifail():
+            tool.component_of("GTDB_something_1")
+
+
+def pifail():
+    import pytest as _pytest
+
+    return _pytest.raises(SystemExit, match="belongs to no declared component")
 
     def test_the_summary_keeps_the_two_axes_apart(self) -> None:
         doc = {

@@ -100,6 +100,25 @@ HIT_READING = "evo1-literal"
 RELEASE = "opengenome2"
 COMPONENT = "IMG/VR"
 
+#: A detected record's component, from the prefix the publisher gives its accessions. A2.1's
+#: per-hit rows carry no component field — the record id *is* the FASTA header — and this
+#: release has two components that both reach the search, so the prefix is the only signal and
+#: it is declared rather than pattern-matched: an unknown prefix is a refusal, because silently
+#: filing a plasmid record under IMG/VR would join it against a table that cannot contain it.
+COMPONENT_OF_PREFIX = {"IMGVR": "IMG/VR", "IMGPR": "IMG/PR"}
+
+
+def component_of(record_id: str) -> str:
+    prefix = record_id.split("_", 1)[0]
+    component = COMPONENT_OF_PREFIX.get(prefix)
+    if component is None:
+        raise Refusal(
+            f"{record_id}: accession prefix {prefix!r} belongs to no declared component of "
+            f"{RELEASE} ({', '.join(sorted(COMPONENT_OF_PREFIX))}). A record filed under the "
+            "wrong component is joined against a table that cannot contain it."
+        )
+    return component
+
 
 def detections_key(reading: str) -> str:
     return f"corpora/results/a2-1/detections-pfam-{reading}-{RELEASE}.jsonl"
@@ -114,6 +133,7 @@ METHOD = "Taxonomic classification method"
 
 COLUMNS = (
     "record_id",
+    "component",
     "pfam_families",
     "denylisted_groups_named",
     "in_label_table",
@@ -396,6 +416,7 @@ def build(client: Any) -> dict[str, Any]:
         rows.append(
             {
                 "record_id": record_id,
+                "component": component_of(record_id),
                 "pfam_families": "|".join(families),
                 "denylisted_groups_named": "|".join(
                     sorted({g for f in families for g in named_families[f].split("|")})
@@ -420,6 +441,19 @@ def build(client: Any) -> dict[str, Any]:
             labelled_at_family += 1
         if outcome == policyspec.Outcome.REMOVED.value:
             label_removed.append(record_id)
+
+    # The label table is IMG/VR's, so a plasmid record missing from it is not a record the
+    # high-confidence subset left out — it is a record the table was never about. Counting the
+    # two together would read as a gap in IMG/VR's labelling that is nothing of the kind.
+    by_component: dict[str, int] = {}
+    for record_id in detected:
+        key = component_of(record_id)
+        by_component[key] = by_component.get(key, 0) + 1
+    absent = sorted(detected - set(labels))
+    absent_by_component: dict[str, int] = {}
+    for record_id in absent:
+        key = component_of(record_id)
+        absent_by_component[key] = absent_by_component.get(key, 0) + 1
 
     def tally(key: Any, over: list[dict[str, Any]]) -> dict[str, int]:
         out: dict[str, int] = {}
@@ -474,6 +508,8 @@ def build(client: Any) -> dict[str, Any]:
                 **pass_counts,
             },
             "detection_tables": tables,
+            "detected_by_component": dict(sorted(by_component.items())),
+            "absent_from_label_table_by_component": dict(sorted(absent_by_component.items())),
             "counts": {
                 "detected_records": len(detected),
                 "found_in_label_table": len(labels),
@@ -486,6 +522,10 @@ def build(client: Any) -> dict[str, Any]:
                     1 for r in labelled_rows if r["label_rule_outcome"] == "removed"
                 ),
                 "records_the_label_rule_removes": len(label_removed),
+                "family_axis_by_component": {
+                    component: sum(1 for r in rows if r["component"] == component)
+                    for component in sorted({r["component"] for r in rows})
+                },
             },
             "per_group_named": tally(lambda r: r["denylisted_groups_named"], rows),
             "per_label_family": tally(
@@ -515,7 +555,28 @@ def build(client: Any) -> dict[str, Any]:
     }
 
 
-def write_table(path: Path, rows: list[dict[str, Any]]) -> Path:
+def write_tables(outdir: Path, stem: str, rows: list[dict[str, Any]]) -> list[Path]:
+    """The per-record table, and one table per component.
+
+    Split because the consumer of this list reads **one** staged object: A7.5's pass streams
+    Evo 2's viral component, so handing it a list with five plasmid records in it would report
+    those five as missing from a corpus they were never in. A published table per component
+    means the next pass is given an artefact with a digest rather than the output of somebody's
+    ad-hoc filter.
+    """
+    written = [_write_rows(outdir / f"{stem}.tsv", rows)]
+    for component in sorted({r["component"] for r in rows}):
+        slug = component.lower().replace("/", "").replace(" ", "-")
+        written.append(
+            _write_rows(
+                outdir / f"{stem}-{slug}.tsv",
+                [r for r in rows if r["component"] == component],
+            )
+        )
+    return written
+
+
+def _write_rows(path: Path, rows: list[dict[str, Any]]) -> Path:
     lines = ["\t".join(COLUMNS)]
     for row in rows:
         lines.append("\t".join(str(row[c]) for c in COLUMNS))
@@ -533,8 +594,15 @@ def summarise(doc: dict[str, Any]) -> str:
         f"pinned label table ({c['absent_from_label_table']:,} are not, and are unlabelled here "
         "rather than in IMG/VR)",
         f"{c['labelled_at_family_rank']:,} of those carry a family label at all",
+        "  detected by component: "
+        + ", ".join(f"{k} {v:,}" for k, v in s["detected_by_component"].items()),
+        "  absent from the label table by component: "
+        + ", ".join(f"{k} {v:,}" for k, v in s["absent_from_label_table_by_component"].items())
+        + " — the table is IMG/VR's, so a plasmid record was never in it",
         "",
         "the family axis — records whose detected Pfam family is named for a denylisted group:",
+        "  by component: "
+        + ", ".join(f"{k} {v:,}" for k, v in c["family_axis_by_component"].items()),
         f"  **{c['records_with_denylist_named_family_hit']:,} records**, "
         f"{c['of_those_in_label_table']:,} of them in the label table, "
         f"{c['of_those_with_a_family_label']:,} carrying a family label, "
@@ -611,12 +679,20 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
             manifest.input_file(SPEC, role="denylisted group names")
             manifest.input_file(INVENTORY, role="publisher file listing (the label pin)")
             doc = build(handle)
-            table = write_table(args.outdir / "denylist-named-family-records.tsv", doc["rows"])
-            summary_json = args.outdir / "denylist-named-family-records.json"
+            stem = "denylist-named-family-records"
+            for table in write_tables(args.outdir, stem, doc["rows"]):
+                manifest.output_file(
+                    table,
+                    role=(
+                        "per-record label table"
+                        if table.name == f"{stem}.tsv"
+                        else f"per-record label table, {table.stem.removeprefix(stem + '-')} only"
+                    ),
+                )
+            summary_json = args.outdir / f"{stem}.json"
             summary_json.write_text(json.dumps(doc["summary"], indent=2, sort_keys=True) + "\n")
-            summary_md = args.outdir / "denylist-named-family-records.md"
+            summary_md = args.outdir / f"{stem}.md"
             summary_md.write_text(summarise(doc) + "\n")
-            manifest.output_file(table, role="per-record label table")
             manifest.output_file(summary_json, role="summary with provenance")
             manifest.output_file(summary_md, role="summary")
     except repro.ReproError as exc:
