@@ -1,0 +1,100 @@
+{
+  "by_commit": {
+    "artifacts/a4-5/detected/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt",
+    "artifacts/a4-5/detected/detected-opengenome-profile-hmmer.txt": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-opengenome-profile-hmmer.txt",
+    "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt",
+    "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer.txt": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-opengenome2-profile-hmmer.txt",
+    "artifacts/a4-5/detected/detected-sources.json": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-sources.json"
+  },
+  "durable": "s3://amazebio-corpora-897641797669/corpora/results/a4-5",
+  "durable_exempt": null,
+  "environment": {
+    "machine": "x86_64",
+    "platform": "Linux-6.18.44-fc-v140-x86_64-with-glibc2.39",
+    "python": "3.12.15"
+  },
+  "finished_at": "2026-10-22T10:54:45.194414+00:00",
+  "git": {
+    "available": true,
+    "branch": "claude/project-thread-4bnr9t",
+    "commit": "ff6d5ff26f09e9430216422088de490fed89f967",
+    "dirty": false,
+    "dirty_paths": []
+  },
+  "inputs": [
+    {
+      "bytes": 782046,
+      "path": "data/profiles/Pfam-A.hmm.dat.gz",
+      "role": "pfam family metadata",
+      "sha256": "3ccab9388f5da87508791c98659aae776ac09886dcf8c7ab80c0bf9f02152803"
+    }
+  ],
+  "notes": [],
+  "outputs": [
+    {
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-opengenome-profile-hmmer.txt",
+      "bytes": 5308,
+      "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-opengenome-profile-hmmer.txt",
+      "path": "artifacts/a4-5/detected/detected-opengenome-profile-hmmer.txt",
+      "role": "detected list",
+      "sha256": "fb236f911ab46b3bb2f54d4e901f02bffb18820d4e24b52fbaf7873ff738d56c"
+    },
+    {
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt",
+      "bytes": 5581,
+      "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt",
+      "path": "artifacts/a4-5/detected/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt",
+      "role": "detected list",
+      "sha256": "d95845e730865d1e5d8980bb3bfe9d25b3655883ba93383e89ce065defe1a24d"
+    },
+    {
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-opengenome2-profile-hmmer.txt",
+      "bytes": 7080,
+      "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-opengenome2-profile-hmmer.txt",
+      "path": "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer.txt",
+      "role": "detected list",
+      "sha256": "a9fff32df66cd7dac1c7ac5d9c64890957817f490c3b48a30fb260f827f58396"
+    },
+    {
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt",
+      "bytes": 7308,
+      "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt",
+      "path": "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt",
+      "role": "detected list",
+      "sha256": "ef61118f3d87ef8842b6fb1019adc3696c5d8ac971293391c186e2abc3764047"
+    },
+    {
+      "by_commit_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/by-commit/ff6d5ff26f09e9430216422088de490fed89f967/detected-sources.json",
+      "bytes": 7165,
+      "durable_uri": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-sources.json",
+      "path": "artifacts/a4-5/detected/detected-sources.json",
+      "role": "detected list",
+      "sha256": "dfc59dd8036201fe144ae1b23525f2f98f72ec32d81fda0a60e7d8b14d308281"
+    }
+  ],
+  "parameters": {
+    "families_in_universe": 1719,
+    "policy_readings": [
+      "evo1-charitable",
+      "evo1-literal",
+      "evo1-strict"
+    ],
+    "releases": [
+      "opengenome",
+      "opengenome2"
+    ]
+  },
+  "replace_durable": null,
+  "seed": null,
+  "started_at": "2026-10-22T10:54:41.132162+00:00",
+  "task": "A4.5",
+  "tools": {},
+  "upload_skipped": null,
+  "uploaded": {
+    "artifacts/a4-5/detected/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-opengenome-profile-hmmer-plus-provirus-genomad.txt",
+    "artifacts/a4-5/detected/detected-opengenome-profile-hmmer.txt": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-opengenome-profile-hmmer.txt",
+    "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-opengenome2-profile-hmmer-plus-provirus-genomad.txt",
+    "artifacts/a4-5/detected/detected-opengenome2-profile-hmmer.txt": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-opengenome2-profile-hmmer.txt",
+    "artifacts/a4-5/detected/detected-sources.json": "s3://amazebio-corpora-897641797669/corpora/results/a4-5/detected-sources.json"
+  }
+}

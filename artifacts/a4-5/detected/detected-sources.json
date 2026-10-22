@@ -1,0 +1,202 @@
+{
+  "families_in_universe": 1719,
+  "lists": [
+    {
+      "detector": "profile-hmmer",
+      "families": 590,
+      "release": "opengenome",
+      "source_keys": [
+        "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome.json",
+        "corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json",
+        "corpora/results/a2-1/detections-pfam-evo1-strict-opengenome.json"
+      ],
+      "tasks": [
+        "a2-1"
+      ]
+    },
+    {
+      "detector": "profile-hmmer+provirus-genomad",
+      "families": 597,
+      "release": "opengenome",
+      "source_keys": [
+        "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome.json",
+        "corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json",
+        "corpora/results/a2-1/detections-pfam-evo1-strict-opengenome.json",
+        "corpora/results/a2-4/detections-pfam-evo1-charitable-opengenome.json",
+        "corpora/results/a2-4/detections-pfam-evo1-literal-opengenome.json",
+        "corpora/results/a2-4/detections-pfam-evo1-strict-opengenome.json"
+      ],
+      "tasks": [
+        "a2-1",
+        "a2-4"
+      ]
+    },
+    {
+      "detector": "profile-hmmer",
+      "families": 811,
+      "release": "opengenome2",
+      "source_keys": [
+        "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome2.json",
+        "corpora/results/a2-1/detections-pfam-evo1-literal-opengenome2.json",
+        "corpora/results/a2-1/detections-pfam-evo1-strict-opengenome2.json"
+      ],
+      "tasks": [
+        "a2-1"
+      ]
+    },
+    {
+      "detector": "profile-hmmer+provirus-genomad",
+      "families": 812,
+      "release": "opengenome2",
+      "source_keys": [
+        "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome2.json",
+        "corpora/results/a2-1/detections-pfam-evo1-literal-opengenome2.json",
+        "corpora/results/a2-1/detections-pfam-evo1-strict-opengenome2.json",
+        "corpora/results/a2-4/detections-pfam-evo1-charitable-opengenome2.json",
+        "corpora/results/a2-4/detections-pfam-evo1-literal-opengenome2.json",
+        "corpora/results/a2-4/detections-pfam-evo1-strict-opengenome2.json"
+      ],
+      "tasks": [
+        "a2-1",
+        "a2-4"
+      ]
+    }
+  ],
+  "registry": "pfam",
+  "registry_version": "38.2",
+  "tables": [
+    {
+      "detector": "profile-hmmer",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 590,
+      "key": "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome.json",
+      "policy_id": "evo1-charitable",
+      "release": "opengenome",
+      "sample_rate": 0.02,
+      "sha256": "73ca87de064ac8c03c6275f16247a3e676f53e50b3021812d8cac0b9823eefb9",
+      "task": "A2.1"
+    },
+    {
+      "detector": "profile-hmmer",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 590,
+      "key": "corpora/results/a2-1/detections-pfam-evo1-literal-opengenome.json",
+      "policy_id": "evo1-literal",
+      "release": "opengenome",
+      "sample_rate": 0.02,
+      "sha256": "31b554ab72282ec2982805b3f117153dfa532c11ab660e040cbe1ff09029e1a8",
+      "task": "A2.1"
+    },
+    {
+      "detector": "profile-hmmer",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 590,
+      "key": "corpora/results/a2-1/detections-pfam-evo1-strict-opengenome.json",
+      "policy_id": "evo1-strict",
+      "release": "opengenome",
+      "sample_rate": 0.02,
+      "sha256": "421785bacefa454fe13cb108cee74f712485ba7657ab3bb3bf98b5e370861a57",
+      "task": "A2.1"
+    },
+    {
+      "detector": "provirus-genomad",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 203,
+      "key": "corpora/results/a2-4/detections-pfam-evo1-charitable-opengenome.json",
+      "policy_id": "evo1-charitable",
+      "release": "opengenome",
+      "sample_rate": 0.0025,
+      "sha256": "6670f150b8ab260fe7dd7f886d0e16b1066cceb1c31bdad33ccd58e3f857c436",
+      "task": "A2.4"
+    },
+    {
+      "detector": "provirus-genomad",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 203,
+      "key": "corpora/results/a2-4/detections-pfam-evo1-literal-opengenome.json",
+      "policy_id": "evo1-literal",
+      "release": "opengenome",
+      "sample_rate": 0.0025,
+      "sha256": "cc0a28045e422e7db71b64a6a944073f0a4a467c0eda434cfa96e5ff889ca1a2",
+      "task": "A2.4"
+    },
+    {
+      "detector": "provirus-genomad",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 203,
+      "key": "corpora/results/a2-4/detections-pfam-evo1-strict-opengenome.json",
+      "policy_id": "evo1-strict",
+      "release": "opengenome",
+      "sample_rate": 0.0025,
+      "sha256": "e334e046def6148834ace56b64e95d2e304a95897b80bb34a751e475170ac2fe",
+      "task": "A2.4"
+    },
+    {
+      "detector": "profile-hmmer",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 811,
+      "key": "corpora/results/a2-1/detections-pfam-evo1-charitable-opengenome2.json",
+      "policy_id": "evo1-charitable",
+      "release": "opengenome2",
+      "sample_rate": 0.01,
+      "sha256": "ac48a57bd5fc41af325d8e6b3cebb60fa6aeeda98dae5584794fe4d8a00cb3b2",
+      "task": "A2.1"
+    },
+    {
+      "detector": "profile-hmmer",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 811,
+      "key": "corpora/results/a2-1/detections-pfam-evo1-literal-opengenome2.json",
+      "policy_id": "evo1-literal",
+      "release": "opengenome2",
+      "sample_rate": 0.01,
+      "sha256": "e3734281bb06d353340a54b10f5d07722ab1a0af5d5cfa53e554fbb749b11b6d",
+      "task": "A2.1"
+    },
+    {
+      "detector": "profile-hmmer",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 811,
+      "key": "corpora/results/a2-1/detections-pfam-evo1-strict-opengenome2.json",
+      "policy_id": "evo1-strict",
+      "release": "opengenome2",
+      "sample_rate": 0.01,
+      "sha256": "ba07c0ece8f0f82659aa53ddcb0a10c55d2917783bc7f6c0183e8e3d64ae513a",
+      "task": "A2.1"
+    },
+    {
+      "detector": "provirus-genomad",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 251,
+      "key": "corpora/results/a2-4/detections-pfam-evo1-charitable-opengenome2.json",
+      "policy_id": "evo1-charitable",
+      "release": "opengenome2",
+      "sample_rate": 0.0025,
+      "sha256": "b19a4fe120b290b4dd1e11a234e1b68b24a4c17bb09356df748157d042a62d63",
+      "task": "A2.4"
+    },
+    {
+      "detector": "provirus-genomad",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 251,
+      "key": "corpora/results/a2-4/detections-pfam-evo1-literal-opengenome2.json",
+      "policy_id": "evo1-literal",
+      "release": "opengenome2",
+      "sample_rate": 0.0025,
+      "sha256": "d1801e68a5eb5c5fab725fba5575f69615c3cbd3220549fd3310c1d6a947e663",
+      "task": "A2.4"
+    },
+    {
+      "detector": "provirus-genomad",
+      "estimate_kind": "lower_bound",
+      "families_with_a_hit": 251,
+      "key": "corpora/results/a2-4/detections-pfam-evo1-strict-opengenome2.json",
+      "policy_id": "evo1-strict",
+      "release": "opengenome2",
+      "sample_rate": 0.0025,
+      "sha256": "9ee23e5f034ec8ac9e43346ba5117c513c0663a04b48d23393a5e411e2694442",
+      "task": "A2.4"
+    }
+  ],
+  "task": "A4.5"
+}
