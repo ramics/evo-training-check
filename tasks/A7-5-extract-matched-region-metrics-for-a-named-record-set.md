@@ -359,17 +359,20 @@ Ran, against X1.9's published record list (314 viral records) and X1.8's publish
 | genes called | 15,722 |
 | matched regions | **382**, on 314 records across all 41 families |
 | rows sitting on a repeat entry | 19 |
-| bytes read | 11.22 of 11.22 GB in 18.8 min, two reconnects, both resumed in place |
+| bytes read | **the whole object**, 11.22 GB in 14.9 min, one reconnect, resumed in place |
 
 Every requested record carries at least one region, so `records_missing` is empty and the record
 list and the corpus agree completely — which is itself worth stating, because the first derived
 list mixed in five plasmid records and this one does not.
 
-**The strongest matches are strong.** The top region scores 737.8 against a curated threshold of
-25.0, over 99.3% of the model, at 0.616 identity to the model consensus. Identity and bit score
-are not interchangeable: the five strongest regions run from 0.460 to 0.616 identity while all
-clearing their thresholds by more than an order of magnitude, which is the distinction the
-identity definition exists to keep visible.
+**The strongest matches are strong, and identity is not the bit score.** The top region scores
+737.8 against a curated threshold of 25.0, over 99.3% of the model, at 0.616 identity to the
+model consensus. Across the table identity runs **0.163 to 0.788** while score-over-threshold
+runs **1.0 to 29.5**, and the five strongest regions sit at 0.460–0.616 identity while clearing
+their thresholds by more than an order of magnitude. That spread is the whole reason the
+identity definition is fixed and shipped with the number: a region can be a certain detection
+and still be far from the model's consensus, and the two columns must not be read as one
+measure.
 
 **Key uniqueness, verified rather than assumed:** 382 rows, 382 distinct
 (`record_id`, `entry`, `accession`, `gene`) keys, no collisions. The first pass had one
@@ -390,7 +393,10 @@ arbitrary byte is not one.
 
 So the deliverable reads the object through (the selector keeps the capability for a caller that
 only wants presence, and the `read` parameter in the output states which was done), and the pass
-was run again on that basis. The library's docstring already warned that a second entry under an
+was run again on that basis. **The complete read returns the same entry figures** — 551 entries,
+12 repeated accessions, 44 at most — so the truncation had in fact cost nothing. That is now a
+measurement instead of a hope, which is the only reason it was worth 15 minutes: the figures
+could not be defended by arguing that the unread window was probably empty. The library's docstring already warned that a second entry under an
 already-yielded identifier is the one thing the stop hides; what was missing was a test pinning
 it, which `tests/test_seqstream.py` now carries, because the identifier set being identical is
 exactly what made the gap invisible.
