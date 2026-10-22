@@ -48,7 +48,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import background, profiles, repro
+from amazebio import background, objectstore, profiles, repro
 
 TASK = "A4.5"
 
@@ -550,11 +550,7 @@ def main(argv: list[str] | None = None) -> int:
                 outdir=args.outdir,
                 allow_dirty=args.allow_dirty,
                 manifest_name="run-background.json",
-                durable_exempt=(
-                    "the artefact is a 1,719-row table that is committed to the repository, which "
-                    "is a more durable home than the results bucket for something this small; the "
-                    "bucket is also unreachable from this session's credentials"
-                ),
+                durable=objectstore.durable_results(TASK),
             ) as manifest
         ):
             manifest.parameter("background_release", SPROT_RELEASE)

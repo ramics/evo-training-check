@@ -83,6 +83,18 @@ CHUNK = 1 << 22
 
 
 def client() -> Any:
+    """An S3 client pinned to the **regional** endpoint. Do not drop `endpoint_url`.
+
+    `region_name` alone is not enough, and the failure it produces is misleading rather than
+    loud. boto3 resolves an S3 client with no explicit endpoint to the legacy global hostname
+    `s3.amazonaws.com`, which does not match the agent proxy's allow-and-inject host pattern
+    `*.us-east-1.amazonaws.com`. Such a request still reaches AWS, but without the injected
+    credential, so S3 answers a signed-out caller with a terse `AccessDenied` — identical in
+    shape to a missing IAM grant, and carrying no principal to name. A session cost half a day
+    to that in October, diagnosing an identity policy that was correct all along; the tell, for
+    anyone who meets it again, is that a service on a hostname the proxy *does* match returns
+    the verbose message naming `arn:aws:iam::…:user/…`, while S3 only ever says "Access Denied".
+    """
     import boto3
 
     return boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
