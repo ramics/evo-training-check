@@ -33,7 +33,8 @@ import argparse
 import json
 import sys
 import time
-from collections import Counter
+from collections import Counter, deque
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -56,14 +57,21 @@ VIRAL_COMPONENT = {"opengenome": "stage2", "opengenome2": "imgvr"}
 #: different number of records fails rather than quietly reporting a wrong denominator.
 MANIFEST_RECORDS = {"opengenome": 2_653_047, "opengenome2": 2_957_495}
 
+#: The fraction of each manifest's surviving records this pass searches, declared before any
+#: result was looked at (D-258). A hash band, not a prefix: membership is a function of the
+#: record identifier, so the band is a sample of the component rather than the front of it.
+#: Ten to a hundred times A2.1's own detection depth, and a tenth of the census that measured
+#: throughput puts at about seventeen hours of container time.
+DEPTH = 0.1
+
 #: The readings whose surviving set is identical on these releases (A1.4).
 READINGS = ("evo1-literal", "evo1-charitable", "evo1-strict")
 
 
-def load_targets() -> dict[str, Any]:
-    if not TARGETS.exists():
-        raise SystemExit(f"{TARGETS} is missing; run tools/homology_targets.py first")
-    return json.loads(TARGETS.read_text())
+def load_targets(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise SystemExit(f"{path} is missing; run tools/homology_targets.py first")
+    return json.loads(path.read_text())
 
 
 def removed_ids(client: Any, release: str) -> set[str]:
@@ -136,6 +144,36 @@ def domain_models(
     return models, owners
 
 
+def call_genes_payload(records: list[tuple[str, str]]) -> dict[str, Any]:
+    """Call genes on one batch, in a worker process; returns plain strings, not Easel objects.
+
+    Gene calling is where this pass spends its time and it is per-record, so it parallelises
+    exactly. The worker returns `(name, protein)` text because an Easel digital sequence does
+    not cross a process boundary cheaply, and digitizing in the parent is a rounding error
+    beside the calling.
+
+    The arithmetic is `amazebio.profilesearch.call_genes`'s, called rather than reimplemented:
+    A2.1's gene calling and this one must not be two gene callers. Records whose genes cannot be
+    called are counted rather than absorbed into "no hit" — D-077's rule, inherited with the
+    function.
+    """
+
+    class _Row:
+        __slots__ = ("id", "sequence")
+
+        def __init__(self, record_id: str, sequence: str) -> None:
+            self.id = record_id
+            self.sequence = sequence
+
+    proteins, stats = profilesearch.call_genes([_Row(i, s) for i, s in records])
+    return {
+        "proteins": [(profilesearch.text_of(p.name), p.textize().sequence) for p in proteins],
+        "genes": stats["genes"],
+        "residues": stats["residues"],
+        "records_without_genes": stats["records_without_genes"],
+    }
+
+
 class Best:
     """Best hit per model, kept as a running maximum so nothing per-record is retained."""
 
@@ -193,9 +231,25 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--release", required=True, choices=sorted(VIRAL_COMPONENT))
     parser.add_argument("--out", type=Path, default=CANONICAL_OUT)
+    parser.add_argument("--targets", type=Path, default=TARGETS)
+    parser.add_argument(
+        "--profile-dir", type=Path, default=REPO / "data" / "b3" / "target-profiles"
+    )
     parser.add_argument("--batch", type=int, default=2000, help="records per gene-calling batch")
+    parser.add_argument(
+        "--rate",
+        type=float,
+        default=DEPTH,
+        help="hash-band fraction of the surviving records to search; 1.0 is a census",
+    )
     parser.add_argument("--checkpoint-records", type=int, default=100_000)
-    parser.add_argument("--cpus", type=int, default=3)
+    parser.add_argument("--cpus", type=int, default=1, help="threads for the search")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=3,
+        help="processes calling genes, which is where the pass spends its time",
+    )
     parser.add_argument("--max-records", type=int, default=0, help="smoke runs only; 0 = all")
     parser.add_argument("--allow-dirty", action="store_true")
     parser.add_argument(
@@ -205,7 +259,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    payload = load_targets()
+    payload = load_targets(args.targets)
     pfam = profiles.registry("pfam")
     hmm_file = profilesearch.hmm_path(pfam, REPO / "data" / "profiles")
     out = args.out / args.release
@@ -233,10 +287,8 @@ def main(argv: list[str] | None = None) -> int:
             else None
         ),
     ) as ctx:
-        profile_models, profile_owners = target_models(
-            payload, profile_dir=REPO / "data" / "b3" / "target-profiles"
-        )
-        subset = out / "annotated-domains.hmm"
+        profile_models, profile_owners = target_models(payload, profile_dir=args.profile_dir)
+        subset = out / f"annotated-domains-{args.release}.hmm"
         pfam_models, domain_owners = domain_models(payload, hmm_file=hmm_file, out=subset)
 
         ctx.parameter("release", args.release)
@@ -251,16 +303,19 @@ def main(argv: list[str] | None = None) -> int:
         ctx.parameter("pinned_dom_z", profiles.PINNED_DOM_Z)
         ctx.parameter("domain_cutoffs", "pfam gathering")
         ctx.parameter("min_model_coverage", profiles.MIN_MODEL_COVERAGE)
+        ctx.parameter("rate", args.rate)
         ctx.parameter("batch_records", args.batch)
+        ctx.parameter("gene_calling_workers", args.workers)
+        ctx.parameter("search_threads", args.cpus)
         ctx.parameter("max_records", args.max_records)
-        ctx.input_file(TARGETS, role="target side of the axis")
+        ctx.input_file(args.targets, role="target side of the axis")
         ctx.input_file(hmm_file, role="pfam profiles")
 
         removed = removed_ids(client, args.release)
         ctx.parameter("removed_records", len(removed))
 
         import pyhmmer
-        from pyhmmer.easel import Alphabet, DigitalSequenceBlock
+        from pyhmmer.easel import Alphabet, DigitalSequenceBlock, TextSequence
 
         amino = Alphabet.amino()
         profile_best, domain_best = Best(), Best()
@@ -279,17 +334,32 @@ def main(argv: list[str] | None = None) -> int:
                         "component": VIRAL_COMPONENT[args.release],
                         "readings": list(READINGS),
                         "complete": complete,
-                        "selection": "census" if complete else "prefix",
-                        "selection_note": (
-                            "every surviving record of the component"
+                        "rate": args.rate,
+                        "selection": (
+                            ("census" if args.rate >= 1.0 else "hash_band")
                             if complete
-                            else "a leading prefix of an accession-ordered object, which is "
-                            "not a sample: an absent hit here says nothing about the "
-                            "records not reached"
+                            else "prefix"
+                        ),
+                        "selection_note": (
+                            (
+                                "every surviving record of the component"
+                                if args.rate >= 1.0
+                                else f"a seeded hash band of {args.rate:.3g} of the "
+                                "component's surviving records; membership is a function of "
+                                "the record identifier, so this is a sample of the component "
+                                "and an absent hit is a lower bound over it"
+                            )
+                            if complete
+                            else "a leading prefix of a hash band, cut short: a prefix of an "
+                            "accession-ordered object is not a sample, so an absent hit here "
+                            "says nothing about the records not reached"
                         ),
                         "records_searched": searched,
                         "manifest_records": total,
-                        "searched_fraction": round(searched / total, 8) if total else None,
+                        "searched_fraction": (
+                            round(searched / total, 8) if total and not complete else args.rate
+                        ),
+                        "band_records_searched": searched,
                         "removed_records_skipped": stats["removed_skipped"],
                         "gene_calling": {
                             "genes": stats["genes"],
@@ -308,16 +378,19 @@ def main(argv: list[str] | None = None) -> int:
                 + "\n"
             )
 
-        def flush(batch: list[Any]) -> None:
-            if not batch:
-                return
-            proteins, called = profilesearch.call_genes(batch)
+        def search_called(called: dict[str, Any]) -> None:
             stats["genes"] += called["genes"]
             stats["residues"] += called["residues"]
             stats["records_without_genes"] += called["records_without_genes"]
-            if not proteins:
+            if not called["proteins"]:
                 return
-            block = DigitalSequenceBlock(amino, proteins)
+            block = DigitalSequenceBlock(
+                amino,
+                [
+                    TextSequence(name=name.encode(), sequence=protein).digitize(amino)
+                    for name, protein in called["proteins"]
+                ],
+            )
             _collect(
                 pyhmmer.hmmsearch(
                     profile_models,
@@ -337,12 +410,31 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         complete = True
+        pool = ProcessPoolExecutor(max_workers=args.workers) if args.workers > 1 else None
+        pending: deque[Any] = deque()
+
+        def drain(*, keep: int) -> None:
+            while len(pending) > keep:
+                search_called(pending.popleft().result())
+
+        def submit(batch: list[Any]) -> None:
+            if not batch:
+                return
+            payload = [(r.id, r.sequence) for r in batch]
+            if pool is None:
+                search_called(call_genes_payload(payload))
+                return
+            pending.append(pool.submit(call_genes_payload, payload))
+            # Bounded queue: the reader runs ahead of the callers by at most a couple of
+            # batches per worker, so a fast object does not buffer the corpus into memory.
+            drain(keep=2 * args.workers)
+
         for source in sources:
             reader = objectstore.S3SequentialRead(client, objectstore.CORPORA_BUCKET, source.key)
             stream = uniref.GunzipStream(reader) if source.gzipped else reader
             if source.reader == "fasta":
                 records = seqstream.iter_fasta_sampled(
-                    stream, component=source.component, seed=SEED, hi=1.0
+                    stream, component=source.component, seed=SEED, hi=args.rate
                 )
             else:
                 records = seqstream.iter_stage2_sampled(
@@ -350,7 +442,7 @@ def main(argv: list[str] | None = None) -> int:
                     component=source.component,
                     record_prefix=source.corpus_component,
                     seed=SEED,
-                    hi=1.0,
+                    hi=args.rate,
                 )
             batch: list[Any] = []
             for sampled in records:
@@ -360,9 +452,10 @@ def main(argv: list[str] | None = None) -> int:
                 batch.append(sampled)
                 stats["records_searched"] += 1
                 if len(batch) >= args.batch:
-                    flush(batch)
+                    submit(batch)
                     batch = []
                     if stats["records_searched"] % args.checkpoint_records < args.batch:
+                        drain(keep=0)
                         write_checkpoint(complete=False)
                         print(
                             f"{stats['records_searched']:,} records, "
@@ -373,10 +466,13 @@ def main(argv: list[str] | None = None) -> int:
                 if args.max_records and stats["records_searched"] >= args.max_records:
                     complete = False
                     break
-            flush(batch)
+            submit(batch)
+            drain(keep=0)
             if not complete:
                 break
 
+        if pool is not None:
+            pool.shutdown()
         write_checkpoint(complete=complete)
         ctx.output_file(checkpoint, role="best hit per model over the surviving records")
         ctx.output_file(subset, role="the annotated domain subset searched")
