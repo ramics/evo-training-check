@@ -11481,3 +11481,48 @@ decision has a threshold or parameter in it, the number goes in the entry.
   one record the write-up names. If it returns "present", the mechanism is unspecific annotation
   rather than the family list, which is a different finding from the one the worked example
   currently makes and would need its own entry.
+
+### D-261 — the detected records are absent from Evo 2's training data, and the name axis over-counts
+- **Date:** 2026-10-26
+- **Task:** A6.1 (bearing on A7.3, A7.5, X1.8, X1.9)
+- **Note on where this entry sits:** as D-260 — `AGENTS.md` puts this on `main`, this session may
+  push only to `claude/jolly-allen-oahiqb`, so it needs moving when the branch lands.
+- **Context:** D-260 pre-registered a k-mer test against Evo 1's `stage2`. The project owner
+  redirected it, correctly, to the artefact the question is actually about: OpenGenome2's JSON
+  training format. `stage2` is Evo 1's file; answering with it would have answered a neighbouring
+  question. The design in D-260 carries over — 48-mers, spread offsets, both strands, exact
+  match — widened from one record to all 314 of X1.9's table, since one FASTA pass yields all of
+  them and the marginal cost is nil.
+- **Decision — two findings, recorded together because the second explains the first's shape.**
+  **The records the published rule removes are absent from the training data.** All six training
+  files read, 2,653,097 records; **0 of the 17** records with `label_rule_outcome = removed` are
+  present, the papillomavirus record among them (0 of its 6 needles). The pass independently
+  reproduces A7.1's and A7.3's 2,653,047 by a different method, which is the coverage check that
+  makes the negative mean something. So A7.3's §10 now rests on a direct per-record measurement
+  for the records that matter, not only on matching totals — and the owner's observation that
+  applying the filter to the FASTA header count does not reach the JSON count is resolved
+  separately: against **distinct accessions** rather than headers it reconciles to one record
+  (2,917,521 − 264,570 + 95 = 2,653,046 against 2,653,047, which is A7.1's own one-record gap
+  against Table S2).
+  **The name axis over-counts, and `matched_on: identifier` is the channel.** 90 of the 314 are
+  present in the training data, every one with an empty `label_rule_outcome`, and they are not
+  mislabelled viruses: their families joined a denylisted group because the Pfam *identifier*
+  begins `Pox`/`Av_adeno`, where Pfam's own descriptions say "protein-**like**" and "VLTF3
+  **like**" — families spanning nucleocytoplasmic large DNA viruses and phages. Their match
+  strengths separate from the real cases by an order of magnitude (median 1.4× threshold, max
+  6.8×, none above 10×, identity 0.24–0.44, coverage median 0.74, against 17×/0.59/0.997 for
+  `PF00519` on the papillomavirus record), and their labels are specific phage and giant-virus
+  realms rather than absent.
+- **Rejected:** Reporting "90 records carrying excluded-family proteins survive into the training
+  data" without the match statistics. True as worded and misleading as read: the sentence invites
+  a reader to hear leakage where the measurement shows a broad family doing what broad families
+  do, and §7's adversarial reader would find the `-like` in Pfam's own description within a
+  minute.
+  Also rejected: dropping `matched_on: identifier` families from the universe. They are not
+  wrong, they are *broad*; the fix is that the 314 is an upper bound and is reported with the
+  score-over-threshold distribution beside it, not a shorter list.
+- **Consequence:** A6.1 may state that the filter held on the training data for every record the
+  rule removes, as a measurement. The released-FASTA finding is unchanged and is now the whole of
+  the Phase A Evo 2 claim. The name-axis count needs its qualifier wherever it appears — X1.8,
+  X1.9, A7.5 and the write-up — and a specificity note on identifier-matched families belongs in
+  X1.8's output rather than in prose.
