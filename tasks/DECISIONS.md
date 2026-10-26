@@ -11118,3 +11118,68 @@ decision has a threshold or parameter in it, the number goes in the entry.
   which is everything published before X1.7: refusing on those would make every pre-existing
   key permanently unwritable, and the property being defended is that the same code never
   silently disagrees with itself, not that nothing is ever replaced.
+
+### D-254 — A7.5's instrument may emit matched-region residues to a strictly local path, outside the repo tree
+- **Date:** 2026-10-26
+- **Task:** A7.5
+- **Context:** D-103 is explicit that corpus sequence may live in memory and in ephemeral
+  per-session scratch, but may never enter the repository, `artifacts/`, the audit store, or
+  any file a reviewer or a later task reads as a result. `tools/extract_matched_regions.py`
+  states that commitment four times and carries no residues in any of its three outputs
+  (TSV, JSON, Markdown). The project owner is going to BLAST the matched proteins against
+  nr independently as a check on the identity-to-consensus column; that check needs the
+  called protein sequence underneath each row, and no column of the published table carries
+  it. There is no way to recover the sequence from the artefact alone — the pass reads it,
+  the row records coordinates against it, and `profilesearch.search` drops it on the way
+  out — so the choice is to re-read the staged object a second time (an hour of compute per
+  check and no better off, because the residues still have to leave the pass somehow) or
+  to let the pass that already has them write them to a local file.
+- **Decision:** `tools/extract_matched_regions.py` gets an opt-in `--fasta-out <path>` flag
+  that writes one FASTA record per matched region to `<path>`, with the called protein's
+  full amino-acid sequence and a defline carrying `record_id`, `entry`, `accession`,
+  `profile`, `gene`, `score`, `threshold`, `hmm_from/to` and `target_from/to`. Three gates,
+  in code, each refusing before any residue is captured:
+  1. **The path resolves outside the repository.** A `--fasta-out` under the repo tree is
+     refused by name — including `artifacts/`, `data/` and the task's own `OUTDIR`. The
+     file goes to a scratch directory, to `/mnt/project-files/...`, to `/tmp/...`, or
+     outside the working tree. There is no override.
+  2. **It never becomes a manifest output.** The FASTA is written by direct file write, not
+     through `manifest.output_file`, so `repro.run`'s durable copy — which this tool uses
+     for its three published outputs on the deliverable run — never sees it. The path is
+     recorded as a *parameter* on the manifest for traceability, under its basename and
+     resolved path, which is a line in `run.json` and nothing more.
+  3. **The flag's presence is loud.** The tool prints a one-line notice at startup naming
+     the destination and the gate it passed, so a run with `--fasta-out` leaves a visible
+     trail in the log of the pass that emitted the residues.
+  Three carve-outs that this entry **does not** make:
+  - D-103's statement that no residues enter the repo, `artifacts/`, the audit store, or
+    any file a reviewer or later task reads as a result is unchanged. Those three stores
+    stay residue-free; the gate above enforces that for this flag.
+  - The three published outputs (`regions-*.tsv`, `regions-*.json`, `regions-*.md`) still
+    carry accessions, scores, coordinates, counts and lineage tags only. Nothing in the
+    deliverable table changes.
+  - A2.1 and A2.4 are untouched. `profilesearch.search` is not asked to carry sequences;
+    the tool reconstructs them from the digitized proteins it already has in-chunk, via
+    pyhmmer's `DigitalSequence.textize()`, which produces the same residues that were fed
+    in and nothing new.
+- **Rejected:** A `--fasta-out` with no path constraint. The repo tree is where every other
+  task's artefacts live and a reviewer looking for the audit's output should not find
+  residues among them; a hand-chosen path with no code gate is one accidental tab-complete
+  from exactly that. The constraint is cheap, the override would be the thing that costs.
+  Writing the FASTA through the manifest. `repro.run` publishes outputs to the durable
+  bucket under this task's prefix, and that bucket is the audit store — a FASTA uploaded
+  there is exactly the file D-103 forbids. Not routing the FASTA through the manifest is
+  the whole reason it is safe to emit at all.
+  Capturing the matched region only (the `target_from:target_to` slice). The caller wanted
+  to BLAST independently, and the full protein lets them see the context around the match
+  as well as the match itself; the row records the coordinates, so the slice is one
+  substring away. Writing the slice would discard information cheaply reconstructed.
+  A broader residue-emission capability for other A2 detectors. Nothing else is asking for
+  it. This is one tool, one flag, with its own tests; adding it anywhere else is a separate
+  decision.
+- **Consequence:** The owner can verify any A7.5 row by BLASTing the protein that produced
+  it. The deliverable run's three outputs are unchanged, bit for bit — the FASTA is a
+  side-channel that only exists when the flag is passed, and when it is passed the pass
+  prints its destination. No residue reaches the repo, `artifacts/` or the durable
+  bucket, and the code gate that enforces that is a one-line path check tested by a case
+  that passes a repo path and asserts the refusal.
