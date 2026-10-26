@@ -96,7 +96,7 @@ def removed_ids(client: Any, release: str) -> set[str]:
     out = set()
     for line in body.decode().splitlines():
         if line.strip():
-            out.add(json.loads(line)["record"]["id"])
+            out.add(json.loads(line)["record_id"])
     return out
 
 
@@ -454,12 +454,44 @@ def main(argv: list[str] | None = None) -> int:
                 records = seqstream.iter_stage2_sampled(
                     stream,
                     component=source.component,
-                    record_prefix=source.corpus_component,
+                    # The identifier must be the one A1.4 and A2.1 built, or neither
+                    # the removal exclusion nor the hash band means anything: it is
+                    # `<component>:<object name>#<row>`, not `<component>#<row>`.
+                    record_prefix=source.corpus_component + ":" + Path(source.key).name,
                     seed=SAMPLE_SEED,
                     hi=args.rate,
                 )
             batch: list[Any] = []
+            checked_shape = not removed
             for sampled in records:
+                if not checked_shape:
+                    # The removal exclusion is silent when it fails: a record identifier built
+                    # differently from A1.4's matches nothing, every removed record is searched
+                    # anyway, and the band is a different band from A2.1's. Both failures
+                    # produce a complete, plausible table. So the first record's identifier is
+                    # checked against the shape of the removed set rather than trusted.
+                    # Shape, not equality: this release's component is published as several
+                    # splits and only one of them carries a removed record, so an identifier
+                    # from another split is legitimately absent from the removed set. What
+                    # must agree is how the identifier is built — component, separator, object
+                    # name, row — which is what distinguishes `stage2:train_stage2.parquet#0`
+                    # from `stage2#0`.
+                    stem_here = sampled.id.rsplit("#", 1)[0]
+                    stems = {r.rsplit("#", 1)[0] for r in removed}
+                    ok = any(
+                        s.split(":", 1)[0] == stem_here.split(":", 1)[0]
+                        and (":" in s) == (":" in stem_here)
+                        for s in stems
+                    )
+                    if not ok:
+                        raise SystemExit(
+                            f"record identifiers do not match A1.4's: this pass builds "
+                            f"{sampled.id!r} and the removed set is keyed on "
+                            f"{sorted(stems)[:2]}. The removal exclusion and the hash band "
+                            "both depend on one identifier, so this is refused rather than "
+                            "reported."
+                        )
+                    checked_shape = True
                 if sampled.id in removed:
                     stats["removed_skipped"] += 1
                     continue
