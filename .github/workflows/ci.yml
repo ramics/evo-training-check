@@ -1,8 +1,19 @@
 name: ci
 
+# Feature work is reviewed through a pull request and project management lands on
+# `main` (AGENTS.md, "Where commits go"), so those are the two things worth CI:
+# `main` on push, and every PR. Scoping push to `main` is what stops a PR branch
+# running CI twice per commit (once for its push, once for the pull_request event).
 on:
   push:
+    branches: [main]
   pull_request:
+
+# One in-flight run per branch. A new push cancels the superseded run on the same
+# ref — except on `main`, where each run is kept as the record of main's health.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Runs everything `pixi run check` runs locally, from the committed pixi.lock, so
 # CI and a contributor's machine resolve the same packages. See AGENTS.md.
@@ -19,6 +30,10 @@ jobs:
           # local runs can diverge, which breaks the pinning guarantee AGENTS.md
           # relies on.
           locked: true
+          # Cache the solved environment, keyed on pixi.lock. Resolving and
+          # installing the dev environment is the bulk of each run's wall clock;
+          # on a cache hit it is restored instead of rebuilt.
+          cache: true
 
       - name: Lint
         run: pixi run -e dev lint
