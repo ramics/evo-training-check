@@ -11526,3 +11526,46 @@ decision has a threshold or parameter in it, the number goes in the entry.
   the Phase A Evo 2 claim. The name-axis count needs its qualifier wherever it appears — X1.8,
   X1.9, A7.5 and the write-up — and a specificity note on identifier-matched families belongs in
   X1.8's output rather than in prose.
+
+### D-262 — the training format joins to the released FASTA by sequence, so it is auditable after all
+- **Date:** 2026-10-26
+- **Task:** A6.1 (bearing on A7.3, A2.1, A4.1, and every Evo 2 figure measured on the FASTA)
+- **Note on where this entry sits:** as D-260 and D-261 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else, and needs moving.
+- **Context:** `policies/evo.md` §8 records that OpenGenome2's JSON viral records carry a single
+  `text` field — no accession, no lineage — so none of the filter's six rules can be executed
+  against the training format and §10's finding had to rest on matching totals. D-261's needle
+  test answered a named question (are *these* records present) without needing a join. The
+  project owner asked the general one: can the two representations be linked.
+- **Decision — they can, and completely.** Hash-join on sequence, both orientations, with a
+  `(length, first-48, last-48)` fallback tier so that the *degree* of correspondence is a
+  measurement rather than a yes/no. **All 2,652,840 distinct JSON records resolve by exact
+  sequence digest; one needed the fallback; none is unresolved.** 2,653,047 distinct accessions,
+  and 304,448 FASTA entries absent from the training corpus — both figures A7.3's, reproduced
+  here by a method sharing no code with it.
+  **So sequences are preserved verbatim or not present.** Whatever the dataset card means by
+  distinguishing the FASTA from "the preprocessed form the model consumed", it is not a change to
+  the bases, and that is worth recording because the distinction has been load-bearing since
+  D-017.
+  **Consequence for the claim, stated plainly because it cuts against this project's own
+  write-up:** "the only representation anyone can audit is the one that fails the audit" is no
+  longer correct. The training representation is auditable, through a 36-gigabase sequence join
+  that no published sentence mentions. That remains a reporting gap — an outside reader should
+  not have to invent such a join to check a stated safeguard — but it is a **smaller** claim than
+  the one it replaces, and `docs/phase-a-worked-example-papillomavirus.md` and
+  `policies/evo.md` §10 both need their wording revisited before anything ships.
+- **Rejected:** Treating the needle test as sufficient. It answers membership for named records
+  and cannot produce an accession for an unnamed one, so it could never make the training corpus
+  auditable; the two tests are different instruments and both are kept.
+  Also rejected: reading the 96-record gap (2,917,521 − 2,653,047 = 264,474 against the
+  procedure's 264,570) as a result. It chains counts measured on two IMG/VR releases and in
+  three units; it is a pointer to a now-enumerable set, and enumerating it is the work.
+  Also rejected: smoothing over the two methods disagreeing on 8 of the 314 (needles 90, join
+  82). The join is the stricter instrument and the 8 are probably needle false positives from a
+  48-mer matching a homologous record, which would make D-261's "90" an 82 — but that is a
+  hypothesis and the entry says so.
+- **Consequence:** A task of its own should produce the accession list as a citable artefact
+  through `repro.run` — the scratch file is sha256
+  `413b92e13df518b9cefa3bdeba99449a8298e41a40c98dd9aa39b735f16b0568`, 2,653,047 lines, and dies
+  with this container. Then the published rules run against the training corpus for the first
+  time, which is what A2.1, A4.1 and A7.3 would all have measured had the join been available.

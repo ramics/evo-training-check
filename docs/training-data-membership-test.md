@@ -91,3 +91,84 @@ for the negative half of that claim rather than a change to it.
 Exploratory check, scratch output only, nothing published to the durable store (D-193, D-224).
 Scripts were throwaway; the method above is the specification, and the registry
 (`data/pfam/38.2/`) verifies against the publisher's md5.
+
+---
+
+# Addendum: the training corpus can be joined to the released FASTA, and is therefore auditable
+
+**Date:** 2026-10-26 · **See:** D-262
+
+The test above searched for named sequences. This closes the general case.
+
+## Method
+
+Hash-join on sequence, the only field the two artefacts share. Inverted deliberately — the
+HuggingFace read goes first and persists, because an earlier attempt built a 20-minute in-memory
+FASTA index and lost it to a `BrokenPipeError` on the download. Only `curl --retry
+--retry-all-errors` has survived this transfer; a non-zero exit refuses rather than persisting a
+truncated read, so a partial download cannot pass as a complete one.
+
+1. **Phase A** — stream all six training files, digest each record's `text`
+   (blake2b-64 of the uppercased sequence, plus a `(length, first-48, last-48)` fallback key),
+   persist both digest arrays to disk. 2,653,097 records, 448 s.
+2. **Phase B** — one in-region FASTA pass, testing each entry's forward **and reverse-complement**
+   digests against those arrays. 2,957,495 entries, ~19 min.
+
+## Result — a complete join
+
+| | |
+|---|---|
+| JSON records | 2,653,097 (**2,652,840** distinct; 257 are byte-identical duplicates) |
+| resolved by exact sequence digest | **2,652,840 — all of them** |
+| needing the length+ends fallback | **1** |
+| unresolved | **0** |
+| distinct accessions resolved | **2,653,047** |
+| FASTA entries absent from the training corpus | **304,448** |
+
+**Sequences are preserved verbatim or not present at all.** With the fallback tier catching one
+record in 2.65 million, there is no systematic preprocessing transformation between the released
+FASTA and the form the model consumed — whatever the dataset card means by distinguishing them,
+it is not a change to the bases.
+
+Two of A7.3's figures come back independently here, by a method sharing no code with it:
+**304,448** absent entries, and **2,653,047** records in the training corpus.
+
+The accession list is `training_accessions.txt`, 2,653,047 lines, sha256
+`413b92e13df518b9cefa3bdeba99449a8298e41a40c98dd9aa39b735f16b0568`. It is scratch, not
+published: producing it as a citable artefact belongs to a task of its own, through
+`repro.run`.
+
+## What this changes
+
+**Every rule in `policies/specs/evo1-literal.yaml` is now executable against what Evo 2 trained
+on.** That has not been possible before — `policies/evo.md` §8 records the training format as
+carrying no accession and no lineage, and §10's finding rests on matching totals for exactly
+that reason. A sequence join supplies the accession the artefact omits, and the IMG/VR metadata
+supplies the labels from there. Every Phase A number currently measured on the released FASTA
+can be re-measured where it matters.
+
+**It also narrows the disclosure finding, and that should be said plainly.** "The only
+representation anyone can audit is the one that fails the audit" is no longer right. The
+training representation is auditable too — via a 36-gigabase sequence join that no published
+sentence mentions and that an outside reader would have to invent. That is still a real
+reporting gap, and it is a smaller claim than the one it replaces.
+
+## The open number
+
+2,917,521 accessions in the FASTA, 2,653,047 in the training corpus: a difference of
+**264,474**. The published procedure removes **264,570**. The gap is **96 records**, against
+A7.2's 95 forward failures.
+
+So on this arithmetic roughly 96 records that the published procedure removes are nonetheless in
+the training corpus. They are now enumerable by a metadata join with no sequence work. **Not yet
+enumerated** — and the arithmetic chains counts measured on two IMG/VR releases, so the 96 is a
+pointer, not a result.
+
+## A disagreement between the two methods, unresolved
+
+On the 314 records, the needle search reported 90 present and the join reports **82**, agreeing
+on all 82, with the join finding nothing the needles missed. The asymmetry has an obvious
+candidate: a 48-mer can match a homologous *different* record where a full-sequence digest
+cannot, making the join the stricter instrument and those 8 likely needle false positives. If
+so the earlier "90 records" figure is 82. Stated as a discrepancy rather than resolved, because
+it has not been checked.
