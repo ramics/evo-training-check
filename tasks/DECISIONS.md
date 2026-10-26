@@ -11300,3 +11300,42 @@ decision has a threshold or parameter in it, the number goes in the entry.
   predictor, median 87.5% of residues at or above the predictor's own confidence floor and none
   below half, so the query side would not have been the limiting factor had the pass been
   bought. The limit is entirely the corpus side, which is the same sentence A2.2 ended on.
+
+### D-258 — the homology pass searches a tenth of each component, declared before any result was read
+- **Date:** 2026-10-26
+- **Task:** B3.1, B3.2 (affects B3.5, B5.1, B5.2)
+- **Context:** The expensive half of B3.1 and B3.2 is one pass over each release's surviving
+  records: gene calling, then a search of the 28 target profiles and the 71 annotated domain
+  families. The depth had to be fixed before any hit was seen, and the cost was measured rather
+  than estimated — D-164's lesson, that a benchmark has to resemble the job in size and not only
+  in regime, applied by timing the real tool on the real objects. **20,000 records of Evo 2's
+  viral component took 173 seconds with gene calling across three worker processes**, which puts
+  a census of both components — 2,957,495 and 2,653,047 records — at roughly seventeen hours of
+  container time. That is free of money and not free of risk: a session container is reclaimed,
+  and a census cut short is a *prefix*, which is the one thing a sampled figure may not be.
+- **Decision:** **Each pass searches a seeded hash band of 0.1 of its component's surviving
+  records**, declared here before any result was inspected, using the same
+  `amazebio.detect.in_band` membership A2.1's sampling uses: band membership is a function of
+  the record identifier, so the band is a sample of the component rather than the front of it,
+  and it is decided from the FASTA header before any residue is materialised. Every row built
+  from it carries `searched_fraction: 0.1` and `bound: lower` per D-256, and the artefact's
+  `selection` is `hash_band`.
+  Two things make the number defensible rather than merely affordable. It is **ten to a hundred
+  times A2.1's own detection depth**, so B3's homology axis is not the shallowest instrument in
+  the audit. And the measure is a **best hit**, which is the statistic least sensitive to depth:
+  a floor from a tenth of a corpus is a floor, and the direction of the error is known and
+  stated. The cell it weakens is `absent`, which is why `absent` is a censored observation at
+  the cut and never a zero.
+- **Rejected:** The census, not on cost — it costs nothing but time — but because seventeen
+  hours against a reclaimable container buys a result whose most likely failure mode is a
+  prefix masquerading as a sample. It stays available and is named as such: the pass takes
+  `--rate 1.0`, and B3.5 or B5.1 may buy it with nothing but patience. A1.6's own 0.001
+  pre-registered depth, which would have made this axis shallower than the detection pass it
+  sits beside. Reading the band from the front of the object, which is faster still and is the
+  mistake A1.6 paid for: a prefix of an accession-ordered object is not a sample.
+- **Consequence:** B3.1 and B3.2 deliver lower bounds, stated as such in every row, and the
+  thing a reader must not do is compare one of these scores against a census figure — D-247's
+  rule about never setting a single-detector figure beside a merged one, one axis over. One
+  consequence worth naming for B5.1: a target whose `sequence_profile` row is `absent` at this
+  depth has not been shown to be absent from surviving space, so a pre-registration that treats
+  `absent` as evidence of exclusion is making a claim this artefact does not support.
