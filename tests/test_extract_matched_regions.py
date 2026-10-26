@@ -450,6 +450,61 @@ class TestTheTableItWrites:
         assert row["hmm_from"] <= row["hmm_to"]
         assert not any("sequence" in key for key in row)
 
+    def test_capture_sequences_returns_hit_proteins_only(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """D-254 end-to-end: `search_chunk(capture_sequences=True)` recovers the called protein
+        for each hit, from a real gene call and a real HMM search."""
+        import dataclasses
+
+        fixture = pathlib.Path(__file__).resolve().parent / "data" / "a7-5" / "records.fasta"
+        protein_expected = (fixture.parent / "protein.txt").read_text().strip()
+        hmm = tmp_path / "model.hmm"
+        build_hmm(hmm, name="Fixture_1", protein=protein_expected)
+
+        # Build a `RegistryView`-shaped stand-in with the fixture HMM as its only model.
+        from typing import ClassVar
+
+        class _View:
+            universe: ClassVar[dict[str, str]] = {"PF00001": "Fixture_1"}
+            thresholds: ClassVar[dict[str, float]] = {"Fixture_1": 0.0}
+
+        class _Reg:
+            id = "fixture"
+            version = "0"
+            curated_cutoffs = False
+
+        # Monkey-patch `profilesearch.hmm_path` locally so the chunk picks up this test's HMM.
+        with fixture.open("rb") as stream:
+            records = list(iter_fasta_selected(stream, component="IMG/VR", ids={"fixture_r1"}))
+        # Tag with an entry number the way the tool does.
+        tagged = [
+            dataclasses.replace(r, record=dataclasses.replace(r.record, id=f"{r.id}#1"))
+            for r in records
+        ]
+        import amazebio.profilesearch as _ps
+
+        orig = _ps.hmm_path
+        _ps.hmm_path = lambda reg, data: hmm  # type: ignore[assignment]
+        try:
+            rows, _stats, sequences = extract.search_chunk(
+                tagged,
+                reg=_Reg(),
+                view=_View(),
+                restrict_to={"Fixture_1"},
+                cpus=1,
+                capture_sequences=True,
+            )
+        finally:
+            _ps.hmm_path = orig
+        assert rows, "the fixture model has to find its own protein"
+        hit_name = f"{rows[0]['record_id']}|{rows[0]['gene']}"
+        assert hit_name in sequences
+        # The residues come back verbatim: pyhmmer's digital->text round-trip is lossless and
+        # the called protein should match the one the HMM was built from (the fixture pins it).
+        assert sequences[hit_name] == protein_expected
+        assert len(sequences) == len(
+            {f"{r['record_id']}|{r['gene']}" for r in rows}
+        ), "capture is restricted to hit names, so no non-matching protein is kept"
+
 
 class TestTheMeterOnTheCorpusPass:
     """The pass reports where it is, and what it read is recorded rather than assumed.
@@ -539,6 +594,124 @@ class TestTheDocumentItWrites:
         assert "0 of 3 requested records found" in text
         assert "not in the staged object" in text
         json.dumps(doc)  # the document has to stay serialisable
+
+
+class TestTheFastaOutGate:
+    """D-254: `--fasta-out` emits residues of matched regions, strictly local.
+
+    The gate is the one thing standing between a well-intentioned override and a FASTA inside
+    the audit store. Three invariants: the path refuses to resolve anywhere inside the repo
+    tree (no `artifacts/`, no `data/`, no OUTDIR, not the repo root); a pre-existing path is a
+    refusal rather than a silent overwrite; and `write_fasta`'s output never contains more than
+    one `>record` per entry, with the called protein verbatim.
+    """
+
+    def test_a_path_inside_the_repo_is_a_refusal(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        with pytest.raises(SystemExit) as exc:
+            extract.check_fasta_out_path(extract.REPO / "artifacts" / "a7-5" / "leak.fa")
+        assert "inside the repository" in str(exc.value)
+        assert "D-254" in str(exc.value)
+
+    def test_outdir_itself_is_refused(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            extract.check_fasta_out_path(extract.OUTDIR / "regions.fa")
+        assert "inside the repository" in str(exc.value)
+
+    def test_the_repo_root_itself_is_refused(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            extract.check_fasta_out_path(extract.REPO / "leak.fa")
+        assert "inside the repository" in str(exc.value)
+
+    def test_data_dir_is_refused(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            extract.check_fasta_out_path(extract.REPO / "data" / "leak.fa")
+        assert "inside the repository" in str(exc.value)
+
+    def test_a_path_outside_the_repo_is_accepted(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        got = extract.check_fasta_out_path(tmp_path / "regions.fa")
+        assert got == (tmp_path / "regions.fa").resolve()
+
+    def test_a_pre_existing_destination_is_a_refusal_rather_than_an_overwrite(
+        self, tmp_path
+    ) -> None:  # type: ignore[no-untyped-def]
+        stale = tmp_path / "stale.fa"
+        stale.write_text(">x\nACGT\n")
+        with pytest.raises(SystemExit) as exc:
+            extract.check_fasta_out_path(stale)
+        assert "already exists" in str(exc.value)
+
+    def test_a_directory_destination_is_a_refusal(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        # tmp_path is outside the repo, so the gate's path check passes and the existence
+        # check fires: a directory cannot be a FASTA destination.
+        with pytest.raises(SystemExit) as exc:
+            extract.check_fasta_out_path(tmp_path)
+        assert "is a directory" in str(exc.value)
+
+    def test_defline_first_token_is_unique_per_row_and_fields_follow(self) -> None:
+        row = {
+            "accession": "PF00001",
+            "profile": "Model_1",
+            "record_id": "IMGVR_X",
+            "entry": 2,
+            "gene": "gene5",
+            "score": 101.5,
+            "threshold": 25.0,
+            "identity": 0.9123,
+            "model_coverage": 0.9876,
+            "model_length": 120,
+            "hmm_from": 1,
+            "hmm_to": 118,
+            "target_from": 3,
+            "target_to": 120,
+        }
+        defline = extract.defline_for(row)
+        token, _, rest = defline.partition(" ")
+        assert token == "IMGVR_X#2|gene5|PF00001"
+        assert "profile=Model_1" in rest
+        assert "score=101.5" in rest
+        assert "threshold=25.0" in rest
+        assert "identity=0.9123" in rest
+        assert "model_coverage=0.9876" in rest
+        assert "hmm=1-118" in rest
+        assert "target=3-120" in rest
+
+    def test_write_fasta_round_trip_defline_and_wrapped_sequence(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        destination = tmp_path / "regions.fa"
+        long_seq = "ACDE" * 25  # 100 residues, exactly ten wrap=10 lines
+        entries = [
+            ("rec_A#1|gene0|PF00001 profile=M score=50.0", long_seq),
+            ("rec_B#1|gene1|PF00002 profile=N score=60.0", "QRST"),
+        ]
+        extract.write_fasta(destination, entries, wrap=10)
+        lines = destination.read_text().splitlines()
+        # Two FASTA records, defline then wrapped sequence; no residues on the defline.
+        assert lines[0] == ">rec_A#1|gene0|PF00001 profile=M score=50.0"
+        assert all(len(line) == 10 for line in lines[1:11])
+        assert "".join(lines[1:11]) == long_seq
+        assert lines[11] == ">rec_B#1|gene1|PF00002 profile=N score=60.0"
+        assert lines[12] == "QRST"
+
+    def test_write_fasta_on_an_empty_entry_list_is_a_file_without_a_defline(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        destination = tmp_path / "regions.fa"
+        extract.write_fasta(destination, [])
+        assert destination.read_text() == ""
+
+
+class TestTheFastaFlagDoesNotCrossTheManifestBoundary:
+    """D-254: the FASTA is written by `write_fasta` directly, never through `output_file`.
+
+    The invariant is in the tool's `main`: inspect the module's source for the one call site,
+    and refuse any new `manifest.output_file(fasta_out ...)`. A tool-level test is cheaper than
+    an end-to-end one and catches the one way D-254 could be undone silently.
+    """
+
+    def test_the_source_calls_write_fasta_but_never_registers_it_as_an_output(self) -> None:
+        source = _PATH.read_text()
+        assert "write_fasta(fasta_out, fasta_entries)" in source
+        # `output_file` is called three times for the three published outputs. A fourth call
+        # that mentions `fasta_out` would be exactly the D-103 violation D-254 avoids.
+        assert "manifest.output_file(fasta_out" not in source
+        assert "manifest.output_file(args.fasta_out" not in source
 
 
 class TestTheObjectIsReadThrough:
