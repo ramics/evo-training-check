@@ -11333,6 +11333,24 @@ decision has a threshold or parameter in it, the number goes in the entry.
   pre-registered depth, which would have made this axis shallower than the detection pass it
   sits beside. Reading the band from the front of the object, which is faster still and is the
   mistake A1.6 paid for: a prefix of an accession-ordered object is not a sample.
+- **Amended the same day, before the pass ran: the band uses A2.1's sampling seed, not this
+  task's.** Band membership is a hash threshold, so under one seed the sample at rate `r` is
+  nested inside the sample at any larger rate — `amazebio.detect.in_band` is explicit about it
+  and it is the property D-078's deepening design rests on. A2.1 searched [0, 0.02) of Evo 1's
+  component and [0, 0.01) of Evo 2's at seed 20261015. Searching [0, 0.1) at the **same** seed
+  makes every record A2.1 searched a record this pass searched, which turns the join between
+  B3.2's presence verdicts and A2.1's detected families from a weak consistency check into a
+  directional one: a family A2.1 detected **must** be present here, and `holds: false` is a
+  finding about one of the two pipelines rather than a difference between two samples. A fresh
+  seed would have cost that for nothing, since the two tasks sample the same population by the
+  same method. The first smoke run used a fresh seed and the join could prove nothing; this is
+  the correction, made before any citable pass was run.
+- **One independent confirmation of the rate.** `amazebio.detect.in_band`'s own docstring
+  records an environment constraint this entry did not consult when choosing 0.1: no single run
+  here may exceed two hours. At the measured throughput the two passes are roughly fifty
+  minutes and eighty minutes, so the declared depth is the largest round band that fits the
+  constraint, which is a second reason for the same number rather than a reason for a different
+  one.
 - **Consequence:** B3.1 and B3.2 deliver lower bounds, stated as such in every row, and the
   thing a reader must not do is compare one of these scores against a census figure — D-247's
   rule about never setting a single-detector figure beside a merged one, one axis over. One
