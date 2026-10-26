@@ -116,7 +116,8 @@ Gates block their downstream tasks regardless of how convenient that is. Do not 
 | [X1.4](X1-4-machineverify-quotations-inside-the-policy-specs.md) | Machine-verify quotations inside the policy specs | `done` | — | §A0, §7 |
 | [X1.5](X1-5-restore-the-lost-result-artefacts.md) | Close out the durability audit | `done` | — | §7 |
 | [X1.6](X1-6-rerun-the-three-lost-measurements.md) | Re-run the three lost measurements | `done` | — | §7 |
-| [X1.7](X1-7-key-durable-results-by-commit.md) | Key durable results by commit | `done` | — | §7 |
+| [X1.7](X1-7-key-durable-results-by-commit.md) | Key durable results by commit | `review` | — | §7 |
+| [X1.8](X1-8-pin-the-label-arm-reference-data.md) | Pin the label arm's reference data | `done` | — | §7 |
 | [X2.1](X2-1-write-the-generalisation-section.md) | Write the generalisation section | `blocked` | A6.1 | §3 |
 | [X3.1](X3-1-run-the-responsibledisclosure-process.md) | Run the responsible-disclosure process **(gate)** | `blocked` | A6.1, B5.4 | §4, §7 |
 | [X4.1](X4-1-write-and-release-the-preprint.md) | Write and release the preprint | `blocked` | B5.1, C6.3, X2.1, X3.1 | §5 deliverable 6 |
@@ -148,3 +149,4 @@ Longest dependency chain to each deliverable-bearing endpoint, by task count:
 - **C3.1** (1): C3.1
 - **X1.5** (1): X1.5
 - **X1.7** (1): X1.7
+- **X1.8** (1): X1.8
