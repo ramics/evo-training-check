@@ -2,13 +2,13 @@
 id: B3.1
 title: Compute sequence-profile homology scores
 phase: B
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4, B2.4]
 blocks: [B3.5]
 design_ref: "§B3 item 1"
 deliverable: 3
-owner: unassigned
+owner: claude
 ---
 
 # B3.1 — Compute sequence-profile homology scores
@@ -32,6 +32,11 @@ each model's surviving corpus. Secondary measure per §B3.
 - Scores computed for all targets against all manifests.
 - Parameters fixed in advance and recorded.
 - Absent-hit representation documented and handled consistently downstream.
+
+## State — 2026-10-26
+
+`in-progress`. **Branch `claude/project-thread-bywmyz`.** Nothing is waiting on the
+project owner yet.
 
 ## Notes
 

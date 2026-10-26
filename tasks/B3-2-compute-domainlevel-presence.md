@@ -2,13 +2,13 @@
 id: B3.2
 title: Compute domain-level presence
 phase: B
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4, B2.4]
 blocks: [B3.5]
 design_ref: "§B3 item 2"
 deliverable: 3
-owner: unassigned
+owner: claude
 ---
 
 # B3.2 — Compute domain-level presence
@@ -32,6 +32,11 @@ a binary and a count.
 - Domain presence computed for all targets against all manifests.
 - Multi-domain handling rule documented and applied consistently.
 - Annotation resource version pinned.
+
+## State — 2026-10-26
+
+`in-progress`. **Branch `claude/project-thread-bywmyz`.** Nothing is waiting on the
+project owner yet.
 
 ## Notes
 

@@ -2,13 +2,13 @@
 id: B3.3
 title: Compute structural homology scores
 phase: B
-status: ready
+status: in-progress
 gate: false
 depends_on: [A1.4, B2.4]
 blocks: [B3.5]
 design_ref: "§B3 item 3"
 deliverable: 3
-owner: unassigned
+owner: claude
 ---
 
 # B3.3 — Compute structural homology scores
@@ -32,6 +32,11 @@ pre-registered PRIMARY homology measure.
 - Primary homology scores computed for all targets against all manifests.
 - Structure provenance recorded per target; heterogeneity bias assessed.
 - Parameters frozen before inspection, per §B3's pre-registration requirement.
+
+## State — 2026-10-26
+
+`in-progress`. **Branch `claude/project-thread-bywmyz`.** Nothing is waiting on the
+project owner yet.
 
 ## Notes
 
