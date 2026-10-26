@@ -2,7 +2,7 @@
 id: B3.3
 title: Compute structural homology scores
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [A1.4, B2.4]
 blocks: [B3.5]
@@ -35,8 +35,10 @@ pre-registered PRIMARY homology measure.
 
 ## State — 2026-10-26
 
-`review`. **Branch `claude/project-thread-bywmyz`, PR #44.** Nothing is waiting on the project
-owner for this task.
+`done`, at two of three Done-when criteria, **closed by the project owner's ruling (D-259): the
+structural corpus pass is not being bought, now or later.** The third criterion is therefore
+unreachable rather than open, and this file records it as closed rather than pending.
+**Branch `claude/project-thread-bywmyz`, PR #44.**
 
 The shared contract is `metrics/homology.md` — binding on B3.5 and B5 — and
 `src/amazebio/homology.py` is its only producer. Four kinds rather than a score and a null
@@ -83,18 +85,37 @@ bits was calibrated against decoys in a different geometry, and carrying it over
 declared threshold calibrated against nothing.
 
 ### Done-when
-- *Primary homology scores computed for all targets against all manifests* — **not met, and not
-  meetable without the pass.** The cells exist as `not_searched` with the reason.
+- *Primary homology scores computed for all targets against all manifests* — **not met, and
+  permanently unreachable** (D-259). Two independent reasons, neither of which a later session
+  should re-open: the measure §B3 names is uncomputable, because the tool does not give a
+  TM-score against a structural alphabet predicted from sequence (D-167); and the coordinate-free
+  route that remains was priced and **declined outright by the project owner** on 2026-10-26
+  (D-180, D-259). The cells exist as `not_searched` with the reason.
 - *Structure provenance recorded per target; heterogeneity bias assessed* — met.
 - *Parameters frozen before inspection, per §B3's pre-registration requirement* — met, and this
   is the only measure for which freezing before inspection was possible at all, since no hit
   was ever seen.
 
-**Waiting on the project owner: whether two of three criteria is `done` here.** This session
-left the task at `review` rather than deciding it, because the unmet criterion is the primary
-measure and B5.1's pre-registration inherits whatever is decided. The alternative — promoting
-`sequence_profile` to primary because it is the measure with numbers — is selection on the
-instrument and is B5.1's decision and the owner's, not this task's (D-257 rejects it here).
+**Settled by the owner, 2026-10-26 (D-259).** The pass was put to him with its cost and with
+what it would buy: structure is conserved past the point where sequence similarity is
+detectable, so the structural route would have found relatives the profile search misses and
+moved the sequence counts *up* — a tighter bound on the same quantity in the same direction, not
+a second opinion about it. The asymmetry §B3 is establishing is already large and already
+one-directional, so he declined it. Four things follow and are binding downstream:
+
+- **`sequence_profile` is not promoted to primary.** `structural` stays marked primary in
+  `metrics/homology.md` with no searched manifest. Promoting the measure that happens to have
+  numbers is selection on the instrument.
+- **B5.1's pre-registration inherits a stated absence:** the sequence measure as the one
+  carrying numbers, the structural measure recorded absent with D-259 as the reason, and an
+  explicit line that an `absent` row is **censored at the cut, not a zero** (D-256).
+- **The sequence counts are floors and are reported as floors** — bounded both by the 0.1 band
+  (D-258) and by the missing structural route.
+- **The pass goes under "where funding extends this"**, with its price and what it would buy,
+  the same handling D-236 gave the RVDB-prot deepening.
+
+Whoever reports this axis — A6.1, X2.1, B5.4 — states in the first paragraph that the
+pre-registered primary measure has no numbers, rather than in a footnote.
 
 ## Notes
 

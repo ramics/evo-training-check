@@ -11357,3 +11357,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   consequence worth naming for B5.1: a target whose `sequence_profile` row is `absent` at this
   depth has not been shown to be absent from surviving space, so a pre-registration that treats
   `absent` as evidence of exclusion is making a claim this artefact does not support.
+
+### D-259 — the structural homology pass is declined outright, so Phase B's primary measure is permanently absent
+- **Date:** 2026-10-26
+- **Task:** B3.3 (binds B3.5, B5.1, B5.2, A6.1, X2.1)
+- **Context:** D-257 left B3.3 at two of three Done-when criteria and named the third — "primary
+  homology scores computed for all targets against all manifests" — as the project owner's call
+  rather than a task's. The question put to him was whether to buy the corpus pass the measure
+  needs, at the cost D-180 measured: 70+ instance-hours and $55-60 for one manifest, against a
+  $30 ceiling. What the pass would buy was stated with it, and it is worth recording because it
+  is the reason the answer is defensible: **structure is conserved past the point where sequence
+  similarity is detectable**, so the structural route would find relatives the profile search
+  misses and move the sequence counts *up*. It is a tighter bound on the same quantity in the
+  same direction, not a second opinion about it.
+- **Decision (project owner, 2026-10-26): do not run it, now or later.** The asymmetry §B3 is
+  being used to establish is already large and already one-directional, and a tighter bound
+  makes it larger rather than different. So B3.3's third criterion is **unreachable rather than
+  deferred**, and the task closes at the two criteria it meets: a structure resolved for all 31
+  targets with its confidence distribution, the heterogeneity assessment, and the search
+  parameters frozen before any search.
+  Four consequences, all of which something downstream has to honour:
+  1. **The sequence measure is not promoted.** `sequence_profile` stays secondary in
+     `metrics/homology.md` and `structural` stays marked primary with no searched manifest.
+     Promoting the measure that happens to have numbers is selection on the instrument, and it
+     would turn §B3's pre-registration into a formality after the fact. D-257 rejected it as a
+     task's call; this entry rejects it as the project's.
+  2. **B5.1's pre-registration inherits a stated absence.** It takes the sequence measure as
+     the one carrying numbers, records the structural measure as absent with this entry as the
+     reason, and says in the plan that an `absent` row is **censored at the cut and not a
+     zero** — D-256's rule, which a pre-registration is the right place to bind rather than
+     leaving to whoever fits the first model.
+  3. **The counts are floors and are reported as floors.** 19 of 31 targets with a
+     sequence-profile homologue in Evo 2's surviving records and 10 in Evo 1's; 62 of 71
+     annotated domain families present in Evo 2's and 12 in Evo 1's. Two things make each a
+     floor and both travel with it: the 0.1 band (D-258) and the missing structural route,
+     which would raise them by an unmeasured amount.
+  4. **The pass goes under "where funding extends this", not under future work in general.**
+     Same handling D-236 gave the RVDB-prot deepening and the write-up gives the depth
+     asymmetry: a named, priced thing this project declined, with the cost and what it would
+     buy, so a reader can see the bound was chosen and not merely reached.
+- **Rejected:** Buying one manifest rather than seven, which would produce the one comparison
+  `metrics/homology.md` forbids — a searched figure beside unsearched ones, D-247's rule on the
+  homology axis. Carrying the measure as `deferred` in the hope of later funding: it was put to
+  the owner with its price and declined, and recording a declined thing as pending is how a
+  limitation becomes a loose end. Reporting the sequence counts without the structural caveat.
+- **Consequence:** Phase B's pre-registered primary measure has no numbers and never will from
+  this project. That is a limitation to state in the first paragraph that reports the homology
+  axis — in A6.1, in X2.1's generalisation section, and in B5.4's per-assay reporting — rather
+  than a footnote, because a reader who takes the sequence counts as the measure §B3 asked for
+  has been misled about how strong the evidence is. The limit is entirely the corpus side: all
+  31 targets have a structure at a median 87.5% of residues above the predictor's own confidence
+  floor and none below half, so the query side would not have been what stopped it.
