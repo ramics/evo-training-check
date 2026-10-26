@@ -115,6 +115,22 @@ an unsearched manifest is `kind: not_searched` with the reason named, on A2.2's 
 the primary measure's absence is a stated limitation of Phase B rather than a gap a reader has
 to notice. `score` is `null`; it is never a sequence measure wearing the primary measure's name.
 
+## What may be published from it
+
+**This artefact is internal, and not because of what it measures — because of how it is keyed.**
+A row names an assay, and an assay's identifier names the organism its protein came from. That
+puts the axis squarely inside D-125's reporting rule, which is that results go out by survival
+route and homology class and never as a ranking of which model is most capable for which
+pathogen, and inside §4's requirement that nothing circulates before X3.1.
+
+So the division is the same one the label arm already works to. What may be published from this
+file: counts and distributions by homology class and by survival route, the kinds table, the
+depth and its bound, and the disagreement between the three measures, which is the result §B3
+asks for. What stays internal and goes to the project owner: the per-assay rows, the matched
+record identifiers and spans in `evidence`, and any ordering of assays by score. A figure built
+from this artefact that can be read as "model X retains capability for pathogen Y" is outside
+what this project publishes, whatever its caption says.
+
 ## What a reader may not conclude
 
 - **A `measured` row says a homologue is present in surviving space. It does not say the
