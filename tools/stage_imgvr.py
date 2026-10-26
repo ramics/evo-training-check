@@ -400,9 +400,7 @@ def main(argv: list[str] | None = None) -> int:
     prefix = prefix.rstrip("/")
     token = _token()
 
-    import boto3
-
-    client = boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
+    client = objectstore.client()
     organism_id, top_hit, live = fetch_catalog()
     outdir = Path(args.outdir)
 

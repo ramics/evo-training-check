@@ -451,19 +451,33 @@ def run(args: argparse.Namespace, client: Any, bucket: str, prefix: str) -> int:
 
         if args.upload_results and client is not None:
             key = f"{prefix}/results/a1-8/{out_path.name}"
-            client.put_object(Bucket=bucket, Key=key, Body=out_path.read_bytes())
-            manifest.output_object(
-                f"s3://{bucket}/{key}", bytes=out_path.stat().st_size, role="release-count"
+            written = objectstore.put_once(
+                client,
+                bucket,
+                key,
+                out_path.read_bytes(),
+                commit=repro.commit_of(manifest),
+                replace=args.replace_durable,
             )
-            print(f"  uploaded s3://{bucket}/{key}", flush=True)
+            manifest.output_object(
+                written["stable"], bytes=out_path.stat().st_size, role="release-count"
+            )
+            print(f"  uploaded {written['stable']}", flush=True)
 
     # Outside the block: `repro.run` writes the manifest on exit, so an upload inside it has
     # no file to send. The instance has no shell and nobody can fetch it afterwards (D-150).
     if args.upload_results and client is not None:
         local = args.outdir / manifest_name
         key = f"{prefix}/results/a1-8/{manifest_name}"
-        client.put_object(Bucket=bucket, Key=key, Body=local.read_bytes())
-        print(f"  uploaded s3://{bucket}/{key}", flush=True)
+        written = objectstore.put_once(
+            client,
+            bucket,
+            key,
+            local.read_bytes(),
+            commit=repro.commit_of(manifest),
+            replace=args.replace_durable,
+        )
+        print(f"  uploaded {written['stable']}", flush=True)
     return 0
 
 
@@ -480,6 +494,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--check-inputs", action="store_true")
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
     ap.add_argument("--upload-results", action="store_true")
+    ap.add_argument(
+        "--replace-durable",
+        metavar="REASON",
+        help="publish even though this commit has already published different bytes "
+        "at that key, and say why. Without this a clash is refused before anything is written.",
+    )
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--code-commit")
     ap.add_argument("--chunk-bytes", type=int, default=8 << 20)
@@ -505,15 +525,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.s3_uri:
         bucket, _, prefix = args.s3_uri[5:].partition("/")
         prefix = prefix.strip("/")
-        import boto3
         from botocore.config import Config
 
-        client = boto3.client(
-            "s3",
-            region_name=S3_REGION,
-            endpoint_url=S3_ENDPOINT,
-            config=Config(retries={"max_attempts": 10, "mode": "standard"}),
-        )
+        client = objectstore.client(config=Config(retries={"max_attempts": 10, "mode": "standard"}))
     try:
         if args.stage or args.stage_only:
             staged = stage(args, client, bucket, prefix)

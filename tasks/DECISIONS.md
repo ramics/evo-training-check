@@ -2816,6 +2816,13 @@ decision has a threshold or parameter in it, the number goes in the entry.
 ### D-078 — The sample is a deterministic hash of the record id, and what it supports is a lower bound
 - **Date:** 2026-10-15
 - **Task:** A2.1
+- **Corrected by D-098:** the "roughly 40,000 core-hours" in the Context below is **retracted**
+  and must not be quoted as a live figure anywhere. Its benchmark searched 300 profiles against
+  2,000 short random sequences, so per-profile fixed cost dominated and real throughput was
+  understated by about three orders of magnitude; a full census is nearer 3,000 core-hours for
+  both releases against both registries, tens of dollars at spot. The sampling decision itself
+  stands on its own ground — it was pre-registered before any hit was seen — and that, not
+  cost, is why the headline comes from a sample.
 - **Context:** A profile search over the whole surviving corpus is not expensive, it is
   arithmetically out of reach. Measured on this project's own environment: 98 million
   profile-residues per second for RVDB-prot and 254 million for the Pfam viral set, on three
@@ -11074,3 +11081,40 @@ decision has a threshold or parameter in it, the number goes in the entry.
   summaries and is wrong for the `.jsonl` beside them. Coordinates and sequence are still absent,
   so "show me the matched region" still needs a corpus pass, but "which records matched" is
   answerable now and the identifiers are public.
+
+### D-253 — one place builds an S3 client and one function publishes a result, enforced by a test rather than remembered
+
+- **Date:** 2026-10-22
+- **Task:** X1.7 (closing out D-216, and the residual AGENTS.md's "fix the shape, not the tool"
+  rule asks for)
+- **Context:** X1.7's guard landed in `amazebio.repro` and works: every task that has published
+  since carries commit-keyed twins beside its stable keys. But `repro` only guards what goes
+  through `repro`. Three tools published results by calling `put_object` directly —
+  `count_clusters.py`, `evo2_accessions.py` and `uniprot_release_count.py` — so a re-run of any
+  of them replaced its own result under a fixed key with no twin and no check, which is D-216
+  unchanged in a path `repro` does not own.
+  A second, independent spelling problem sat underneath it. The regional `endpoint_url` that
+  `objectstore.client()` pins was also hand-written at **26** other call sites. Fourteen of
+  those an `ast` walk found and a grep had missed, because the call spans several lines. Every
+  one is a single forgotten keyword away from the failure that cost most of a day in October: a
+  client with `region_name` and no endpoint resolves to the legacy global hostname, falls
+  outside the proxy's injection pattern, and returns a bare `AccessDenied` that reads as a
+  permissions problem and is not one.
+- **Decision: the write path and the client are each one function, and a test fails the build
+  on a second.** `objectstore.put_once` is the primitive — stable key, commit-keyed twin, and a
+  refusal before anything is written when the same commit has already published different
+  bytes. `repro` now calls it rather than spelling the same two puts itself, so the two paths
+  cannot drift; it passes `guard_key=None` because it runs the equivalent check across a whole
+  run's outputs first, which is a property worth keeping — a three-output run must not publish
+  two and refuse the third. `objectstore.client()` gained a `config=` passthrough, because
+  wanting a wider connection pool was the reason most of those 26 sites existed.
+- **Consequence:** 29 modules changed, all mechanically. `tests/test_objectstore_writes.py`
+  walks `src/` and `tools/` and fails on any S3 client built outside `objectstore`, so the fix
+  cannot be re-spelled wrongly at the twenty-seventh site. The three tools gained
+  `--replace-durable REASON`, matching `repro`'s escape hatch.
+- **What is deliberately not covered.** A raw `put_object` is still correct for a code payload,
+  a heartbeat or a log — things that are written to be read once and are never cited — and
+  those were left alone. The guard also passes an object whose metadata carries no `sha256`,
+  which is everything published before X1.7: refusing on those would make every pre-existing
+  key permanently unwritable, and the property being defended is that the same code never
+  silently disagrees with itself, not that nothing is ever replaced.

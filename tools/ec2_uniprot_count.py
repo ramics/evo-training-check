@@ -44,7 +44,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from amazebio import seeds  # noqa: E402
+from amazebio import objectstore, seeds  # noqa: E402
 
 
 def _load(path: Path, name: str) -> Any:
@@ -293,9 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     import boto3
 
     ec2 = boto3.client("ec2", region_name=args.region)
-    s3 = boto3.client(
-        "s3", region_name=args.region, endpoint_url="https://s3.us-east-1.amazonaws.com"
-    )
+    s3 = objectstore.client()
 
     blob = build_payload(ROOT)
     print(f"payload {len(blob):,} bytes")

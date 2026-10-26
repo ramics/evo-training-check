@@ -401,3 +401,29 @@ either 2,653,047 records or 2,957,495. There is no published record count, nucle
 removal count for the component in either Evo 2 document. This is the gap `docs/disclosure-standard.md`
 records as item **D1**, and the one that made the reconciliation A7.3 was asked for impossible
 rather than merely difficult.
+
+---
+
+## 11. How the safeguard is reported outside the papers
+
+Two press accounts carry the exclusion claim, and both report the curation step as accomplished
+and unqualified, with no mention of the component it was applied to or of what the papers leave
+unstated. They are recorded because the safeguard travels further than the paper and in a
+shorter form, which is a finding about the claim's public life rather than about the corpus.
+
+`S-EUREKALERT-EVO2` (AAAS news release, 20 July 2026) states that the developers "also
+incorporated safeguards by excluding viruses that infect eukaryotic organisms from the training
+data". `S-PHYSORG-EVO2` (Phys.org, 3 March 2025) states that the training dataset "was carefully
+curated to exclude genomic sequences from viruses that infect eukaryotic hosts to mitigate
+potential misuse".
+
+**Neither is a verified quotation, and neither may be written as one.** Both pages carry no
+redistribution licence, so they are `retrieved_not_stored`: their wording was checked against
+the retrieved page by the fetch that recorded their digests, on the retrieval date, and
+`tools/policies.py` cannot re-check it — it refuses a blockquote citing a source that is not
+stored. The wording above is therefore reproduced inline, with the verbatim sentence in each
+entry's `quoted` field, and a claim resting on it carries its retrieval date. A news page may be
+revised or withdrawn without notice.
+
+Nothing in this section is evidence about the corpus. For that, §1 to §10 above and the tasks
+they cite.

@@ -2,7 +2,7 @@
 id: B4.2
 title: Validate the baseline against published performance
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [B4.1]
 blocks: [B5.1]
@@ -32,6 +32,19 @@ rests on a strong comparator rather than a straw man.
 - Published performance reproduced within a pre-stated tolerance.
 - Any shortfall explained, or the baseline fixed.
 - GATE-adjacent: B5 must not run on an unvalidated baseline.
+
+## Closed — 2026-10-22
+
+`done`. Merged to `main` in PR #32. The pre-stated tolerance was not moved and the shortfall is
+explained rather than tuned away, which is what the second criterion asked for: **D-248 finds
+the nine disagreements are not an implementation fault but a disagreement about what the
+alignment contains**, running one way only — in the six worst assays the published column
+treats 9.0%–23.7% of compared variants as absent where ours finds them present, no reproducing
+assay exceeds 1.7%, and across all 31 the reverse happens 28 times in total.
+
+**The GATE-adjacent criterion is satisfied: the baseline is at published strength, so B5 may
+run on it.** Deliberately not tuned — picking the setting that maximises agreement with the
+column you are validated against measures the tuning, not the method.
 
 ## State — 2026-10-21
 

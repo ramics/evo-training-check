@@ -66,9 +66,7 @@ SEED = 20261015
 
 
 def _client() -> Any:
-    import boto3
-
-    return boto3.client("s3", region_name=corpora.S3_REGION, endpoint_url=corpora.S3_ENDPOINT)
+    return objectstore.client()
 
 
 def check_inventory(client: Any) -> int:

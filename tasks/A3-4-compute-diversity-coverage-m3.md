@@ -2,7 +2,7 @@
 id: A3.4
 title: Compute diversity coverage (M3)
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A3.2]
 blocks: [A6.1]
@@ -46,6 +46,21 @@ was never taken, so taking it is a corpus pass with its own cost and its own dec
 - The corpus summary is a distribution, not a pooled figure.
 - If the owner declines the compute, this task is `deferred` rather than dropped, so M3 appears
   in the write-up as a named commitment deliberately not run.
+
+## Closed — 2026-10-22
+
+`done`. The work merged to `main` in PR #31 and the figures were corrected and re-landed in
+PRs #32–#35; the deliverable is in the durable store at `corpora/results/a3-4/`, nine stable
+objects with their commit-keyed twins beside them. Each Done-when criterion is met:
+per-family coverage exists for both releases with intervals, the placement reproduces from the
+pinned registry release and the frozen criterion, and the corpus figure is published as a
+distribution. The compute was not declined, so the fourth criterion does not apply.
+
+The one result a reader should not lose: **78.8% of matched regions on Evo 1 and 78.7% on
+Evo 2 meet no diversity bin at all.** Two independently sampled corpora agreeing to a tenth of
+a point makes that a property of the comparison rather than of either sample.
+
+This closes A6.1's last dependency.
 
 ## M3 is computed and published — 2026-10-21 (late evening)
 
