@@ -40,8 +40,11 @@ from amazebio.profiles import (
 
 __all__ = [
     "RegistryView",
+    "best_domain",
+    "best_domain_region",
     "best_model_coverage",
     "call_genes",
+    "consensus_identity",
     "family_universe",
     "hmm_path",
     "proteins_from_fasta",
@@ -125,6 +128,29 @@ def _name(hmm: Any) -> str:
     return text_of(hmm.name)
 
 
+def best_domain(hit: Any) -> Any | None:
+    """The hit's included domain covering the most columns of the model, or `None`.
+
+    One function so that every statistic reported about "the matched region" is a statistic of
+    the *same* region. :func:`best_model_coverage` and :func:`best_domain_region` each used to
+    scan the domains themselves and agreed only because both maximise aligned model columns —
+    one of them divided by a constant. A7.5 reports coverage, coordinates and identity to the
+    consensus side by side as properties of one region, which is a claim a reader cannot check
+    and three independent scans could quietly break (the shape of D-246).
+
+    Ties go to the first such domain, which is HMMER's own order.
+    """
+    best: tuple[int, Any] | None = None
+    for domain in hit.domains:
+        if domain.included is False:
+            continue
+        alignment = domain.alignment
+        covered = int(alignment.hmm_to - alignment.hmm_from + 1)
+        if best is None or covered > best[0]:
+            best = (covered, domain)
+    return None if best is None else best[1]
+
+
 def best_model_coverage(hit: Any, model_length: int) -> float:
     """Fraction of the model covered by the hit's best-covering domain.
 
@@ -134,14 +160,48 @@ def best_model_coverage(hit: Any, model_length: int) -> float:
     """
     if not model_length:
         return 0.0
-    best = 0.0
-    for domain in hit.domains:
-        if domain.included is False:
+    domain = best_domain(hit)
+    if domain is None:
+        return 0.0
+    alignment = domain.alignment
+    return (alignment.hmm_to - alignment.hmm_from + 1) / model_length
+
+
+def consensus_identity(domain: Any) -> float | None:
+    """Fraction of the region's match-state columns where the target residue *is* the consensus.
+
+    Defined once, here, and fixed before any row was read (A7.5). Over the alignment of one
+    domain, a column counts in the denominator when the model's consensus line carries a
+    match-state residue — a letter, rather than the `.` HMMER writes where the target has
+    inserted relative to the model — and in the numerator when the target's residue at that
+    column is the same letter, case-folded. A gap on the target side (`-`) counts in the
+    denominator and not the numerator.
+
+    Case-folded because HMMER writes the consensus in upper case at the most conserved positions
+    and lower case elsewhere: that is an emphasis on the model's own confidence and not a
+    different residue.
+
+    `alignment.identity_sequence` is deliberately not used — it marks positive-scoring
+    substitutions as well as identities, so it answers a different question.
+
+    **What the number is not.** It is identity to a consensus string, which summarises a family's
+    model; it is not identity to any sequence that exists, not identity to any member of the
+    family, and not a measure of resemblance to any named organism. The detection claim remains
+    the bit score against the curated threshold. `None` where the region has no match-state
+    column at all, which is a degenerate alignment rather than an identity of zero.
+    """
+    alignment = domain.alignment
+    consensus = str(alignment.hmm_sequence)
+    target = str(alignment.target_sequence)
+    columns = 0
+    same = 0
+    for model_residue, target_residue in zip(consensus, target, strict=False):
+        if not model_residue.isalpha():
             continue
-        alignment = domain.alignment
-        covered = (alignment.hmm_to - alignment.hmm_from + 1) / model_length
-        best = max(best, covered)
-    return best
+        columns += 1
+        if target_residue.isalpha() and target_residue.upper() == model_residue.upper():
+            same += 1
+    return None if not columns else same / columns
 
 
 def best_domain_region(hit: Any) -> tuple[int, int] | None:
@@ -154,15 +214,11 @@ def best_domain_region(hit: Any) -> tuple[int, int] | None:
     them compares a protein with a domain. The region is what makes the two sides the same
     kind of object (D-241).
     """
-    best: tuple[float, tuple[int, int]] | None = None
-    for domain in hit.domains:
-        if domain.included is False:
-            continue
-        alignment = domain.alignment
-        covered = float(alignment.hmm_to - alignment.hmm_from + 1)
-        if best is None or covered > best[0]:
-            best = (covered, (int(alignment.target_from), int(alignment.target_to)))
-    return None if best is None else best[1]
+    domain = best_domain(hit)
+    if domain is None:
+        return None
+    alignment = domain.alignment
+    return int(alignment.target_from), int(alignment.target_to)
 
 
 def call_genes(records: list[Any]) -> tuple[list[Any], dict[str, int]]:
@@ -243,6 +299,7 @@ def search(
     restrict_to: set[str] | None,
     hmm_file: Path,
     cpus: int = 3,
+    with_identity: bool = False,
 ) -> list[dict[str, Any]]:
     """Search one registry over called proteins, returning accepted hit rows.
 
@@ -250,6 +307,12 @@ def search(
     `Z`, which is the same thing as the per-model bit score `bit_threshold` derives (D-076).
     Both are then held to :data:`MIN_MODEL_COVERAGE` of the model's length, measured on the
     best-covering domain of the hit.
+
+    `with_identity` adds `identity`, `hmm_from` and `hmm_to` — the matched region on the model
+    side, and its identity to the model's consensus (:func:`consensus_identity`). Off by default
+    so that A2.1's and A2.4's rows are what they have always been: those tables are published
+    and digest-pinned, and a column appearing in them is a change to an artefact rather than to
+    a tool. A7.5 is the caller that asks for them.
     """
     import pyhmmer
     from pyhmmer.easel import Alphabet, DigitalSequenceBlock
@@ -271,24 +334,29 @@ def search(
             for hit in top:
                 if hit.included is False:
                     continue
+                domain = best_domain(hit)
                 coverage = best_model_coverage(hit, query_length)
                 if coverage < MIN_MODEL_COVERAGE:
                     continue
                 record_id, _, gene = text_of(hit.name).partition("|")
                 region = best_domain_region(hit)
-                accepted.append(
-                    {
-                        "profile": query_name,
-                        "model_length": query_length,
-                        "record_id": record_id,
-                        "gene": gene,
-                        "score": float(hit.score),
-                        "evalue": float(hit.evalue),
-                        "coverage": coverage,
-                        # On the protein, 1-based inclusive; the region A3.4 places rather than
-                        # the whole gene (D-241). No artefact of A2.1's own carries it.
-                        "target_from": None if region is None else region[0],
-                        "target_to": None if region is None else region[1],
-                    }
-                )
+                row = {
+                    "profile": query_name,
+                    "model_length": query_length,
+                    "record_id": record_id,
+                    "gene": gene,
+                    "score": float(hit.score),
+                    "evalue": float(hit.evalue),
+                    "coverage": coverage,
+                    # On the protein, 1-based inclusive; the region A3.4 places rather than
+                    # the whole gene (D-241). No artefact of A2.1's own carries it.
+                    "target_from": None if region is None else region[0],
+                    "target_to": None if region is None else region[1],
+                }
+                if with_identity:
+                    alignment = None if domain is None else domain.alignment
+                    row["identity"] = None if domain is None else consensus_identity(domain)
+                    row["hmm_from"] = None if alignment is None else int(alignment.hmm_from)
+                    row["hmm_to"] = None if alignment is None else int(alignment.hmm_to)
+                accepted.append(row)
     return accepted

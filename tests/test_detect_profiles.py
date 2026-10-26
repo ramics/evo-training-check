@@ -695,13 +695,20 @@ class TestShelvingBandPartsForAssembly:
         assert shelf == {}
 
 
-#: The pinned Pfam registry is a staged input, not a checked-in one, so the assembly tests
-#: below cannot run on a bare checkout. They are the ones that exercise the real family
-#: universe end to end; the arithmetic they rest on is covered by the shelf tests above,
+#: The pinned Pfam registry and A1.4's manifests are staged inputs, not checked-in ones, so the
+#: assembly tests below cannot run on a bare checkout. They are the ones that exercise the real
+#: family universe end to end; the arithmetic they rest on is covered by the shelf tests above,
 #: which need nothing staged.
+#:
+#: **Both** prerequisites are checked, because they are staged by different tasks and a gate on
+#: one of them is a gate that opens half way: staging the registry for A7.5 on 2026-10-22 let
+#: these six tests run on a container with no `artifacts/a1-4`, where they fail on the
+#: assembler's own refusal rather than on anything they are about. CI stages neither, so it
+#: skipped them and the gap was invisible there.
 needs_profiles = pytest.mark.skipif(
-    not (detect_profiles.DATA / "pfam").exists(),
-    reason="the pinned Pfam registry is not staged",
+    not (detect_profiles.DATA / "pfam").exists()
+    or not any(detect_profiles.REPO.joinpath("artifacts", "a1-4").glob("*.json")),
+    reason="the pinned Pfam registry or A1.4's manifests are not staged",
 )
 
 
