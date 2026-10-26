@@ -241,13 +241,11 @@ def main(argv: list[str] | None = None) -> int:
 
     import os
 
-    import boto3
-
     uri = args.s3_uri or os.environ.get("AMAZEBIO_S3_URI")
     if not uri or not uri.startswith("s3://"):
         raise SystemExit("need --s3-uri or $AMAZEBIO_S3_URI, as s3://bucket/prefix")
     bucket, _, prefix = uri[len("s3://") :].partition("/")
-    client = boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
+    client = objectstore.client()
 
     releases = args.release or sorted(imgvr.RELEASES)
     outdir = Path(args.outdir)

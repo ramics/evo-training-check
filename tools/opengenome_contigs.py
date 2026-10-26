@@ -215,15 +215,9 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("need --s3-uri or $AMAZEBIO_S3_URI")
         bucket, _, prefix = args.s3_uri[5:].partition("/")
         prefix = prefix.strip("/")
-        import boto3
         from botocore.config import Config
 
-        client = boto3.client(
-            "s3",
-            region_name=S3_REGION,
-            endpoint_url=S3_ENDPOINT,
-            config=Config(retries={"max_attempts": 10, "mode": "standard"}),
-        )
+        client = objectstore.client(config=Config(retries={"max_attempts": 10, "mode": "standard"}))
 
     args.outdir = args.outdir or Path("artifacts/a7-4")
     args.outdir.mkdir(parents=True, exist_ok=True)

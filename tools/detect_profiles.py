@@ -18,8 +18,12 @@ What it does, in order, per release:
    candidate conformance failure for A7.1 to establish, not a survival route A2.1 may assert.
 2. **Samples by hash** (D-078) and streams only the sampled records' sequence
    (`amazebio.seqstream`). The object is read end to end — object storage offers no index into a
-   gzip stream — but a 0.1% sample costs 0.1% of the search, which is the part that is out of
-   reach: a full pass over one component against RVDB-prot is on the order of 40,000 core-hours.
+   gzip stream — but a 0.1% sample costs 0.1% of the search, which is the expensive part. The
+   sample is here because D-078 pre-registered it, **not** because a census is unaffordable: the
+   cost figure D-078 gave for that has been retracted (D-098 — its benchmark searched 300
+   profiles against 2,000 short random sequences and understated throughput by about three
+   orders of magnitude). A full pass over both releases against both registries is on the order
+   of 3,000 core-hours.
 3. **Calls genes** with Prodigal in metagenomic mode (D-077), then **searches both registries**
    at their declared thresholds (D-076).
 4. **Resolves each hit's route** by re-running the same `amazebio.apply.resolve` A1.4 used, over
@@ -1592,9 +1596,7 @@ def _detection(*, family: str, reg: Registry, row: dict[str, Any], route: Any, t
 
 
 def _client() -> Any:
-    import boto3
-
-    return boto3.client("s3", endpoint_url=corpora.S3_ENDPOINT, region_name=corpora.S3_REGION)
+    return objectstore.client()
 
 
 if __name__ == "__main__":

@@ -82,9 +82,7 @@ MAX_DISTINCT_TAGS = 100_000
 
 
 def _client() -> Any:
-    import boto3
-
-    return boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
+    return objectstore.client()
 
 
 class S3RandomRead(io.RawIOBase):

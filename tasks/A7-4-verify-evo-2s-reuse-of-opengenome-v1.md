@@ -2,7 +2,7 @@
 id: A7.4
 title: Verify Evo 2's reuse of OpenGenome v1
 phase: A
-status: review
+status: done
 gate: false
 depends_on: [A1.2, A1.4]
 blocks: []
@@ -60,6 +60,15 @@ representations of a sequence set, and the two share no machinery beyond the obj
 - The 28,174 figure is reconciled or the gap is quantified.
 - Every discrepancy class has a count; none is left in a residual bucket.
 - A `run.json` pins inputs, outputs, parameters and the commit.
+
+## Closed — 2026-10-22
+
+`done`. Merged to `main` in PR #31. All five Done-when criteria are met and were checked
+against the artefacts in `corpora/results/a7-4/` (22 stable objects, commit-keyed twins
+present): the key and record definition were fixed before any count existed, both directions
+carry counts and intervals, the 28,174 figure reconciles with a difference of zero, all 48
+discrepancies carry a cause with none residual, and `comparison.json` ships beside its run
+manifest.
 
 ## State — 2026-10-20
 

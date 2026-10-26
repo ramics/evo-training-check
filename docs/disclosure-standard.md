@@ -385,14 +385,16 @@ safeguard. The items that do not translate are marked and not quietly scored as 
 | **C2** evidence named, with its limits | ✓ `policies/sources.json` carries retrieval status and blocker text per source, and a quote citing an unretrieved source fails CI |
 | **C3** tool versions and invocation | ✓ `amazebio.repro` records tool versions in every `run.json`; the environment is `pixi.lock` |
 | **D1** removals per component, reconciling | ✓ every count carries its denominator and its interval, and `estimate_kind` says whether it is a population figure or a lower bound |
-| **D2** validation performed | ~ A3.3 and C6.3 are the second-method gates and neither has run yet; until they do this is a commitment rather than a result |
+| **D2** validation performed | ~ A3.3, the second-method gate over Phase A's headline counts, has run and **passed**; C6.3, the same gate over the Phase C curves, has not. Half the commitment is now a result and half is still a commitment |
 | **D3** rule inputs published with output | ✓ detection rows carry the record accession, so every published count joins back to the corpus it came from |
 | **E1** short artefact agrees | ✓ `docs/filter-audit.md` is the short artefact and states what the tool is not |
 | **E2** withheld material named | ✓ an unretrieved source is registered with its blocker in `sources.json`, and `tools/policies.py` bars every quote that cites one |
 
-Two cells are honest rather than flattering. **D2 is `~`** and stays `~` until A3.3
-reimplements the headline counts by a second method; a standard whose author scores himself
-complete before his own gate opens is not worth proposing. And the whole column rests on this
+Two cells are honest rather than flattering. **D2 is `~`** and stays `~` until both second-method
+gates have opened; a standard whose author scores himself complete before his own gates open is
+not worth proposing. A3.3 opened on 2026-10-21 and passed, which is why the cell is no longer a
+bare commitment, but C6.3 covers the Phase C curves and has not run, so the cell is not `✓`
+either. And the whole column rests on this
 project filtering nothing — it is easier to publish the inputs to a rule you are re-executing
 than to publish the inputs to a rule you ran over five terabytes two years ago. The standard
 should be read with that asymmetry in mind.

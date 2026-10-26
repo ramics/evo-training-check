@@ -48,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from amazebio import imgvr, objectstore
 from amazebio import opengenome as og
-from amazebio.repro import run
+from amazebio.repro import commit_of, run
 
 #: The staged object, pinned by the release revision in `amazebio.opengenome`. The same key
 #: A7.1's scan reads, and for the same reason: the corpus bucket withholds `s3:DeleteObject`,
@@ -146,6 +146,12 @@ def main(argv: list[str] | None = None) -> int:
         "it was partial",
     )
     ap.add_argument("--upload-results", action="store_true")
+    ap.add_argument(
+        "--replace-durable",
+        metavar="REASON",
+        help="publish even though this commit has already published different bytes "
+        "at that key, and say why. Without this a clash is refused before anything is written.",
+    )
     ap.add_argument("--allow-dirty", action="store_true")
     args = ap.parse_args(argv)
 
@@ -211,9 +217,16 @@ def main(argv: list[str] | None = None) -> int:
             for path, role in ((npy, "accession-inventory"), (out, "accession-report")):
                 k = f"{prefix}/results/a7-2/{path.name}" if prefix else f"results/a7-2/{path.name}"
                 payload = path.read_bytes()
-                client.put_object(Bucket=bucket, Key=k, Body=payload)
-                m.output_object(f"s3://{bucket}/{k}", bytes=len(payload), role=role)
-                print(f"[evo2] uploaded s3://{bucket}/{k}", flush=True)
+                written = objectstore.put_once(
+                    client,
+                    bucket,
+                    k,
+                    payload,
+                    commit=commit_of(m),
+                    replace=args.replace_durable,
+                )
+                m.output_object(written["stable"], bytes=len(payload), role=role)
+                print(f"[evo2] uploaded {written['stable']}", flush=True)
     return 0
 
 

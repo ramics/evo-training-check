@@ -532,16 +532,8 @@ def main(argv: list[str] | None = None) -> int:
     # re-run: the expensive pass uploads its artefact, and anyone with credentials recomputes
     # the headline numbers from it in a second. A3.3's second implementation needs exactly that.
     if args.scan.startswith("s3://"):
-        import boto3
-
         bucket, _, key = args.scan[5:].partition("/")
-        body = (
-            boto3.client(
-                "s3", region_name="us-east-1", endpoint_url="https://s3.us-east-1.amazonaws.com"
-            )
-            .get_object(Bucket=bucket, Key=key)["Body"]
-            .read()
-        )
+        body = objectstore.client().get_object(Bucket=bucket, Key=key)["Body"].read()
         scan_path = Path(args.outdir) / "scan-from-store.json"
         scan_path.parent.mkdir(parents=True, exist_ok=True)
         scan_path.write_bytes(body)

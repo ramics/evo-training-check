@@ -2,7 +2,7 @@
 id: B1.2
 title: Build the zero-shot scoring harness
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [B1.1]
 blocks: [B5.2]
@@ -32,6 +32,18 @@ Scope limits in §4 apply strictly.
 - All in-scope models score a common test set through one interface.
 - §4 limits are enforced by the harness, not just by convention.
 - Determinism verified; reference numbers reproduced where available.
+
+## Closed — 2026-10-22
+
+`done`. Merged to `main` in PR #32. All three Done-when criteria are met: four of the five
+roster checkpoints score the nine-assay common set through one interface, the §4 limits are
+enforced in the harness rather than by convention, and determinism is verified over 36 runs
+with all 27 published-column comparisons reproducing, the lowest at 0.9957. `evo2_7b` is
+unrun for the reason its roster entry gives, which is a scope statement rather than a gap.
+
+**The caveat travels with the figures (D-249): the nine-assay set is not representative.** All
+nine are viral and five come from one stability study, so it supports a like-for-like
+comparison across these four checkpoints and not a general ranking.
 
 ## State — 2026-10-22
 

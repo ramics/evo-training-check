@@ -40,7 +40,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from amazebio import uniref
+from amazebio import objectstore, uniref
 
 S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
 REGION = "us-east-1"
@@ -152,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
 
     import boto3
 
-    s3 = boto3.client("s3", region_name=REGION, endpoint_url=S3_ENDPOINT)
+    s3 = objectstore.client()
     ec2 = boto3.client(
         "ec2", region_name=REGION, endpoint_url=f"https://ec2.{REGION}.amazonaws.com"
     )
