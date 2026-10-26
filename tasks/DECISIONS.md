@@ -11183,3 +11183,120 @@ decision has a threshold or parameter in it, the number goes in the entry.
   prints its destination. No residue reaches the repo, `artifacts/` or the durable
   bucket, and the code gate that enforces that is a one-line path check tested by a case
   that passes a repo path and asserts the refusal.
+### D-255 — B3.1 searches a profile built from the distributed alignment, not jackhmmer's iterated model
+- **Date:** 2026-10-26
+- **Task:** B3.1 (affects B3.5, B5.1)
+- **Context:** `DESIGN.md` §B3 item 1 names the instrument as well as the measure: "jackhmmer
+  best-hit bitscore, length-normalised". jackhmmer is iterative — it searches a single query
+  against a database, builds a profile from what it finds, and searches again — so the model it
+  scores with is a model built out of the database being searched. Against a corpus this
+  project is auditing, that has two separate consequences. The methodological one: from the
+  second iteration the score stops being a property of the assay target and becomes a property
+  of the corpus, which is the variable the §B5 regression is trying to explain, so a target with
+  many surviving relatives would score highly partly because it has many surviving relatives.
+  The practical one: an iterated search over 28 GB of staged viral component, times 31 targets,
+  is several multiples of the single pass that is already the expensive half of this task.
+- **Decision:** **One profile per target, built with `hmmbuild`'s defaults from the alignment
+  the benchmark's own maintainers distribute for that target, and searched once with
+  `hmmsearch`.** Three things recommend it over the literal reading. It is fixed before any
+  corpus record is read, which is what a covariate entering a pre-registered analysis has to
+  be. It is the *same object* B3.4 computed the depth covariate on, digest for digest, so §B3's
+  measure and §B3's confounder rest on one input rather than on two descriptions of a target's
+  homologues. And it brings the measure within reach of a census rather than a sample, which
+  removes the bound that `metrics/detections.md` has to carry everywhere else.
+  The acceptance rule is A2.1's, imported rather than restated: the pinned E-value against the
+  pinned `Z` (D-076), so the cut is a fixed per-model bit score independent of how much corpus
+  a run read, held to `profiles.MIN_MODEL_COVERAGE` of the profile. `amazebio.homology` imports
+  those three constants from `amazebio.profiles` and a test pins that it imports them, because
+  two copies of a threshold is two thresholds.
+- **Rejected:** jackhmmer as written, for the two reasons above. A single-sequence `phmmer`
+  search, which avoids the circularity but throws away the alignment the maintainers already
+  built and which B3.4 has already digested — a weaker instrument for no gain in independence.
+  Building the profile from the corpus's own hits in a first pass, which is jackhmmer's
+  circularity with extra steps.
+- **Consequence:** §B3 item 1's measure is delivered and its named tool is not, so the write-up
+  says "profile search" and never "jackhmmer", and `metrics/homology.md` states the instrument
+  in the row's `params`. A target whose maintainers distribute no alignment has no profile, and
+  its `sequence_profile` row is `unanswerable` rather than `absent` — see D-256. The deviation
+  from `DESIGN.md` is recorded here rather than resolved silently, per `AGENTS.md`'s rule that
+  the specification wins and a conflict is declared.
+
+### D-256 — the homology axis has four kinds, and an absent hit never becomes a zero
+- **Date:** 2026-10-26
+- **Task:** B3.1, B3.2, B3.3 (binds B3.5, B5.1)
+- **Context:** B3.1's Done-when asks for "absent-hit representation documented and handled
+  consistently downstream", which is unusual among this project's criteria in naming a
+  *representation* rather than a number. The reason is visible once the three measures are side
+  by side: a cell can be empty because the corpus was searched and nothing was found, because
+  the manifest was never searched, or because the target has no input the measure needs — and a
+  regression that reads all three as zero has silently asserted that an unsearched manifest
+  contains no homologue of anything.
+- **Decision:** `metrics/homology.md` defines four kinds, carried on every row:
+  `measured` (searched, a hit met the cut), `absent` (searched, nothing met the cut),
+  `not_searched` (this manifest was not searched for this measure) and `unanswerable` (the
+  target has no profile, no annotated domain, or no structure). `amazebio.homology.Row` refuses
+  a score beside anything but `measured`, refuses `measured` with no score, and refuses a
+  kind other than `measured` with no stated reason. **An `absent` row is a censored observation
+  at the cut and the artefact does not substitute a number for it**; a B5 specification that
+  wants one states the substitution and its justification in the pre-registration, which is the
+  same division of labour `metrics/depth.md` already sets for the covariate.
+  Two further rules travel with the kind. `bound` is **derived** from `searched_fraction` rather
+  than passed in — a census is `none` and anything less is `lower`, because the best hit over a
+  subset cannot exceed the best hit over the whole and "not found in a subset" is not "not
+  present". And a partial pass publishes `selection: prefix`, never a `searched_fraction` that
+  reads like a sample: a prefix of an accession-ordered object is not a sample, which A1.6
+  established at its own cost.
+- **Rejected:** A single `null` for all three empty cases, which is what a reader of the first
+  draft would have got and which loses exactly the distinction §B3's "disagreement is
+  informative" depends on. A sentinel score (zero, or the cut minus one) for `absent`, which
+  makes every downstream model silently wrong in the same direction. Letting the producer pass
+  `bound` — the one reasoning that must not vary by call site.
+- **Consequence:** `homology.check_complete` refuses an artefact missing a target x manifest x
+  measure cell, so "scores computed for all targets against all manifests" is a property the
+  table has rather than a claim its write-up makes. That is aimed squarely at D-245's finding:
+  four shape checks passed over a table that was 32% wrong because each asked whether a row was
+  well-formed and none asked whether the set of rows was right.
+
+### D-257 — B3.3 ships its target side with frozen parameters, and the search stays unbought
+- **Date:** 2026-10-26
+- **Task:** B3.3 (affects B3.5, B5.1, B5.2)
+- **Context:** §B3 item 3 is the **primary** pre-registered measure — "Foldseek TM-score to
+  nearest surviving structure" — and A2.2 already met both walls in front of it over the same
+  corpora. The TM-score is unavailable on the publisher's own statement: the corpus side has no
+  structures, so a search needs a structural alphabet predicted from sequence, and such a
+  database carries no C-alpha coordinates, which makes the tool refuse TM-score and LDDT output
+  outright rather than merely for coordinate-derived columns (D-167). The coordinate-free bit
+  score that remains was priced for one manifest at 70+ instance-hours and $55-60 against a $30
+  ceiling, and the owner's call was to record the cost rather than buy the depth (D-180).
+  Nothing about this task's geometry changes either finding: the query side is 31 assay targets
+  instead of 141 reference structures, and the corpus side — which is the whole of the cost — is
+  the same objects at the same depth.
+- **Decision:** **B3.3 delivers everything that does not require the corpus pass, and the pass
+  stays unbought until the project owner authorises it.** What ships: a structure for all 31
+  assay targets from the benchmark's own pinned structure archive, each one's per-residue
+  confidence distribution and coverage of the target sequence, the heterogeneity assessment
+  §B3's third step asks for, and the search parameters a bought pass would run under — declared
+  before any search, which is the only way §B3's pre-registration requirement can be met for
+  this measure at all. Every `structural` cell in the axis is `kind: not_searched` with the
+  reason, on A2.2's precedent and `metrics/homology.md`'s rule, and **the primary measure's
+  absence travels with the axis rather than being inferable from which measure has numbers.**
+  One parameter is deliberately left `null`: the acceptance threshold. A2.2's 500 bits was
+  calibrated against decoys in its own geometry, where the target database was a 141-structure
+  fold reference; this geometry's target database is a different size and composition, so
+  carrying the number across would be a declared threshold calibrated against nothing. The
+  calibration is a decoy pass in this geometry and is part of the run that was not bought.
+  Declaring a number without it would be worse than declaring none, because the run would still
+  produce a plausible table — D-167's first finding, one geometry over.
+- **Rejected:** Promoting `sequence_profile` to primary because it is the measure with numbers.
+  That is selection on the instrument, it would make §B3's pre-registration a formality, and it
+  is B5.1's decision and the owner's, not this task's. Carrying A2.2's threshold over as a
+  declared parameter. Predicting full structures for the corpus so a TM-score becomes available
+  — orders of magnitude beyond the budget, as D-167 already recorded. Marking B3.3 `done`: two
+  of its three Done-when criteria are met outright and the third cannot be met without the
+  pass, so the task's status is the owner's call rather than this session's.
+- **Consequence:** Phase B's primary homology measure has no searched manifest, and that is a
+  stated limitation of the phase rather than a gap a reviewer discovers. The measured thing
+  worth carrying forward is the *other* side: all 31 targets have a structure from one
+  predictor, median 87.5% of residues at or above the predictor's own confidence floor and none
+  below half, so the query side would not have been the limiting factor had the pass been
+  bought. The limit is entirely the corpus side, which is the same sentence A2.2 ended on.
