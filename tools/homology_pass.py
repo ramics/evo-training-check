@@ -64,6 +64,16 @@ MANIFEST_RECORDS = {"opengenome": 2_653_047, "opengenome2": 2_957_495}
 #: throughput puts at about seventeen hours of container time.
 DEPTH = 0.1
 
+#: The sampling seed is **A2.1's**, not this task's, and that is the whole of why the
+#: cross-check in `tools/homology_rows.py` can be a must-hold rather than a coincidence.
+#: Band membership is a hash threshold, so the sample at rate `r` is nested inside the sample
+#: at any larger rate under the same seed (`amazebio.detect.in_band`). A2.1 searched [0, 0.02)
+#: of Evo 1's component and [0, 0.01) of Evo 2's at seed 20261015; this pass searches
+#: [0, 0.1) at the same seed, so **every record A2.1 searched is a record this pass searched**.
+#: A fresh seed would have made the two independent samples and the join a weak consistency
+#: check instead of a directional one. D-258.
+SAMPLE_SEED = 20261015
+
 #: The readings whose surviving set is identical on these releases (A1.4).
 READINGS = ("evo1-literal", "evo1-charitable", "evo1-strict")
 
@@ -304,6 +314,8 @@ def main(argv: list[str] | None = None) -> int:
         ctx.parameter("domain_cutoffs", "pfam gathering")
         ctx.parameter("min_model_coverage", profiles.MIN_MODEL_COVERAGE)
         ctx.parameter("rate", args.rate)
+        ctx.parameter("sample_seed", SAMPLE_SEED)
+        ctx.parameter("sample_method", "blake2b(seed, record_id) < rate * 2**64, as A2.1 sampled")
         ctx.parameter("batch_records", args.batch)
         ctx.parameter("gene_calling_workers", args.workers)
         ctx.parameter("search_threads", args.cpus)
@@ -335,6 +347,8 @@ def main(argv: list[str] | None = None) -> int:
                         "readings": list(READINGS),
                         "complete": complete,
                         "rate": args.rate,
+                        "sample_seed": SAMPLE_SEED,
+                        "nests_a2_1_sample": True,
                         "selection": (
                             ("census" if args.rate >= 1.0 else "hash_band")
                             if complete
@@ -434,14 +448,14 @@ def main(argv: list[str] | None = None) -> int:
             stream = uniref.GunzipStream(reader) if source.gzipped else reader
             if source.reader == "fasta":
                 records = seqstream.iter_fasta_sampled(
-                    stream, component=source.component, seed=SEED, hi=args.rate
+                    stream, component=source.component, seed=SAMPLE_SEED, hi=args.rate
                 )
             else:
                 records = seqstream.iter_stage2_sampled(
                     stream,
                     component=source.component,
                     record_prefix=source.corpus_component,
-                    seed=SEED,
+                    seed=SAMPLE_SEED,
                     hi=args.rate,
                 )
             batch: list[Any] = []

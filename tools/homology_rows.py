@@ -13,13 +13,18 @@ The cells that were not searched carry `kind: not_searched` and the reason — t
 manifest, whose records are every one `undetermined` so there is no surviving set to search
 (A1.4), and the whole of the `structural` measure (D-167, D-180).
 
-**It checks B3.2's presence verdicts against A2.1's.** An annotated domain family that is also
-in A2.1's viral family selection was searched twice by different pipelines over the same
-manifests at different depths. A2.1's detected set is a census over a sample and this pass is
-over the surviving records, so the directional expectation is stated and checked rather than
-assumed: a family A2.1 detected must be present here. The reverse is not required — this pass
-reads more records — and a violation is a finding, not a rounding error. That is D-250's lesson
-applied before anyone depends on the number.
+**It checks B3.2's presence verdicts against A2.1's, and the check is a must-hold rather than a
+coincidence.** An annotated domain family that is also in A2.1's viral family selection was
+searched twice, by two pipelines, over the same manifests. The two samples are **nested by
+construction**: band membership is a hash threshold, so under one seed the sample at rate `r`
+sits inside the sample at any larger rate, and this pass deliberately reuses A2.1's seed. A2.1
+searched [0, 0.02) of Evo 1's component and [0, 0.01) of Evo 2's; this pass searches [0, 0.1).
+So **every record A2.1 searched is a record this pass searched**, and a family A2.1 detected
+must be present here. A violation is a finding about one of the two pipelines, not a rounding
+error. The reverse direction is expected to differ and is reported, not required: this pass
+reads five to ten times as many records. That is D-250's lesson — an independent second
+instrument is the right check when a measurement depends on someone else's reference — arranged
+before anyone depends on the number rather than after.
 
 **It never writes a zero for an absent hit.** `amazebio.homology.Row` refuses it; this tool
 only has to not reach for one.
@@ -64,6 +69,11 @@ NOT_ENUMERATED = (
     "is unfinished."
 )
 
+PASS_NOT_RUN = (
+    "This release has an enumerated surviving set and no corpus pass has been run over it in "
+    "this artefact, so the measure has no verdict here. Not an absence: nothing was searched."
+)
+
 STRUCTURAL_UNAVAILABLE = (
     "The measure §B3 names is a TM-score to the nearest surviving structure, and A2.2 "
     "established it cannot be computed over these corpora: a structural-alphabet database "
@@ -74,8 +84,19 @@ STRUCTURAL_UNAVAILABLE = (
 )
 
 
-def load_pass(release: str) -> dict[str, Any] | None:
-    path = PASS_DIR / release / f"best-{release}.json"
+def stem(accession: str) -> str:
+    """A Pfam accession without the pin's version suffix.
+
+    The registry writes `PF00717.29` and A2.1's tables write `PF00717`, so a join on the
+    literal string silently finds nothing — the failure mode D-250 found in its own join, where
+    a parse detail made two readings of one reference disagree. The version travels in the
+    artefact; only the join uses the stem.
+    """
+    return accession.split(".", 1)[0]
+
+
+def load_pass(release: str, pass_dir: Path = PASS_DIR) -> dict[str, Any] | None:
+    path = pass_dir / release / f"best-{release}.json"
     return json.loads(path.read_text()) if path.exists() else None
 
 
@@ -100,6 +121,8 @@ def a2_1_detected(client: Any, policy: str, release: str) -> set[str] | None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=CANONICAL_OUT)
+    parser.add_argument("--targets", type=Path, default=TARGETS)
+    parser.add_argument("--pass-dir", type=Path, default=PASS_DIR)
     parser.add_argument("--allow-dirty", action="store_true")
     parser.add_argument(
         "--no-durable",
@@ -109,10 +132,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-crosscheck", action="store_true", help="skip the A2.1 join")
     args = parser.parse_args(argv)
 
-    if not TARGETS.exists():
-        raise SystemExit(f"{TARGETS} is missing; run tools/homology_targets.py first")
-    payload = json.loads(TARGETS.read_text())
-    passes = {r: load_pass(r) for r in ("opengenome", "opengenome2")}
+    if not args.targets.exists():
+        raise SystemExit(f"{args.targets} is missing; run tools/homology_targets.py first")
+    payload = json.loads(args.targets.read_text())
+    passes = {r: load_pass(r, args.pass_dir) for r in ("opengenome", "opengenome2")}
 
     targets = [
         homology.Target(
@@ -147,9 +170,9 @@ def main(argv: list[str] | None = None) -> int:
         ctx.parameter("min_model_coverage", profiles.MIN_MODEL_COVERAGE)
         ctx.parameter("pinned_e_value", homology.PINNED_E_VALUE)
         ctx.parameter("pinned_z", homology.PINNED_Z)
-        ctx.input_file(TARGETS, role="target side of the axis")
+        ctx.input_file(args.targets, role="target side of the axis")
         for release, data in passes.items():
-            path = PASS_DIR / release / f"best-{release}.json"
+            path = args.pass_dir / release / f"best-{release}.json"
             if data is not None:
                 ctx.input_file(path, role=f"{release} corpus pass")
 
@@ -159,6 +182,7 @@ def main(argv: list[str] | None = None) -> int:
             for target in targets:
                 entry = by_id[target.dms_id]
                 if data is None:
+                    reason = NOT_ENUMERATED if release == "esm3-proxy" else PASS_NOT_RUN
                     for measure in ("sequence_profile", "domain_presence"):
                         rows.append(
                             homology.Row.without_score(
@@ -167,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
                                 release=release,
                                 measure=measure,
                                 kind="not_searched",
-                                reason=NOT_ENUMERATED,
+                                reason=reason,
                                 searched_fraction=1.0,
                                 params={"manifest": f"{policy}/{release}"},
                             )
@@ -364,7 +388,7 @@ def _crosscheck(
     client: Any, payload: dict[str, Any], passes: dict[str, dict[str, Any] | None]
 ) -> dict[str, Any]:
     """A2.1 detected these families; this pass must find them present. One direction only."""
-    annotated = {f["accession"] for e in payload["targets"] for f in e["domain_families"]}
+    annotated = {stem(f["accession"]) for e in payload["targets"] for f in e["domain_families"]}
     out: dict[str, Any] = {
         "what_this_is": (
             "Annotated families that A2.1 also searched. A2.1's sample is a subset of the records "
@@ -382,7 +406,7 @@ def _crosscheck(
             out["manifests"][f"{policy}/{release}"] = {"a2_1_table": "not readable"}
             continue
         shared = annotated & detected
-        present = set(data["domain_presence_best"])
+        present = {stem(a) for a in data["domain_presence_best"]}
         out["manifests"][f"{policy}/{release}"] = {
             "annotated_families": len(annotated),
             "also_in_a2_1_detected": len(shared),
