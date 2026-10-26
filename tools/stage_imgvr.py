@@ -28,7 +28,8 @@ that dies on a tape file would otherwise look like a permissions problem.
 sequence-information tables, both host-information tables, the READMEs. 7.9 GB rather than
 128.7 GB, because every conformance check is a set operation over accessions and metadata and
 none of them reads a base (D-053). `--include-sequence` exists for a later task that needs the
-nucleotides, and prints what it would cost before doing it.
+nucleotides, and prints what it would cost before doing it. `--include-proteins` stages the
+metadata plus the publisher's predicted protein files, without the nucleotides.
 
 **Verify before the upload completes.** The corpus bucket withholds `s3:DeleteObject`, so an
 object that completes is permanent and an object claiming to be a release it has not been shown
@@ -352,6 +353,14 @@ def download_verify_upload(
     }
 
 
+def _wanted_files(date: str, args: argparse.Namespace) -> tuple[imgvr.ReleaseFile, ...]:
+    if args.include_sequence:
+        return imgvr.release_on(date).files
+    if args.include_proteins:
+        return imgvr.protein_inputs(date)
+    return imgvr.conformance_inputs(date)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -373,6 +382,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="also stage nucleotides and proteins (D-053 argues against)",
     )
+    ap.add_argument(
+        "--include-proteins",
+        action="store_true",
+        help="stage metadata plus the publisher's predicted proteins, without nucleotides",
+    )
     ap.add_argument("--s3-uri", default=os.environ.get("AMAZEBIO_S3_URI"))
     ap.add_argument("--outdir", default="artifacts/a1-7")
     ap.add_argument("--restore-timeout-minutes", type=float, default=20.0)
@@ -381,7 +395,7 @@ def main(argv: list[str] | None = None) -> int:
         "--spool-dir",
         default=os.environ.get("TMPDIR") or "/tmp",
         help="where each file is spooled while its md5 is checked; needs room for the "
-        "largest single file (5.0 GB), not for the whole release",
+        "largest single file (5.0 GB metadata, ~29 GB with proteins)",
     )
     ap.add_argument("--dry-run", action="store_true", help="resolve and plan; transfer nothing")
     ap.add_argument("--allow-dirty", action="store_true")
@@ -409,16 +423,11 @@ def main(argv: list[str] | None = None) -> int:
     # 7.9 GB release total.
     spool = Path(args.spool_dir)
     spool.mkdir(parents=True, exist_ok=True)
+    if args.include_sequence and args.include_proteins:
+        ap.error("--include-sequence already includes proteins; pass one or the other")
+
     if not args.dry_run:
-        need = max(
-            f.bytes
-            for date in releases
-            for f in (
-                imgvr.release_on(date).files
-                if args.include_sequence
-                else imgvr.conformance_inputs(date)
-            )
-        )
+        need = max(f.bytes for date in releases for f in _wanted_files(date, args))
         free = shutil.disk_usage(spool).free
         if free < need + (1 << 30):
             raise SystemExit(
@@ -437,15 +446,15 @@ def main(argv: list[str] | None = None) -> int:
         m.parameter("releases", releases)
         m.parameter("spool_dir", str(spool))
         m.parameter("include_sequence", args.include_sequence)
+        m.parameter("include_proteins", args.include_proteins)
         m.parameter("verified_against", "publisher md5 recorded before acquisition (D-054)")
         m.note(
-            "Metadata only unless --include-sequence: every conformance check is a set "
-            "operation over accessions and metadata (D-053)."
+            "Metadata only unless --include-sequence or --include-proteins: every conformance "
+            "check is a set operation over accessions and metadata (D-053)."
         )
         staged = []
         for date in releases:
-            release = imgvr.release_on(date)
-            wanted = release.files if args.include_sequence else imgvr.conformance_inputs(date)
+            wanted = _wanted_files(date, args)
             index = {(f["added_date"], f["directory"], f["file_name"]): f for f in live}
             on_tape = [
                 index[(date, f.directory, f.name)]["_id"]

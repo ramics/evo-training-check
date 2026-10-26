@@ -58,6 +58,7 @@ __all__ = [
     "download_request",
     "host_class",
     "host_domain",
+    "protein_inputs",
     "release_on",
     "split_uvig",
     "uvig_fallback_key",
@@ -403,6 +404,16 @@ def conformance_inputs(date: str) -> tuple[ReleaseFile, ...]:
     rel = release_on(date)
     return tuple(
         f for f in rel.files if f.role in ("sequence_information", "host_information", "readme")
+    )
+
+
+def protein_inputs(date: str) -> tuple[ReleaseFile, ...]:
+    """Conformance metadata plus the publisher's predicted protein files."""
+    rel = release_on(date)
+    return tuple(
+        f
+        for f in rel.files
+        if f.role in ("sequence_information", "host_information", "readme", "proteins")
     )
 
 
