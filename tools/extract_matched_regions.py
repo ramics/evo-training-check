@@ -27,6 +27,16 @@ family; the definition travels in the output (see `amazebio.profilesearch.consen
 
 The output carries record identifiers and model coordinates, which are internal under X3.1, and
 no residues of any kind (D-103).
+
+**One opt-in, gated side channel: `--fasta-out <path>`.** The project owner uses it to BLAST the
+called protein under each row independently as a cross-check on the identity-to-consensus
+column; D-254 is the carve-out and this is the only tool that carries it. Three code gates make
+the opt-in safe to leave in the tool: the path refuses to resolve anywhere inside the repository
+(so `artifacts/`, `data/`, `OUTDIR` and the repo root are all off-limits by name — no override);
+the FASTA is written by a direct file write, never through `manifest.output_file`, so
+`repro.run`'s durable upload never sees it; and the flag's presence prints a one-line notice
+naming its destination. D-103 is otherwise unchanged — the three published outputs (TSV, JSON,
+Markdown) carry accessions, scores, coordinates, counts and lineage tags only.
 """
 
 from __future__ import annotations
@@ -207,11 +217,20 @@ def search_chunk(
     view: Any,
     restrict_to: set[str],
     cpus: int,
-) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Call genes on one chunk of records and search the restricted model set over them."""
+    capture_sequences: bool = False,
+) -> tuple[list[dict[str, Any]], dict[str, int], dict[str, str]]:
+    """Call genes on one chunk of records and search the restricted model set over them.
+
+    When `capture_sequences` is on, the called protein underlying each **accepted hit** is
+    recovered as a text string, keyed by its full protein name (``f"{record_id}#{entry}|
+    gene{i}"``). This is the only path by which residues leave the pass, and it is wired to the
+    `--fasta-out` flag — the invariant is in `write_fasta` and its gate (D-254); the capture
+    itself is restricted to proteins that produced a hit, so a chunk's non-matching residues
+    stay in memory and go nowhere.
+    """
     proteins, stats = profilesearch.call_genes(records)
     if not proteins:
-        return [], stats
+        return [], stats, {}
     rows = profilesearch.search(
         reg,
         proteins,
@@ -220,7 +239,17 @@ def search_chunk(
         cpus=cpus,
         with_identity=True,
     )
-    return rows, stats
+    sequences: dict[str, str] = {}
+    if capture_sequences and rows:
+        hit_names = {f"{row['record_id']}|{row['gene']}" for row in rows}
+        for protein in proteins:
+            raw = protein.name
+            name = raw.decode() if isinstance(raw, bytes | bytearray) else str(raw)
+            if name in hit_names:
+                # `textize()` returns the same residues that were digitised; no network, no
+                # file read. The protein is already in memory for the search above.
+                sequences[name] = str(protein.textize().sequence)
+    return rows, stats, sequences
 
 
 #: The columns of the table, in order. The six the question asks for are `accession`,
@@ -277,7 +306,15 @@ def build(
     accessions: list[str],
     cpus: int,
     limit_records: int | None,
-) -> dict[str, Any]:
+    fasta_out: Path | None = None,
+) -> tuple[dict[str, Any], list[tuple[str, str]]]:
+    """Build the per-region table and, when `fasta_out` is set, its FASTA companion.
+
+    Returns ``(doc, fasta_entries)``. The FASTA entries are a list of ``(defline, sequence)``
+    pairs the caller writes to a path a gate has already checked; this function neither opens
+    nor touches that path, so a `doc` carrying residues cannot be reconstructed from this
+    return value. When `fasta_out` is None the second element is an empty list.
+    """
     source = resolve_source(client)
     reg, view, accession_of = resolve_profiles(accessions)
     restrict_to = {view.universe[a] for a in accessions}
@@ -295,14 +332,23 @@ def build(
     totals: Counter[str] = Counter()
     seen: list[str] = []
     chunk: list[Any] = []
+    captured: dict[str, str] = {}  # protein-name -> residues, hit-only; D-254
 
     def flush(batch: list[Any]) -> None:
         if not batch:
             return
-        found, stats = search_chunk(batch, reg=reg, view=view, restrict_to=restrict_to, cpus=cpus)
+        found, stats, sequences = search_chunk(
+            batch,
+            reg=reg,
+            view=view,
+            restrict_to=restrict_to,
+            cpus=cpus,
+            capture_sequences=fasta_out is not None,
+        )
         for key, value in stats.items():
             totals[key] += value
         rows.extend(found)
+        captured.update(sequences)
         print(
             f"  {len(seen):,} entries read for {len(set(seen)):,}/{len(wanted):,} requested "
             f"records, {stats.get('genes', 0):,} genes searched, {len(rows):,} regions so far, "
@@ -330,37 +376,57 @@ def build(
     flush(chunk)
 
     missing = [r for r in wanted if r not in set(seen)]
-    table: list[dict[str, Any]] = []
+    # Paired with the raw protein name (``record_id#entry|gene``) so a sort of the output rows
+    # does not break the correspondence with the captured residues. The sequence lives in
+    # `captured`, keyed by that name; `table` is what the JSON serialises, and nothing in
+    # `table` carries a residue.
+    pairs: list[tuple[dict[str, Any], str]] = []
     for row in rows:
         accession = accession_of.get(row["profile"])
         if accession is None:  # pragma: no cover - restrict_to makes this unreachable
             raise Refusal(f"hit under profile {row['profile']}, which was not requested")
         identity = row.get("identity")
+        raw_name = f"{row['record_id']}|{row['gene']}"
         record_id, _, entry = row["record_id"].partition("#")
-        table.append(
-            {
-                "accession": accession,
-                "profile": row["profile"],
-                "record_id": record_id,
-                "entry": int(entry) if entry.isdigit() else 1,
-                "gene": row["gene"],
-                "score": round(float(row["score"]), 1),
-                "threshold": thresholds.get(row["profile"]),
-                "identity": None if identity is None else round(float(identity), 4),
-                "model_coverage": round(float(row["coverage"]), 4),
-                "model_length": row["model_length"],
-                "hmm_from": row.get("hmm_from"),
-                "hmm_to": row.get("hmm_to"),
-                "target_from": row.get("target_from"),
-                "target_to": row.get("target_to"),
-            }
+        pairs.append(
+            (
+                {
+                    "accession": accession,
+                    "profile": row["profile"],
+                    "record_id": record_id,
+                    "entry": int(entry) if entry.isdigit() else 1,
+                    "gene": row["gene"],
+                    "score": round(float(row["score"]), 1),
+                    "threshold": thresholds.get(row["profile"]),
+                    "identity": None if identity is None else round(float(identity), 4),
+                    "model_coverage": round(float(row["coverage"]), 4),
+                    "model_length": row["model_length"],
+                    "hmm_from": row.get("hmm_from"),
+                    "hmm_to": row.get("hmm_to"),
+                    "target_from": row.get("target_from"),
+                    "target_to": row.get("target_to"),
+                },
+                raw_name,
+            )
         )
-    table.sort(key=lambda r: (r["record_id"], r["entry"], r["accession"], r["gene"]))
+    pairs.sort(key=lambda p: (p[0]["record_id"], p[0]["entry"], p[0]["accession"], p[0]["gene"]))
+    table = [out for out, _ in pairs]
 
-    return {
+    fasta_entries: list[tuple[str, str]] = []
+    if fasta_out is not None:
+        for out, raw_name in pairs:
+            sequence = captured.get(raw_name)
+            if sequence is None:
+                # Defensive: `capture_sequences` restricts to hit names on the same chunk, so
+                # every pair has a sequence. Skipping rather than failing keeps a FASTA
+                # usable if that invariant ever breaks; the row still lands in the TSV.
+                continue
+            fasta_entries.append((defline_for(out), sequence))
+
+    doc = {
         "task": TASK,
         "design_ref": "§A2",
-        "decisions": ["D-075", "D-076", "D-077", "D-103", "D-195", "D-216"],
+        "decisions": ["D-075", "D-076", "D-077", "D-103", "D-195", "D-216", "D-254"],
         "release": RELEASE,
         "component": COMPONENT,
         "source_key": source.key,
@@ -411,9 +477,91 @@ def build(
             "rather than an absence of matches. A record present with no row either had no gene "
             "called or no requested profile scored above its curated threshold at "
             f"{MIN_MODEL_COVERAGE:.0%} model coverage; the two are distinguished by "
-            "`records_without_genes`. No residues are carried, here or anywhere (D-103)."
+            "`records_without_genes`. No residues are carried in this table, in any of the "
+            "three published outputs, or in the durable audit store (D-103). The one path by "
+            "which residues can leave this pass is the opt-in `--fasta-out <path>` flag, "
+            "whose destination the gate refuses to resolve anywhere inside the repo (D-254)."
         ),
     }
+    return doc, fasta_entries
+
+
+def defline_for(row: dict[str, Any]) -> str:
+    """FASTA defline for one matched region, first token unique per hit.
+
+    BLAST uses the first whitespace-delimited token as the query ID, so the row's
+    `(record_id, entry, gene, accession)` is folded into it with pipes — a tuple that is
+    already unique in the TSV (see `ENTRY_NOTE`), and that lets the BLAST output be joined
+    back to the row that produced it. The rest of the defline carries the row's statistics
+    verbatim, so a FASTA record is self-describing without the TSV at hand.
+    """
+
+    def _fmt(name: str) -> str:
+        value = row.get(name)
+        return "" if value is None else str(value)
+
+    token = f"{row['record_id']}#{row['entry']}|{row['gene']}|{row['accession']}"
+    fields = [
+        f"profile={_fmt('profile')}",
+        f"score={_fmt('score')}",
+        f"threshold={_fmt('threshold')}",
+        f"identity={_fmt('identity')}",
+        f"model_coverage={_fmt('model_coverage')}",
+        f"model_length={_fmt('model_length')}",
+        f"hmm={_fmt('hmm_from')}-{_fmt('hmm_to')}",
+        f"target={_fmt('target_from')}-{_fmt('target_to')}",
+    ]
+    return f"{token} " + " ".join(fields)
+
+
+def write_fasta(path: Path, entries: list[tuple[str, str]], *, wrap: int = 60) -> None:
+    """Write a FASTA to `path` with one record per matched region.
+
+    No manifest involvement: this function writes directly to disk, so `repro.run`'s durable
+    upload — which this tool uses for its three published outputs on the deliverable run —
+    never sees it. The path has already been checked by `check_fasta_out_path`; writing it
+    here would be too late to defend D-103, so the gate is at argument-parsing time.
+    """
+    out: list[str] = []
+    for defline, sequence in entries:
+        out.append(f">{defline}")
+        for i in range(0, len(sequence), wrap):
+            out.append(sequence[i : i + wrap])
+    path.write_text("\n".join(out) + "\n" if out else "")
+
+
+def check_fasta_out_path(path: Path, *, repo: Path = REPO) -> Path:
+    """Refuse a `--fasta-out` that lands inside the repository (D-254).
+
+    The residues this flag emits are a local-only sanity check: anywhere inside the repo
+    tree is where a reviewer, a later task, or `repro.run`'s durable upload would read them,
+    which is exactly what D-103 forbids. The gate is by resolved path, not by convention:
+    `artifacts/`, `data/`, `OUTDIR` and the repo root are all off-limits by name, and there
+    is no override — pass a path under your scratchpad, `/tmp/`, or `/mnt/project-files/...`
+    instead.
+
+    A pre-existing destination is also a refusal, so the flag never silently overwrites a
+    FASTA from an earlier run; a stale file is the one the owner will mistake for the one
+    this run just emitted.
+    """
+    resolved = path.expanduser().resolve()
+    repo_resolved = repo.resolve()
+    if resolved == repo_resolved or repo_resolved in resolved.parents:
+        raise Refusal(
+            f"--fasta-out {path} resolves to {resolved}, which is inside the repository "
+            f"({repo_resolved}). The residues emission is local-only and must land outside "
+            "the repo tree (D-254). Pass a path under your scratchpad, /tmp/, or "
+            "/mnt/project-files/..."
+        )
+    if resolved.exists():
+        if resolved.is_dir():
+            raise Refusal(f"--fasta-out {path} is a directory; name a file")
+        raise Refusal(
+            f"--fasta-out {path} already exists; pick a fresh path. This tool does not "
+            "replace residues deliberately — a stale FASTA is the one you will mistake for "
+            "the one this run emitted."
+        )
+    return resolved
 
 
 def summarise(doc: dict[str, Any]) -> str:
@@ -571,7 +719,21 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
     ap.add_argument("--limit-records", type=int, default=None, help="first N records; a probe")
     ap.add_argument("--replace-durable", default=None, help="why replacing a published output")
     ap.add_argument("--allow-dirty", action="store_true")
+    ap.add_argument(
+        "--fasta-out",
+        type=Path,
+        default=None,
+        help=(
+            "write a FASTA of the called protein underlying each matched region to <path>, "
+            "for independent local BLAST verification. The path must resolve outside the "
+            "repository (D-254); the FASTA is not uploaded to the durable store and is "
+            "never a manifest output. Off by default."
+        ),
+    )
     args = ap.parse_args(argv)
+
+    # Gate the FASTA destination before anything is read, so a refusal costs nothing.
+    fasta_out = check_fasta_out_path(args.fasta_out) if args.fasta_out else None
 
     record_ids = read_first_column(args.records, header_names=("record_id", "record", "id"))
     accessions = read_first_column(args.profiles, header_names=("accession", "profile", "id"))
@@ -590,6 +752,13 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
             else f"not the deliverable: --outdir {args.outdir} is not {OUTDIR}"
         )
         print(f"not publishing: {exempt}; this run writes locally only", flush=True)
+
+    if fasta_out is not None:
+        print(
+            f"--fasta-out passed: residues of matched regions will be written to {fasta_out} "
+            "(local only, outside the repo; not a manifest output; D-254)",
+            flush=True,
+        )
 
     try:
         preflight(
@@ -614,14 +783,18 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
             manifest.parameter("records_requested", len(record_ids))
             manifest.parameter("profiles_requested", len(accessions))
             manifest.parameter("limit_records", args.limit_records)
+            # D-254: path only, never contents. The FASTA is deliberately not an
+            # `output_file`, so `repro.run`'s durable upload cannot reach it.
+            manifest.parameter("fasta_out", None if fasta_out is None else str(fasta_out))
             manifest.input_file(args.records, role="record ids")
             manifest.input_file(args.profiles, role="profile accessions")
-            doc = build(
+            doc, fasta_entries = build(
                 client=client,
                 record_ids=record_ids,
                 accessions=accessions,
                 cpus=args.cpus,
                 limit_records=args.limit_records,
+                fasta_out=fasta_out,
             )
             write_table(outputs[0], doc["rows"])
             outputs[1].write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
@@ -629,6 +802,9 @@ def main(argv: list[str] | None = None, *, client: Any = None) -> int:
             manifest.output_file(outputs[0], role="matched regions")
             manifest.output_file(outputs[1], role="matched regions, with parameters")
             manifest.output_file(outputs[2], role="summary")
+            if fasta_out is not None:
+                write_fasta(fasta_out, fasta_entries)
+                print(f"wrote {len(fasta_entries):,} FASTA records to {fasta_out}", flush=True)
     except repro.ReproError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
