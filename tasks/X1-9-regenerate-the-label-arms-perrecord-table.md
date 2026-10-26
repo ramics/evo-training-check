@@ -2,7 +2,7 @@
 id: X1.9
 title: Regenerate the label arm's per-record table
 phase: X
-status: review
+status: done
 gate: false
 depends_on: [A2.1]
 blocks: []
