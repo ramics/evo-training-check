@@ -444,13 +444,45 @@ def main(argv: list[str] | None = None) -> int:
             drain(keep=2 * args.workers)
 
         for source in sources:
-            reader = objectstore.S3SequentialRead(client, objectstore.CORPORA_BUCKET, source.key)
-            stream = uniref.GunzipStream(reader) if source.gzipped else reader
+            # The pin is re-checked against the live object before it is read, as A2.1 does:
+            # a staged object that is not the length the pin records is not the object this
+            # audit measured, and every figure downstream would be about something else.
+            live = int(
+                client.head_object(Bucket=objectstore.CORPORA_BUCKET, Key=source.key)[
+                    "ContentLength"
+                ]
+            )
+            if source.bytes and live != source.bytes:
+                raise SystemExit(
+                    f"{source.key}: staged object is {live} bytes, the pin says "
+                    f"{source.bytes}. Re-verify before trusting any count from it."
+                )
             if source.reader == "fasta":
+                # Forward-only, one GET held open. A ranged GET per read call costs an HTTP
+                # round trip per few kilobytes through a decompressor, which is what killed
+                # A1.8's count; `S3SequentialRead` exists for exactly this shape of read.
+                raw: Any = objectstore.S3SequentialRead(
+                    client, objectstore.CORPORA_BUCKET, source.key
+                )
+                stream = uniref.GunzipStream(raw) if source.gzipped else raw
                 records = seqstream.iter_fasta_sampled(
                     stream, component=source.component, seed=SAMPLE_SEED, hi=args.rate
                 )
             else:
+                # Parquet needs random access — its footer is at the end of the object — so
+                # this side takes the ranged reader A2.1 reads the same object with, not the
+                # forward-only one.
+                stream = corpora.RangedObject(
+                    client,
+                    bucket=objectstore.CORPORA_BUCKET,
+                    key=source.key,
+                    size=source.bytes or live,
+                    on_retry=lambda attempt, pos, exc: print(
+                        f"    reconnect {attempt} at byte {pos:,}: {exc}",
+                        file=sys.stderr,
+                        flush=True,
+                    ),
+                ).buffered()
                 records = seqstream.iter_stage2_sampled(
                     stream,
                     component=source.component,
