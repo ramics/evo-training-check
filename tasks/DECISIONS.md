@@ -11408,3 +11408,76 @@ decision has a threshold or parameter in it, the number goes in the entry.
   has been misled about how strong the evidence is. The limit is entirely the corpus side: all
   31 targets have a structure at a median 87.5% of residues above the predictor's own confidence
   floor and none below half, so the query side would not have been what stopped it.
+
+### D-260 — the k-mer test for one record's presence in Evo 1's released component, fixed before the run
+- **Date:** 2026-10-26
+- **Task:** A6.1 (bearing on A7.3, A7.5)
+- **Note on where this entry sits:** `AGENTS.md` puts a decisions entry on `main`, pushed
+  immediately. This session is instructed to push only to `claude/jolly-allen-oahiqb`, so the
+  entry is committed there and has to be moved to `main` by whoever lands the branch. Recorded
+  rather than resolved silently, because an unpushed decision is the failure mode `AGENTS.md`
+  names: the log is what stops two tracks resolving the same ambiguity twice.
+- **Context:** A7.5's worked example (`docs/phase-a-worked-example-papillomavirus.md`) traced
+  `IMGVR_UViG_643677429_000001` end to end in OpenGenome2's released **FASTA**. The project
+  owner then asked the sharper question: is that record in what Evo 2 was **trained** on.
+  No identifier answers it. Evo 1's `stage2` carries a taxonomic lineage inline and **no
+  identifier at all**; Evo 2's `imgvr.fasta.gz` carries an IMG/VR accession and **no lineage**
+  (`src/amazebio/corpora.py`, module docstring). The component that can be labelled cannot be
+  named and the component that can be named cannot be labelled, which is exactly why A7.3
+  argued from totals rather than from a join. Both representations do carry the nucleotides, so
+  a sequence search is the only available bridge.
+  One prior belongs in the record before any compute, because it sets what a hit would mean.
+  A7.2's forward direction — released records the published rule removes — is **95 records in
+  2.65 million**, and all 95 fail `remove-taxonomically-unspecific` with cause
+  `annotation_missing`, across 3 lineages, identically under all three readings. **Zero fail
+  the 19-family denylist.** So nothing in Evo 1's filtered component is retained *as* a
+  denylisted-family record, and a hit here could not be a family-rule failure; it would have to
+  be a record carrying a missing or unspecific lineage tag.
+- **Decision — the design and the hit criteria are fixed here, before the search runs.**
+  - **Query.** Entry 1 of that accession, 7,346 nt, re-derived from the pinned FASTA object
+    with its length checked against `source.bytes` first; uppercased. The protein already
+    verified for this record is not involved — this is a nucleotide test.
+  - **Target.** Evo 1's staged `stage2` Parquet, read through `corpora.iter_stage2_records`:
+    `train`, `test` and `valid`, reported separately. `policies/evo.md` §10 records that `valid`
+    duplicates `test`, so the distinct total is train + test and summing all three
+    double-counts one split.
+  - **Needles.** 48-mers at every 256 nt offset across the record — 29 of them — each with its
+    reverse complement, 58 strings in total. 48 is chosen so that chance occurrence is not a
+    live alternative: 3.6e10 nucleotides against 4^48 gives an expected random count around
+    5e-19. The spread exists because D-048 says a record longer than the per-block budget
+    arrives as several `|tag|block` pairs concatenated into one row, so the sequence can be cut
+    at block boundaries and no single needle can be relied on.
+  - **Hit criteria, declared now:** **present** = at least 3 distinct needles (a 48-mer and its
+    reverse complement count once) matching **within one row**; **absent** = 0 of 29 anywhere
+    in the component; **ambiguous** = 1 or 2 needles, or needles landing in different rows,
+    which is reported as ambiguous and called neither way. The three-needle-in-one-row rule is
+    the discriminator that matters: a single 48-mer shared with a *related* papillomavirus in
+    the component would be homology, not membership, and a criterion that could not tell those
+    apart would be worthless in the direction the result is most likely to be challenged.
+  - **Recorded regardless of outcome:** the inline lineage tag of any row carrying a hit — so a
+    hit yields the mechanism and not only the fact — plus rows and nucleotides scanned, so the
+    denominator is a measurement rather than a restatement of §10's table.
+  - **No residues.** Needles live in memory. The artefact records their **offsets and digests**,
+    never the k-mers themselves, and no nucleotide string reaches the repo, `artifacts/` or the
+    durable store (D-103).
+  - **It does not publish.** This is an exploratory check and not a task's deliverable, so it
+    writes to a scratch directory and claims `durable_exempt`, per `tools/detect_segmented.py`'s
+    `durable_for` and the two incidents that made it a rule in a bucket with no delete (D-193,
+    then D-224).
+- **Rejected:** Searching the OpenGenome2 **JSON** first. It is the literal training artefact
+  and the test will eventually want it, but it is on HuggingFace at pinned revision
+  `84d2a7e690c8bb395d1f4868822dfa031ea561c6` and reading it is ~36 Gnt of text out of region,
+  where `stage2` is 16.9 GB already staged and free. `stage2` is the component whose totals the
+  JSON matches exactly; it is the cheap half of the same question and it goes first.
+  A single long query instead of spread needles. One 7,346 nt match would be the cleanest
+  possible evidence and is the one thing D-048's block splitting can defeat outright.
+  A shorter needle — 24 or 32 nt — for robustness to block cuts. At 24 nt chance occurrence in
+  36.2 Gnt stops being negligible, and the whole value of this test is that a hit cannot be
+  explained away.
+  Calling 1–2 needles a hit. That is the reading that would turn a homologous relative into a
+  membership claim, in a result that names a laboratory.
+- **Consequence:** The test can return "absent" and that is a publishable outcome: it would
+  upgrade A7.3's §10 from an argument about matching totals to a direct per-record check for the
+  one record the write-up names. If it returns "present", the mechanism is unspecific annotation
+  rather than the family list, which is a different finding from the one the worked example
+  currently makes and would need its own entry.
