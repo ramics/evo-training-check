@@ -369,6 +369,11 @@ def main(argv: list[str] | None = None) -> int:
         help="repeatable; default is both v4 candidates, per D-056",
     )
     ap.add_argument(
+        "--include-proteins",
+        action="store_true",
+        help="also stage predicted protein sequences alongside the metadata",
+    )
+    ap.add_argument(
         "--include-sequence",
         action="store_true",
         help="also stage nucleotides and proteins (D-053 argues against)",
@@ -416,7 +421,11 @@ def main(argv: list[str] | None = None) -> int:
             for f in (
                 imgvr.release_on(date).files
                 if args.include_sequence
-                else imgvr.conformance_inputs(date)
+                else (
+                    tuple(f for f in imgvr.release_on(date).files if f.role != "nucleotides")
+                    if args.include_proteins
+                    else imgvr.conformance_inputs(date)
+                )
             )
         )
         free = shutil.disk_usage(spool).free
@@ -436,16 +445,30 @@ def main(argv: list[str] | None = None) -> int:
     ) as m:
         m.parameter("releases", releases)
         m.parameter("spool_dir", str(spool))
+        m.parameter("include_proteins", args.include_proteins)
         m.parameter("include_sequence", args.include_sequence)
         m.parameter("verified_against", "publisher md5 recorded before acquisition (D-054)")
-        m.note(
-            "Metadata only unless --include-sequence: every conformance check is a set "
-            "operation over accessions and metadata (D-053)."
-        )
+        if args.include_sequence:
+            m.note("Full release: metadata, nucleotides and proteins.")
+        elif args.include_proteins:
+            m.note(
+                "Metadata plus proteins: conformance inputs and predicted protein sequences. "
+                "Nucleotides skipped (D-053)."
+            )
+        else:
+            m.note(
+                "Metadata only unless --include-sequence: every conformance check is a set "
+                "operation over accessions and metadata (D-053)."
+            )
         staged = []
         for date in releases:
             release = imgvr.release_on(date)
-            wanted = release.files if args.include_sequence else imgvr.conformance_inputs(date)
+            if args.include_sequence:
+                wanted = release.files
+            elif args.include_proteins:
+                wanted = tuple(f for f in release.files if f.role != "nucleotides")
+            else:
+                wanted = imgvr.conformance_inputs(date)
             index = {(f["added_date"], f["directory"], f["file_name"]): f for f in live}
             on_tape = [
                 index[(date, f.directory, f.name)]["_id"]
