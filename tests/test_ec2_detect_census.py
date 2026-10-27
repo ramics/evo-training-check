@@ -95,9 +95,7 @@ class TestTheBands:
                 seed=1,
                 rate=1.0,
                 population=1,
-                bands=[
-                    (lo * base, hi * base) for lo, hi in launcher.bands(multiple, workers)
-                ],
+                bands=[(lo * base, hi * base) for lo, hi in launcher.bands(multiple, workers)],
             )
             assert design.bands_cover_rate(), (release, workers)
 

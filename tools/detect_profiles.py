@@ -900,9 +900,9 @@ def assemble(
                 # A2.1 deepened a first pass, so the initial table was always there to merge
                 # and to copy the table's own metadata from. A2.6 is a census: its bands start
                 # at multiple 0 and tile the whole rate themselves, so there is no first pass
-                # at all and this read raised FileNotFoundError — after the search, at the end of a run
-                # costing hours. The three fields the initial table supplied are all
-                # reconstructable from the manifest and the registry, which is what the
+                # at all and this read raised FileNotFoundError — after the search, at the
+                # end of a run costing hours. The three fields the initial table supplied
+                # are all reconstructable from the manifest and the registry, which is what the
                 # searching path does for them anyway.
                 initial_path = initial_dir / f"{stem}.json"
                 initial_table = (
