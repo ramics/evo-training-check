@@ -1,0 +1,78 @@
+{
+  "note": "The curated taxon mapping for the virus-family stratum (V) of the hazard family set (metrics/costcurve.md §3). One entry per taxon the published Evo 1 exclusion list names — 19 families and 12 orders, read from policies/specs/evo1-literal.yaml and never retyped here. Each entry carries a hand-curated NCBI taxid; the pinned taxonomy checks the choice and never makes it, which is what D-137 requires of this project's published-list mappings. Resolution is by taxid, not by name: the earlier build of this stratum matched taxon names and two of the nineteen families silently returned zero, dropping 2,904 reviewed entries with no error.",
+  "list_source": "policies/specs/evo1-literal.yaml",
+  "list_rules": ["remove-denylisted-families", "remove-denylisted-orders"],
+  "taxonomy": "taxdmp_2023-04-01.zip",
+  "taxonomy_sha256": "6afaee952d95df95d0ec374e53472eeb590693013159b7b36ae3726c15871d07",
+  "method": "taxid_pinned is validated against the pinned taxonomy: its scientific name and rank must equal pinned_name and pinned_rank, or the run refuses. taxid_query is the node the nomination query is actually run against; it differs from taxid_pinned only where the taxonomy has been restructured since the pin, and every such case is recorded with its mechanism. A taxon whose query returns no reviewed entries refuses the run unless it carries expect_zero, because a silent zero is the failure this mapping exists to prevent.",
+  "why_two_taxids": "The pinned taxonomy is contemporaneous with the filter being audited, so it is the right thing to validate the published names against. UniProtKB's taxonomy is current, and for three of these taxa the two disagree. Carrying one taxid would force a choice between validating the published name and finding the entries; carrying both keeps the rename visible as a finding.",
+  "entries": [
+    {"entry": "Adenoviridae", "published_rank": "family", "taxid_pinned": 10508, "pinned_name": "Adenoviridae", "pinned_rank": "family"},
+    {"entry": "Caliciviridae", "published_rank": "family", "taxid_pinned": 11974, "pinned_name": "Caliciviridae", "pinned_rank": "family"},
+    {"entry": "Coronaviridae", "published_rank": "family", "taxid_pinned": 11118, "pinned_name": "Coronaviridae", "pinned_rank": "family"},
+    {"entry": "Filoviridae", "published_rank": "family", "taxid_pinned": 11266, "pinned_name": "Filoviridae", "pinned_rank": "family"},
+    {"entry": "Flaviviridae", "published_rank": "family", "taxid_pinned": 11050, "pinned_name": "Flaviviridae", "pinned_rank": "family"},
+    {"entry": "Hantaviridae", "published_rank": "family", "taxid_pinned": 1980413, "pinned_name": "Hantaviridae", "pinned_rank": "family"},
+    {"entry": "Hepadnaviridae", "published_rank": "family", "taxid_pinned": 10404, "pinned_name": "Hepadnaviridae", "pinned_rank": "family"},
+    {
+      "entry": "Herpesviridae",
+      "published_rank": "family",
+      "taxid_pinned": 10292,
+      "pinned_name": "Herpesviridae",
+      "pinned_rank": "family",
+      "taxid_query": 3044472,
+      "rename": "renamed_and_renumbered",
+      "note": "ICTV renamed Herpesviridae to Orthoherpesviridae. Taxid 10292 still resolves — UniProt carries it as Orthoherpesviridae with Herpesviridae as an other-name — but it now holds 0 reviewed entries, because the entries sit under a new node, 3044472, which postdates the pinned taxonomy and so is absent from it. This is the first of the two silent zeros: 2,097 reviewed entries. Note that these entries also arrive through the order Herpesvirales, which the published list names separately, so the union is unchanged by this repair — the per-taxon nomination table is not."
+    },
+    {"entry": "Orthomyxoviridae", "published_rank": "family", "taxid_pinned": 11308, "pinned_name": "Orthomyxoviridae", "pinned_rank": "family"},
+    {"entry": "Papillomaviridae", "published_rank": "family", "taxid_pinned": 151340, "pinned_name": "Papillomaviridae", "pinned_rank": "family"},
+    {"entry": "Paramyxoviridae", "published_rank": "family", "taxid_pinned": 11158, "pinned_name": "Paramyxoviridae", "pinned_rank": "family"},
+    {"entry": "Picornaviridae", "published_rank": "family", "taxid_pinned": 12058, "pinned_name": "Picornaviridae", "pinned_rank": "family"},
+    {"entry": "Poxviridae", "published_rank": "family", "taxid_pinned": 10240, "pinned_name": "Poxviridae", "pinned_rank": "family"},
+    {
+      "entry": "Reoviridae",
+      "published_rank": "family",
+      "taxid_pinned": 2732541,
+      "pinned_name": "Reovirales",
+      "pinned_rank": "order",
+      "rename": "elevated_and_split",
+      "note": "ICTV elevated the family Reoviridae to the order Reovirales and split it into two families, Sedoreoviridae (2946186) and Spinareoviridae (2946187). The pinned taxonomy already carries this: 'Reoviridae' survives there only as a synonym of 2732541, and no node of rank family bears the name. So the published list names a family that did not exist at that rank even when the filter was published, and a name-matching implementation of this rule removes nothing for it — which is a finding about the published filter, not only about this mapping. The order is taken, because it is exactly the taxon the named family became; the two child families are its whole content. This is the second silent zero: 807 reviewed entries."
+    },
+    {"entry": "Retroviridae", "published_rank": "family", "taxid_pinned": 11632, "pinned_name": "Retroviridae", "pinned_rank": "family"},
+    {"entry": "Rhabdoviridae", "published_rank": "family", "taxid_pinned": 11270, "pinned_name": "Rhabdoviridae", "pinned_rank": "family"},
+    {"entry": "Circoviridae", "published_rank": "family", "taxid_pinned": 39724, "pinned_name": "Circoviridae", "pinned_rank": "family"},
+    {"entry": "Geminiviridae", "published_rank": "family", "taxid_pinned": 10811, "pinned_name": "Geminiviridae", "pinned_rank": "family"},
+    {"entry": "Picobirnaviridae", "published_rank": "family", "taxid_pinned": 585893, "pinned_name": "Picobirnaviridae", "pinned_rank": "family"},
+
+    {"entry": "Amarillovirales", "published_rank": "order", "taxid_pinned": 2732545, "pinned_name": "Amarillovirales", "pinned_rank": "order"},
+    {"entry": "Durnavirales", "published_rank": "order", "taxid_pinned": 2732549, "pinned_name": "Durnavirales", "pinned_rank": "order"},
+    {"entry": "Geplafuvirales", "published_rank": "order", "taxid_pinned": 2732539, "pinned_name": "Geplafuvirales", "pinned_rank": "order"},
+    {"entry": "Herpesvirales", "published_rank": "order", "taxid_pinned": 548681, "pinned_name": "Herpesvirales", "pinned_rank": "order"},
+    {"entry": "Lefavirales", "published_rank": "order", "taxid_pinned": 2840070, "pinned_name": "Lefavirales", "pinned_rank": "order"},
+    {"entry": "Ortervirales", "published_rank": "order", "taxid_pinned": 2169561, "pinned_name": "Ortervirales", "pinned_rank": "order"},
+    {
+      "entry": "Orthopolintovirales",
+      "published_rank": "order",
+      "taxid_pinned": 2842248,
+      "pinned_name": "Orthopolintovirales",
+      "pinned_rank": "order",
+      "taxid_query": 3420538,
+      "rename": "renamed_and_renumbered",
+      "expect_zero": true,
+      "note": "Renamed to Amphintovirales, under a new node 3420538 absent from the pinned taxonomy, exactly as Herpesviridae was. Unlike Herpesviridae this one costs nothing: the successor node holds 0 reviewed entries too, so the rename hid a genuine zero rather than 2,097 entries. Recorded because a zero that is genuine and a zero that is a rename look identical from the count alone, and this stratum has already been wrong once for not telling them apart."
+    },
+    {"entry": "Piccovirales", "published_rank": "order", "taxid_pinned": 2732534, "pinned_name": "Piccovirales", "pinned_rank": "order"},
+    {"entry": "Picornavirales", "published_rank": "order", "taxid_pinned": 464095, "pinned_name": "Picornavirales", "pinned_rank": "order"},
+    {
+      "entry": "Priklausovirales",
+      "published_rank": "order",
+      "taxid_pinned": 2732556,
+      "pinned_name": "Priklausovirales",
+      "pinned_rank": "order",
+      "expect_zero": true,
+      "note": "Not a rename. The name and node are stable across the pin and the current taxonomy, and the order genuinely has no reviewed UniProtKB entries, so it nominates no family. Carried as a curated zero so the refusal on uncurated zeros stays strict."
+    },
+    {"entry": "Cirlivirales", "published_rank": "order", "taxid_pinned": 2732536, "pinned_name": "Cirlivirales", "pinned_rank": "order"},
+    {"entry": "Mulpavirales", "published_rank": "order", "taxid_pinned": 2732538, "pinned_name": "Mulpavirales", "pinned_rank": "order"}
+  ]
+}

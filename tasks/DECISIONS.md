@@ -11569,3 +11569,234 @@ decision has a threshold or parameter in it, the number goes in the entry.
   `413b92e13df518b9cefa3bdeba99449a8298e41a40c98dd9aa39b735f16b0568`, 2,653,047 lines, and dies
   with this container. Then the published rules run against the training corpus for the first
   time, which is what A2.1, A4.1 and A7.3 would all have measured had the join been available.
+
+### D-263 — the toxin stratum is curated per regulation entry, and five of the nine entries nominate nothing
+- **Date:** 2026-10-27
+- **Task:** C5.1 (bearing on C5.2, C6.1)
+- **Note on where this entry sits:** as D-260 through D-262 — `AGENTS.md` puts a decisions entry
+  on `main`, pushed immediately; this session is instructed to push only to
+  `claude/jolly-allen-oahiqb`, so it is committed there and needs moving when the branch lands.
+  The numbers were re-checked against `main` before this commit: `main` is at D-259, so D-260
+  through D-264 are all free and none needed renumbering.
+- **Context:** `metrics/costcurve.md` §3 defines stratum T as the toxin entries of the Select
+  Agents and Toxins List, reaching Pfam families by `organism -> reviewed UniProtKB entry ->
+  Pfam`, keeping only entries whose protein name matches the listed toxin "because the
+  regulation names the protein". The spec was pre-registered before any computation, which is
+  the point of C5.1, and it does not say how to read an entry that names no protein. Nine
+  entries, and they are not of one kind. `policies/specs/hazard-toxins-2024-06-01.json` was
+  committed on this branch with the curation; it had no decisions entry, which this is.
+- **Decision — the entry nominates, or it declines, and both are recorded per entry.**
+  Four entries name a protein and nominate: Abrin, Ricin, botulinum neurotoxins, and
+  staphylococcal enterotoxins A–E. For each, the reviewed UniProtKB entries that **are** that
+  toxin are chosen by hand and the nomination is the union of *their* Pfam cross-references — a
+  family is nominated by the entry, never by resembling its name. 10 families in all, at
+  UniProt release 2026_03.
+  Five entries nominate nothing, and each refusal has a reason rather than a guess. Four are
+  small molecules with no protein sequence at all — diacetoxyscirpenol, saxitoxin, T-2 toxin,
+  tetrodotoxin — and a regulation naming a molecule nominates no protein family, which is the
+  same reading §3 already applies to a listed organism. The fifth, the conotoxin entry, is
+  **declined rather than guessed**: the regulation defines it by an amino-acid motif
+  (`X1CCX2PACGX3X4X5X6CX7`), so a name match is the wrong instrument and a family-level
+  nomination would discard the restriction the motif carries, since most alpha-conotoxins fall
+  outside this entry. Nominating by motif is a different measurement against a pinned sequence
+  set and is not done here.
+  **Naive protein-name matching is not used, and the staphylococcal entry is the worked
+  example.** The regulation's own parenthetical limits that entry to subtypes A–E. A
+  case-insensitive match on "enterotoxin" within *Staphylococcus aureus* also returns SEG, SEH,
+  SEI and enterotoxin-like toxin X, none of which the list names. Here the two readings happen
+  to nominate the same two families, so nothing in the family set turns on it — recorded anyway,
+  because the method would have been wrong and on another list it would show.
+  **One family is kept and flagged.** `PF00652 Ricin_B_lectin` is nominated by both Abrin and
+  Ricin as the accessory lectin chain, not as the toxic activity, which is `PF00161`, the rRNA
+  N-glycosidase. Ricin_B_lectin is a carbohydrate-binding domain shared with plant lectins and
+  glycoside hydrolases — 128 reviewed entries against 69 for PF00161. It stays, because the
+  curated entries do cross-reference it and dropping half of a two-chain toxin would be this
+  project's judgement; but a detection on PF00652 alone is not evidence of a toxin, and the flag
+  travels with anything reported from it.
+- **Rejected:** Dropping the four small-molecule entries silently. They are part of the list and
+  the write-up has to be able to say what the method does not reach, which is the §A0 habit
+  applied to Phase C — the same reason stratum S is counted and carries no curve.
+  Guessing a family for the conotoxin entry from the alpha-conotoxin families. It would have
+  looked like a nomination and been this project's choice wearing a regulation's authority.
+  Taking every reviewed botulinum neurotoxin subtype *except* type X. The regulation names the
+  toxins in the plural and enumerates no subtypes, so X is included; it was described after the
+  subtype enumerations older readings used, and the entry's wording does not exclude it. The
+  inclusion is a choice and is recorded as one.
+- **Consequence:** Stratum T is 10 families from 4 of 9 entries. The toxin half of the hazard
+  family set needs no network and no rebuild — `tools/hazard_family_set.py` reads this curation
+  rather than re-deriving it, so the only online step in the set build is stratum V.
+
+### D-264 — the hazard family set resolves taxa by curated taxid, and the independent instrument agrees with the name axis at family level
+- **Date:** 2026-10-27
+- **Task:** C5.1 (bearing on C5.2, C6.1, X1.8, X1.9, A6.1)
+- **Note on where this entry sits:** as D-263 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else.
+- **Context:** Two separate things made the earlier build of this set unusable, and the project
+  owner asked for a repair plus the thing the repair is for: which records that survive the
+  filter belong to a hazard family, measured by an instrument independent of the one D-261
+  found over-counting.
+  The earlier build resolved the published exclusion list's taxa **by name**. Two of the
+  nineteen families returned zero and 2,904 reviewed entries were dropped with no error. D-137
+  forbids exactly this for a published list. It also used only the 19 families, where
+  `metrics/costcurve.md` §3 names 19 families **and 12 orders**.
+- **Decision — resolve by curated taxid, validated against the pinned taxonomy, and refuse a
+  zero.** `policies/specs/hazard-virus-taxa-evo1.json` carries one entry per named taxon, 31 in
+  all, each with a hand-curated taxid; `tools/hazard_family_set.py` only checks the curation —
+  the recorded scientific name and rank must match `taxdmp_2023-04-01.zip` (digest verified
+  before it validates anything) or the run refuses, and **a taxon whose query returns no
+  reviewed entries refuses unless the spec curates it as a genuine zero.** A silent zero and a
+  real one are indistinguishable from the count alone, which is how the 2,904 went missing.
+  Each entry carries **two** taxids where the taxonomies disagree: `taxid_pinned`, validated
+  against the snapshot contemporaneous with the filter being audited, and `taxid_query`, the
+  node that holds the entries today. One taxid would force a choice between validating the
+  published name and finding the proteins; two keep the rename visible as a finding. Three taxa
+  need it, by three different mechanisms:
+  - **Reoviridae** — ICTV elevated it to the order *Reovirales* and split it into *Sedoreoviridae*
+    and *Spinareoviridae*. The pinned taxonomy already reflects this: `Reoviridae` survives there
+    only as a *synonym* of 2732541, and no node of rank family bears the name. **So the
+    published filter names a family that did not exist at that rank when the filter was
+    published, and a name-matching implementation of its own rule removes nothing for it.** That
+    is a finding about the filter, not only about this mapping. 807 reviewed entries.
+  - **Herpesviridae** — renamed to *Orthoherpesviridae*. Taxid 10292 still resolves and UniProt
+    carries the old name as an other-name, but it now holds **0** reviewed entries: they sit
+    under 3044472, which postdates the pin and is absent from it. 2,097 reviewed entries. These
+    also arrive through the order *Herpesvirales*, which the list names separately, so the union
+    is unchanged by this repair — the per-taxon table is not. 807 + 2,097 = **2,904**, which
+    independently reproduces the number the earlier build lost.
+  - **Orthopolintovirales** — renamed to *Amphintovirales* under a new node, exactly as
+    Herpesviridae was, and the successor holds 0 reviewed entries too. The rename hid a genuine
+    zero rather than entries. Recorded because that is only visible once you look.
+  *Priklausovirales* is the fourth zero and is **not** a rename: name and node are stable and
+  the order genuinely has no reviewed entries. Curated as a genuine zero so the refusal stays
+  strict.
+  **The set is 1,144 families** — 1,134 in stratum V, 10 in T, no overlap — from 14,673 reviewed
+  entries.
+  **The two annotations are columns, not a filter.** 481 of the 1,144 fall outside this
+  project's pinned viral selection of 1,719 families (D-075), and they come overwhelmingly from
+  the large-genome viruses: *Poxviridae* 124, *Herpesvirales* 118, *Herpesviridae* 106,
+  *Lefavirales* 90, *Ortervirales* 79, *Retroviridae* 73. Those are host-derived and
+  host-mimicking families — actin, protein kinases, the immunoglobulin domain — and nominating
+  by cross-reference admits them, because a large-genome virus really does carry them. 646 of
+  the 1,144 are both in the viral selection and `viral_only` by A4.5's background measure.
+  **The set is reported under both readings and neither is removed.** Narrowing a set that §C6
+  pre-registered *before* computation, after seeing its output, is the thing the
+  pre-registration exists to stop; recording the measurement that would narrow it is not. Which
+  reading the cost curve uses is the project owner's call and is not made here. **It is a real
+  decision and not a formality:** a hazard set containing actin counts removing actin as hazard
+  benefit, and §5's collateral denominator excludes every nominated family, so the same
+  nomination also removes actin from the collateral cost. Both errors point the same way, and it
+  is the way that flatters the safeguard.
+- **Decision — the independent instrument, and what it found.** `tools/hazard_record_membership.py`
+  asks whether a detected record's Pfam family is in this set, i.e. whether some reviewed entry
+  of a listed taxon cross-references it. **It reads no family name.** X1.8/X1.9's axis asks
+  whether the family's Pfam *identifier or description* refers to a denylisted group. The two
+  share the group list and nothing else — no matching rule, no Pfam metadata.
+  The classification was fixed before the join ran and **introduces no threshold of this
+  project's own**: every detection already clears Pfam's curated gathering cutoff, and a second
+  cutoff chosen after seeing the scores would be this project deciding which hits count. Records
+  are placed by `exclusivity` — the fraction of a family's reviewed entries contributed by the
+  listed taxa — into `hazard_family_exclusive` (1.0), `hazard_family_shared` (nominated, below
+  1.0), `not_nominated`, and `unnominatable` for a family with no reviewed entries at all, which
+  nobody could nominate and which is therefore not evidence against the name axis.
+  **The result, which cuts against the framing this session inherited: the independent
+  instrument agrees with the name axis at family level, on 318 of 319 records.** 100 exclusive,
+  218 shared, 0 not nominated, 1 unnominatable (`PF08284 RVP_2`, zero reviewed entries). The
+  Pox-named families D-261 singled out are genuinely cross-referenced by reviewed *Poxviridae*
+  entries: `Pox_A22` 7/7, `Pox_D5` 6/7, `Pox_A32` 5/7. **So the name axis's families were not
+  wrong, and "the name axis over-counts" needs restating.** What separates the real cases is not
+  naming but two measured quantities: exclusivity, and hit strength. `Pox_VLTF3` — the single
+  largest contributor, 87 of the 319 records — is nominated and only **0.368** exclusive, 7 of
+  its 19 reviewed entries being *Poxviridae*; the rest of the family is other
+  nucleocytoplasmic large DNA viruses and phages, which is what its own "VLTF3 like" description
+  says. Score-over-threshold separates the same way and is reported per record with no cut:
+  median 2.70 and max 29.5 in the exclusive class against median 2.18 and max 10.7 in the
+  shared one, and 16 of the 17 records the published rule removes are exclusive.
+- **Rejected:** Dropping the host-derived families from the set to fix the "too broad" fault.
+  That is a post-hoc narrowing of a pre-registered definition, and it is also wrong on the
+  merits: the nomination is a published fact about a curated database, and a family a
+  *Poxviridae* protein really is annotated to is not an error in the nomination. It is a
+  property the curve has to carry, which is what the columns do.
+  Resolving taxa by name with a special case for the two that failed. It fixes two taxa and
+  leaves the mechanism, which is what D-137 is about; the next rename would be silent again.
+  Taking UniProt's current taxonomy as the validator because it is the one the query runs
+  against. It would answer a question about today's taxonomy, where the filter being audited was
+  written against the taxonomy of its time — the reasoning `amazebio.seeds.TaxdumpPin` already
+  records for the UniRef seed set.
+  Reporting "318 of 319 confirmed by an independent method" as the headline. True as worded and
+  misleading as read: it invites a reader to hear 318 hazardous records, where the measurement
+  shows 218 of them reaching a family that is only partly the listed taxon's biology, most of
+  them weakly. The classes and the strength distribution travel together or neither ships.
+  Applying a score-over-threshold cutoff to call records hazardous. The distribution is the
+  result; a cutoff chosen after seeing it would manufacture the answer.
+- **Consequence:** The hazard family set is rebuilt and usable, and
+  `policies/specs/hazard_family_set.json` from the earlier build stays withdrawn. D-261's
+  "the name axis over-counts" should be read as *over-counts in strength and exclusivity, not in
+  family identity* — its `matched_on: identifier` observation stands as a description of how
+  those families are named and no longer as the explanation of why the count is loose. X1.8's
+  314-as-upper-bound qualifier still holds, for the restated reason.
+  **One thing this does not settle, and it is the one the question was asked about.** Which of
+  these records survive into Evo 2's *training* data needs D-262's accession list, which was
+  scratch and died with its container, so the per-record training column is absent rather than
+  estimated. The records in the training data are a subset of the 319 measured here, so no
+  record can become a hazard-family record by being in it; but the subset cannot be named until
+  the join is rebuilt as a citable artefact, which D-262 already says is a task of its own.
+
+### D-265 — a dirty tree never publishes, guarded at the two tools, and the systemic fix is a task of its own
+- **Date:** 2026-10-27
+- **Task:** C5.1
+- **Note on where this entry sits:** as D-263 and D-264 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else.
+- **Context, which is an incident and not a design question.** While building the hazard family
+  set I ran `tools/hazard_family_set.py --outdir artifacts/c5-1 --allow-dirty` to produce the
+  deliverable before committing. `--out` resolving to the canonical directory makes
+  `durable_for` return the real results prefix, and `--allow-dirty` carries the run past
+  `repro.run`'s dirty-tree refusal. So it published. Three objects sit under
+  `corpora/results/c5-1/` and three more under
+  `corpora/results/c5-1/by-commit/02b1a4511d4048fd93b8216b1182549f277d66ae/`, and that commit is
+  the handoff note — it does not contain the tool that produced them. The bucket has no
+  `s3:DeleteObject`, so the `by-commit` twin is permanent and permanently wrong. The stable keys
+  were replaced by a later clean run; the twin cannot be.
+  This is the same family as D-193 and D-224, where a probe published to a deliverable's prefix,
+  and it is the second half of the same hole: those two were about *where* a run writes, this
+  one is about *whether a run should write at all*. `durable_for` was built for the first and is
+  blind to the second, because `--out` and the tree's state are independent.
+- **Decision — the guard goes at the tool, and it refuses before any network work.** Both tools
+  added here take `allow_dirty` into `durable_for` and return no destination when it is set,
+  printing the reason. The exemption is declared in `test_repro.py`'s `EXEMPT_CALL_SITES`
+  inventory, which is the project's existing mechanism for exactly this and which fails on an
+  undeclared one.
+- **Decision — and the systemic fix is *attempted and withdrawn*, deliberately recorded.**
+  `AGENTS.md` says to fix the shape rather than the tool, because fixing D-193 in
+  `detect_segmented.py` alone let the identical bug reach a no-delete bucket through
+  `detect_profiles.py` nine days later (D-224). Eleven tools pass a canonical `durable` beside
+  an `--allow-dirty` flag — `assay_depth`, `assay_register`, `baseline_scores`, `control_set`,
+  `denylist_label_records`, `detect_profiles`, `detect_segmented`, `extract_matched_regions`,
+  `scoring_summary` and the two added here — so the obvious fix is one guard inside
+  `repro.run`, which already holds both facts. **That was written, and it broke five existing
+  tests in `test_repro.py`, and the tests were right.** They pin D-216's commit-keyed-copy
+  semantics in a temporary git repository where the run's *own output directory* is what makes
+  the tree dirty. So "dirty" at that layer does not mean what the incident means by it: the
+  hazard is uncommitted **code and inputs**, not the presence of outputs the run has just
+  written. A guard that cannot tell those apart either blocks legitimate publishing, as it did,
+  or has to classify dirty paths by position — and a heuristic that wrongly reads dirt as
+  "confined to the outputs" re-opens the hole silently, which is the one failure direction that
+  matters in a store that cannot forget.
+  So the change was reverted rather than forced, and **the nine other tools are left unguarded
+  and named above**, which is the disclosure `AGENTS.md` asks for in place of the fix. Doing it
+  properly means separating output dirt from source dirt in `repro.run` and re-pinning D-216's
+  tests against that distinction. That is its own task on `repro`'s contract, not a thing to
+  bolt onto a Phase C family set, and it should be taken as one.
+- **Rejected:** Rewriting the five `test_repro.py` tests so the broad guard could land. They pin
+  the commit-keyed copy, which is the mechanism that makes a published result citable; bending
+  them to accommodate a new guard risks masking what they exist to catch, and it is someone
+  else's work absorbed into this task.
+  Classifying dirty paths by whether they sit under the run's output directory. It would have
+  kept both the guard and the tests, and it fails in the direction that permits a dirty publish.
+  Leaving the stray objects unrecorded. A1.3's four 0-byte objects are on the record for the
+  same reason: the bucket's permanence means an inventory of what is wrong in it is the only
+  correction available.
+- **Consequence:** `corpora/results/c5-1/by-commit/02b1a4511d4048fd93b8216b1182549f277d66ae/`
+  holds three objects — `hazard-family-set.json`, `hazard-family-set.tsv`, `run.json` — whose
+  manifest names a commit that does not contain their producer. They are not cited by anything
+  and must not be: the citable copies are the ones under the clean commit's own twin. Nothing
+  else published before the guard landed. Nine tools retain the shape that caused this.

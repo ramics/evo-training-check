@@ -498,6 +498,12 @@ EXEMPT_CALL_SITES: set[str] = {
     # rehearsal over whatever happens to be there. From the canonical directory it publishes
     # like any other result.
     "scoring_summary.py",
+    # C5.1's hazard family set and its record join, conditionally on `--outdir` like the
+    # tools above, and additionally on `--allow-dirty`: those two together published three
+    # objects whose manifest named a commit that does not contain the tool that wrote them,
+    # permanently, in a bucket with no delete (D-265). Both refuse before any network work.
+    "hazard_family_set.py",
+    "hazard_record_membership.py",
 }
 
 
