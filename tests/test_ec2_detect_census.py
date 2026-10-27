@@ -687,3 +687,56 @@ class TestATimingProbeMayNotPublish:
 
     def test_the_probe_names_its_own_output_directory(self) -> None:
         assert launcher.probe(("opengenome2",), "1:4")["slug"] == "opengenome2-1-4"
+
+
+class TestTheThreadBudget:
+    """The sizing that was reviewed was not the sizing that ran.
+
+    `profilesearch.search` defaults to three HMMER threads, three call sites below the
+    launcher, so "eight workers on eight vCPUs" actually asked for 24 threads on 8 cores.
+    D-233 measured three concurrent jobs costing about sixteen times one rather than three
+    and named the trap; this is it at scale, and the best explanation on the record for why
+    not one of sixteen bands finished inside a fourteen-hour ceiling on 2026-10-20.
+    """
+
+    def test_the_default_fits_the_machine(self) -> None:
+        cores = launcher.VCPUS[launcher.DEFAULT_INSTANCE_TYPE]
+        asked = launcher.DEFAULT_WORKERS_PER_RELEASE * launcher.DEFAULT_SEARCH_CPUS
+        assert asked <= cores
+
+    def test_the_sizing_that_ran_on_2026_10_20_is_now_refused(self) -> None:
+        with pytest.raises(SystemExit, match="24 threads"):
+            launcher.check_cpu_budget("m6i.2xlarge", 8, 3)
+
+    def test_a_budget_that_fits_is_allowed(self) -> None:
+        launcher.check_cpu_budget("r6i.2xlarge", 8, 1)
+        launcher.check_cpu_budget("r6i.2xlarge", 4, 2)
+
+    def test_an_unknown_instance_type_cannot_be_checked(self) -> None:
+        with pytest.raises(SystemExit, match="thread budget"):
+            launcher.check_cpu_budget("m6i.48xlarge", 1, 1)
+
+    def test_every_allowed_type_has_a_core_count(self) -> None:
+        assert set(launcher.ALLOWED_TYPES) <= set(launcher.VCPUS)
+
+    def test_the_worker_line_carries_the_thread_count(self) -> None:
+        workers = launcher.plan(("opengenome2",), 8)
+        line = launcher.worker_lines(workers, search_cpus=1)
+        assert line.count("--search-cpus 1") == 8
+
+    def test_the_flag_the_launcher_emits_is_one_the_worker_accepts(self) -> None:
+        """A flag the worker would reject costs a launch, and the instance has no shell.
+
+        The worker's parser is built inside its `main`, so this reads the source rather than
+        constructing it — the point is that the two files agree on the spelling.
+        """
+        source = (_PATH.parent.parent / "tools" / "detect_profiles.py").read_text()
+        assert '"--search-cpus"' in source
+        assert hasattr(detect_profiles, "SEARCH_CPUS")
+
+    def test_the_worker_default_is_still_the_single_process_one(self) -> None:
+        """The library default is right for one process and is deliberately not changed here;
+        what changes is that the census passes its own. A tool run by hand keeps the old
+        behaviour."""
+        assert detect_profiles.DEFAULT_SEARCH_CPUS == 3
+        assert launcher.DEFAULT_SEARCH_CPUS == 1

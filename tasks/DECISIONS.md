@@ -11800,3 +11800,107 @@ decision has a threshold or parameter in it, the number goes in the entry.
   manifest names a commit that does not contain their producer. They are not cited by anything
   and must not be: the citable copies are the ones under the clean commit's own twin. Nothing
   else published before the guard landed. Nine tools retain the shape that caused this.
+
+### D-266 — the cost curve's subjects are the 646 viral, family-specific nominations, and the other 498 are reported not dropped
+- **Date:** 2026-10-27
+- **Task:** C5.1 (bearing on C5.2, C6.1, C6.3, C7.1)
+- **Note on where this entry sits:** as D-263 through D-265 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else.
+- **Settled by the project owner**, on the choice D-264 put to them and declined to make.
+- **Context.** D-264 rebuilt the hazard family set and found that nominating by database
+  cross-reference admits 1,144 families, of which **481 fall outside this project's pinned
+  viral selection** (D-075) — actin, protein kinases, the immunoglobulin domain — arriving
+  almost entirely through the large-genome viruses: *Poxviridae* 124, *Herpesvirales* 118,
+  *Herpesviridae* 106, *Lefavirales* 90, *Ortervirales* 79, *Retroviridae* 73. The nomination
+  is not an error: a reviewed *Poxviridae* protein really is annotated to those families. The
+  question was whether a curve should be computed over them, and `metrics/costcurve.md` §3 was
+  pre-registered before any computation, so narrowing it after seeing the output is exactly
+  what the pre-registration exists to prevent.
+- **Decision.** **Curve subjects are the nominated families that are both in the pinned viral
+  selection and `viral_only` by A4.5's background measure — 646 of 1,144.** The amendment is
+  written into `metrics/costcurve.md` §3 as an amendment, dated, citing this entry, rather
+  than edited in as though it had always said so.
+  **It is not a cosmetic tidy, and the direction matters.** With the host-derived families in,
+  `H(s)` counts removing actin as *hazard removed*; and because §5's collateral denominator
+  excludes every nominated family, the same nomination also removes actin from *collateral
+  removed*. Both errors make filtering look cheaper than it is. An audit whose pre-registered
+  definition is biased toward flattering the safeguard it audits is worse than one that amends
+  the definition in the open, which is the trade taken here.
+  **Nothing is deleted.** `tools/hazard_family_set.py` publishes all 1,144 rows carrying
+  `viral_selection`, `specificity`, `exclusivity` and the nominating taxa, so the subject list
+  is a filter anyone can recompute or reverse, and the 498 excluded are reported as a count
+  beside the curves.
+- **Rejected:** Keeping the pre-registered definition unchanged and reporting the bias as a
+  caveat. §7's adversarial reader finds a hazard set containing actin in a minute, and a
+  caveat beside a curve does not undo a numerator and a denominator that both move the same
+  way.
+  Dropping the 498 from the published set rather than filtering at the curve. The nomination is
+  a fact about a curated database and a reader is entitled to see what the published list
+  actually nominated; a set that silently omits them cannot be checked against its own method.
+  Deferring to C6.1. The subject list is an input to C5.2's index, which is the next task, so
+  leaving it open would have made C5.2 index families the curve will not use.
+- **Consequence:** C5.2 indexes 646 families rather than 1,144, which is also about 44% of the
+  neighbourhood work. C6.1's curves, C6.3's reimplementation and C7.1 all read the amended
+  subject list. The write-up has to carry one sentence saying the subject list was narrowed
+  after the set was built, why, and in which direction the unnarrowed version would have erred.
+
+### D-267 — the census did not fail on throughput, it failed on thread oversubscription, and the launcher now refuses that sizing
+- **Date:** 2026-10-27
+- **Task:** A2.6 (bearing on A2.1, A3.2, A3.4 and any future deep pass)
+- **Note on where this entry sits:** as D-263 through D-266 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb`.
+- **Context.** The owner asked what a full census would cost if it could be run cheaply. A2.6
+  is `deferred` as a cash decision (D-247) and its costing has been wrong once: the 2026-10-20
+  launch ran two `m6i.2xlarge` with eight band workers each, hit its fourteen-hour ceiling, and
+  **not one of sixteen bands finished** against an estimate of five to seven hours. D-233
+  diagnosed the missing evidence — nothing published, because both publishing paths run only on
+  completion — and named a probable cause in passing: "the numeric stacks size their thread
+  pools to all cores regardless of what else is running; eight workers on eight vCPUs is that
+  trap at scale", measured locally that day at three concurrent jobs costing about sixteen
+  times one rather than three.
+- **Decision — the cause is now specific, and it is a default three call sites away from the
+  launcher.** `amazebio.profilesearch.search` takes `cpus: int = 3` and **nothing overrode it**:
+  `tools/detect_profiles.py` called it without the argument and `tools/ec2_detect_census.py`
+  passed nothing down. So the sizing that was reviewed was "eight workers on eight vCPUs" and
+  the sizing that ran was **24 HMMER threads on eight vCPUs**. Gene calling is one thread per
+  worker (`pyrodigal.GeneFinder`), so the search is the whole of the oversubscription.
+  The arithmetic reconciles the failure without needing a second explanation. Take the costing's
+  own 80 core-hours, of which 54 is the Pfam search. At D-233's measured penalty for a 3×
+  oversubscription — three jobs costing about sixteen times one, so roughly 5× per job — the
+  search alone goes from 54 core-hours to something near 270, which across 16 vCPUs is about
+  **17 hours: past the fourteen-hour ceiling, with no band finished.** That is what was
+  observed, and no second cause is needed to get there.
+  **Two caveats on that arithmetic, because this task's costing has been wrong once already.**
+  The penalty is a local measurement of a different workload, carried across; it sets the order
+  of magnitude, not the hour. And the costing table's own streaming row does not reconcile with
+  itself — it gives 35 GB at 130 Mres/s *and* calls that ~2 core-hours, where the rate implies
+  about 0.075, a factor of 27. The re-read each band pays is real (every worker streams its
+  component in full and keeps only its hash slice, so decompression happens eight times per
+  release) but its size is unknown between those two readings: somewhere between a rounding
+  error and ~16 core-hours. It is not the dominant term either way, and it is flagged here
+  rather than silently folded into a total.
+- **Decision — what changed in code.** `detect_profiles.py` takes `--search-cpus` and applies it
+  to every search; the library default of 3 is unchanged, so a tool run by hand behaves as
+  before. `ec2_detect_census.py` defaults to **one thread per worker**, passes it on every
+  worker line, and `check_cpu_budget` refuses a launch whose workers × threads exceed the
+  instance's vCPUs — the 2026-10-20 sizing is now a refusal with the reason. The check lives in
+  the launcher because it is the only place that knows both numbers, which is precisely why
+  nothing caught it the first time. Thread count changes timing and never which hits are
+  accepted, so this moves no result.
+- **Rejected:** Treating the estimate as simply optimistic and buying a longer timer. That is
+  the reading that spends the money again to re-learn the same thing; D-233 left a measured
+  local penalty on the record and it accounts for the gap.
+  Fixing it by lowering `--workers-per-release` alone. It would work and it wastes cores: at
+  one thread per worker the eight bands fit the eight vCPUs exactly.
+  Reading the memory sizing as the cause. It is a real hazard — the first launch used
+  `m6i.2xlarge` at 32 GB where the launcher's own comment calls for `r6i.2xlarge` at 64 GB for
+  eight workers' profile sets — but it predicts a worker dying, and what was observed was
+  sixteen workers all still running at the ceiling. Recorded as a second thing to get right,
+  not as the explanation.
+- **Consequence:** **Nothing is bought and nothing is launched by this entry; A2.6 stays
+  `deferred` and the spend remains the owner's.** What changes is that the next attempt has a
+  sizing that fits the machine and a guard that refuses one that does not. The honest next step
+  is still D-233's `--band` timing probe — a single worker over a sliver of one release,
+  publishing nothing — because the corrected cost above is arithmetic, and this task's costing
+  has been arithmetic that was wrong once. The probe is minutes of one instance, and it is what
+  would put a measured number in front of the decision instead of a third estimate.

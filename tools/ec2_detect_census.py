@@ -74,6 +74,26 @@ ALLOWED_TYPES = ("c6i.xlarge", "c6i.2xlarge", "m6i.xlarge", "m6i.2xlarge", "r6i.
 DEFAULT_INSTANCE_TYPE = "r6i.2xlarge"
 DEFAULT_WORKERS_PER_RELEASE = 8
 
+#: vCPUs per allowed instance type, so the launcher can check its own arithmetic. The account
+#: caps at eight, and eight is what makes the oversubscription below a live problem rather than
+#: a theoretical one.
+VCPUS = {
+    "c6i.xlarge": 4,
+    "c6i.2xlarge": 8,
+    "m6i.xlarge": 4,
+    "m6i.2xlarge": 8,
+    "r6i.2xlarge": 8,
+}
+
+#: HMMER threads per worker. `profilesearch.search` defaults to 3, which is right for a single
+#: process and wrong for a machine running one worker per band: eight workers at the default
+#: ask for **24 threads on eight vCPUs**. That is D-233's trap, and it is the best explanation
+#: on the record for why not one of sixteen bands finished inside a fourteen-hour ceiling on
+#: 2026-10-20 — D-233 measured three concurrent jobs costing about sixteen times one rather
+#: than three, and this is the same thing at scale. One thread per worker is the sizing that
+#: matches the cores; `check_cpu_budget` refuses anything that oversubscribes.
+DEFAULT_SEARCH_CPUS = 1
+
 #: Measured 2026-10-20: gene calling 666 knt/s/core, Pfam search 1.50 ms/gene on OpenGenome
 #: and 2.19 ms on OpenGenome2, streaming 130 Mres/s. About 80 core-hours of real work, plus
 #: the re-read each band pays. On eight cores per release that is five to seven hours of
@@ -277,7 +297,8 @@ die "run complete" "$rc"
 
 WORKER_LINE = """( "$PYBIN" tools/detect_profiles.py --task {task} --manifests artifacts/a1-4 \
 --registry {registry} --release {release} --band {lo}:{hi} --out /opt/amazebio/out-{slug} \
---chunk-records {chunk} --allow-dirty{deliverable} > /opt/amazebio/log-{slug}.txt 2>&1 \
+--chunk-records {chunk} --search-cpus {search_cpus} --allow-dirty{deliverable} \
+> /opt/amazebio/log-{slug}.txt 2>&1 \
 ; echo "=== {release} {lo}:{hi} exited $? ===" ) &
 pids="$pids $!"
 """
@@ -329,12 +350,34 @@ def plan(releases: tuple[str, ...], workers_per_release: int) -> list[dict[str, 
     return out
 
 
+def check_cpu_budget(instance_type: str, workers_per_release: int, search_cpus: int) -> None:
+    """Refuse a launch that asks for more threads than the machine has cores.
+
+    The 2026-10-20 census asked for 24 and had 8. Nothing in the launcher noticed, because
+    the thread count lived in a library default three call sites away, so the sizing that
+    was reviewed was "eight workers on eight vCPUs" and the sizing that ran was not. Checking
+    it here costs nothing and is the only place that knows both numbers.
+    """
+    cores = VCPUS.get(instance_type)
+    if cores is None:
+        raise SystemExit(f"{instance_type}: not in VCPUS, so its thread budget cannot be checked")
+    asked = workers_per_release * search_cpus
+    if asked > cores:
+        raise SystemExit(
+            f"{workers_per_release} workers x {search_cpus} search threads = {asked} threads on "
+            f"{instance_type}'s {cores} vCPUs. Oversubscribing is what cost the 2026-10-20 "
+            "launch its whole fourteen-hour ceiling for no published band (D-233). Lower "
+            "--workers-per-release or --search-cpus so their product fits."
+        )
+
+
 def worker_lines(
     workers: list[dict[str, Any]],
     *,
     registry: str = REGISTRY,
     chunk: int = CHUNK_RECORDS,
     deliverable: bool = True,
+    search_cpus: int = DEFAULT_SEARCH_CPUS,
 ) -> str:
     """The lines that start the workers.
 
@@ -346,7 +389,14 @@ def worker_lines(
     """
     publish = " --deliverable" if deliverable else ""
     return "".join(
-        WORKER_LINE.format(task=TASK, registry=registry, chunk=chunk, deliverable=publish, **w)
+        WORKER_LINE.format(
+            task=TASK,
+            registry=registry,
+            chunk=chunk,
+            deliverable=publish,
+            search_cpus=search_cpus,
+            **w,
+        )
         for w in workers
     )
 
@@ -371,6 +421,7 @@ def user_data(
     region: str = REGION,
     chunk: int = CHUNK_RECORDS,
     deliverable: bool = True,
+    search_cpus: int = DEFAULT_SEARCH_CPUS,
 ) -> str:
     return USER_DATA.format(
         bucket=bucket,
@@ -381,7 +432,13 @@ def user_data(
         wheels=WHEELS,
         hard_stop_minutes=hard_stop_minutes,
         heartbeat_seconds=heartbeat_seconds,
-        worker_lines=worker_lines(workers, registry=registry, chunk=chunk, deliverable=deliverable),
+        worker_lines=worker_lines(
+            workers,
+            registry=registry,
+            chunk=chunk,
+            deliverable=deliverable,
+            search_cpus=search_cpus,
+        ),
     )
 
 
@@ -411,6 +468,14 @@ def main(argv: list[str] | None = None) -> int:
         "workers' profile sets (default: %(default)s)",
     )
     ap.add_argument("--workers-per-release", type=int, default=DEFAULT_WORKERS_PER_RELEASE)
+    ap.add_argument(
+        "--search-cpus",
+        type=int,
+        default=DEFAULT_SEARCH_CPUS,
+        help="HMMER threads per worker. Workers times threads must fit the instance's vCPUs "
+        "and the launcher refuses otherwise; the 2026-10-20 launch asked for 24 on eight "
+        "(default: %(default)s)",
+    )
     ap.add_argument(
         "--release",
         action="append",
@@ -463,6 +528,13 @@ def main(argv: list[str] | None = None) -> int:
     else:
         workers = plan(releases, args.workers_per_release)
     deliverable = not args.band
+    # Before anything is built, priced or launched: a probe runs one worker, a census runs
+    # `--workers-per-release` of them, and only the second can oversubscribe the machine.
+    check_cpu_budget(
+        args.instance_type,
+        len(workers) if args.band else args.workers_per_release,
+        args.search_cpus,
+    )
 
     commit, dirty = _git_head(root)
     if dirty and not args.allow_dirty:
@@ -487,6 +559,7 @@ def main(argv: list[str] | None = None) -> int:
                 registry=args.registry,
                 chunk=args.chunk_records,
                 deliverable=deliverable,
+                search_cpus=args.search_cpus,
             )
         )
         return 0
@@ -547,6 +620,7 @@ def main(argv: list[str] | None = None) -> int:
             registry=args.registry,
             chunk=args.chunk_records,
             deliverable=deliverable,
+            search_cpus=args.search_cpus,
         ),
     )
     market = ec2lib.market_options(args.spot)
