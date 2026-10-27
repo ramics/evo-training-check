@@ -195,7 +195,35 @@ An earlier version of this block said that part would be merged and silently dou
 was wrong — the coverage check catches overlaps — and the correction is recorded here rather
 than quietly dropped.
 
-Waiting on the project owner: nothing. The accession list from D-262 remains outstanding and is
+**A census run is LIVE as of 2026-10-27 10:47Z — instance `i-083829dabcbb6e839`, on demand, in
+`us-east-1`.** OpenGenome2 only; OpenGenome is deliberately not launched, by the owner's call, so
+the first release can be assembled and checked before the second is bought.
+
+- `r6i.2xlarge`, 8 workers, one search thread each, from commit `d768fd3`. Bands tile `[0, 1000)`
+  in eight: `0:125` through `875:1000` (D-270).
+- **On demand, not spot**, and that is the owner's explicit decision rather than a silent
+  substitution: `r6i.2xlarge` spot returned `InsufficientInstanceCapacity` on two attempts, and
+  the choice between paying list price and dropping to the unverified 32 GB machine was put to
+  the owner, who chose to pay. About $5 against the $3.40 spot estimate. The 2026-10-20 overspend
+  happened by making this swap without asking; it was asked this time.
+- Hard stop `shutdown -h +840` armed at boot, `InstanceInitiatedShutdownBehavior=terminate`.
+  The launcher's own watcher is NOT reliable here — the session's background process is capped
+  well under the run's length — so the boot timer and the self-terminate are what actually
+  bound the spend. Expected finish 19:45–20:30Z; the timer fires 00:47Z.
+- Logs land in `results/a2-6/logs-i-083829dabcbb6e839/` every ten minutes; the exit reason lands
+  as `results/a2-6/exit-i-083829dabcbb6e839-<epoch>.txt`, and `run complete` is success.
+- Health at 11:08Z: all eight workers reading, band `[0.0, 0.125)` confirming the tiling fix in
+  the real run, no `not publishing` line (so the parts will publish), reference data at its
+  pinned digests, 1,719 families. Search rate consistent with the 4.343 ms/gene measured on the
+  timing run.
+
+**If you are picking this up and that machine is gone, check the exit object first.** Then the
+eight parts under `results/a2-6/parts/part-opengenome2-*.json`. To assemble, bring those eight
+down **by name** — not `--recursive` over the prefix, which would also pull in the 2026-10-20
+sampled part and make the assembly refuse on an overlap.
+
+Waiting on the project owner: whether to buy OpenGenome once this release is assembled and
+checked. The accession list from D-262 remains outstanding and is
 the prerequisite for a *correctly scoped* census; per D-269 the census runs now and carries that
 limit in its output rather than absorbing the join into this task.
 
