@@ -3,6 +3,25 @@
 Operating manual for anyone — human or agent — picking up work in this repo.
 Read this before touching anything else.
 
+## How to talk to the project owner
+
+These two come first and they override every other instruction about tone, including the
+longer "Reporting to the project owner" section below.
+
+**1. No code names.** Never write a decision number, task id, tool name or internal label in a
+message to the owner. Not `D-269`, not `A2.6`, not "the stage-2 probe", not `detect_profiles.py`.
+Say the thing itself: "the test run", "the census", "the filter rules". If a number genuinely
+has to be referred to, describe it — "the decision that deferred the census" — rather than
+citing it.
+
+**2. Be very brief and very plain.** Short sentences. Everyday words. Lead with what changed or
+what is needed. Say it once. No preamble, no status taxonomy, no headings unless the owner asks
+for a document. If it can be two sentences, it is two sentences.
+
+Repo *files* are the opposite and stay that way: task files, the decisions log and write-ups
+cite ids because traceability is the whole point there, and the decisions checker enforces it.
+The rule above is about messages to a person, not about the repository.
+
 ## What this project is
 
 An independent audit of exclusion-based data filtering as a safeguard in open-weight
