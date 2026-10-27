@@ -11408,3 +11408,573 @@ decision has a threshold or parameter in it, the number goes in the entry.
   has been misled about how strong the evidence is. The limit is entirely the corpus side: all
   31 targets have a structure at a median 87.5% of residues above the predictor's own confidence
   floor and none below half, so the query side would not have been what stopped it.
+
+### D-260 — the k-mer test for one record's presence in Evo 1's released component, fixed before the run
+- **Date:** 2026-10-26
+- **Task:** A6.1 (bearing on A7.3, A7.5)
+- **Note on where this entry sits:** `AGENTS.md` puts a decisions entry on `main`, pushed
+  immediately. This session is instructed to push only to `claude/jolly-allen-oahiqb`, so the
+  entry is committed there and has to be moved to `main` by whoever lands the branch. Recorded
+  rather than resolved silently, because an unpushed decision is the failure mode `AGENTS.md`
+  names: the log is what stops two tracks resolving the same ambiguity twice.
+- **Context:** A7.5's worked example (`docs/phase-a-worked-example-papillomavirus.md`) traced
+  `IMGVR_UViG_643677429_000001` end to end in OpenGenome2's released **FASTA**. The project
+  owner then asked the sharper question: is that record in what Evo 2 was **trained** on.
+  No identifier answers it. Evo 1's `stage2` carries a taxonomic lineage inline and **no
+  identifier at all**; Evo 2's `imgvr.fasta.gz` carries an IMG/VR accession and **no lineage**
+  (`src/amazebio/corpora.py`, module docstring). The component that can be labelled cannot be
+  named and the component that can be named cannot be labelled, which is exactly why A7.3
+  argued from totals rather than from a join. Both representations do carry the nucleotides, so
+  a sequence search is the only available bridge.
+  One prior belongs in the record before any compute, because it sets what a hit would mean.
+  A7.2's forward direction — released records the published rule removes — is **95 records in
+  2.65 million**, and all 95 fail `remove-taxonomically-unspecific` with cause
+  `annotation_missing`, across 3 lineages, identically under all three readings. **Zero fail
+  the 19-family denylist.** So nothing in Evo 1's filtered component is retained *as* a
+  denylisted-family record, and a hit here could not be a family-rule failure; it would have to
+  be a record carrying a missing or unspecific lineage tag.
+- **Decision — the design and the hit criteria are fixed here, before the search runs.**
+  - **Query.** Entry 1 of that accession, 7,346 nt, re-derived from the pinned FASTA object
+    with its length checked against `source.bytes` first; uppercased. The protein already
+    verified for this record is not involved — this is a nucleotide test.
+  - **Target.** Evo 1's staged `stage2` Parquet, read through `corpora.iter_stage2_records`:
+    `train`, `test` and `valid`, reported separately. `policies/evo.md` §10 records that `valid`
+    duplicates `test`, so the distinct total is train + test and summing all three
+    double-counts one split.
+  - **Needles.** 48-mers at every 256 nt offset across the record — 29 of them — each with its
+    reverse complement, 58 strings in total. 48 is chosen so that chance occurrence is not a
+    live alternative: 3.6e10 nucleotides against 4^48 gives an expected random count around
+    5e-19. The spread exists because D-048 says a record longer than the per-block budget
+    arrives as several `|tag|block` pairs concatenated into one row, so the sequence can be cut
+    at block boundaries and no single needle can be relied on.
+  - **Hit criteria, declared now:** **present** = at least 3 distinct needles (a 48-mer and its
+    reverse complement count once) matching **within one row**; **absent** = 0 of 29 anywhere
+    in the component; **ambiguous** = 1 or 2 needles, or needles landing in different rows,
+    which is reported as ambiguous and called neither way. The three-needle-in-one-row rule is
+    the discriminator that matters: a single 48-mer shared with a *related* papillomavirus in
+    the component would be homology, not membership, and a criterion that could not tell those
+    apart would be worthless in the direction the result is most likely to be challenged.
+  - **Recorded regardless of outcome:** the inline lineage tag of any row carrying a hit — so a
+    hit yields the mechanism and not only the fact — plus rows and nucleotides scanned, so the
+    denominator is a measurement rather than a restatement of §10's table.
+  - **No residues.** Needles live in memory. The artefact records their **offsets and digests**,
+    never the k-mers themselves, and no nucleotide string reaches the repo, `artifacts/` or the
+    durable store (D-103).
+  - **It does not publish.** This is an exploratory check and not a task's deliverable, so it
+    writes to a scratch directory and claims `durable_exempt`, per `tools/detect_segmented.py`'s
+    `durable_for` and the two incidents that made it a rule in a bucket with no delete (D-193,
+    then D-224).
+- **Rejected:** Searching the OpenGenome2 **JSON** first. It is the literal training artefact
+  and the test will eventually want it, but it is on HuggingFace at pinned revision
+  `84d2a7e690c8bb395d1f4868822dfa031ea561c6` and reading it is ~36 Gnt of text out of region,
+  where `stage2` is 16.9 GB already staged and free. `stage2` is the component whose totals the
+  JSON matches exactly; it is the cheap half of the same question and it goes first.
+  A single long query instead of spread needles. One 7,346 nt match would be the cleanest
+  possible evidence and is the one thing D-048's block splitting can defeat outright.
+  A shorter needle — 24 or 32 nt — for robustness to block cuts. At 24 nt chance occurrence in
+  36.2 Gnt stops being negligible, and the whole value of this test is that a hit cannot be
+  explained away.
+  Calling 1–2 needles a hit. That is the reading that would turn a homologous relative into a
+  membership claim, in a result that names a laboratory.
+- **Consequence:** The test can return "absent" and that is a publishable outcome: it would
+  upgrade A7.3's §10 from an argument about matching totals to a direct per-record check for the
+  one record the write-up names. If it returns "present", the mechanism is unspecific annotation
+  rather than the family list, which is a different finding from the one the worked example
+  currently makes and would need its own entry.
+
+### D-261 — the detected records are absent from Evo 2's training data, and the name axis over-counts
+- **Date:** 2026-10-26
+- **Task:** A6.1 (bearing on A7.3, A7.5, X1.8, X1.9)
+- **Note on where this entry sits:** as D-260 — `AGENTS.md` puts this on `main`, this session may
+  push only to `claude/jolly-allen-oahiqb`, so it needs moving when the branch lands.
+- **Context:** D-260 pre-registered a k-mer test against Evo 1's `stage2`. The project owner
+  redirected it, correctly, to the artefact the question is actually about: OpenGenome2's JSON
+  training format. `stage2` is Evo 1's file; answering with it would have answered a neighbouring
+  question. The design in D-260 carries over — 48-mers, spread offsets, both strands, exact
+  match — widened from one record to all 314 of X1.9's table, since one FASTA pass yields all of
+  them and the marginal cost is nil.
+- **Decision — two findings, recorded together because the second explains the first's shape.**
+  **The records the published rule removes are absent from the training data.** All six training
+  files read, 2,653,097 records; **0 of the 17** records with `label_rule_outcome = removed` are
+  present, the papillomavirus record among them (0 of its 6 needles). The pass independently
+  reproduces A7.1's and A7.3's 2,653,047 by a different method, which is the coverage check that
+  makes the negative mean something. So A7.3's §10 now rests on a direct per-record measurement
+  for the records that matter, not only on matching totals — and the owner's observation that
+  applying the filter to the FASTA header count does not reach the JSON count is resolved
+  separately: against **distinct accessions** rather than headers it reconciles to one record
+  (2,917,521 − 264,570 + 95 = 2,653,046 against 2,653,047, which is A7.1's own one-record gap
+  against Table S2).
+  **The name axis over-counts, and `matched_on: identifier` is the channel.** 90 of the 314 are
+  present in the training data, every one with an empty `label_rule_outcome`, and they are not
+  mislabelled viruses: their families joined a denylisted group because the Pfam *identifier*
+  begins `Pox`/`Av_adeno`, where Pfam's own descriptions say "protein-**like**" and "VLTF3
+  **like**" — families spanning nucleocytoplasmic large DNA viruses and phages. Their match
+  strengths separate from the real cases by an order of magnitude (median 1.4× threshold, max
+  6.8×, none above 10×, identity 0.24–0.44, coverage median 0.74, against 17×/0.59/0.997 for
+  `PF00519` on the papillomavirus record), and their labels are specific phage and giant-virus
+  realms rather than absent.
+- **Rejected:** Reporting "90 records carrying excluded-family proteins survive into the training
+  data" without the match statistics. True as worded and misleading as read: the sentence invites
+  a reader to hear leakage where the measurement shows a broad family doing what broad families
+  do, and §7's adversarial reader would find the `-like` in Pfam's own description within a
+  minute.
+  Also rejected: dropping `matched_on: identifier` families from the universe. They are not
+  wrong, they are *broad*; the fix is that the 314 is an upper bound and is reported with the
+  score-over-threshold distribution beside it, not a shorter list.
+- **Consequence:** A6.1 may state that the filter held on the training data for every record the
+  rule removes, as a measurement. The released-FASTA finding is unchanged and is now the whole of
+  the Phase A Evo 2 claim. The name-axis count needs its qualifier wherever it appears — X1.8,
+  X1.9, A7.5 and the write-up — and a specificity note on identifier-matched families belongs in
+  X1.8's output rather than in prose.
+
+### D-262 — the training format joins to the released FASTA by sequence, so it is auditable after all
+- **Date:** 2026-10-26
+- **Task:** A6.1 (bearing on A7.3, A2.1, A4.1, and every Evo 2 figure measured on the FASTA)
+- **Note on where this entry sits:** as D-260 and D-261 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else, and needs moving.
+- **Context:** `policies/evo.md` §8 records that OpenGenome2's JSON viral records carry a single
+  `text` field — no accession, no lineage — so none of the filter's six rules can be executed
+  against the training format and §10's finding had to rest on matching totals. D-261's needle
+  test answered a named question (are *these* records present) without needing a join. The
+  project owner asked the general one: can the two representations be linked.
+- **Decision — they can, and completely.** Hash-join on sequence, both orientations, with a
+  `(length, first-48, last-48)` fallback tier so that the *degree* of correspondence is a
+  measurement rather than a yes/no. **All 2,652,840 distinct JSON records resolve by exact
+  sequence digest; one needed the fallback; none is unresolved.** 2,653,047 distinct accessions,
+  and 304,448 FASTA entries absent from the training corpus — both figures A7.3's, reproduced
+  here by a method sharing no code with it.
+  **So sequences are preserved verbatim or not present.** Whatever the dataset card means by
+  distinguishing the FASTA from "the preprocessed form the model consumed", it is not a change to
+  the bases, and that is worth recording because the distinction has been load-bearing since
+  D-017.
+  **Consequence for the claim, stated plainly because it cuts against this project's own
+  write-up:** "the only representation anyone can audit is the one that fails the audit" is no
+  longer correct. The training representation is auditable, through a 36-gigabase sequence join
+  that no published sentence mentions. That remains a reporting gap — an outside reader should
+  not have to invent such a join to check a stated safeguard — but it is a **smaller** claim than
+  the one it replaces, and `docs/phase-a-worked-example-papillomavirus.md` and
+  `policies/evo.md` §10 both need their wording revisited before anything ships.
+- **Rejected:** Treating the needle test as sufficient. It answers membership for named records
+  and cannot produce an accession for an unnamed one, so it could never make the training corpus
+  auditable; the two tests are different instruments and both are kept.
+  Also rejected: reading the 96-record gap (2,917,521 − 2,653,047 = 264,474 against the
+  procedure's 264,570) as a result. It chains counts measured on two IMG/VR releases and in
+  three units; it is a pointer to a now-enumerable set, and enumerating it is the work.
+  Also rejected: smoothing over the two methods disagreeing on 8 of the 314 (needles 90, join
+  82). The join is the stricter instrument and the 8 are probably needle false positives from a
+  48-mer matching a homologous record, which would make D-261's "90" an 82 — but that is a
+  hypothesis and the entry says so.
+- **Consequence:** A task of its own should produce the accession list as a citable artefact
+  through `repro.run` — the scratch file is sha256
+  `413b92e13df518b9cefa3bdeba99449a8298e41a40c98dd9aa39b735f16b0568`, 2,653,047 lines, and dies
+  with this container. Then the published rules run against the training corpus for the first
+  time, which is what A2.1, A4.1 and A7.3 would all have measured had the join been available.
+
+### D-263 — the toxin stratum is curated per regulation entry, and five of the nine entries nominate nothing
+- **Date:** 2026-10-27
+- **Task:** C5.1 (bearing on C5.2, C6.1)
+- **Note on where this entry sits:** as D-260 through D-262 — `AGENTS.md` puts a decisions entry
+  on `main`, pushed immediately; this session is instructed to push only to
+  `claude/jolly-allen-oahiqb`, so it is committed there and needs moving when the branch lands.
+  The numbers were re-checked against `main` before this commit: `main` is at D-259, so D-260
+  through D-264 are all free and none needed renumbering.
+- **Context:** `metrics/costcurve.md` §3 defines stratum T as the toxin entries of the Select
+  Agents and Toxins List, reaching Pfam families by `organism -> reviewed UniProtKB entry ->
+  Pfam`, keeping only entries whose protein name matches the listed toxin "because the
+  regulation names the protein". The spec was pre-registered before any computation, which is
+  the point of C5.1, and it does not say how to read an entry that names no protein. Nine
+  entries, and they are not of one kind. `policies/specs/hazard-toxins-2024-06-01.json` was
+  committed on this branch with the curation; it had no decisions entry, which this is.
+- **Decision — the entry nominates, or it declines, and both are recorded per entry.**
+  Four entries name a protein and nominate: Abrin, Ricin, botulinum neurotoxins, and
+  staphylococcal enterotoxins A–E. For each, the reviewed UniProtKB entries that **are** that
+  toxin are chosen by hand and the nomination is the union of *their* Pfam cross-references — a
+  family is nominated by the entry, never by resembling its name. 10 families in all, at
+  UniProt release 2026_03.
+  Five entries nominate nothing, and each refusal has a reason rather than a guess. Four are
+  small molecules with no protein sequence at all — diacetoxyscirpenol, saxitoxin, T-2 toxin,
+  tetrodotoxin — and a regulation naming a molecule nominates no protein family, which is the
+  same reading §3 already applies to a listed organism. The fifth, the conotoxin entry, is
+  **declined rather than guessed**: the regulation defines it by an amino-acid motif
+  (`X1CCX2PACGX3X4X5X6CX7`), so a name match is the wrong instrument and a family-level
+  nomination would discard the restriction the motif carries, since most alpha-conotoxins fall
+  outside this entry. Nominating by motif is a different measurement against a pinned sequence
+  set and is not done here.
+  **Naive protein-name matching is not used, and the staphylococcal entry is the worked
+  example.** The regulation's own parenthetical limits that entry to subtypes A–E. A
+  case-insensitive match on "enterotoxin" within *Staphylococcus aureus* also returns SEG, SEH,
+  SEI and enterotoxin-like toxin X, none of which the list names. Here the two readings happen
+  to nominate the same two families, so nothing in the family set turns on it — recorded anyway,
+  because the method would have been wrong and on another list it would show.
+  **One family is kept and flagged.** `PF00652 Ricin_B_lectin` is nominated by both Abrin and
+  Ricin as the accessory lectin chain, not as the toxic activity, which is `PF00161`, the rRNA
+  N-glycosidase. Ricin_B_lectin is a carbohydrate-binding domain shared with plant lectins and
+  glycoside hydrolases — 128 reviewed entries against 69 for PF00161. It stays, because the
+  curated entries do cross-reference it and dropping half of a two-chain toxin would be this
+  project's judgement; but a detection on PF00652 alone is not evidence of a toxin, and the flag
+  travels with anything reported from it.
+- **Rejected:** Dropping the four small-molecule entries silently. They are part of the list and
+  the write-up has to be able to say what the method does not reach, which is the §A0 habit
+  applied to Phase C — the same reason stratum S is counted and carries no curve.
+  Guessing a family for the conotoxin entry from the alpha-conotoxin families. It would have
+  looked like a nomination and been this project's choice wearing a regulation's authority.
+  Taking every reviewed botulinum neurotoxin subtype *except* type X. The regulation names the
+  toxins in the plural and enumerates no subtypes, so X is included; it was described after the
+  subtype enumerations older readings used, and the entry's wording does not exclude it. The
+  inclusion is a choice and is recorded as one.
+- **Consequence:** Stratum T is 10 families from 4 of 9 entries. The toxin half of the hazard
+  family set needs no network and no rebuild — `tools/hazard_family_set.py` reads this curation
+  rather than re-deriving it, so the only online step in the set build is stratum V.
+
+### D-264 — the hazard family set resolves taxa by curated taxid, and the independent instrument agrees with the name axis at family level
+- **Date:** 2026-10-27
+- **Task:** C5.1 (bearing on C5.2, C6.1, X1.8, X1.9, A6.1)
+- **Note on where this entry sits:** as D-263 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else.
+- **Context:** Two separate things made the earlier build of this set unusable, and the project
+  owner asked for a repair plus the thing the repair is for: which records that survive the
+  filter belong to a hazard family, measured by an instrument independent of the one D-261
+  found over-counting.
+  The earlier build resolved the published exclusion list's taxa **by name**. Two of the
+  nineteen families returned zero and 2,904 reviewed entries were dropped with no error. D-137
+  forbids exactly this for a published list. It also used only the 19 families, where
+  `metrics/costcurve.md` §3 names 19 families **and 12 orders**.
+- **Decision — resolve by curated taxid, validated against the pinned taxonomy, and refuse a
+  zero.** `policies/specs/hazard-virus-taxa-evo1.json` carries one entry per named taxon, 31 in
+  all, each with a hand-curated taxid; `tools/hazard_family_set.py` only checks the curation —
+  the recorded scientific name and rank must match `taxdmp_2023-04-01.zip` (digest verified
+  before it validates anything) or the run refuses, and **a taxon whose query returns no
+  reviewed entries refuses unless the spec curates it as a genuine zero.** A silent zero and a
+  real one are indistinguishable from the count alone, which is how the 2,904 went missing.
+  Each entry carries **two** taxids where the taxonomies disagree: `taxid_pinned`, validated
+  against the snapshot contemporaneous with the filter being audited, and `taxid_query`, the
+  node that holds the entries today. One taxid would force a choice between validating the
+  published name and finding the proteins; two keep the rename visible as a finding. Three taxa
+  need it, by three different mechanisms:
+  - **Reoviridae** — ICTV elevated it to the order *Reovirales* and split it into *Sedoreoviridae*
+    and *Spinareoviridae*. The pinned taxonomy already reflects this: `Reoviridae` survives there
+    only as a *synonym* of 2732541, and no node of rank family bears the name. **So the
+    published filter names a family that did not exist at that rank when the filter was
+    published, and a name-matching implementation of its own rule removes nothing for it.** That
+    is a finding about the filter, not only about this mapping. 807 reviewed entries.
+  - **Herpesviridae** — renamed to *Orthoherpesviridae*. Taxid 10292 still resolves and UniProt
+    carries the old name as an other-name, but it now holds **0** reviewed entries: they sit
+    under 3044472, which postdates the pin and is absent from it. 2,097 reviewed entries. These
+    also arrive through the order *Herpesvirales*, which the list names separately, so the union
+    is unchanged by this repair — the per-taxon table is not. 807 + 2,097 = **2,904**, which
+    independently reproduces the number the earlier build lost.
+  - **Orthopolintovirales** — renamed to *Amphintovirales* under a new node, exactly as
+    Herpesviridae was, and the successor holds 0 reviewed entries too. The rename hid a genuine
+    zero rather than entries. Recorded because that is only visible once you look.
+  *Priklausovirales* is the fourth zero and is **not** a rename: name and node are stable and
+  the order genuinely has no reviewed entries. Curated as a genuine zero so the refusal stays
+  strict.
+  **The set is 1,144 families** — 1,134 in stratum V, 10 in T, no overlap — from 14,673 reviewed
+  entries.
+  **The two annotations are columns, not a filter.** 481 of the 1,144 fall outside this
+  project's pinned viral selection of 1,719 families (D-075), and they come overwhelmingly from
+  the large-genome viruses: *Poxviridae* 124, *Herpesvirales* 118, *Herpesviridae* 106,
+  *Lefavirales* 90, *Ortervirales* 79, *Retroviridae* 73. Those are host-derived and
+  host-mimicking families — actin, protein kinases, the immunoglobulin domain — and nominating
+  by cross-reference admits them, because a large-genome virus really does carry them. 646 of
+  the 1,144 are both in the viral selection and `viral_only` by A4.5's background measure.
+  **The set is reported under both readings and neither is removed.** Narrowing a set that §C6
+  pre-registered *before* computation, after seeing its output, is the thing the
+  pre-registration exists to stop; recording the measurement that would narrow it is not. Which
+  reading the cost curve uses is the project owner's call and is not made here. **It is a real
+  decision and not a formality:** a hazard set containing actin counts removing actin as hazard
+  benefit, and §5's collateral denominator excludes every nominated family, so the same
+  nomination also removes actin from the collateral cost. Both errors point the same way, and it
+  is the way that flatters the safeguard.
+- **Decision — the independent instrument, and what it found.** `tools/hazard_record_membership.py`
+  asks whether a detected record's Pfam family is in this set, i.e. whether some reviewed entry
+  of a listed taxon cross-references it. **It reads no family name.** X1.8/X1.9's axis asks
+  whether the family's Pfam *identifier or description* refers to a denylisted group. The two
+  share the group list and nothing else — no matching rule, no Pfam metadata.
+  The classification was fixed before the join ran and **introduces no threshold of this
+  project's own**: every detection already clears Pfam's curated gathering cutoff, and a second
+  cutoff chosen after seeing the scores would be this project deciding which hits count. Records
+  are placed by `exclusivity` — the fraction of a family's reviewed entries contributed by the
+  listed taxa — into `hazard_family_exclusive` (1.0), `hazard_family_shared` (nominated, below
+  1.0), `not_nominated`, and `unnominatable` for a family with no reviewed entries at all, which
+  nobody could nominate and which is therefore not evidence against the name axis.
+  **The result, which cuts against the framing this session inherited: the independent
+  instrument agrees with the name axis at family level, on 318 of 319 records.** 100 exclusive,
+  218 shared, 0 not nominated, 1 unnominatable (`PF08284 RVP_2`, zero reviewed entries). The
+  Pox-named families D-261 singled out are genuinely cross-referenced by reviewed *Poxviridae*
+  entries: `Pox_A22` 7/7, `Pox_D5` 6/7, `Pox_A32` 5/7. **So the name axis's families were not
+  wrong, and "the name axis over-counts" needs restating.** What separates the real cases is not
+  naming but two measured quantities: exclusivity, and hit strength. `Pox_VLTF3` — the single
+  largest contributor, 87 of the 319 records — is nominated and only **0.368** exclusive, 7 of
+  its 19 reviewed entries being *Poxviridae*; the rest of the family is other
+  nucleocytoplasmic large DNA viruses and phages, which is what its own "VLTF3 like" description
+  says. Score-over-threshold separates the same way and is reported per record with no cut:
+  median 2.70 and max 29.5 in the exclusive class against median 2.18 and max 10.7 in the
+  shared one, and 16 of the 17 records the published rule removes are exclusive.
+- **Rejected:** Dropping the host-derived families from the set to fix the "too broad" fault.
+  That is a post-hoc narrowing of a pre-registered definition, and it is also wrong on the
+  merits: the nomination is a published fact about a curated database, and a family a
+  *Poxviridae* protein really is annotated to is not an error in the nomination. It is a
+  property the curve has to carry, which is what the columns do.
+  Resolving taxa by name with a special case for the two that failed. It fixes two taxa and
+  leaves the mechanism, which is what D-137 is about; the next rename would be silent again.
+  Taking UniProt's current taxonomy as the validator because it is the one the query runs
+  against. It would answer a question about today's taxonomy, where the filter being audited was
+  written against the taxonomy of its time — the reasoning `amazebio.seeds.TaxdumpPin` already
+  records for the UniRef seed set.
+  Reporting "318 of 319 confirmed by an independent method" as the headline. True as worded and
+  misleading as read: it invites a reader to hear 318 hazardous records, where the measurement
+  shows 218 of them reaching a family that is only partly the listed taxon's biology, most of
+  them weakly. The classes and the strength distribution travel together or neither ships.
+  Applying a score-over-threshold cutoff to call records hazardous. The distribution is the
+  result; a cutoff chosen after seeing it would manufacture the answer.
+- **Consequence:** The hazard family set is rebuilt and usable, and
+  `policies/specs/hazard_family_set.json` from the earlier build stays withdrawn. D-261's
+  "the name axis over-counts" should be read as *over-counts in strength and exclusivity, not in
+  family identity* — its `matched_on: identifier` observation stands as a description of how
+  those families are named and no longer as the explanation of why the count is loose. X1.8's
+  314-as-upper-bound qualifier still holds, for the restated reason.
+  **One thing this does not settle, and it is the one the question was asked about.** Which of
+  these records survive into Evo 2's *training* data needs D-262's accession list, which was
+  scratch and died with its container, so the per-record training column is absent rather than
+  estimated. The records in the training data are a subset of the 319 measured here, so no
+  record can become a hazard-family record by being in it; but the subset cannot be named until
+  the join is rebuilt as a citable artefact, which D-262 already says is a task of its own.
+
+### D-265 — a dirty tree never publishes, guarded at the two tools, and the systemic fix is a task of its own
+- **Date:** 2026-10-27
+- **Task:** C5.1
+- **Note on where this entry sits:** as D-263 and D-264 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else.
+- **Context, which is an incident and not a design question.** While building the hazard family
+  set I ran `tools/hazard_family_set.py --outdir artifacts/c5-1 --allow-dirty` to produce the
+  deliverable before committing. `--out` resolving to the canonical directory makes
+  `durable_for` return the real results prefix, and `--allow-dirty` carries the run past
+  `repro.run`'s dirty-tree refusal. So it published. Three objects sit under
+  `corpora/results/c5-1/` and three more under
+  `corpora/results/c5-1/by-commit/02b1a4511d4048fd93b8216b1182549f277d66ae/`, and that commit is
+  the handoff note — it does not contain the tool that produced them. The bucket has no
+  `s3:DeleteObject`, so the `by-commit` twin is permanent and permanently wrong. The stable keys
+  were replaced by a later clean run; the twin cannot be.
+  This is the same family as D-193 and D-224, where a probe published to a deliverable's prefix,
+  and it is the second half of the same hole: those two were about *where* a run writes, this
+  one is about *whether a run should write at all*. `durable_for` was built for the first and is
+  blind to the second, because `--out` and the tree's state are independent.
+- **Decision — the guard goes at the tool, and it refuses before any network work.** Both tools
+  added here take `allow_dirty` into `durable_for` and return no destination when it is set,
+  printing the reason. The exemption is declared in `test_repro.py`'s `EXEMPT_CALL_SITES`
+  inventory, which is the project's existing mechanism for exactly this and which fails on an
+  undeclared one.
+- **Decision — and the systemic fix is *attempted and withdrawn*, deliberately recorded.**
+  `AGENTS.md` says to fix the shape rather than the tool, because fixing D-193 in
+  `detect_segmented.py` alone let the identical bug reach a no-delete bucket through
+  `detect_profiles.py` nine days later (D-224). Eleven tools pass a canonical `durable` beside
+  an `--allow-dirty` flag — `assay_depth`, `assay_register`, `baseline_scores`, `control_set`,
+  `denylist_label_records`, `detect_profiles`, `detect_segmented`, `extract_matched_regions`,
+  `scoring_summary` and the two added here — so the obvious fix is one guard inside
+  `repro.run`, which already holds both facts. **That was written, and it broke five existing
+  tests in `test_repro.py`, and the tests were right.** They pin D-216's commit-keyed-copy
+  semantics in a temporary git repository where the run's *own output directory* is what makes
+  the tree dirty. So "dirty" at that layer does not mean what the incident means by it: the
+  hazard is uncommitted **code and inputs**, not the presence of outputs the run has just
+  written. A guard that cannot tell those apart either blocks legitimate publishing, as it did,
+  or has to classify dirty paths by position — and a heuristic that wrongly reads dirt as
+  "confined to the outputs" re-opens the hole silently, which is the one failure direction that
+  matters in a store that cannot forget.
+  So the change was reverted rather than forced, and **the nine other tools are left unguarded
+  and named above**, which is the disclosure `AGENTS.md` asks for in place of the fix. Doing it
+  properly means separating output dirt from source dirt in `repro.run` and re-pinning D-216's
+  tests against that distinction. That is its own task on `repro`'s contract, not a thing to
+  bolt onto a Phase C family set, and it should be taken as one.
+- **Rejected:** Rewriting the five `test_repro.py` tests so the broad guard could land. They pin
+  the commit-keyed copy, which is the mechanism that makes a published result citable; bending
+  them to accommodate a new guard risks masking what they exist to catch, and it is someone
+  else's work absorbed into this task.
+  Classifying dirty paths by whether they sit under the run's output directory. It would have
+  kept both the guard and the tests, and it fails in the direction that permits a dirty publish.
+  Leaving the stray objects unrecorded. A1.3's four 0-byte objects are on the record for the
+  same reason: the bucket's permanence means an inventory of what is wrong in it is the only
+  correction available.
+- **Consequence:** `corpora/results/c5-1/by-commit/02b1a4511d4048fd93b8216b1182549f277d66ae/`
+  holds three objects — `hazard-family-set.json`, `hazard-family-set.tsv`, `run.json` — whose
+  manifest names a commit that does not contain their producer. They are not cited by anything
+  and must not be: the citable copies are the ones under the clean commit's own twin. Nothing
+  else published before the guard landed. Nine tools retain the shape that caused this.
+
+### D-266 — the cost curve's subjects are the 646 viral, family-specific nominations, and the other 498 are reported not dropped
+- **Date:** 2026-10-27
+- **Task:** C5.1 (bearing on C5.2, C6.1, C6.3, C7.1)
+- **Note on where this entry sits:** as D-263 through D-265 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else.
+- **Settled by the project owner**, on the choice D-264 put to them and declined to make.
+- **Context.** D-264 rebuilt the hazard family set and found that nominating by database
+  cross-reference admits 1,144 families, of which **481 fall outside this project's pinned
+  viral selection** (D-075) — actin, protein kinases, the immunoglobulin domain — arriving
+  almost entirely through the large-genome viruses: *Poxviridae* 124, *Herpesvirales* 118,
+  *Herpesviridae* 106, *Lefavirales* 90, *Ortervirales* 79, *Retroviridae* 73. The nomination
+  is not an error: a reviewed *Poxviridae* protein really is annotated to those families. The
+  question was whether a curve should be computed over them, and `metrics/costcurve.md` §3 was
+  pre-registered before any computation, so narrowing it after seeing the output is exactly
+  what the pre-registration exists to prevent.
+- **Decision.** **Curve subjects are the nominated families that are both in the pinned viral
+  selection and `viral_only` by A4.5's background measure — 646 of 1,144.** The amendment is
+  written into `metrics/costcurve.md` §3 as an amendment, dated, citing this entry, rather
+  than edited in as though it had always said so.
+  **It is not a cosmetic tidy, and the direction matters.** With the host-derived families in,
+  `H(s)` counts removing actin as *hazard removed*; and because §5's collateral denominator
+  excludes every nominated family, the same nomination also removes actin from *collateral
+  removed*. Both errors make filtering look cheaper than it is. An audit whose pre-registered
+  definition is biased toward flattering the safeguard it audits is worse than one that amends
+  the definition in the open, which is the trade taken here.
+  **Nothing is deleted.** `tools/hazard_family_set.py` publishes all 1,144 rows carrying
+  `viral_selection`, `specificity`, `exclusivity` and the nominating taxa, so the subject list
+  is a filter anyone can recompute or reverse, and the 498 excluded are reported as a count
+  beside the curves.
+- **Rejected:** Keeping the pre-registered definition unchanged and reporting the bias as a
+  caveat. §7's adversarial reader finds a hazard set containing actin in a minute, and a
+  caveat beside a curve does not undo a numerator and a denominator that both move the same
+  way.
+  Dropping the 498 from the published set rather than filtering at the curve. The nomination is
+  a fact about a curated database and a reader is entitled to see what the published list
+  actually nominated; a set that silently omits them cannot be checked against its own method.
+  Deferring to C6.1. The subject list is an input to C5.2's index, which is the next task, so
+  leaving it open would have made C5.2 index families the curve will not use.
+- **Consequence:** C5.2 indexes 646 families rather than 1,144, which is also about 44% of the
+  neighbourhood work. C6.1's curves, C6.3's reimplementation and C7.1 all read the amended
+  subject list. The write-up has to carry one sentence saying the subject list was narrowed
+  after the set was built, why, and in which direction the unnarrowed version would have erred.
+
+### D-267 — the census did not fail on throughput, it failed on thread oversubscription, and the launcher now refuses that sizing
+- **Date:** 2026-10-27
+- **Task:** A2.6 (bearing on A2.1, A3.2, A3.4 and any future deep pass)
+- **Note on where this entry sits:** as D-263 through D-266 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb`.
+- **Context.** The owner asked what a full census would cost if it could be run cheaply. A2.6
+  is `deferred` as a cash decision (D-247) and its costing has been wrong once: the 2026-10-20
+  launch ran two `m6i.2xlarge` with eight band workers each, hit its fourteen-hour ceiling, and
+  **not one of sixteen bands finished** against an estimate of five to seven hours. D-233
+  diagnosed the missing evidence — nothing published, because both publishing paths run only on
+  completion — and named a probable cause in passing: "the numeric stacks size their thread
+  pools to all cores regardless of what else is running; eight workers on eight vCPUs is that
+  trap at scale", measured locally that day at three concurrent jobs costing about sixteen
+  times one rather than three.
+- **Decision — the cause is now specific, and it is a default three call sites away from the
+  launcher.** `amazebio.profilesearch.search` takes `cpus: int = 3` and **nothing overrode it**:
+  `tools/detect_profiles.py` called it without the argument and `tools/ec2_detect_census.py`
+  passed nothing down. So the sizing that was reviewed was "eight workers on eight vCPUs" and
+  the sizing that ran was **24 HMMER threads on eight vCPUs**. Gene calling is one thread per
+  worker (`pyrodigal.GeneFinder`), so the search is the whole of the oversubscription.
+  The arithmetic reconciles the failure without needing a second explanation. Take the costing's
+  own 80 core-hours, of which 54 is the Pfam search. At D-233's measured penalty for a 3×
+  oversubscription — three jobs costing about sixteen times one, so roughly 5× per job — the
+  search alone goes from 54 core-hours to something near 270, which across 16 vCPUs is about
+  **17 hours: past the fourteen-hour ceiling, with no band finished.** That is what was
+  observed, and no second cause is needed to get there.
+  **Two caveats on that arithmetic, because this task's costing has been wrong once already.**
+  The penalty is a local measurement of a different workload, carried across; it sets the order
+  of magnitude, not the hour. And the costing table's own streaming row does not reconcile with
+  itself — it gives 35 GB at 130 Mres/s *and* calls that ~2 core-hours, where the rate implies
+  about 0.075, a factor of 27. The re-read each band pays is real (every worker streams its
+  component in full and keeps only its hash slice, so decompression happens eight times per
+  release) but its size is unknown between those two readings: somewhere between a rounding
+  error and ~16 core-hours. It is not the dominant term either way, and it is flagged here
+  rather than silently folded into a total.
+- **Decision — what changed in code.** `detect_profiles.py` takes `--search-cpus` and applies it
+  to every search; the library default of 3 is unchanged, so a tool run by hand behaves as
+  before. `ec2_detect_census.py` defaults to **one thread per worker**, passes it on every
+  worker line, and `check_cpu_budget` refuses a launch whose workers × threads exceed the
+  instance's vCPUs — the 2026-10-20 sizing is now a refusal with the reason. The check lives in
+  the launcher because it is the only place that knows both numbers, which is precisely why
+  nothing caught it the first time. Thread count changes timing and never which hits are
+  accepted, so this moves no result.
+- **Rejected:** Treating the estimate as simply optimistic and buying a longer timer. That is
+  the reading that spends the money again to re-learn the same thing; D-233 left a measured
+  local penalty on the record and it accounts for the gap.
+  Fixing it by lowering `--workers-per-release` alone. It would work and it wastes cores: at
+  one thread per worker the eight bands fit the eight vCPUs exactly.
+  Reading the memory sizing as the cause. It is a real hazard — the first launch used
+  `m6i.2xlarge` at 32 GB where the launcher's own comment calls for `r6i.2xlarge` at 64 GB for
+  eight workers' profile sets — but it predicts a worker dying, and what was observed was
+  sixteen workers all still running at the ceiling. Recorded as a second thing to get right,
+  not as the explanation.
+- **Consequence:** **Nothing is bought and nothing is launched by this entry; A2.6 stays
+  `deferred` and the spend remains the owner's.** What changes is that the next attempt has a
+  sizing that fits the machine and a guard that refuses one that does not. The honest next step
+  is still D-233's `--band` timing probe — a single worker over a sliver of one release,
+  publishing nothing — because the corrected cost above is arithmetic, and this task's costing
+  has been arithmetic that was wrong once. The probe is minutes of one instance, and it is what
+  would put a measured number in front of the decision instead of a third estimate.
+
+### D-268 — the census is measured at last: OpenGenome2 alone is the whole original budget, and the search rate was out by 2x
+- **Date:** 2026-10-27
+- **Task:** A2.6 (bearing on A2.1, A3.2, A3.4, A6.1 and any future deep pass)
+- **Note on where this entry sits:** as D-263 through D-267 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else.
+- **Context.** D-267 fixed the thread oversubscription and said in its own consequence that the
+  corrected cost was still arithmetic, and that this task's costing has been arithmetic that was
+  wrong once. The owner authorised D-233's `--band` timing probe. It ran on 2026-10-27:
+  `i-0b3a82cf5e0148a08`, one `m6i.2xlarge` on spot, one worker, `opengenome2` band `1:5`
+  (four multiples of the 0.001 initial rate, so 0.4% of each component), `--search-cpus 1`,
+  120-minute dead man's switch. It completed on its own in **34.3 minutes**, wrote
+  `run complete`, terminated itself (`User initiated`), left nothing running, and **published
+  nothing** — the instance's own log records `not publishing: --out /opt/amazebio/out-opengenome2-1-5
+  is not /opt/amazebio/artifacts/a2-6, so this run is a rehearsal`, which is D-232's rule
+  observed rather than assumed. **Cost $0.09.**
+- **Measured, per component, on band [0.001, 0.005):**
+
+  | component | records | genes | genes/record | read | search, 1 thread | ms/gene |
+  |---|---|---|---|---|---|---|
+  | imgvr | 11,516 | 201,392 | 17.49 | 7.0 min | 15.3 min | **4.558** |
+  | imgpr | 822 | 25,291 | 30.77 | 1.0 min | 2.2 min | **5.219** |
+
+  26,245 detections, **identical under all three readings** of the filter, which is A1.4's
+  finding that every taxonomy rule is unresolvable against this component, reproduced here as a
+  by-product.
+- **Decision — three corrections to the costing, all in the same direction.**
+  **1. The search rate was out by about 2x.** The costing table gives 2.19 ms/gene for
+  OpenGenome2; the measured single-thread rate is **4.56 ms/gene** on imgvr and 5.22 on imgpr.
+  The ratio is almost exactly 2, which is the tell: the published figure was wall-clock per gene
+  at `cpus=3`, not core-time. So the table's "54 core-hours" of search was never core-hours.
+  **2. Streaming is 25x cheaper than the table says, and the contradiction D-267 flagged
+  resolves in favour of the rate.** 11,516 records of a 0.4% band means ~2.88M records streamed,
+  and that took 7.0 minutes including gene calling. A full imgvr pass is therefore about
+  **0.1 core-hours**, not the ~2 the table claims. The per-band re-read — eight workers each
+  streaming the whole component — is consequently a rounding error, not the 0-to-16 core-hour
+  range D-267 had to leave open.
+  **3. OpenGenome2 alone is the entire original budget.** Scaling the measurement to census
+  depth (×249.75): **72.8 core-hours of search, 5.5 of gene calling, ~1 of streaming — 79.4
+  core-hours**, against an estimate of 80 for *both releases*. On eight vCPUs that is **9.9
+  hours of wall clock for one release**, against the estimate's "five to seven hours" for the
+  pair. OpenGenome's stage 2 is unmeasured and would run on the second instance in parallel.
+  **At two `m6i.2xlarge` on spot, ~10 hours, that is about $3.30** — still cheap in money, and
+  now with only about 40% headroom against the fourteen-hour hard stop rather than the 2.5x the
+  estimate implied.
+- **Decision — a scoping fault the probe also exposed, which is not about cost.** The census
+  searches what A1.4's manifests say survives the *published rules*, and A1.4 found every
+  taxonomy rule unresolvable on this component, so the searched set is essentially the whole
+  released FASTA: **2,957,495 imgvr records**. The training corpus is **2,653,047**, and the
+  difference is **304,448** — exactly the figure A7.3 and D-262 record for FASTA entries absent
+  from the training corpus, reproduced here from the manifest's own count. So **10.3% of a
+  census would be spent on records the model never trained on**, and its "surviving corpus"
+  figures would be stated over a population that includes 304,448 records which did not survive
+  into training at all. Restricting to training members is impossible without D-262's accession
+  list, which died with its container, so **that rebuild is a prerequisite for a correctly
+  scoped census rather than an improvement to it.**
+- **Rejected:** Quoting a census price from the corrected arithmetic alone. That is what D-267
+  did, and it was out by a factor of two in the term that dominates; the probe cost nine cents
+  and changed the answer.
+  Probing both releases. One release at a time is the instrument D-233 specified, because a rate
+  measured over two components at once is the contention figure rather than the rate. The cost
+  is that OpenGenome's stage 2 is still an estimate, and this entry says so rather than
+  implying the pair is measured.
+  Reading the identical detection counts across the three readings as a validation of the
+  filter. They are identical because the rules cannot be executed against this component at
+  all, which is a finding about the published filter and not a check that passed.
+- **Consequence:** A2.6 stays `deferred`; nothing further is bought by this entry. What it
+  supplies is a measured number where there were three estimates: a full census of OpenGenome2
+  is about 79 core-hours, ten hours of wall clock, and some $3.30 for the pair of instances.
+  Restricting the search to the 646 curve subjects D-266 fixed would cut the search to 27.4
+  core-hours and the wall clock to about **4.2 hours** — but that is a different measurement
+  from A2.6's, because a family outside the restricted set comes back unmeasured rather than
+  absent, so it cannot produce M1/M2/M3 population figures. Which of those two is worth buying,
+  and whether either should wait on the accession list, is the owner's call.
