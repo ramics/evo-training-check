@@ -12059,3 +12059,47 @@ decision has a threshold or parameter in it, the number goes in the entry.
   assembly, so the assembly brings the census bands down by name. A new test runs the real
   `bands_cover_rate` over the real rates for every worker count, rather than asserting only that
   the arithmetic tiles.
+
+### D-271 — eight workers on one machine run 2.3x slower per gene than one, and the census timer was set from the wrong measurement
+
+- **Date:** 2026-10-27
+- **Task:** A2.6
+- **Measured on the live census run**, 10:47–12:38Z, over 480,000 records and 5,097,573 genes
+  across the eight workers — not on a probe. Two figures in the costing were wrong, in opposite
+  directions, and the net is that the run is longer than approved.
+- **Genes per record is 10.62, not 17.49.** The 17.49 in the runbook came from the timing probe's
+  `--limit-records 20` pass: twenty records per source. At 480,000 records the figure is 10.62,
+  so the release holds about 31.4M imgvr genes rather than 51.7M. This one helps.
+- **Per-gene search time with eight workers is 10.12 ms, against 4.343 ms measured with one.**
+  That is 2.33x, not the ~1x that eight single-threaded workers on eight vCPUs would suggest, and
+  it is the risk the runbook named as the only unmeasured one left — the timing probe ran **one**
+  worker, so it could not see contention. The likely cause is not HMMER threads (D-267 fixed
+  that, and `--search-cpus 1` is confirmed on every worker line): each worker streams the whole
+  component and keeps the slice its hash band owns, so eight workers decompress the same gzip
+  stream eight times over, and `AGENTS.md` already records that a gzip stream is one thread
+  whatever the core count. Eight redundant decompressions plus eight searches is sixteen threads
+  of demand on eight cores. **Not diagnosed, only inferred** — the fix would be one reader
+  feeding eight searchers, which is its own task, not this one.
+- **The consequence, and why the first launch was killed.** 4.74M genes per worker at 10.12 ms is
+  13.3 hours against a hard stop armed at 14. A band part is published only when a worker
+  finishes its whole band, so overrunning the stop yields **nothing at all** — that is D-233
+  exactly. Thirty minutes of slack on an all-or-nothing run is not slack. The instance was
+  terminated at 12:45Z with about $1 of compute spent, and relaunched at 13:09Z as
+  `i-001f0c8712a7bcda1` with `--hard-stop-minutes 1200`, which puts the stop about 6.5 hours
+  past the projected finish.
+- **Alternatives rejected.** Letting it run — rejected: roughly even odds of spending about $7
+  and a full day for no artefact, with no way to extend the timer once armed
+  (`ec2:ModifyInstanceAttribute` is denied, and there is no shell). Relaunching with fewer
+  workers per machine — rejected on arithmetic: contention per worker falls but each worker's
+  share of the genes rises, and the total core-work is unchanged, so the wall clock does not
+  improve and probably worsens. Putting the two releases on one machine — already rejected in
+  the runbook and more so now.
+- **What this changes for the owner.** The approved cost was about $5 for this release on a
+  measured sizing. The honest figure is about $7, and about $8 including the hour thrown away.
+  That was put to the owner before relaunching rather than after, and the owner chose to
+  relaunch. The 2026-10-20 overspend happened by not asking; this is the same shape of decision
+  asked the other way round.
+- **Consequence for the write-up.** The costing table that says 80 core-hours for both releases
+  is now wrong twice over — once on the search rate (D-268) and once on contention. Whatever
+  reports this task's cost reports the measured 2.33x, because a reader sizing their own audit
+  from a single-worker probe would make the same mistake.

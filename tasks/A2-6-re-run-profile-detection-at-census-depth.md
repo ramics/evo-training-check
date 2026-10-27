@@ -195,27 +195,33 @@ An earlier version of this block said that part would be merged and silently dou
 was wrong — the coverage check catches overlaps — and the correction is recorded here rather
 than quietly dropped.
 
-**A census run is LIVE as of 2026-10-27 10:47Z — instance `i-083829dabcbb6e839`, on demand, in
+**A census run is LIVE as of 2026-10-27 13:09Z — instance `i-001f0c8712a7bcda1`, on demand, in
 `us-east-1`.** OpenGenome2 only; OpenGenome is deliberately not launched, by the owner's call, so
 the first release can be assembled and checked before the second is bought.
 
 - `r6i.2xlarge`, 8 workers, one search thread each, from commit `d768fd3`. Bands tile `[0, 1000)`
   in eight: `0:125` through `875:1000` (D-270).
-- **On demand, not spot**, and that is the owner's explicit decision rather than a silent
-  substitution: `r6i.2xlarge` spot returned `InsufficientInstanceCapacity` on two attempts, and
-  the choice between paying list price and dropping to the unverified 32 GB machine was put to
-  the owner, who chose to pay. About $5 against the $3.40 spot estimate. The 2026-10-20 overspend
-  happened by making this swap without asking; it was asked this time.
-- Hard stop `shutdown -h +840` armed at boot, `InstanceInitiatedShutdownBehavior=terminate`.
-  The launcher's own watcher is NOT reliable here — the session's background process is capped
-  well under the run's length — so the boot timer and the self-terminate are what actually
-  bound the spend. Expected finish 19:45–20:30Z; the timer fires 00:47Z.
-- Logs land in `results/a2-6/logs-i-083829dabcbb6e839/` every ten minutes; the exit reason lands
-  as `results/a2-6/exit-i-083829dabcbb6e839-<epoch>.txt`, and `run complete` is success.
-- Health at 11:08Z: all eight workers reading, band `[0.0, 0.125)` confirming the tiling fix in
-  the real run, no `not publishing` line (so the parts will publish), reference data at its
-  pinned digests, 1,719 families. Search rate consistent with the 4.343 ms/gene measured on the
-  timing run.
+- **Hard stop `shutdown -h +1200`** — 20 hours, firing about 09:09Z on 2026-10-28, against a
+  projected finish near 02:35Z. `InstanceInitiatedShutdownBehavior=terminate`.
+- **This is the second launch. The first was killed deliberately** (D-271). It ran 10:47–12:45Z
+  with a 14-hour stop, and measurement on its own output put it at 13.3 hours against that stop:
+  thirty minutes of slack on a run that publishes nothing at all if it overruns, because a part
+  is written only when its worker finishes its whole band. About $1 of compute was thrown away to
+  remove that risk. The cause is contention — 10.12 ms/gene with eight workers against 4.343 ms
+  with one, the one thing the timing probe could not measure because it ran a single worker.
+- **On demand, not spot**, and the owner's explicit decision rather than a silent substitution:
+  `r6i.2xlarge` spot returned `InsufficientInstanceCapacity` twice, and the choice between list
+  price and the unverified 32 GB machine was put to the owner. The 2026-10-20 overspend happened
+  by making this swap without asking.
+- The launcher's own watcher is NOT reliable here — the session's background process is capped
+  well under the run's length — so the boot timer and the self-terminate are what actually bound
+  the spend.
+- Logs land in `results/a2-6/logs-i-001f0c8712a7bcda1/` every ten minutes; the exit reason lands
+  as `results/a2-6/exit-i-001f0c8712a7bcda1-<epoch>.txt`, and `run complete` is success.
+
+**Cost, honestly.** The approved figure was about $5 for this release. The measured figure is
+about $7, plus about $1 for the killed launch. Both corrections are in D-271 and both were put to
+the owner before relaunching.
 
 **If you are picking this up and that machine is gone, check the exit object first.** Then the
 eight parts under `results/a2-6/parts/part-opengenome2-*.json`. To assemble, bring those eight
