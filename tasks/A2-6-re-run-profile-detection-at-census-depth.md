@@ -201,8 +201,19 @@ the first release can be assembled and checked before the second is bought.
 
 - `r6i.2xlarge`, 8 workers, one search thread each, from commit `d768fd3`. Bands tile `[0, 1000)`
   in eight: `0:125` through `875:1000` (D-270).
-- **Hard stop `shutdown -h +1200`** — 20 hours, firing about 09:09Z on 2026-10-28, against a
-  projected finish near 02:35Z. `InstanceInitiatedShutdownBehavior=terminate`.
+- **Hard stop `shutdown -h +1200`** — 20 hours, firing about 09:09Z on 2026-10-28.
+  `InstanceInitiatedShutdownBehavior=terminate`.
+- **Projection, remeasured 18:50Z on the run's own output and now the one to trust: finish about
+  05:00Z, margin about 4 hours.** Measure on *genes*, not on chunks: gene density rises along the
+  component, from 10.62 genes/record over the first 480,000 records to 14.03 over the first
+  1,200,000, so a chunk-rate reading looks like the machine slowing when it is not. Per-gene
+  time is steady at 9.43 ms with eight workers. Each worker's total is 6.00M genes (5.19M imgvr,
+  0.81M imgpr) against the 4.74M first estimated, because that estimate used the early density.
+- **This confirms killing the first launch was right, by more than was known at the time.** At
+  6.00M genes and 9.43 ms the run needs about 15.7 hours from the start of searching. The first
+  launch's stop was armed at 14 hours, so it would have been powered off about two hours short
+  and published nothing at all — not the thirty-minute near-miss D-271 estimated, but a clear
+  miss.
 - **This is the second launch. The first was killed deliberately** (D-271). It ran 10:47–12:45Z
   with a 14-hour stop, and measurement on its own output put it at 13.3 hours against that stop:
   thirty minutes of slack on a run that publishes nothing at all if it overruns, because a part
