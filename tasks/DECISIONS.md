@@ -11904,3 +11904,77 @@ decision has a threshold or parameter in it, the number goes in the entry.
   publishing nothing — because the corrected cost above is arithmetic, and this task's costing
   has been arithmetic that was wrong once. The probe is minutes of one instance, and it is what
   would put a measured number in front of the decision instead of a third estimate.
+
+### D-268 — the census is measured at last: OpenGenome2 alone is the whole original budget, and the search rate was out by 2x
+- **Date:** 2026-10-27
+- **Task:** A2.6 (bearing on A2.1, A3.2, A3.4, A6.1 and any future deep pass)
+- **Note on where this entry sits:** as D-263 through D-267 — belongs on `main`, committed on
+  `claude/jolly-allen-oahiqb` because this session may push nowhere else.
+- **Context.** D-267 fixed the thread oversubscription and said in its own consequence that the
+  corrected cost was still arithmetic, and that this task's costing has been arithmetic that was
+  wrong once. The owner authorised D-233's `--band` timing probe. It ran on 2026-10-27:
+  `i-0b3a82cf5e0148a08`, one `m6i.2xlarge` on spot, one worker, `opengenome2` band `1:5`
+  (four multiples of the 0.001 initial rate, so 0.4% of each component), `--search-cpus 1`,
+  120-minute dead man's switch. It completed on its own in **34.3 minutes**, wrote
+  `run complete`, terminated itself (`User initiated`), left nothing running, and **published
+  nothing** — the instance's own log records `not publishing: --out /opt/amazebio/out-opengenome2-1-5
+  is not /opt/amazebio/artifacts/a2-6, so this run is a rehearsal`, which is D-232's rule
+  observed rather than assumed. **Cost $0.09.**
+- **Measured, per component, on band [0.001, 0.005):**
+
+  | component | records | genes | genes/record | read | search, 1 thread | ms/gene |
+  |---|---|---|---|---|---|---|
+  | imgvr | 11,516 | 201,392 | 17.49 | 7.0 min | 15.3 min | **4.558** |
+  | imgpr | 822 | 25,291 | 30.77 | 1.0 min | 2.2 min | **5.219** |
+
+  26,245 detections, **identical under all three readings** of the filter, which is A1.4's
+  finding that every taxonomy rule is unresolvable against this component, reproduced here as a
+  by-product.
+- **Decision — three corrections to the costing, all in the same direction.**
+  **1. The search rate was out by about 2x.** The costing table gives 2.19 ms/gene for
+  OpenGenome2; the measured single-thread rate is **4.56 ms/gene** on imgvr and 5.22 on imgpr.
+  The ratio is almost exactly 2, which is the tell: the published figure was wall-clock per gene
+  at `cpus=3`, not core-time. So the table's "54 core-hours" of search was never core-hours.
+  **2. Streaming is 25x cheaper than the table says, and the contradiction D-267 flagged
+  resolves in favour of the rate.** 11,516 records of a 0.4% band means ~2.88M records streamed,
+  and that took 7.0 minutes including gene calling. A full imgvr pass is therefore about
+  **0.1 core-hours**, not the ~2 the table claims. The per-band re-read — eight workers each
+  streaming the whole component — is consequently a rounding error, not the 0-to-16 core-hour
+  range D-267 had to leave open.
+  **3. OpenGenome2 alone is the entire original budget.** Scaling the measurement to census
+  depth (×249.75): **72.8 core-hours of search, 5.5 of gene calling, ~1 of streaming — 79.4
+  core-hours**, against an estimate of 80 for *both releases*. On eight vCPUs that is **9.9
+  hours of wall clock for one release**, against the estimate's "five to seven hours" for the
+  pair. OpenGenome's stage 2 is unmeasured and would run on the second instance in parallel.
+  **At two `m6i.2xlarge` on spot, ~10 hours, that is about $3.30** — still cheap in money, and
+  now with only about 40% headroom against the fourteen-hour hard stop rather than the 2.5x the
+  estimate implied.
+- **Decision — a scoping fault the probe also exposed, which is not about cost.** The census
+  searches what A1.4's manifests say survives the *published rules*, and A1.4 found every
+  taxonomy rule unresolvable on this component, so the searched set is essentially the whole
+  released FASTA: **2,957,495 imgvr records**. The training corpus is **2,653,047**, and the
+  difference is **304,448** — exactly the figure A7.3 and D-262 record for FASTA entries absent
+  from the training corpus, reproduced here from the manifest's own count. So **10.3% of a
+  census would be spent on records the model never trained on**, and its "surviving corpus"
+  figures would be stated over a population that includes 304,448 records which did not survive
+  into training at all. Restricting to training members is impossible without D-262's accession
+  list, which died with its container, so **that rebuild is a prerequisite for a correctly
+  scoped census rather than an improvement to it.**
+- **Rejected:** Quoting a census price from the corrected arithmetic alone. That is what D-267
+  did, and it was out by a factor of two in the term that dominates; the probe cost nine cents
+  and changed the answer.
+  Probing both releases. One release at a time is the instrument D-233 specified, because a rate
+  measured over two components at once is the contention figure rather than the rate. The cost
+  is that OpenGenome's stage 2 is still an estimate, and this entry says so rather than
+  implying the pair is measured.
+  Reading the identical detection counts across the three readings as a validation of the
+  filter. They are identical because the rules cannot be executed against this component at
+  all, which is a finding about the published filter and not a check that passed.
+- **Consequence:** A2.6 stays `deferred`; nothing further is bought by this entry. What it
+  supplies is a measured number where there were three estimates: a full census of OpenGenome2
+  is about 79 core-hours, ten hours of wall clock, and some $3.30 for the pair of instances.
+  Restricting the search to the 646 curve subjects D-266 fixed would cut the search to 27.4
+  core-hours and the wall clock to about **4.2 hours** — but that is a different measurement
+  from A2.6's, because a family outside the restricted set comes back unmeasured rather than
+  absent, so it cannot produce M1/M2/M3 population figures. Which of those two is worth buying,
+  and whether either should wait on the accession list, is the owner's call.
