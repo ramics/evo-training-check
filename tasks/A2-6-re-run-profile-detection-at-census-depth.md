@@ -166,19 +166,34 @@ that stops a probe landing on the deliverable (D-232, D-268); the `test -f` on t
 and a pre-flight on the instance that loads the policy specs and the manifests rather than only
 importing the module.
 
-Left: probe OpenGenome's stage 2, which is the one unmeasured rate and decides whether that
-release fits the timer; rehearse `--assemble` against the shape the census will produce, which
-has failed twice, both times after the compute was spent; launch the two releases as two
-launches; assemble; re-run A3.2 against the new tables keeping A2.1's sampled tables beside them;
-record the actual cost and wall clock against the sizing above.
+The assembly rehearsal is done, against the shape this run will write rather than the previous
+task's artefacts, and **it found a blocker before any compute was spent** (D-270). The eight
+census bands tiled `[base_rate, 1.0)` and left `[0, base_rate)` read by nothing, so
+`--assemble` refused the census outright — after the full search. The bands now tile from zero;
+the cost is re-reading the initial sliver, minutes against ten hours. Assembly then completes
+and reports `rate 1.0 (population)`.
 
-One hazard found while pre-flighting, recorded here because it would land after the compute is
-spent: `corpora/results/a2-6/parts/part-opengenome2-1-126.json` is a **sampled** band part left
-in the census prefix by the 2026-10-20 run, at A2.1's rates and band multiple `[1, 126]`. Its
-release field matches, `assemble` filters parts by release only, and its coverage check fails on
-a gap rather than an overlap — so if a recursive copy drags it into the local parts directory it
-would be merged into a census and silently double-count, and the store has no delete. The
-assembly must bring down the census bands by name, not the whole prefix.
+Left: read the stage-2 search rate off the running probe and confirm OpenGenome fits the timer;
+launch the two releases as two launches; assemble; re-run A3.2 against the new tables keeping
+A2.1's sampled tables beside them; record the actual cost and wall clock against the sizing
+above.
+
+One piece of junk to keep out of the assembly, though it is not the silent hazard it first
+looked like. `corpora/results/a2-6/parts/part-opengenome2-1-126.json` is a **sampled** band part
+left in the census prefix by the 2026-10-20 run — 40 rows over 20 records, claiming band
+`[0.001, 0.126]`, which is the `--limit-records` shape `AGENTS.md` warns about. Its release
+field matches the census's, and `assemble` filters parts by release only, so a recursive copy of
+the prefix would pull it in. It would **not** double-count silently: `bands_cover_rate` rejects
+an overlap as well as a gap, which was checked by dropping the real object into the rehearsal
+and watching the assembly refuse. So the cost is a confusing refusal rather than a wrong
+number — but it is a refusal after the compute, so the assembly should still bring the census
+bands down by name rather than copying the prefix. The store has no delete and the part cannot
+be removed; with the bands now starting at zero its name no longer collides with a census band,
+so it is inert unless something copies it in.
+
+An earlier version of this block said that part would be merged and silently double-count. That
+was wrong — the coverage check catches overlaps — and the correction is recorded here rather
+than quietly dropped.
 
 Waiting on the project owner: nothing. The accession list from D-262 remains outstanding and is
 the prerequisite for a *correctly scoped* census; per D-269 the census runs now and carries that

@@ -12016,3 +12016,46 @@ decision has a threshold or parameter in it, the number goes in the entry.
   remain lower bounds, and the two registries are already never pooled (D-022, D-161). Every
   place these numbers appear has to say so, and A2.1's sampled tables stay readable beside the
   census ones.
+
+### D-270 — the census bands tile the whole rate from zero, because a census that leans on a sampled task's artefact cannot assemble
+
+- **Date:** 2026-10-27
+- **Task:** A2.6
+- **Found by rehearsing the assembly before launching**, against the shape the pending run will
+  write rather than the shape the last run produced. The runbook calls that step the one most
+  likely to be skipped; it is also the one that paid for itself here.
+- **The defect.** `tools/ec2_detect_census.py:bands` split `[1, multiple)` — multiples of the
+  component's own initial rate — so the eight census bands covered `[base_rate, 1.0)` and left
+  `[0, base_rate)` read by nothing. `detect.SampleDesign.bands_cover_rate` checks the bands
+  against `[0, rate)`, so `--assemble` refused the census outright, with "the bands … do not
+  tile [0, 1.0)". It refuses **after** the search: about ten hours and a release's entire spend.
+  The assembler's own note for the no-initial-pass case asserted the bands "start at multiple 1
+  and tile the whole rate", which is false and contradicted the check sitting next to it.
+- **Why the old split looked right.** A2.1's initial pass had read `[0, base_rate)`, so a band
+  re-reading it would be paying twice. That held when A2.1 was a single pass at its
+  pre-registered rate. It stopped holding when A2.1 was deepened tenfold, and nothing moved the
+  band arithmetic with it.
+- **Why filling the gap from A2.1's table is not the fix.** A2.1's published table covers bands
+  `[0, 0.001]` **and** `[0.001, 0.01]` at `rate: 0.01`. Merged with a census band starting at
+  `0.001`, the sliver `[0.001, 0.01]` would be covered twice — one percent of the corpus, its
+  rows concatenated from both sides and its per-source counts added. That one *is* caught, since
+  `bands_cover_rate` rejects an overlap as well as a gap (verified by dropping the real stale
+  part into the rehearsal and watching the assembly refuse), but it is caught the same expensive
+  way, after the search.
+- **The fix.** The bands tile `[0, multiple)`. The census reads the whole rate itself and depends
+  on no other task's artefact for its own denominator, which is what the word census should have
+  meant here from the start. The cost is re-reading the initial sliver: 0.1% of OpenGenome2,
+  0.2% of OpenGenome, minutes against ten hours, and the cheapest part of the run.
+- **Alternatives rejected.** Placing A2.1's tables in the census output directory before
+  assembling — rejected for the double-count above, and because D-222 wants the sampled and
+  census tables separate, the comparison between them being part of the result. Relaxing
+  `bands_cover_rate` to accept a first band that starts at the initial rate — rejected outright:
+  that check is the only thing standing between a table and a denominator covering records
+  nothing read, and loosening it to fit a launcher bug would void the guarantee for every
+  banded pass, not just this one.
+- **Consequence.** Band names change, so the census no longer writes over
+  `parts/part-opengenome2-1-126.json` — the 2026-10-20 sampled part, which stays in the store
+  because the bucket has no delete. It is inert unless a recursive copy pulls it into an
+  assembly, so the assembly brings the census bands down by name. A new test runs the real
+  `bands_cover_rate` over the real rates for every worker count, rather than asserting only that
+  the arithmetic tiles.
