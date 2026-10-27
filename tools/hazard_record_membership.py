@@ -337,11 +337,18 @@ def main() -> int:
             },
             "score_over_threshold": {c: ratios(by_class[c]) for c in CLASSES},
             "name_axis_records": len(results),
+            # Agreement counts only the records this instrument can speak to. An
+            # `unnominatable` family has no reviewed entries, so it is neither agreement nor
+            # disagreement, and folding it into either would overstate one of them by exactly
+            # the number of records the instrument is silent on.
             "agreement_with_name_axis": {
                 "name_axis_says_denylisted": len(results),
-                "biology_agrees_nominated": len(results) - len(by_class["not_nominated"]),
+                "biology_agrees_nominated": (
+                    len(by_class["hazard_family_exclusive"]) + len(by_class["hazard_family_shared"])
+                ),
                 "biology_agrees_exclusive": len(by_class["hazard_family_exclusive"]),
                 "biology_disagrees": len(by_class["not_nominated"]),
+                "biology_cannot_say": len(by_class["unnominatable"]),
             },
         }
 
