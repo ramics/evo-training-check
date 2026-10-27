@@ -2,7 +2,7 @@
 id: A2.6
 title: Re-run profile detection at census depth
 phase: A
-status: deferred
+status: in-progress
 gate: false
 depends_on: [A2.1]
 blocks: []
@@ -149,6 +149,40 @@ write-up has to say about the cost of this kind of audit.
 requires. Nothing blocks on it: A3.4 was unblocked on 2026-10-21 (D-236) and `blocks` is empty.
 If the census ever returns it is a cash decision, and D-247 records that this is a decision not
 to buy it rather than a judgement that it would buy nothing.
+
+## State — 2026-10-27
+
+Branch: `claude/jolly-allen-oahiqb`.
+
+**Off `deferred` by the owner's approval of the full census (D-269, reversing D-247).** The
+costing is now measured rather than estimated: OpenGenome2 alone is about 79 core-hours, which
+was the whole budget the task was originally declined against (D-268). The runbook for the run
+is `docs/a2-6-census-runbook.md`, and it is the thing to read before launching — its sizing is
+measured and each trap in it has already cost a launch.
+
+Done, and not to be redone: the thread oversubscription that lost the first launch (D-267); the
+ten-minute log upload to object storage, armed before the slow work (D-233); the publish guard
+that stops a probe landing on the deliverable (D-232, D-268); the `test -f` on the manifest copy;
+and a pre-flight on the instance that loads the policy specs and the manifests rather than only
+importing the module.
+
+Left: probe OpenGenome's stage 2, which is the one unmeasured rate and decides whether that
+release fits the timer; rehearse `--assemble` against the shape the census will produce, which
+has failed twice, both times after the compute was spent; launch the two releases as two
+launches; assemble; re-run A3.2 against the new tables keeping A2.1's sampled tables beside them;
+record the actual cost and wall clock against the sizing above.
+
+One hazard found while pre-flighting, recorded here because it would land after the compute is
+spent: `corpora/results/a2-6/parts/part-opengenome2-1-126.json` is a **sampled** band part left
+in the census prefix by the 2026-10-20 run, at A2.1's rates and band multiple `[1, 126]`. Its
+release field matches, `assemble` filters parts by release only, and its coverage check fails on
+a gap rather than an overlap — so if a recursive copy drags it into the local parts directory it
+would be merged into a census and silently double-count, and the store has no delete. The
+assembly must bring down the census bands by name, not the whole prefix.
+
+Waiting on the project owner: nothing. The accession list from D-262 remains outstanding and is
+the prerequisite for a *correctly scoped* census; per D-269 the census runs now and carries that
+limit in its output rather than absorbing the join into this task.
 
 ## Notes
 

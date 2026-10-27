@@ -11978,3 +11978,41 @@ decision has a threshold or parameter in it, the number goes in the entry.
   from A2.6's, because a family outside the restricted set comes back unmeasured rather than
   absent, so it cannot produce M1/M2/M3 population figures. Which of those two is worth buying,
   and whether either should wait on the accession list, is the owner's call.
+
+### D-269 — the census is bought after all, and A2.6 comes off `deferred` carrying a stated scope limit
+
+- **Date:** 2026-10-27
+- **Task:** A2.6 (bearing on A3.2, A3.4 and the Phase A write-up)
+- **Settled by the owner**, reversing D-247. The full census is **approved** over all 1,719
+  pinned viral families, on the strength of the measured costing in D-268. D-247 recorded the
+  deferral as a cash decision rather than a judgement that the census would buy nothing — "if
+  the census ever returns it is a cash decision" — so the reversal is recorded the same way it
+  was declined, and the task moves `deferred` → `in-progress` rather than being quietly picked up.
+- **What changed between the two decisions** is that the sizing stopped being an estimate. D-247
+  was taken against a costing of about 80 core-hours for *both* releases, roughly a dollar; the
+  nine-cent probe in D-268 put OpenGenome2 alone at **79 core-hours**, because the published
+  2.19 ms/gene was wall-clock at three threads rather than core-time. The honest version of the
+  number is larger than the one the census was declined against, and it was approved anyway with
+  that number in hand. Recording this matters: a later reader should not find an approval that
+  looks cheaper than the refusal it reverses.
+- **The thread oversubscription that lost the first launch is fixed, not worked around** (D-267).
+  The first launch's failure was never throughput — eight workers asked for 24 HMMER threads on
+  eight cores. The launcher now refuses an oversubscribed sizing outright.
+- **Scope limit the census cannot fix, and therefore states.** The census searches essentially
+  the whole released FASTA — 2,957,495 imgvr records against a training corpus of 2,653,047 — so
+  about a tenth of what it reads is material the model never trained on, and its surviving-corpus
+  figures cover a population that includes it (D-262, measured again in D-268). Restricting to
+  training members needs the accession list from D-262's sequence join, which was scratch and died
+  with its container. The census runs now and **carries that paragraph in its output**; the
+  accession list stays outstanding as the prerequisite for a correctly scoped census rather than
+  being folded into this task's scope.
+- **Alternatives rejected.** Waiting for the accession list before launching — rejected because
+  the join is unbuilt, the two are independent, and the census's own figures are usable with the
+  limit stated. Running both releases in one launch — rejected: the launcher will do it, but the
+  first attempt lost sixteen bands together, and separate launches fail independently at no extra
+  cost. Reopening C5.1 or A2.1 to carry this work — rejected; A2.1's tables stay as the record of
+  what a sampled pass found, and the two being comparable is part of the result.
+- **Consequence.** After this task Pfam's M1 and M2 are population figures while RVDB-prot's
+  remain lower bounds, and the two registries are already never pooled (D-022, D-161). Every
+  place these numbers appear has to say so, and A2.1's sampled tables stay readable beside the
+  census ones.
