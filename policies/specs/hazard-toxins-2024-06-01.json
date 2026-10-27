@@ -1,0 +1,87 @@
+{
+  "note": "The curated reading of the nine toxin entries of the Select Agents and Toxins List as codified at 2024-06-01, for the toxin stratum of the hazard family set (D-204). Hand-curated per entry, as D-137 requires for this list: the pinned data checks the choice and never makes it. Naive protein-name matching is not used, and the Staphylococcal entry below is why.",
+  "list_as_of": "2024-06-01",
+  "uniprot_release": "2026_03",
+  "uniprot_release_date": "02-September-2026",
+  "reviewed_only": true,
+  "method": "For each toxin entry that names a protein, the reviewed UniProtKB entries that ARE that toxin are chosen by hand, and the Pfam families nominated are the union of those entries' Pfam cross-references. A family is nominated by the entry, not by resembling its name.",
+  "entries": [
+    {
+      "entry": "Abrin",
+      "kind": "toxin",
+      "nominates": true,
+      "accessions": ["P11140", "Q06077", "P28590", "Q06076"],
+      "organism_taxid": 3816,
+      "families": ["PF00161", "PF00652"],
+      "note": "The four reviewed abrin isoforms (a, b, c, d) of Abrus precatorius. Each is a two-chain protein: an rRNA N-glycosidase A chain and a lectin B chain, so each cross-references both families."
+    },
+    {
+      "entry": "Ricin",
+      "kind": "toxin",
+      "nominates": true,
+      "accessions": ["P02879"],
+      "organism_taxid": 3988,
+      "families": ["PF00161", "PF00652"],
+      "note": "The single reviewed ricin entry of Ricinus communis. Same two-chain architecture as abrin, and the same two families."
+    },
+    {
+      "entry": "Botulinum neurotoxins",
+      "kind": "toxin",
+      "nominates": true,
+      "accessions": ["A7GBG3", "B1INP5", "P0DPI0", "P0DPI1", "P0DPK1", "P10844", "P18640", "P19321", "P30995", "P30996", "Q00496", "Q45894", "Q60393", "Q45914"],
+      "families": ["PF01742", "PF07951", "PF07952", "PF07953", "PF08470", "PF22133"],
+      "note": "The regulation names the toxins in the plural and enumerates no subtypes, so every reviewed botulinum neurotoxin is taken: types A through G, and type X. Including X is a choice and is recorded as one - it was described after the subtype enumerations the list's older readings used, and the entry's own wording does not exclude it. Q45914 cross-references two families the other thirteen do not (PF08470, PF22133), which is why the union is six and not four."
+    },
+    {
+      "entry": "Staphylococcal enterotoxins (subtypes A-E)",
+      "kind": "toxin",
+      "nominates": true,
+      "accessions": ["P0A0L2", "P01552", "P01553", "P34071", "P0A0L5", "P20723", "P12993"],
+      "organism_taxid": 1280,
+      "families": ["PF02876", "PF01123"],
+      "note": "The regulation's own parenthetical limits this entry to subtypes A-E, so SEA, SEB, SEC1, SEC2, SEC3, SED and SEE are taken and the other staphylococcal enterotoxins are not. This is the entry that makes the case against name matching concretely: a case-insensitive match on 'enterotoxin' in this organism also returns SEG, SEH, SEI and enterotoxin-like toxin X, none of which the list names. The families happen to be the same two either way, so nothing in the family set turns on it here - but the method would have been wrong, and on another list it would show."
+    },
+    {
+      "entry": "Conotoxins (Short, paralytic alpha conotoxins containing the following amino acid sequence X1CCX2PACGX3X4X5X6CX7)",
+      "kind": "toxin",
+      "nominates": false,
+      "families": [],
+      "note": "Declined here rather than guessed. The regulation defines this entry by an amino-acid motif, not by a name, so a name match is the wrong instrument and a family-level nomination would discard the restriction the motif carries - most alpha-conotoxins are not within scope of this entry. Nominating by motif is a separate measurement against a pinned sequence set, and it is not done here."
+    },
+    {
+      "entry": "Diacetoxyscirpenol",
+      "kind": "toxin",
+      "nominates": false,
+      "families": [],
+      "note": "A trichothecene mycotoxin - a small molecule with no protein sequence, so it nominates no protein family. Same reasoning the hazard set already applies to a listed organism: a regulation naming a molecule nominates no family, and choosing one would be this project's judgement wearing a regulation's authority."
+    },
+    {
+      "entry": "Saxitoxin",
+      "kind": "toxin",
+      "nominates": false,
+      "families": [],
+      "note": "An alkaloid. No protein sequence, so no family. See Diacetoxyscirpenol."
+    },
+    {
+      "entry": "T-2 toxin",
+      "kind": "toxin",
+      "nominates": false,
+      "families": [],
+      "note": "A trichothecene mycotoxin. No protein sequence, so no family. See Diacetoxyscirpenol."
+    },
+    {
+      "entry": "Tetrodotoxin",
+      "kind": "toxin",
+      "nominates": false,
+      "families": [],
+      "note": "A guanidinium alkaloid. No protein sequence, so no family. See Diacetoxyscirpenol."
+    }
+  ],
+  "flagged": [
+    {
+      "family": "PF00652",
+      "name": "Ricin_B_lectin",
+      "why": "Nominated by both Abrin and Ricin as the accessory lectin chain, not as the toxic activity - which is PF00161, the rRNA N-glycosidase. Ricin_B_lectin is a carbohydrate-binding domain shared with plant lectins, glycoside hydrolases and much else: 128 reviewed entries carry it against 69 for PF00161, and its prevalence in unreviewed space is far larger. It is kept, because the curated entries do cross-reference it and dropping it would be judgement about which half of a toxin counts. But a detection on PF00652 alone is not evidence of a toxin, and anything reported from this family travels with that sentence."
+    }
+  ]
+}
