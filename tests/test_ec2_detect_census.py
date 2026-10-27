@@ -48,12 +48,21 @@ def rendered(**kw):
 
 class TestTheBands:
     @pytest.mark.parametrize("workers", [1, 2, 3, 5, 7, 11, 16, 32])
-    def test_they_tile_the_whole_remaining_range(self, workers) -> None:
+    def test_they_tile_the_whole_rate_from_zero(self, workers) -> None:
         """`--assemble` refuses a table whose bands leave a gap, and it refuses it after
-        the compute. The split has to be exact, not approximately exact."""
+        the compute. The split has to be exact, not approximately exact.
+
+        **From zero.** This asserted `out[0][0] == 1` and the split started at the
+        component's own initial rate, on the reasoning that A2.1's initial pass had read
+        `[0, 1)` already. `SampleDesign.bands_cover_rate` checks against `[0, rate)`, so a
+        census assembled on its own left `[0, 1)` read by nothing and the assembly was
+        refused after the full search. Filling the gap from A2.1's published table does not
+        work either: it was deepened tenfold, so it covers out to multiple 10 and overlaps
+        the first census band. Starting at zero costs re-reading the initial sliver and
+        makes the census self-contained."""
         for multiple in launcher.CENSUS_MULTIPLE.values():
             out = launcher.bands(multiple, workers)
-            assert out[0][0] == 1
+            assert out[0][0] == 0
             assert out[-1][1] == multiple
             for (_, end), (start, _) in itertools.pairwise(out):
                 assert end == start
@@ -72,6 +81,25 @@ class TestTheBands:
     def test_more_workers_than_the_range_can_split_is_refused(self) -> None:
         with pytest.raises(ValueError, match="cannot split"):
             launcher.bands(5, 9)
+
+    @pytest.mark.parametrize("workers", [1, 2, 3, 5, 7, 8, 11, 16])
+    def test_the_bands_satisfy_the_assemblers_own_coverage_check(self, workers) -> None:
+        """The arithmetic above is only a proxy. This runs the real check the assembly
+        applies, over the real rates, because that check is what refuses a census after
+        its compute is spent."""
+        from amazebio.detect import SampleDesign
+
+        for release, multiple in launcher.CENSUS_MULTIPLE.items():
+            base = 1.0 / multiple
+            design = SampleDesign(
+                seed=1,
+                rate=1.0,
+                population=1,
+                bands=[
+                    (lo * base, hi * base) for lo, hi in launcher.bands(multiple, workers)
+                ],
+            )
+            assert design.bands_cover_rate(), (release, workers)
 
 
 class TestTheCensusMultiples:

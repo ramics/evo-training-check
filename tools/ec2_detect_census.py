@@ -305,18 +305,43 @@ pids="$pids $!"
 
 
 def bands(multiple: int, workers: int) -> tuple[tuple[int, int], ...]:
-    """Split `[1, multiple)` into `workers` contiguous sub-bands that tile it exactly.
+    """Split `[0, multiple)` into `workers` contiguous sub-bands that tile it exactly.
 
     They must tile: `detect_profiles --assemble` checks that the bands cover the rate and
     refuses a table whose denominator claims records nothing read. A gap here would not be
     caught until six hours of compute had been spent, so the split is arithmetic rather
     than a convenience, and the test checks it tiles for every worker count.
+
+    **From zero, not from one, and that is the whole point of this docstring.** The split
+    used to start at multiple 1 — the component's own initial rate — on the reasoning that
+    A2.1's initial pass had already read `[0, 1)` and a band that re-read it would be paying
+    twice. That reasoning no longer holds, and it fails in the direction that costs a run:
+
+    * A census assembled on its own has **no initial pass at all**, so `[0, 1)` is read by
+      nothing. `SampleDesign.bands_cover_rate` checks against `[0, rate)`, not against
+      `[initial, rate)`, so it refuses the assembly — correctly — *after* the search. The
+      note the assembler writes in that case still claimed the bands "start at multiple 1
+      and tile the whole rate"; they did not, and the check and the note contradicted each
+      other until this was fixed.
+    * Supplying A2.1's published table to fill that gap does not work either, and is worse
+      than the gap because it passes. A2.1 was deepened tenfold, so its table covers bands
+      `[0, 0.001]` **and** `[0.001, 0.01]` at `rate: 0.01`. Merged with a census band that
+      starts at `0.001`, the sliver `[0.001, 0.01]` is covered twice: its detections are
+      concatenated from both and its per-source counts added, and the coverage check passes
+      because an overlap is not a gap. One percent of the corpus, counted twice, silently.
+
+    So the census reads the whole rate itself and depends on no other task's artefact for
+    its own denominator. The cost is re-reading the initial sliver — 0.1% of OpenGenome2,
+    0.2% of OpenGenome, a few minutes against ten hours — which is the cheapest part of the
+    run and buys a table that is self-contained. A2.1's tables stay exactly where they are:
+    the comparison between a sample and a census is part of the result (D-222), and that
+    needs them separate, not merged into the thing they are compared with.
     """
     if multiple <= 1:
         raise ValueError(f"a census multiple of {multiple} leaves nothing to read")
-    if not 1 <= workers <= multiple - 1:
-        raise ValueError(f"{workers} workers cannot split [1, {multiple})")
-    edges = [1 + round(i * (multiple - 1) / workers) for i in range(workers + 1)]
+    if not 1 <= workers <= multiple:
+        raise ValueError(f"{workers} workers cannot split [0, {multiple})")
+    edges = [round(i * multiple / workers) for i in range(workers + 1)]
     return tuple((edges[i], edges[i + 1]) for i in range(workers) if edges[i] < edges[i + 1])
 
 

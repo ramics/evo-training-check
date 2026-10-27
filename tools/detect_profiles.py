@@ -899,8 +899,8 @@ def assemble(
                 stem = f"detections-{reg.id}-{policy_id}-{release}"
                 # A2.1 deepened a first pass, so the initial table was always there to merge
                 # and to copy the table's own metadata from. A2.6 is a census: its bands start
-                # at multiple 1 and tile the whole rate, so there is no first pass at all and
-                # this read raised FileNotFoundError — after the search, at the end of a run
+                # at multiple 0 and tile the whole rate themselves, so there is no first pass
+                # at all and this read raised FileNotFoundError — after the search, at the end of a run
                 # costing hours. The three fields the initial table supplied are all
                 # reconstructable from the manifest and the registry, which is what the
                 # searching path does for them anyway.
@@ -986,7 +986,7 @@ def assemble(
                             "searched twice."
                             if initial_table
                             else f"Assembled from {len(parts)} band part(s) with no initial "
-                            "pass: the bands start at multiple 1 and tile the whole rate, so "
+                            "pass: the bands start at multiple 0 and tile the whole rate, so "
                             "every record the table claims was read by one of them."
                         ),
                     ],
