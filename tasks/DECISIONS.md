@@ -12103,3 +12103,54 @@ decision has a threshold or parameter in it, the number goes in the entry.
   is now wrong twice over — once on the search rate (D-268) and once on contention. Whatever
   reports this task's cost reports the measured 2.33x, because a reader sizing their own audit
   from a single-worker probe would make the same mistake.
+
+### D-272 — the census ran: 1,636 of 1,719 families at full depth, the three readings are identical, and the sampled pass was a lower bound by exactly 2x
+
+- **Date:** 2026-10-28
+- **Task:** A2.6 (bearing on A3.2, A3.4, A6.1 and the Phase A write-up)
+- **The run.** OpenGenome2 only, by the owner's call, so the first release could be assembled and
+  checked before the second was bought. Instance `i-001f0c8712a7bcda1`, `r6i.2xlarge` on demand,
+  eight workers one search thread each, from commit `d768fd3`. Launched 2026-10-27 13:09:03Z,
+  searching from ~13:19Z, exit note `run complete` at 08:16:40Z on 2026-10-28, self-terminated.
+  **19.2 hours wall clock.** Every one of the eight band parts published.
+- **The result, at `rate: 1.0`, `is_census: true`, `estimate_kind: population`,
+  `bands_cover_rate: true` over eight bands tiling `[0, 1.0)`:** **1,636 of 1,719** pinned viral
+  Pfam families are detectable in the corpus that survives the published filter. **83 have no hit
+  at all.** 6,857,916 hits over 2,957,495 imgvr and 214,950 imgpr records.
+- **All three readings of the filter give exactly the same answer.** Charitable, literal and
+  strict return the identical 1,636 families and the identical 6,857,916 hits. On this release the
+  strictness of the reading makes no difference whatsoever to what survives — which is a result
+  about the filter, not an artefact of the harness, and it is the kind of thing §A0 exists to
+  report.
+- **The sampled pass was a lower bound by a factor of 2.02, and nested exactly.** A2.1 at rate
+  0.01 found 811 families; the census finds 1,636, adding 825 and losing **none** — the sampled
+  set is a strict subset of the census set, which is what D-078's nested hash sampling promises
+  and had never been checked at full depth. So "a family absent may survive in the records nobody
+  read" was true for 825 of them.
+- **Costs, measured, against what was approved.** About **$10.80** all in: $9.66 for the census
+  instance, $0.99 for the first launch killed deliberately (D-271), ~$0.13 for the timing probe.
+  The owner approved about $5 for this release on the then-current sizing. The gap is accounted
+  for twice over in D-268 and D-271 and was put to the owner before the relaunch, not after. On
+  demand rather than spot because spot capacity was refused twice, which was also the owner's
+  call (D-271). List price is from memory; `pricing:GetProducts` is denied to this account.
+- **Rates as actually measured, for anyone sizing the second release.** 8.89 ms/gene with eight
+  workers against 4.343 with one (D-271's 2.1x contention, confirmed over a full run). imgvr
+  17.85 genes/record against the probe's 17.49 — the probe was good. imgpr **58.99 falling to
+  20.2** across the file.
+- **That last figure is the finding, and it nearly caused a needless abort.** A banded worker
+  reads its hash band **in file order**, so its early chunks are the file's early records, not a
+  sample of the file. imgpr's opening chunk measured 58.5 genes/record where the whole file
+  averages about 30, and a projection built on it said the run would overrun its stop by 19
+  minutes and publish nothing. What settled it was A2.1's rate-0.01 **spread** sample of the same
+  file at 29.74: a two-fold error on 2,111 uniform samples is not a sampling artefact, so the
+  density had to fall, and it did — 58.5, then 26.0, then 20.2. imgvr ran the other way, 10.6
+  early to about 27 late, averaging 17.85. **Project a banded run from a spread sample or from
+  the cumulative figure, never from its opening chunks, and expect the error in whichever
+  direction the component is sorted.**
+- **What is not done.** This is one release of two. A2.6's `Done when` wants both at population
+  depth and A3.2 re-run against them, so the task stays `in-progress`. A2.1's sampled tables are
+  untouched at `rate: 0.01`, `lower_bound`, 811 families, which D-222 requires: the comparison
+  between a sample and a census is part of the result.
+- **Consequence for the write-up.** Pfam's M1 and M2 for this release are now population figures
+  while RVDB-prot's remain lower bounds, and the registries are never pooled (D-022, D-161).
+  Every place these numbers appear says so.
