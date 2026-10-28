@@ -425,6 +425,15 @@ class TestDurability:
 #: the local-only default visible. A legitimately exempt new tool goes here with a reason in
 #: the same commit, so adding one is a deliberate, reviewed act rather than a default.
 EXEMPT_CALL_SITES: set[str] = {
+    # A7.6's training-membership join, conditional on `--max-training`/`--max-fasta` rather than
+    # on `--out`, because those are what make a run partial here. The artefact is the list of
+    # accessions the model was actually trained on, and every figure restricted by it inherits
+    # its completeness: a list built from the first N records of either side would name a
+    # smaller trained population, which makes a FASTA-measured count look *more* out of scope
+    # than it is — wrong in the direction of overstating this project's own correction. The
+    # store has no delete and this artefact is meant to be cited. A run with neither limit
+    # names a durable destination as normal.
+    "training_accessions.py",
     # B4.1's baseline, conditional on `--out` like the others here. `--assay` makes a rehearsal
     # over one assay cheap, and a one-assay table published under the deliverable's key would
     # read exactly like the full 31.
