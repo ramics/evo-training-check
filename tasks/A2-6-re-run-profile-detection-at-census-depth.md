@@ -2,7 +2,7 @@
 id: A2.6
 title: Re-run profile detection at census depth
 phase: A
-status: deferred
+status: in-progress
 gate: false
 depends_on: [A2.1]
 blocks: []
@@ -149,6 +149,100 @@ write-up has to say about the cost of this kind of audit.
 requires. Nothing blocks on it: A3.4 was unblocked on 2026-10-21 (D-236) and `blocks` is empty.
 If the census ever returns it is a cash decision, and D-247 records that this is a decision not
 to buy it rather than a judgement that it would buy nothing.
+
+## State — 2026-10-27
+
+Branch: `claude/jolly-allen-oahiqb`.
+
+**Off `deferred` by the owner's approval of the full census (D-269, reversing D-247).** The
+costing is now measured rather than estimated: OpenGenome2 alone is about 79 core-hours, which
+was the whole budget the task was originally declined against (D-268). The runbook for the run
+is `docs/a2-6-census-runbook.md`, and it is the thing to read before launching — its sizing is
+measured and each trap in it has already cost a launch.
+
+Done, and not to be redone: the thread oversubscription that lost the first launch (D-267); the
+ten-minute log upload to object storage, armed before the slow work (D-233); the publish guard
+that stops a probe landing on the deliverable (D-232, D-268); the `test -f` on the manifest copy;
+and a pre-flight on the instance that loads the policy specs and the manifests rather than only
+importing the module.
+
+The assembly rehearsal is done, against the shape this run will write rather than the previous
+task's artefacts, and **it found a blocker before any compute was spent** (D-270). The eight
+census bands tiled `[base_rate, 1.0)` and left `[0, base_rate)` read by nothing, so
+`--assemble` refused the census outright — after the full search. The bands now tile from zero;
+the cost is re-reading the initial sliver, minutes against ten hours. Assembly then completes
+and reports `rate 1.0 (population)`.
+
+Left: read the stage-2 search rate off the running probe and confirm OpenGenome fits the timer;
+launch the two releases as two launches; assemble; re-run A3.2 against the new tables keeping
+A2.1's sampled tables beside them; record the actual cost and wall clock against the sizing
+above.
+
+One piece of junk to keep out of the assembly, though it is not the silent hazard it first
+looked like. `corpora/results/a2-6/parts/part-opengenome2-1-126.json` is a **sampled** band part
+left in the census prefix by the 2026-10-20 run — 40 rows over 20 records, claiming band
+`[0.001, 0.126]`, which is the `--limit-records` shape `AGENTS.md` warns about. Its release
+field matches the census's, and `assemble` filters parts by release only, so a recursive copy of
+the prefix would pull it in. It would **not** double-count silently: `bands_cover_rate` rejects
+an overlap as well as a gap, which was checked by dropping the real object into the rehearsal
+and watching the assembly refuse. So the cost is a confusing refusal rather than a wrong
+number — but it is a refusal after the compute, so the assembly should still bring the census
+bands down by name rather than copying the prefix. The store has no delete and the part cannot
+be removed; with the bands now starting at zero its name no longer collides with a census band,
+so it is inert unless something copies it in.
+
+An earlier version of this block said that part would be merged and silently double-count. That
+was wrong — the coverage check catches overlaps — and the correction is recorded here rather
+than quietly dropped.
+
+**A census run is LIVE as of 2026-10-27 13:09Z — instance `i-001f0c8712a7bcda1`, on demand, in
+`us-east-1`.** OpenGenome2 only; OpenGenome is deliberately not launched, by the owner's call, so
+the first release can be assembled and checked before the second is bought.
+
+- `r6i.2xlarge`, 8 workers, one search thread each, from commit `d768fd3`. Bands tile `[0, 1000)`
+  in eight: `0:125` through `875:1000` (D-270).
+- **Hard stop `shutdown -h +1200`** — 20 hours, firing about 09:09Z on 2026-10-28.
+  `InstanceInitiatedShutdownBehavior=terminate`.
+- **Projection, remeasured 18:50Z on the run's own output and now the one to trust: finish about
+  05:00Z, margin about 4 hours.** Measure on *genes*, not on chunks: gene density rises along the
+  component, from 10.62 genes/record over the first 480,000 records to 14.03 over the first
+  1,200,000, so a chunk-rate reading looks like the machine slowing when it is not. Per-gene
+  time is steady at 9.43 ms with eight workers. Each worker's total is 6.00M genes (5.19M imgvr,
+  0.81M imgpr) against the 4.74M first estimated, because that estimate used the early density.
+- **This confirms killing the first launch was right, by more than was known at the time.** At
+  6.00M genes and 9.43 ms the run needs about 15.7 hours from the start of searching. The first
+  launch's stop was armed at 14 hours, so it would have been powered off about two hours short
+  and published nothing at all — not the thirty-minute near-miss D-271 estimated, but a clear
+  miss.
+- **This is the second launch. The first was killed deliberately** (D-271). It ran 10:47–12:45Z
+  with a 14-hour stop, and measurement on its own output put it at 13.3 hours against that stop:
+  thirty minutes of slack on a run that publishes nothing at all if it overruns, because a part
+  is written only when its worker finishes its whole band. About $1 of compute was thrown away to
+  remove that risk. The cause is contention — 10.12 ms/gene with eight workers against 4.343 ms
+  with one, the one thing the timing probe could not measure because it ran a single worker.
+- **On demand, not spot**, and the owner's explicit decision rather than a silent substitution:
+  `r6i.2xlarge` spot returned `InsufficientInstanceCapacity` twice, and the choice between list
+  price and the unverified 32 GB machine was put to the owner. The 2026-10-20 overspend happened
+  by making this swap without asking.
+- The launcher's own watcher is NOT reliable here — the session's background process is capped
+  well under the run's length — so the boot timer and the self-terminate are what actually bound
+  the spend.
+- Logs land in `results/a2-6/logs-i-001f0c8712a7bcda1/` every ten minutes; the exit reason lands
+  as `results/a2-6/exit-i-001f0c8712a7bcda1-<epoch>.txt`, and `run complete` is success.
+
+**Cost, honestly.** The approved figure was about $5 for this release. The measured figure is
+about $7, plus about $1 for the killed launch. Both corrections are in D-271 and both were put to
+the owner before relaunching.
+
+**If you are picking this up and that machine is gone, check the exit object first.** Then the
+eight parts under `results/a2-6/parts/part-opengenome2-*.json`. To assemble, bring those eight
+down **by name** — not `--recursive` over the prefix, which would also pull in the 2026-10-20
+sampled part and make the assembly refuse on an overlap.
+
+Waiting on the project owner: whether to buy OpenGenome once this release is assembled and
+checked. The accession list from D-262 remains outstanding and is
+the prerequisite for a *correctly scoped* census; per D-269 the census runs now and carries that
+limit in its output rather than absorbing the join into this task.
 
 ## Notes
 
