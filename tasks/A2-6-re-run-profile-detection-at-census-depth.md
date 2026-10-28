@@ -195,53 +195,32 @@ An earlier version of this block said that part would be merged and silently dou
 was wrong — the coverage check catches overlaps — and the correction is recorded here rather
 than quietly dropped.
 
-**A census run is LIVE as of 2026-10-27 13:09Z — instance `i-001f0c8712a7bcda1`, on demand, in
-`us-east-1`.** OpenGenome2 only; OpenGenome is deliberately not launched, by the owner's call, so
-the first release can be assembled and checked before the second is bought.
+**The census ran and is assembled, for OpenGenome2 only (D-272).** 19.2 hours, about $10.80 all
+in, finished 08:16Z on 2026-10-28 with `run complete` and a self-terminated instance.
 
-- `r6i.2xlarge`, 8 workers, one search thread each, from commit `d768fd3`. Bands tile `[0, 1000)`
-  in eight: `0:125` through `875:1000` (D-270).
-- **Hard stop `shutdown -h +1200`** — 20 hours, firing about 09:09Z on 2026-10-28.
-  `InstanceInitiatedShutdownBehavior=terminate`.
-- **Projection, remeasured 18:50Z on the run's own output and now the one to trust: finish about
-  05:00Z, margin about 4 hours.** Measure on *genes*, not on chunks: gene density rises along the
-  component, from 10.62 genes/record over the first 480,000 records to 14.03 over the first
-  1,200,000, so a chunk-rate reading looks like the machine slowing when it is not. Per-gene
-  time is steady at 9.43 ms with eight workers. Each worker's total is 6.00M genes (5.19M imgvr,
-  0.81M imgpr) against the 4.74M first estimated, because that estimate used the early density.
-- **This confirms killing the first launch was right, by more than was known at the time.** At
-  6.00M genes and 9.43 ms the run needs about 15.7 hours from the start of searching. The first
-  launch's stop was armed at 14 hours, so it would have been powered off about two hours short
-  and published nothing at all — not the thirty-minute near-miss D-271 estimated, but a clear
-  miss.
-- **This is the second launch. The first was killed deliberately** (D-271). It ran 10:47–12:45Z
-  with a 14-hour stop, and measurement on its own output put it at 13.3 hours against that stop:
-  thirty minutes of slack on a run that publishes nothing at all if it overruns, because a part
-  is written only when its worker finishes its whole band. About $1 of compute was thrown away to
-  remove that risk. The cause is contention — 10.12 ms/gene with eight workers against 4.343 ms
-  with one, the one thing the timing probe could not measure because it ran a single worker.
-- **On demand, not spot**, and the owner's explicit decision rather than a silent substitution:
-  `r6i.2xlarge` spot returned `InsufficientInstanceCapacity` twice, and the choice between list
-  price and the unverified 32 GB machine was put to the owner. The 2026-10-20 overspend happened
-  by making this swap without asking.
-- The launcher's own watcher is NOT reliable here — the session's background process is capped
-  well under the run's length — so the boot timer and the self-terminate are what actually bound
-  the spend.
-- Logs land in `results/a2-6/logs-i-001f0c8712a7bcda1/` every ten minutes; the exit reason lands
-  as `results/a2-6/exit-i-001f0c8712a7bcda1-<epoch>.txt`, and `run complete` is success.
+**The result:** 1,636 of 1,719 pinned viral Pfam families detectable in the surviving corpus, 83
+with no hit at all, 6,857,916 hits over 2,957,495 imgvr and 214,950 imgpr records. Tables at
+`rate: 1.0`, `is_census: true`, `estimate_kind: population`, `bands_cover_rate: true` over eight
+bands tiling `[0, 1.0)`, published under `results/a2-6/`. **All three readings of the filter —
+charitable, literal, strict — return the identical family set and the identical hit count.** The
+sampled pass's 811 families are a strict subset: the census adds 825 and loses none, so D-078's
+nesting holds at full depth.
 
-**Cost, honestly.** The approved figure was about $5 for this release. The measured figure is
-about $7, plus about $1 for the killed launch. Both corrections are in D-271 and both were put to
-the owner before relaunching.
+A2.1's sampled tables are untouched at `rate: 0.01`, `lower_bound`, 811 families (D-222).
 
-**If you are picking this up and that machine is gone, check the exit object first.** Then the
-eight parts under `results/a2-6/parts/part-opengenome2-*.json`. To assemble, bring those eight
-down **by name** — not `--recursive` over the prefix, which would also pull in the 2026-10-20
-sampled part and make the assembly refuse on an overlap.
+Left, and why this is still `in-progress`:
 
-Waiting on the project owner: whether to buy OpenGenome once this release is assembled and
-checked. The accession list from D-262 remains outstanding and is
-the prerequisite for a *correctly scoped* census; per D-269 the census runs now and carries that
+- **OpenGenome is not run.** The owner bought one release at a time so the first could be checked
+  before the second. `Done when` wants both at population depth, so the task cannot close. The
+  sizing for it is now fully measured — see D-272 for the rates — and `--instances N` spreads the
+  bands over several machines, so it need not take another nineteen hours: sixteen bands over four
+  machines is about six hours at roughly 1.6x the money (D-271).
+- **A3.2 is not re-run** against the new tables, which `Done when` also requires, keeping A2.1's
+  sampled tables beside them.
+- **The cost and wall clock are recorded** against the sizing, in D-272.
+
+Waiting on the project owner: whether to buy OpenGenome, and at what speed. The accession list
+from D-262 remains outstanding and is the prerequisite for a *correctly scoped* census; per D-269 the census runs now and carries that
 limit in its output rather than absorbing the join into this task.
 
 ## Notes
