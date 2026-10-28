@@ -766,3 +766,85 @@ class TestTheThreadBudget:
         behaviour."""
         assert detect_profiles.DEFAULT_SEARCH_CPUS == 3
         assert launcher.DEFAULT_SEARCH_CPUS == 1
+
+
+class TestSpreadingAcrossMachines:
+    """`--instances` splits the bands over several machines (D-271).
+
+    The eight-vCPU cap is per instance, not per account, so the number of machines is what
+    sets total parallelism. The measured reason to want it: one worker alone searched at
+    4.34 ms/gene and eight sharing a machine at 9.0, so fewer workers per machine is faster
+    per worker *and* more bands means a smaller share each.
+    """
+
+    @pytest.mark.parametrize("workers", [2, 4, 8, 16, 32])
+    @pytest.mark.parametrize("instances", [1, 2, 4, 8])
+    def test_the_split_preserves_every_band_exactly_once(self, workers, instances) -> None:
+        """The assembly needs the bands to tile, so a split that dropped or duplicated one
+        would fail the coverage check after the compute — the expensive way."""
+        if instances > workers:
+            pytest.skip("fewer workers than machines is refused, and tested separately")
+        planned = launcher.plan(("opengenome2",), workers)
+        groups = launcher.shard(planned, instances)
+        assert [band for group in groups for band in group] == planned
+        assert sum(len(g) for g in groups) == workers
+
+    @pytest.mark.parametrize("instances", [1, 2, 4, 8])
+    def test_no_machine_is_left_idle_or_empty(self, instances) -> None:
+        groups = launcher.shard(launcher.plan(("opengenome2",), 16), instances)
+        assert len(groups) == instances
+        assert all(groups)
+
+    def test_each_machines_bands_are_contiguous(self) -> None:
+        """Contiguous rather than round-robin, so a machine's logs read in band order."""
+        groups = launcher.shard(launcher.plan(("opengenome2",), 16), 4)
+        for group in groups:
+            for before, after in itertools.pairwise(group):
+                assert before["hi"] == after["lo"]
+
+    def test_more_machines_than_workers_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="would leave a machine idle"):
+            launcher.shard(launcher.plan(("opengenome2",), 4), 8)
+
+    def test_no_machines_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="cannot run anything"):
+            launcher.shard(launcher.plan(("opengenome2",), 4), 0)
+
+    def test_the_thread_budget_is_per_machine_not_per_plan(self) -> None:
+        """Sixteen single-threaded workers do not fit eight vCPUs, but four of them do.
+
+        Checking the budget against the whole plan rather than the largest machine would
+        refuse exactly the split that makes the census faster, which would make the flag
+        useless.
+        """
+        groups = launcher.shard(launcher.plan(("opengenome2",), 16), 4)
+        launcher.check_cpu_budget("r6i.2xlarge", max(len(g) for g in groups), 1)
+        with pytest.raises(SystemExit, match="16 threads"):
+            launcher.check_cpu_budget("r6i.2xlarge", 16, 1)
+
+    def test_each_machine_runs_only_its_own_bands(self) -> None:
+        """A machine that ran the whole plan would do the work four times over, and four
+        machines writing the same part keys would collide in a bucket with no delete."""
+        groups = launcher.shard(launcher.plan(("opengenome2",), 16), 4)
+        for group in groups:
+            script = rendered(
+                workers=group, registry="pfam", chunk=5000, deliverable=True, search_cpus=1
+            )
+            assert script.count("tools/detect_profiles.py --task") == len(group)
+            for band in group:
+                assert f"--band {band['lo']}:{band['hi']} " in script
+            for other in (b for g in groups if g is not group for b in g):
+                assert f"--band {other['lo']}:{other['hi']} " not in script
+
+    @pytest.mark.parametrize("per_machine", [1, 2, 4, 8])
+    def test_the_startup_script_stays_under_the_user_data_limit(self, per_machine) -> None:
+        """EC2 caps `UserData` at 16 KiB and the launcher has one shot at it: a script
+        over the limit is refused at `run_instances`, which is cheap, but the limit is why
+        the bands go on separate machines rather than all of them on one script."""
+        import base64
+
+        groups = launcher.shard(launcher.plan(("opengenome2",), 32), 32 // per_machine)
+        script = rendered(
+            workers=groups[0], registry="pfam", chunk=5000, deliverable=True, search_cpus=1
+        )
+        assert len(base64.b64encode(script.encode())) < 16 * 1024

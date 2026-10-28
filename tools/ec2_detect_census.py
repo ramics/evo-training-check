@@ -375,6 +375,48 @@ def plan(releases: tuple[str, ...], workers_per_release: int) -> list[dict[str, 
     return out
 
 
+def shard(workers: list[dict[str, Any]], instances: int) -> list[list[dict[str, Any]]]:
+    """Split the planned workers into `instances` contiguous groups, one group per machine.
+
+    **Why more than one machine is worth the extra money.** The account's ceiling is eight
+    vCPUs *per instance*, not per account — the 2026-10-20 attempt ran two machines at once,
+    one per release — so the only thing that caps total parallelism is how many machines are
+    launched. That matters because the census's wall clock is set by a single worker's share
+    of the genes: eight bands on one machine means each worker searches an eighth of the
+    release, and measured on the 2026-10-27 run that is about sixteen hours.
+
+    Two separate effects make more machines faster, and they compound:
+
+    * **More bands means a smaller share each.** Sixteen bands halves a worker's gene count.
+    * **Fewer workers per machine means less contention.** Measured on the same run, eight
+      workers on eight vCPUs ran at 9.0 ms/gene against 4.34 ms for one worker alone — a
+      2.1x penalty, which is worse than the cores alone explain and is most likely the
+      redundant gzip decompression: every worker streams the whole component to keep the
+      slice its hash band owns, so eight workers decompress the same stream eight times
+      (D-271). Four workers on a machine contend over fewer of those.
+
+    **What it costs.** That same redundant streaming is why this is not free: each machine
+    re-reads the whole component for every worker it hosts, so doubling the machines buys
+    wall clock and spends total core-hours. Sixteen bands over four machines is roughly six
+    hours against sixteen, at roughly 1.6x the money. Which to buy is the owner's call, so
+    this is a flag and not a default — `--instances 1` is exactly the old behaviour.
+
+    Contiguous rather than round-robin, so a machine's bands are adjacent and its logs read
+    in order. Part names carry the band, so no two machines can collide on an output name
+    (that was the A2.6 lesson one rank down), and each machine's logs land under its own
+    instance id.
+    """
+    if instances < 1:
+        raise ValueError(f"{instances} instances cannot run anything")
+    if instances > len(workers):
+        raise ValueError(
+            f"{instances} instances for {len(workers)} workers would leave a machine idle; "
+            "raise --workers-per-release or lower --instances"
+        )
+    edges = [round(i * len(workers) / instances) for i in range(instances + 1)]
+    return [workers[edges[i] : edges[i + 1]] for i in range(instances)]
+
+
 def check_cpu_budget(instance_type: str, workers_per_release: int, search_cpus: int) -> None:
     """Refuse a launch that asks for more threads than the machine has cores.
 
@@ -494,6 +536,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--workers-per-release", type=int, default=DEFAULT_WORKERS_PER_RELEASE)
     ap.add_argument(
+        "--instances",
+        type=int,
+        default=1,
+        help="how many machines to spread the bands over. The eight-vCPU cap is per "
+        "instance, not per account, so this is what sets total parallelism: more machines "
+        "means a smaller gene share each AND less contention per machine, which compound. "
+        "It is not free -- every worker streams the whole component, so each extra machine "
+        "re-reads it. Measured: 8 bands on 1 machine is about 16 h; 16 bands on 4 is about "
+        "6 h at roughly 1.6x the money (D-271). (default: %(default)s)",
+    )
+    ap.add_argument(
         "--search-cpus",
         type=int,
         default=DEFAULT_SEARCH_CPUS,
@@ -553,13 +606,28 @@ def main(argv: list[str] | None = None) -> int:
     else:
         workers = plan(releases, args.workers_per_release)
     deliverable = not args.band
-    # Before anything is built, priced or launched: a probe runs one worker, a census runs
-    # `--workers-per-release` of them, and only the second can oversubscribe the machine.
-    check_cpu_budget(
-        args.instance_type,
-        len(workers) if args.band else args.workers_per_release,
-        args.search_cpus,
-    )
+    # One group per machine. A probe is always a single worker on a single machine.
+    groups = [workers] if args.band else shard(workers, args.instances)
+    # Before anything is built, priced or launched.
+    if args.band:
+        check_cpu_budget(args.instance_type, len(workers), args.search_cpus)
+    elif args.instances == 1:
+        # The original check, unchanged, counting workers **per release**.
+        #
+        # Worth knowing rather than quietly altering: with the default of both releases on
+        # one machine that is 8 per release but 16 workers actually running, because
+        # `worker_lines` backgrounds all of them — so the default launch shape is
+        # oversubscribed 2x on eight vCPUs and this check does not catch it. The runbook
+        # already says to run the releases as two launches, which is why it has not bitten,
+        # and D-271's contention measurement says what it would cost. Tightening it would
+        # refuse a shape the tests pin, so it is left alone and reported rather than widened
+        # into this change.
+        check_cpu_budget(args.instance_type, args.workers_per_release, args.search_cpus)
+    else:
+        # For a split, the only number that matters is what lands on one machine. Checking
+        # the whole plan here would refuse exactly the sixteen-band, four-machine run that
+        # makes the census faster, since each machine runs four of them.
+        check_cpu_budget(args.instance_type, max(len(g) for g in groups), args.search_cpus)
 
     commit, dirty = _git_head(root)
     if dirty and not args.allow_dirty:
@@ -574,19 +642,26 @@ def main(argv: list[str] | None = None) -> int:
     prefix = prefix.strip("/")
 
     if args.print_user_data:
-        print(
-            user_data(
-                bucket=bucket,
-                prefix=prefix,
-                code_key=f"{prefix}/code/a2-6-{commit}.tar.gz",
-                workers=workers,
-                hard_stop_minutes=args.hard_stop_minutes,
-                registry=args.registry,
-                chunk=args.chunk_records,
-                deliverable=deliverable,
-                search_cpus=args.search_cpus,
+        for i, group in enumerate(groups):
+            if len(groups) > 1:
+                print(
+                    f"##### machine {i + 1} of {len(groups)}: "
+                    f"bands {group[0]['lo']}:{group[0]['hi']} .. "
+                    f"{group[-1]['lo']}:{group[-1]['hi']} #####"
+                )
+            print(
+                user_data(
+                    bucket=bucket,
+                    prefix=prefix,
+                    code_key=f"{prefix}/code/a2-6-{commit}.tar.gz",
+                    workers=group,
+                    hard_stop_minutes=args.hard_stop_minutes,
+                    registry=args.registry,
+                    chunk=args.chunk_records,
+                    deliverable=deliverable,
+                    search_cpus=args.search_cpus,
+                )
             )
-        )
         return 0
 
     import boto3
@@ -599,9 +674,16 @@ def main(argv: list[str] | None = None) -> int:
     ec2 = boto3.client("ec2", region_name=REGION)
 
     code_key = f"{prefix}/code/a2-6-{commit}.tar.gz"
-    print(f"{len(workers)} workers over {', '.join(releases)}", flush=True)
-    for w in workers:
-        print(f"  {w['release']} band {w['lo']}:{w['hi']}", flush=True)
+    print(
+        f"{len(workers)} workers over {', '.join(releases)} "
+        f"on {len(groups)} machine(s) of {args.instance_type}",
+        flush=True,
+    )
+    for i, group in enumerate(groups):
+        if len(groups) > 1:
+            print(f"  machine {i + 1}:", flush=True)
+        for w in group:
+            print(f"    {w['release']} band {w['lo']}:{w['hi']}", flush=True)
 
     if args.attach:
         return _watch(ec2, args.attach, args)
@@ -613,89 +695,116 @@ def main(argv: list[str] | None = None) -> int:
         s3.put_object(Bucket=bucket, Key=code_key, Body=build_payload(root))
         print(f"payload at s3://{bucket}/{code_key}", flush=True)
 
-    kwargs: dict[str, Any] = dict(
-        ImageId=_ami(),
-        InstanceType=args.instance_type,
-        MinCount=1,
-        MaxCount=1,
-        IamInstanceProfile={"Name": args.profile},
-        InstanceInitiatedShutdownBehavior="terminate",
-        BlockDeviceMappings=[
-            {
-                "DeviceName": "/dev/xvda",
-                "Ebs": {"VolumeSize": args.volume_size, "VolumeType": "gp3"},
-            }
-        ],
-        TagSpecifications=[
-            {
-                "ResourceType": "instance",
-                "Tags": [
-                    {"Key": "Project", "Value": "ClaudeSpike"},
-                    {"Key": "Owner", "Value": args.owner},
-                    {"Key": "Task", "Value": TASK},
-                ],
-            }
-        ],
-        UserData=user_data(
-            bucket=bucket,
-            prefix=prefix,
-            code_key=code_key,
-            workers=workers,
-            hard_stop_minutes=args.hard_stop_minutes,
-            registry=args.registry,
-            chunk=args.chunk_records,
-            deliverable=deliverable,
-            search_cpus=args.search_cpus,
-        ),
-    )
+    ami = _ami()
     market = ec2lib.market_options(args.spot)
-    if market is not None:
-        kwargs["InstanceMarketOptions"] = market
+
+    def kwargs_for(group: list[dict[str, Any]]) -> dict[str, Any]:
+        out: dict[str, Any] = dict(
+            ImageId=ami,
+            InstanceType=args.instance_type,
+            MinCount=1,
+            MaxCount=1,
+            IamInstanceProfile={"Name": args.profile},
+            InstanceInitiatedShutdownBehavior="terminate",
+            BlockDeviceMappings=[
+                {
+                    "DeviceName": "/dev/xvda",
+                    "Ebs": {"VolumeSize": args.volume_size, "VolumeType": "gp3"},
+                }
+            ],
+            TagSpecifications=[
+                {
+                    "ResourceType": "instance",
+                    "Tags": [
+                        {"Key": "Project", "Value": "ClaudeSpike"},
+                        {"Key": "Owner", "Value": args.owner},
+                        {"Key": "Task", "Value": TASK},
+                    ],
+                }
+            ],
+            UserData=user_data(
+                bucket=bucket,
+                prefix=prefix,
+                code_key=code_key,
+                workers=group,
+                hard_stop_minutes=args.hard_stop_minutes,
+                registry=args.registry,
+                chunk=args.chunk_records,
+                deliverable=deliverable,
+                search_cpus=args.search_cpus,
+            ),
+        )
+        if market is not None:
+            out["InstanceMarketOptions"] = market
+        return out
 
     if args.dry_run:
-        try:
-            ec2.run_instances(DryRun=True, **kwargs)
-        except Exception as exc:  # DryRunOperation is the success case
-            print(f"dry run: {exc}")
+        # Every machine, not just the first: each carries different `UserData`, and
+        # `UserData` has a size limit, so authorizing one says nothing about the rest.
+        for i, group in enumerate(groups):
+            try:
+                ec2.run_instances(DryRun=True, **kwargs_for(group))
+            except Exception as exc:  # DryRunOperation is the success case
+                print(f"dry run, machine {i + 1} of {len(groups)}: {exc}")
         return 0
 
+    launched: list[str] = []
     try:
-        instance_id = ec2.run_instances(**kwargs)["Instances"][0]["InstanceId"]
-    except Exception as exc:
-        # A spot refusal has three causes that need three different responses, and the raw
-        # botocore message distinguishes none of them. `ec2lib.spot_refusal` does, and says
-        # in each case that nothing launched and nothing was billed.
-        message = ec2lib.spot_refusal(str(exc)) if args.spot else None
-        if message:
-            raise SystemExit(message) from exc
+        for i, group in enumerate(groups):
+            try:
+                reply = ec2.run_instances(**kwargs_for(group))
+            except Exception as exc:
+                # A spot refusal has three causes that need three different responses, and
+                # the raw botocore message distinguishes none of them. `ec2lib.spot_refusal`
+                # does, and says in each case that nothing launched and nothing was billed.
+                message = ec2lib.spot_refusal(str(exc)) if args.spot else None
+                if message:
+                    raise SystemExit(message) from exc
+                raise
+            launched.append(reply["Instances"][0]["InstanceId"])
+            print(f"launched {launched[-1]} (machine {i + 1} of {len(groups)})", flush=True)
+    except BaseException:
+        # A partial launch is the dangerous case: the machines already up would run their
+        # bands with nothing watching and no launcher left to terminate them, and the
+        # assembly needs every band anyway, so an incomplete set buys nothing. Take them
+        # down before re-raising rather than leaving them to their timers.
+        for iid in launched:
+            try:
+                ec2.terminate_instances(InstanceIds=[iid])
+                print(f"terminate requested for {iid} after a partial launch", flush=True)
+            except Exception as exc:
+                print(f"terminate failed for {iid}: {exc}", file=sys.stderr)
         raise
-    print(f"launched {instance_id}", flush=True)
 
     if args.detach:
         # The launcher's `finally` is the net under a `UserData` that fails before its own
         # shutdown, and detaching gives it up. That is only acceptable where the watcher
         # cannot outlive the run — this session's background jobs are capped at two hours
-        # against a seven-hour pass, and a watcher killed mid-`_watch` would fire that
-        # `finally` and terminate a healthy instance. So the boot timer is the net instead,
-        # and the id is printed because `--attach` is now the only way back to the run.
+        # against a run measured in many, and a watcher killed mid-`_watch` would fire that
+        # `finally` and terminate healthy instances. So the boot timer is the net instead,
+        # and the ids are printed because `--attach` is now the only way back to the run.
+        plural = "s" if len(launched) > 1 else ""
         print(
-            f"detached: {instance_id} is held only by its own {args.hard_stop_minutes}-minute\n"
-            f"  timer and its workers' own shutdown. Watch it with --attach {instance_id},\n"
-            "  and terminate it explicitly if it has to stop early.",
+            f"detached: {', '.join(launched)} held only by their own "
+            f"{args.hard_stop_minutes}-minute\n"
+            f"  timer{plural} and their workers' own shutdown. Watch "
+            + ", ".join(f"--attach {iid}" for iid in launched)
+            + ",\n  and terminate them explicitly if they have to stop early.",
             flush=True,
         )
         return 0
 
     try:
-        return _watch(ec2, instance_id, args)
+        return _watch_all(ec2, launched, args)
     finally:
         # Both, not either: the boot timer covers a launcher that dies, this covers a
         # UserData that fails before reaching its own shutdown.
-        try:
-            ec2.terminate_instances(InstanceIds=[instance_id])
-            print(f"terminate requested for {instance_id}", flush=True)
-        except Exception as exc:
-            print(f"terminate failed for {instance_id}: {exc}", file=sys.stderr)
+        for iid in launched:
+            try:
+                ec2.terminate_instances(InstanceIds=[iid])
+                print(f"terminate requested for {iid}", flush=True)
+            except Exception as exc:
+                print(f"terminate failed for {iid}: {exc}", file=sys.stderr)
 
 
 def _ami() -> str:
@@ -703,6 +812,38 @@ def _ami() -> str:
 
     ssm = boto3.client("ssm", region_name=REGION)
     return ssm.get_parameter(Name=AMI_PARAMETER)["Parameter"]["Value"]
+
+
+def _watch_all(ec2: Any, instance_ids: list[str], args: Any) -> int:
+    """Watch every machine, returning once all of them have stopped.
+
+    A census split across machines is one result: the assembly needs every band, so one
+    machine finishing is not the run finishing and the launcher must not tear the others
+    down when it does.
+    """
+    if len(instance_ids) == 1:
+        return _watch(ec2, instance_ids[0], args)
+    deadline = time.time() + args.timeout_minutes * 60
+    done: dict[str, str] = {}
+    while time.time() < deadline:
+        for iid in instance_ids:
+            if iid in done:
+                continue
+            state = ec2lib.state_of(ec2, iid)
+            if state in {"terminated", "stopped", "shutting-down"}:
+                done[iid] = ec2lib.transition_reason(ec2, iid)
+                print(f"  {iid} {state}: {done[iid]}", flush=True)
+        stamp = time.strftime("%H:%M:%SZ", time.gmtime())
+        print(f"  {len(done)}/{len(instance_ids)} stopped at {stamp}", flush=True)
+        if len(done) == len(instance_ids):
+            return 0
+        time.sleep(args.poll_seconds)
+    print(
+        f"timed out waiting; {len(instance_ids) - len(done)} still running and each "
+        "terminates itself on its own timer",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def _watch(ec2: Any, instance_id: str, args: Any) -> int:
