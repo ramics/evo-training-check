@@ -400,10 +400,26 @@ def search_batch(
     return touched
 
 
+#: HMMER threads **per worker**, settable because at census depth the workers share a machine.
+#: `profilesearch.search` defaults to 3, which is right for one process and wrong for eight:
+#: eight band workers on an eight-vCPU instance ask for 24 threads, and D-233 measured three
+#: concurrent jobs costing about sixteen times one rather than three. That is the trap this
+#: knob exists to avoid, and `tools/ec2_detect_census.py` refuses a launch that oversubscribes.
+DEFAULT_SEARCH_CPUS = 3
+SEARCH_CPUS = DEFAULT_SEARCH_CPUS
+
+
 def search(reg: Registry, proteins: list[Any], *, restrict_to: set[str] | None) -> list[Any]:
     """A2.1's search, at D-076's thresholds. Shared with A2.4 so the two tables can be joined
-    rather than reconciled (D-113)."""
-    return profilesearch.search(reg, proteins, restrict_to=restrict_to, hmm_file=hmm_path(reg))
+    rather than reconciled (D-113).
+
+    Thread count changes timing and nothing else: `hmmsearch` partitions the same models over
+    the same sequences at the same cutoffs, so a run at one thread and a run at three accept
+    the same hits. That is what makes it safe to set per worker.
+    """
+    return profilesearch.search(
+        reg, proteins, restrict_to=restrict_to, hmm_file=hmm_path(reg), cpus=SEARCH_CPUS
+    )
 
 
 # --------------------------------------------------------------------------------------
@@ -883,10 +899,10 @@ def assemble(
                 stem = f"detections-{reg.id}-{policy_id}-{release}"
                 # A2.1 deepened a first pass, so the initial table was always there to merge
                 # and to copy the table's own metadata from. A2.6 is a census: its bands start
-                # at multiple 1 and tile the whole rate, so there is no first pass at all and
-                # this read raised FileNotFoundError — after the search, at the end of a run
-                # costing hours. The three fields the initial table supplied are all
-                # reconstructable from the manifest and the registry, which is what the
+                # at multiple 0 and tile the whole rate themselves, so there is no first pass
+                # at all and this read raised FileNotFoundError — after the search, at the
+                # end of a run costing hours. The three fields the initial table supplied
+                # are all reconstructable from the manifest and the registry, which is what the
                 # searching path does for them anyway.
                 initial_path = initial_dir / f"{stem}.json"
                 initial_table = (
@@ -970,7 +986,7 @@ def assemble(
                             "searched twice."
                             if initial_table
                             else f"Assembled from {len(parts)} band part(s) with no initial "
-                            "pass: the bands start at multiple 1 and tile the whole rate, so "
+                            "pass: the bands start at multiple 0 and tile the whole rate, so "
                             "every record the table claims was read by one of them."
                         ),
                     ],
@@ -1045,6 +1061,16 @@ def main(argv: list[str] | None = None) -> int:
         "(default: %(default)s)",
     )
     parser.add_argument(
+        "--search-cpus",
+        type=int,
+        default=DEFAULT_SEARCH_CPUS,
+        help="HMMER threads for this worker's searches. The default suits one process on a "
+        "machine; a census runs one worker per band on a shared instance, where workers "
+        "times threads must not exceed the vCPUs — eight workers at the default ask for 24 "
+        "threads on eight cores, which is why no band of the 2026-10-20 launch finished "
+        "(D-233). Changes timing only, never which hits are accepted (default: %(default)s)",
+    )
+    parser.add_argument(
         "--band",
         help=(
             "hash band to search, as LO:HI in multiples of the component's own initial rate — "
@@ -1108,8 +1134,11 @@ def main(argv: list[str] | None = None) -> int:
             "Collect the band first, then search it with --from-cache --emit-hit-proteins."
         )
 
-    global TASK
+    global TASK, SEARCH_CPUS
     TASK = args.task
+    if args.search_cpus < 1:
+        raise SystemExit(f"--search-cpus {args.search_cpus} is not a thread count")
+    SEARCH_CPUS = args.search_cpus
 
     regs = [registry(i) for i in (args.registry or sorted(REGISTRIES))]
     band: tuple[float, float] | None = None
@@ -1194,6 +1223,9 @@ def main(argv: list[str] | None = None) -> int:
         m.parameter("pinned_e_value", PINNED_E_VALUE)
         m.parameter("min_model_coverage", MIN_MODEL_COVERAGE)
         m.parameter("gene_caller", "prodigal-meta")
+        # Timing only, never which hits are accepted — but a timing probe whose manifest does
+        # not say how many threads it had cannot cost anything, which is the gap D-267 is about.
+        m.parameter("search_cpus", SEARCH_CPUS)
         m.parameter("limit_records", args.limit_records)
         for reg in regs:
             for spec in reg.files:
