@@ -100,6 +100,30 @@ release only — the same gap `tools/uniprot_denylist_count.py` records for the 
 The release and its date go in the artefact so a reader sees the gap rather than inferring there
 is none. Pfam, the taxonomy and UniRef are all pinned; this one input is dated.
 
+### Which nominations carry a curve — amended 2026-10-27, D-266
+
+The nomination above is the set. **The curve's subjects are the nominated families that are
+both in the pinned viral selection (D-075) and `viral_only` by A4.5's background measure** —
+646 of the 1,144 nominated. This is an amendment to a definition that §C6 fixed before any
+computation, it is recorded as one, and it is the project owner's call rather than a tidying.
+
+Why it was needed. Nominating by cross-reference admits every family a reviewed entry of a
+listed taxon carries, and a large-genome virus carries host-derived and host-mimicking ones:
+481 of the 1,144 fall outside the viral selection, almost all through *Poxviridae*,
+*Herpesvirales*, *Lefavirales*, *Ortervirales* and *Retroviridae*, and they include actin,
+protein kinases and the immunoglobulin domain. Leaving them in is not neutral. `H(s)` would
+count removing actin as **hazard removed**, and because §5's collateral denominator excludes
+every nominated family, the same nomination also takes actin out of **collateral removed**.
+Both errors run the same way — they make filtering look cheaper than it is — which is the one
+direction this audit may not be wrong in.
+
+What the amendment does not do. It removes nothing from the family set: `tools/hazard_family_set.py`
+publishes all 1,144 with `viral_selection` and `specificity` on every row, so the full
+nomination stays readable and the curve's subject list is a filter over it that anyone can
+recompute or reverse. The excluded 498 are reported as a count beside the curves, because a
+reader is entitled to know what a published nomination contained and what this project did
+with it.
+
 ---
 
 ## 4. The seed set, and why `H(s)` is not trivially 1

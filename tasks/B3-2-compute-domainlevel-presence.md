@@ -2,7 +2,7 @@
 id: B3.2
 title: Compute domain-level presence
 phase: B
-status: review
+status: done
 gate: false
 depends_on: [A1.4, B2.4]
 blocks: [B3.5]
@@ -33,10 +33,11 @@ a binary and a count.
 - Multi-domain handling rule documented and applied consistently.
 - Annotation resource version pinned.
 
-## State — 2026-10-26
+## State — 2026-11-17
 
-`review`. **Branch `claude/project-thread-bywmyz`, PR #44.** Nothing is waiting on the project
-owner for this task.
+`done`. PR #44 merged on 2026-10-26; this file sat in `review` for three weeks afterwards with
+nothing waiting on anyone. The criteria below were met by the merged work, and B3.3 — the third
+measure of the same axis, from the same pull request — was already recorded as done.
 
 The shared contract is `metrics/homology.md` — binding on B3.5 and B5 — and
 `src/amazebio/homology.py` is its only producer. Four kinds rather than a score and a null
