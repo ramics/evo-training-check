@@ -2,7 +2,7 @@
 id: B3.5
 title: Package the homology annotation pipeline
 phase: B
-status: blocked
+status: ready
 gate: false
 depends_on: [B3.1, B3.2, B3.3, B3.4]
 blocks: [B5.1, C5.2, X1.2]
@@ -35,3 +35,10 @@ Consolidate B3.1–B3.4 into the shippable homology annotation pipeline delivera
 ## Notes
 
 _Record decisions in `tasks/DECISIONS.md`, not here. Keep this file's frontmatter current._
+
+## State — 2026-11-17
+
+`ready`. B3.1 and B3.2 had been sitting in `review` since their pull request merged on
+2026-10-26, which left this task reading `blocked` on dependencies that were in fact finished.
+All four of B3.1, B3.2, B3.3 and B3.4 are done, so this is now the task that releases B5.1 and
+the cost-curve arm. Nobody is on it.
