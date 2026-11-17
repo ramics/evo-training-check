@@ -498,6 +498,17 @@ EXEMPT_CALL_SITES: set[str] = {
     # rehearsal over whatever happens to be there. From the canonical directory it publishes
     # like any other result.
     "scoring_summary.py",
+    # B3.1-B3.3's four tools, conditionally and for one reason between them: each takes
+    # `--no-durable`, which exists so a smoke run over a few thousand records can be pointed at
+    # a scratch directory without publishing to a bucket that has no delete. The flag's help
+    # text says "smoke runs only; the result is not citable and is not published", and the
+    # exemption reason lands in the manifest saying the same, so a run that used it cannot be
+    # mistaken for one that published. Without the flag all four publish like any other result,
+    # which is how every citable B3 artefact was produced.
+    "homology_targets.py",
+    "homology_pass.py",
+    "homology_rows.py",
+    "homology_structures.py",
 }
 
 
