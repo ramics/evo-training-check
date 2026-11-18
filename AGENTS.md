@@ -40,68 +40,21 @@ Three phases, strictly ordered by dependency rather than preference:
 
 ## Repo map
 
-**The module and tool lists below are excerpts, not inventories.** There are 52 modules in
-`src/amazebio/` and 73 scripts in `tools/`; the ones named here are the entry points worth
-knowing before you plan anything. For the rest, read the docstring — every module and tool
-opens with one line saying what it is for and which task it belongs to. Do not infer from this
-map that something does not exist.
+`README.md` carries the map and `results/README.md` carries the figures; neither is duplicated
+here, because the two maps this file used to hold drifted apart. What an agent needs on top of
+the README:
 
-```
-DESIGN.md             the specification — authoritative, read it before planning anything
-AGENTS.md             this file: process, conventions, non-negotiables
-README.md             setup and everyday commands
-pixi.toml / pixi.lock the pinned environment (conda-forge + bioconda + python)
-pyproject.toml        package metadata, lint and test config
-.github/workflows/    CI — runs exactly the seven steps `check` runs
-policies/             the policy evidence store: primary-source quotes, each traceable
-  README.md           how a quote is stored and verified; read before adding one
-  sources.json        the source register — retrieval status, digests, blockers
-  specs/              each filter policy as executable predicates, three readings
-  captures/           the captured primary sources the quotes cite
-assays/               the assay provenance and licence register (deliverable 2), committed
-  README.md           the two licence questions and why they are kept apart; read before editing
-  register.json       GENERATED — one entry per assay: provenance, arm, control tag, terms
-  licences.json       GENERATED — the evidence: the deposit's grant and each article's terms
-pdfs/                 owner-supplied subscription sources and supplements
-src/amazebio/         library code — 52 modules; a selection follows
-  repro.py            seeding, input pinning, run provenance
-  survival.py         the frozen route taxonomy and headline metrics
-  uniref.py           streaming acquisition of a pinned UniRef release, per release
-  esm3.py             what ESM3-open states about its corpus, and what does not reconcile
-  ictv.py             the pinned ICTV Virus Metadata Resource — the benchmark ground truth
-  genomad.py          the tool A4.2 benchmarks: version bound, output parser, scope note
-  misassignment.py    taxonomy-tool error by direction, exact intervals, leakage propagation
-  similarity.py       parameters, readings and rates-with-intervals for the A1.6 pass
-  seeds.py            reconstructs ESM3-open's denylist seed sets from pinned inputs
-  policyspec.py       published filter prose as an executable predicate
-  ec2.py              launch-time facts about this account's EC2, shared by every launcher
-metrics/              the output contracts — a change to one is a DECISIONS entry
-  survival.md         FROZEN — the headline metric spec
-  detections.md       the shared detection schema every A2 detector emits
-  manifests.md        the surviving-corpus manifest contract
-tools/                73 scripts; a selection follows
-tools/board.py        regenerates tasks/BOARD.md from task frontmatter
-tools/stage_uniref.py stages a pinned UniRef release into object storage, streaming
-tools/count_clusters.py counts clusters in a staged tier and checks the composition
-tools/stage_opengenome.py stages the pinned Evo nucleotide corpora, by component
-tools/ec2_count.py    runs the count in-region on EC2; see "Running work on EC2"
-tools/esm3_composition.py writes ESM3's stated composition and its reconciliation gaps
-tools/taxonomy_dependency.py which taxonomy tool the denylist's removals actually rest on
-tools/taxonomy_benchmark.py builds the labelled set and scores the tool's error by direction
-tools/assay_register.py builds and validates the assay licence register; CI runs --check
-tools/assay_licences.py acquires that register's evidence; the only online step in B2.4
-tools/policies.py     verifies every quote in policies/ against its cited source; CI runs it
-tools/specs.py        validates the filter policy specs; CI runs it
-tools/esm3_calibrate.py prices an in-region pass; the worked example for heartbeats
-tools/ec2_similarity.py launches it; its `die` is the worked example for shutdown paths
-tasks/README.md       the task protocol in detail
-tasks/BOARD.md        GENERATED — never hand-edit
-tasks/DECISIONS.md    append-only log of resolved ambiguities
-tasks/*.md            one file per unit of work
-tests/                tests
-data/                 pinned inputs (git-ignored)
-artifacts/            pipeline outputs and run manifests (git-ignored)
-```
+- **`tasks/`** is the working record and the thing you edit most: one card per unit of work with
+  the frontmatter contract below, `DECISIONS.md` as the append-only log of resolved ambiguities,
+  and `BOARD.md` generated from the cards — never hand-edited.
+- **`metrics/`** holds the output contracts. A change to one is a `DECISIONS.md` entry, not an edit.
+- **`tools/README.md`** indexes all 99 scripts by purpose and marks the ones a published figure
+  rests on. Every tool and module opens with a docstring naming its task; read that rather than
+  inferring from a list.
+- **`src/amazebio/repro.py`** is the one module to know before writing a pipeline: seeding, input
+  pinning, run provenance, and the two refusals (dirty tree, parameter declared after an output).
+- **`src/amazebio/objectstore.py`** is the only way to reach the result store. Never construct an
+  S3 client; a test fails the build if a module under `src/` or `tools/` builds its own.
 
 Run `pixi run -e dev check` before every commit — it is exactly what CI runs, so a green local
 run means a green CI run. Nine steps, in order: lint, format, task graph, decisions log, **policy evidence**,
