@@ -48,8 +48,9 @@ Three qualifications apply to everything below, so they are stated once here:
 
 ## 2. Why it survived — the metadata ceiling
 
-The most transferable result: the two rules that name organisms read ranks the source database
-mostly leaves empty.
+The two rules that name organisms key on a record's taxonomic family or order, and the source
+database fills those fields on very few records. This is the result most likely to apply to
+other filters.
 
 | Figure | Produced by | Artefact | Task · decisions |
 |---|---|---|---|
@@ -104,8 +105,8 @@ the project's own files.
 
 Churn and new diversity are reported separately and never summed: 787 renames, 890 renumberings
 and 7,723 re-ranks are a different thing from 44,261 taxa that no merge record reaches. Following
-a synonym can also change what a rule means, so a rule that cannot execute at all is fixed and
-the fix declared, while a rule that executes and gets the wrong answer is reported as it stands.
+a synonym can also change what a rule means. Where a rule cannot execute at all, it is fixed and
+the fix declared. Where it executes and gets the wrong answer, it is reported as it stands.
 
 ## 7. Phase B — does surviving capability track homology?
 

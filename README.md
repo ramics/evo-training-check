@@ -14,10 +14,11 @@ Findings are held inside the project until the responsible-disclosure task has r
 - **Profile search finds at least 597 of 1,719 viral protein families in Evo 1's released
   component and 812 in Evo 2's.** Both are lower bounds from a 1–2% sample whose accumulation
   curve is still rising, and the two releases were searched at rates differing tenfold.
-- **The two rules that name organisms read ranks the source database mostly leaves empty.**
-  Family labels are present on 6.25% of IMG/VR's 15.7 M records, and on 2.62% of Evo 1's
-  released component. The limit is in the metadata, so writing a better rule would not have
-  helped. This is the result most likely to apply to other filters.
+- **The two rules that name organisms read taxonomy fields that are usually empty.** Both rules
+  key on a record's family or order. IMG/VR fills the family field on 6.25% of its 15.7 M
+  records, and Evo 1's released component carries one on 2.62%. The limit is in the metadata, so
+  a better-written rule would not have helped. This is the result most likely to apply to other
+  filters.
 - **Names expire.** Reach of the denylist's 31 names fell from 75.83% to 65.17% of viral
   taxonomy, 4.34% a year, and a rule naming *Herpesviridae* now reaches no herpesvirus while
   reporting success.
@@ -110,5 +111,5 @@ Phase A's headline results are in and are being written up; the deepening pass, 
 arm and two reporting tasks are still open. Phase B's instruments are built and validated, with
 the analysis pre-registration as the next gate. Phase C is deferred.
 `docs/status.md` has more detail. The task cards and the append-only decision log were taken out
-of the tree on 19 November 2026 to keep the project management out of a reader's way; figures and
-contracts still cite them by id, and `docs/working-record.md` says how to look one up.
+of the tree on 19 November 2026, to keep the project management out of a reader's way. Figures
+and contracts still cite them by id, and `docs/working-record.md` says how to look one up.
