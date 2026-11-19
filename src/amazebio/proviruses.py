@@ -6,7 +6,8 @@ things that needs and nothing else: the version pins, the output parsers for the
 the concordance arithmetic. The pipeline that reads the corpus is `tools/detect_proviruses.py`;
 the output contract it writes into is `metrics/detections.md`, shared with A2.1.
 
-Four decisions are load-bearing and each is in the project decision log (see `docs/working-record.md`).
+Four decisions are load-bearing and each is in the project's decision log
+(`docs/working-record.md`).
 
 **geNomad is pinned here as the audit's instrument, not as A4.2's object of study** (D-112).
 `amazebio.genomad` pins 1.1.0 because A4.2 benchmarks the version IMG/VR's own labels came out

@@ -4,7 +4,8 @@
 exactly this purpose". This module pins both, decides what a hit is, and does nothing else —
 the search itself is `amazebio.detect` and the pipeline is `tools/detect_profiles.py`.
 
-Three things here are decisions rather than code, and each has a the project decision log (see `docs/working-record.md`) entry.
+Three things here are decisions rather than code, and each has a decision-log entry
+(`docs/working-record.md`).
 
 **"Pfam viral clans" does not denote a usable set, and the gap is measurable** (D-075). A Pfam
 clan is a structural superfamily, so clans mix viral and cellular families freely: `CL0055`
