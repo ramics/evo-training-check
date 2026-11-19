@@ -128,9 +128,26 @@ Anything that launches an instance follows `docs/runbooks/ec2.md`.
 
 ## Status
 
-Phase A's headline results are in and are being written up; the deepening pass, the protein-model
-arm and two reporting tasks are still open. Phase B's instruments are built and validated, with
-the analysis pre-registration as the next gate. Phase C is deferred.
+The work is in three phases, each asking a different question of the same filter.
+
+**Phase A: did the filter remove what it says it removed?** Take the published corpora, search them
+for the viruses the rules were meant to drop, and then run the published rules again to see what
+they actually catch. This is where the findings above come from. The headline results are in and
+are being written up. The deepening pass, the protein-model arm and two reporting tasks are still
+open.
+
+**Phase B: for whatever got through, can the models use it?** A viral protein family being present
+in the training data does not mean a model learned anything useful from it. So the models are
+scored on laboratory measurements of real proteins, and the scores are compared against how much
+related material each model saw. If the two track each other, surviving data has an effect worth
+worrying about. The instruments are built and reproduce the benchmark's published numbers. The
+analysis has not run: it starts once the analysis plan is written and frozen, so that no threshold
+is chosen after seeing a result.
+
+**Phase C: could you predict the leak before running the filter?** If the amount that gets through
+can be estimated by reading a filter's specification, a filter could be assessed before anyone
+trains on its output. Deferred: the definitions are frozen and the model is not started.
+
 `docs/status.md` has more detail. The task cards and the append-only decision log were taken out
 of the tree on 19 November 2026, to keep the project management out of a reader's way. Figures
 and contracts still cite them by id, and `docs/working-record.md` says how to look one up.
