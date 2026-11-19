@@ -12,7 +12,8 @@ is drawn from, the survival route it sits on, the sampling design that decides w
 a count *of*, and the guards that stop a table being assembled from parts that do not belong
 together.
 
-Four decisions are load-bearing, and each is in `tasks/DECISIONS.md`.
+Four decisions are load-bearing, and each is in the project's decision log
+(`docs/working-record.md`).
 
 **The family universe is zero-filled from the registry, never built from the hits** (D-022, and
 `amazebio.survival.surviving_counts_by_family` enforces it). A family with no surviving homolog

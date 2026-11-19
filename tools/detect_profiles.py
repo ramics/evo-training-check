@@ -6,8 +6,9 @@
     pixi run -e dev python tools/detect_profiles.py --plan      # what it would read, no search
 
 One table per manifest x registry. The pins, thresholds and sampling design are *inputs*: they
-live in `amazebio.profiles` and `amazebio.detect` and are recorded in `tasks/DECISIONS.md`
-D-075..D-080, fixed before any hit was inspected. This tool chooses nothing.
+live in `amazebio.profiles` and `amazebio.detect` and are recorded as decisions
+D-075..D-080 (`docs/working-record.md`), fixed before any hit was inspected. This tool
+chooses nothing.
 
 What it does, in order, per release:
 

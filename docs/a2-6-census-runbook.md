@@ -147,8 +147,7 @@ one** — and until it exists, the census output has to carry this paragraph.
 
 ## 9. Housekeeping the owner's approval implies
 
-A2.6 is `deferred`. Running it means setting `status: in-progress` and `owner:` in
-`tasks/A2-6-re-run-profile-detection-at-census-depth.md`, regenerating the board, and pushing
-that **to `main`** before the work starts, so no parallel track takes the same task. The
-reactivation itself wants a decisions entry: D-247 recorded the deferral as the owner's call,
-so the reversal belongs on the record the same way.
+A2.6 is deferred, and D-247 recorded that deferral as the owner's call — so reactivating it is
+the owner's call too, and the pull request that does the work says so. Nothing else needs
+claiming: the task cards and the board left the tree on 19 November 2026
+(`working-record.md`).

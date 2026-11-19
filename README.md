@@ -1,115 +1,115 @@
-# amazebio
+# Does taxonomic data filtering work as a safeguard?
 
-An independent audit of exclusion-based data filtering as a safeguard in open-weight
-biological models.
+An independent audit of exclusion-based data filtering in open-weight biological models.
 
-- **`DESIGN.md`** — the specification. Authoritative for scope, method and commitments.
-- **`AGENTS.md`** — how the work is executed: process, conventions, non-negotiables.
-- **`tasks/BOARD.md`** — current status, what is unblocked, which gates are holding.
+Two open-weight genome models, Evo 1 and Evo 2, state that viral genomes infecting eukaryotic
+hosts were excluded from their training data, and publish those corpora. This project asks
+whether the released artefacts contain what the filter says it removed, by searching them by
+sequence and then re-executing the published policy against them.
 
-If you are picking up work, read `AGENTS.md` first.
+Findings are held inside the project until the responsible-disclosure task has run.
 
-## Setup
+## What the audit found
 
-The environment is pinned with [pixi](https://pixi.sh), which locks conda-forge and
-bioconda packages alongside the Python dependencies in a single `pixi.lock`. Most of
-the Phase A toolchain is distributed via bioconda rather than PyPI, and `AGENTS.md`
-requires that a result regenerate from pinned inputs — so the compiled tools have to
-be in the same lockfile as everything else, not installed by side-channel instructions.
+- **Profile search finds at least 597 of 1,719 viral protein families in Evo 1's released
+  component and 812 in Evo 2's.** Both are lower bounds from a 1–2% sample whose accumulation
+  curve is still rising, and the two releases were searched at rates differing tenfold.
+- **The two rules that name organisms read ranks the source database mostly leaves empty** —
+  family labels are present on 6.25% of IMG/VR's 15.7 M records, and on 2.62% of Evo 1's
+  released component. This is the most transferable result: the ceiling is in the metadata,
+  not in the rule.
+- **Names expire.** Reach of the denylist's 31 names fell from 75.83% to 65.17% of viral
+  taxonomy, 4.34% a year, and a rule naming *Herpesviridae* now reaches no herpesvirus while
+  reporting success.
+- **The filter cannot be checked against the artefact it produced.** Evo 2 publishes its viral
+  data twice; only the copy that carries source accessions can be joined to the source
+  database, and it holds 304,448 records more than the training-format copy.
+- **85.6% of the matched families have no curated occurrence outside viruses** — but weighted by
+  what was actually detected that falls to 69.7% and 77.4%, because families with cellular
+  members are easier to find. The figure that runs against the finding is reported with it.
+- **Of 19,646 detected Evo 2 records, 31 carry a label belonging to a virus family the policy
+  itself names for removal**; none names a regulated select agent. No hazard assessment was
+  performed and 6.47% of detected records carry a family label at all, so that is a floor over
+  a small window.
+
+The finding is about process and auditability: the published filter did not do what its
+description implies.
+
+**→ [`results/README.md`](results/README.md) gives every figure with the artefact, the tool and
+the task that produced it.** Start there.
+
+## How it was measured
+
+Three commitments do the work, and they are enforced rather than described.
+
+1. **The policy is executable.** Each published filter is transcribed into predicates under
+   `policies/specs/`, in three readings — literal, charitable and strict — so the audit cannot
+   quietly pick the reading that favours it. The spread between readings is reported as a
+   result. Every quotation in `policies/` is machine-verified against a checksummed capture of
+   the source it cites; CI fails if a quote drifts.
+2. **Detection is independent of the labels under test.** Surviving records are searched by
+   sequence and structure, never by the taxonomy the filter relies on, which is what makes a
+   hit evidence rather than a restatement.
+3. **Thresholds and metrics are frozen before results exist.** `metrics/survival.md` fixes the
+   headline definitions and was written to be reimplementable from itself alone, because a
+   second implementation then has to reproduce the numbers without reading the first. It did:
+   334 numbers, all identical. `amazebio.repro.run` refuses to run on a dirty tree and refuses
+   a parameter declared after an output exists.
+
+`DESIGN.md` is the specification and is authoritative for scope, method and commitments.
+
+## Repository map
+
+| Path | What it holds |
+|---|---|
+| `results/` | **the figures, each traced to the artefact and the code that made it** |
+| `DESIGN.md` | the specification: question, hypotheses, phases, scope limits, deliverables |
+| `metrics/` | the frozen output contracts — survival metrics, detection schema, manifest and homology contracts. A change to one is a logged decision, not an edit |
+| `policies/` | the evidence store: each published policy as quoted prose, as executable predicates, and as a checksummed capture of its source |
+| `pdfs/` | the papers and supplements those quotes cite |
+| `src/amazebio/` | the library — corpus streaming, policy evaluation, detection, metrics, run provenance |
+| `tools/` | the pipelines and validators; `tools/README.md` groups them and marks which produced a published figure |
+| `tests/` | ~2,600 tests, run on every push |
+| `docs/` | method notes, runbooks, the worked example, and the draft disclosure standard |
+| `assays/` | Phase B's assay provenance and licence register, validated in CI |
+| `docs/status.md` | where the work has got to, and which gates are closed |
+| `AGENTS.md` | the operating manual for whoever picks the work up |
+
+`data/` and `artifacts/` are git-ignored, with one deliberate exception (`artifacts/a4-5/`,
+which the specificity figures quote). Nothing else needs committing, because every run writes a
+manifest recording its seed, declared parameters, the SHA-256 of each input and output, tool
+versions and the commit — so what produced an artefact is recoverable from the artefact.
+
+## Running it
+
+The environment is pinned with [pixi](https://pixi.sh): one lockfile for the conda-forge and
+bioconda toolchain and the Python dependencies together, because most of the Phase A toolchain
+is not on PyPI and a result has to regenerate from pinned inputs.
 
 ```bash
-# install pixi (see https://pixi.sh for other platforms)
-curl -fsSL https://pixi.sh/install.sh | bash
-
-# create the environment from the committed lockfile
 pixi install -e dev
+pixi run -e dev check      # exactly what CI runs: lint, format, four evidence checks, tests
 ```
 
-## Everyday commands
+The cheapest end-to-end reproduction, a few seconds each, no credentials and no corpus:
 
 ```bash
-pixi run board              # regenerate tasks/BOARD.md from task frontmatter
-pixi run -e dev check       # everything CI runs: lint, format, task graph, tests
-pixi run -e dev test        # tests only
-pixi run -e dev board-check # validate the task graph and board freshness
-pixi run -e dev fmt         # format
+pixi run -e dev python tools/specs.py --describe      # each published policy rendered as prose
+pixi run -e dev python tools/policies.py              # verify every quote against its source
+pixi run -e dev python tools/conformance_diff.py \
+    --scan s3://amazebio-corpora-897641797669/corpora/results/a7-1/scan-opengenome-stage2.json
 ```
 
-Acquiring pinned inputs. Both are idempotent: they skip what is already staged, and `--verify`
-re-checksums without downloading.
-
-```bash
-python3 tools/stage_proteingym.py           # stage the benchmark DMS release (B2.1, ~1.9 GB)
-python3 tools/stage_proteingym.py --verify   # re-checksum what is staged
-python3 tools/proteingym_check.py            # reproduce the published per-assay numbers
-python3 tools/model_inventory.py --check     # validate the Phase B model inventory (B1.1)
-python3 tools/ec2_capability.py --print      # what this account may launch; launches nothing
-```
-
-Re-executing a developer's own filter against their own release (A7.1). The scan reads 16.9 GB
-of staged Parquet and emits lineage tags and counts only — no genomic sequence — in about two
-and a half minutes; the diff then recomputes the headline numbers from that artefact in a
-second, from a local path or straight out of the store.
-
-```bash
-python3 tools/conformance_scan.py --release opengenome-stage2 --workers 12 --upload-results
-python3 tools/conformance_scan.py --release opengenome2-imgvr --max-headers 2000  # cheap probe
-python3 tools/conformance_diff.py                                      # from the local scan
-python3 tools/conformance_diff.py --scan s3://$BUCKET/corpora/results/a7-1/scan-opengenome-stage2.json
-```
-
-Benchmarking the taxonomy assignment tool the filter depends on (A4.2). The first pass reads
-IMG/VR's own per-record method field and reports which tool the denylist's removals actually
-rest on; the rest build a labelled set from the pinned ICTV taxonomy, run the 2022 geNomad the
-release could have used, and score the error by direction.
-
-```bash
-python3 tools/taxonomy_dependency.py                  # which tool, over which records (~90 s)
-python3 tools/taxonomy_benchmark.py build              # select the evaluation set from the VMR
-python3 tools/taxonomy_benchmark.py fetch              # retrieve its sequences from NCBI
-pixi run -e genomad genomad annotate \
-    data/ictv/evalset.fna artifacts/a4-2/genomad \
-    data/genomad/db/genomad_db --threads 4 --splits 8 --cleanup
-python3 tools/taxonomy_benchmark.py score              # rates by direction, per family, strata
-```
-
-The `genomad` environment is pinned separately and deliberately: geNomad 1.1.0 is the newest
-version that could have produced IMG/VR v4's labels, and it needs Python 3.10, numpy 1.23 and
-mmseqs2 13 to run at all. `--splits 8` is not tuning — the marker search needs about 24 GB in
-one pass and the container has 16. See DECISIONS.md D-085.
-
-`pixi run -e dev check` is what CI runs, so a green local run means a green CI run. It is seven
-steps: lint, format, task graph, policy evidence, filter specs, model inventory, tests. The three
-evidence checks are the ones a change to `policies/` trips, so a documentation-only change is not
-automatically safe.
-
-## Layout
-
-**See the repo map in `AGENTS.md`.** This file used to carry a second map of the same tree.
-The two drifted into different selections of the same 31 modules and 36 tools, neither a
-superset of the other, which is worse than one map that says it is an excerpt. There is now one,
-and it is in `AGENTS.md` because that is the file you are told to read before working.
-
-## Reproducibility
-
-`data/` and `artifacts/` are git-ignored. Nothing in them is committed, because every
-pipeline run writes a `run.json` manifest recording the seed, declared parameters,
-SHA-256 of every input and output, invoked tool versions, and the git commit. What was
-used is recoverable from the artefact, not from a directory's contents.
-
-Pipelines wrap their work in `amazebio.repro.run`, which refuses to run on a dirty git
-tree and refuses to accept a parameter declared after an output exists. Both refusals
-implement commitments from `AGENTS.md`: an artefact built from uncommitted code cannot
-be regenerated by anyone else, and a threshold chosen after seeing results is not a
-pre-registered threshold.
+Corpus-scale passes read staged objects from the project's result store and are documented per
+figure in `results/README.md`; the staging tools are in `tools/README.md` under *Staging*.
+Anything that launches an instance follows `docs/runbooks/ec2.md`.
 
 ## Status
 
-Phase A, in progress. Of 69 tasks, 18 are done and 9 are ready to pick up; the corpora are
-staged and reconstructed, the policy readings execute, and the first survival measurements have
-landed. Four gates are `HOLDING` — A3.3, B5.1, C6.3 and X3.1 — and A3.3 is the binding one,
-because it holds three finished results (A1.4, A7.1, A7.2) and the Phase A write-up behind a
-second-method reimplementation that has not been done.
-
-Nothing has been circulated externally, and nothing may be until X3.1. See `tasks/BOARD.md` for
-the current state — it is generated, so it does not go stale the way this paragraph will.
+Phase A's headline results are in and are being written up; the deepening pass, the protein-model
+arm and two reporting tasks are still open. Phase B's instruments are built and validated, with
+the analysis pre-registration as the next gate. Phase C is deferred.
+`docs/status.md` carries the current state in more detail, and `docs/working-record.md` says how
+to resolve the task and decision ids this repository cites — the task cards and the append-only
+decision log left the tree on 19 November 2026 so that a reader meets the work rather than the
+project management. They are in git history, and nothing that cites them stopped resolving.

@@ -40,71 +40,29 @@ Three phases, strictly ordered by dependency rather than preference:
 
 ## Repo map
 
-**The module and tool lists below are excerpts, not inventories.** There are 52 modules in
-`src/amazebio/` and 73 scripts in `tools/`; the ones named here are the entry points worth
-knowing before you plan anything. For the rest, read the docstring — every module and tool
-opens with one line saying what it is for and which task it belongs to. Do not infer from this
-map that something does not exist.
+`README.md` carries the map and `results/README.md` carries the figures; neither is duplicated
+here, because the two maps this file used to hold drifted apart. What an agent needs on top of
+the README:
 
-```
-DESIGN.md             the specification — authoritative, read it before planning anything
-AGENTS.md             this file: process, conventions, non-negotiables
-README.md             setup and everyday commands
-pixi.toml / pixi.lock the pinned environment (conda-forge + bioconda + python)
-pyproject.toml        package metadata, lint and test config
-.github/workflows/    CI — runs exactly the seven steps `check` runs
-policies/             the policy evidence store: primary-source quotes, each traceable
-  README.md           how a quote is stored and verified; read before adding one
-  sources.json        the source register — retrieval status, digests, blockers
-  specs/              each filter policy as executable predicates, three readings
-  captures/           the captured primary sources the quotes cite
-assays/               the assay provenance and licence register (deliverable 2), committed
-  README.md           the two licence questions and why they are kept apart; read before editing
-  register.json       GENERATED — one entry per assay: provenance, arm, control tag, terms
-  licences.json       GENERATED — the evidence: the deposit's grant and each article's terms
-pdfs/                 owner-supplied subscription sources and supplements
-src/amazebio/         library code — 52 modules; a selection follows
-  repro.py            seeding, input pinning, run provenance
-  survival.py         the frozen route taxonomy and headline metrics
-  uniref.py           streaming acquisition of a pinned UniRef release, per release
-  esm3.py             what ESM3-open states about its corpus, and what does not reconcile
-  ictv.py             the pinned ICTV Virus Metadata Resource — the benchmark ground truth
-  genomad.py          the tool A4.2 benchmarks: version bound, output parser, scope note
-  misassignment.py    taxonomy-tool error by direction, exact intervals, leakage propagation
-  similarity.py       parameters, readings and rates-with-intervals for the A1.6 pass
-  seeds.py            reconstructs ESM3-open's denylist seed sets from pinned inputs
-  policyspec.py       published filter prose as an executable predicate
-  ec2.py              launch-time facts about this account's EC2, shared by every launcher
-metrics/              the output contracts — a change to one is a DECISIONS entry
-  survival.md         FROZEN — the headline metric spec
-  detections.md       the shared detection schema every A2 detector emits
-  manifests.md        the surviving-corpus manifest contract
-tools/                73 scripts; a selection follows
-tools/board.py        regenerates tasks/BOARD.md from task frontmatter
-tools/stage_uniref.py stages a pinned UniRef release into object storage, streaming
-tools/count_clusters.py counts clusters in a staged tier and checks the composition
-tools/stage_opengenome.py stages the pinned Evo nucleotide corpora, by component
-tools/ec2_count.py    runs the count in-region on EC2; see "Running work on EC2"
-tools/esm3_composition.py writes ESM3's stated composition and its reconciliation gaps
-tools/taxonomy_dependency.py which taxonomy tool the denylist's removals actually rest on
-tools/taxonomy_benchmark.py builds the labelled set and scores the tool's error by direction
-tools/assay_register.py builds and validates the assay licence register; CI runs --check
-tools/assay_licences.py acquires that register's evidence; the only online step in B2.4
-tools/policies.py     verifies every quote in policies/ against its cited source; CI runs it
-tools/specs.py        validates the filter policy specs; CI runs it
-tools/esm3_calibrate.py prices an in-region pass; the worked example for heartbeats
-tools/ec2_similarity.py launches it; its `die` is the worked example for shutdown paths
-tasks/README.md       the task protocol in detail
-tasks/BOARD.md        GENERATED — never hand-edit
-tasks/DECISIONS.md    append-only log of resolved ambiguities
-tasks/*.md            one file per unit of work
-tests/                tests
-data/                 pinned inputs (git-ignored)
-artifacts/            pipeline outputs and run manifests (git-ignored)
-```
+- **`results/README.md`** is the record that matters now: every published figure with the
+  contract defining it, the tool that computed it, its artefact, and the task and decision ids
+  it was fixed under. Update it in the same change as any figure it describes.
+- **`docs/status.md`** is what is done, what is open and which gates are closed. It is
+  hand-maintained, so correct it rather than working around it.
+- **`docs/working-record.md`** says how to resolve a task id (`A2.1`) or a decision id (`D-245`):
+  the 80 task cards, the append-only decision log and the generated board left the tree on
+  19 November 2026 and are in git history at `fbc8b41`, plus a copy in the project's own files.
+- **`metrics/`** holds the output contracts, and they are still authoritative definitions.
+- **`tools/README.md`** indexes all 97 scripts by purpose and marks the ones a published figure
+  rests on. Every tool and module opens with a docstring naming its task; read that rather than
+  inferring from a list.
+- **`src/amazebio/repro.py`** is the one module to know before writing a pipeline: seeding, input
+  pinning, run provenance, and the two refusals (dirty tree, parameter declared after an output).
+- **`src/amazebio/objectstore.py`** is the only way to reach the result store. Never construct an
+  S3 client; a test fails the build if a module under `src/` or `tools/` builds its own.
 
 Run `pixi run -e dev check` before every commit — it is exactly what CI runs, so a green local
-run means a green CI run. Nine steps, in order: lint, format, task graph, decisions log, **policy evidence**,
+run means a green CI run. Seven steps, in order: lint, format, **policy evidence**,
 **filter specs**, **model inventory**, **assay register**, tests. The four in bold are the evidence checks, and
 they are the ones a change to `policies/` or `assays/` trips; do not read "lint and tests" and assume a
 documentation-only change is safe.
@@ -112,88 +70,31 @@ documentation-only change is safe.
 ## How to pick up work
 
 1. Read `DESIGN.md` for the phase you are entering, and this file.
-2. Run `python3 tools/board.py` and read **Ready to pick up**. Take a task from there.
-   If nothing is ready, the blocking dependency *is* the work — do not invent a side quest.
-3. Check the task's **Gates** column. Never work past a `HOLDING` gate (see below).
-4. Set `status: in-progress` and `owner:` in the task's frontmatter, regenerate the board,
-   and commit that **on `main`** as its own small commit — pushed immediately, so parallel
-   workers see the claim. See **Where commits go**.
-5. Do the work, on a feature branch.
-6. Set `status: review`, regenerate, commit on `main`. Move to `done` only when every
-   Done-when criterion is demonstrably met — not when the code runs.
+2. Read `docs/status.md` for where the work has got to, and `results/README.md` for what is
+   already measured and how. Do not re-derive a figure that has a row there.
+3. Check the **Gates** below. Never work past a closed gate, however convenient it would be.
+4. Work on a feature branch, one piece of work per branch, and open a pull request.
 
-Keep one task per branch and per commit series where you can. A task that turns out to be
-two tasks should be split into two files, not quietly widened.
+A piece of work that turns out to be two should be split into two branches and two pull
+requests, not quietly widened. Say in the pull request what the work was for and what it
+settles, because that description is now the record: it is what a later reader finds when they
+ask why something is the way it is.
+
+If a figure changes, or a decision bears on one, the change is not finished until
+`results/README.md` says so in the same pull request.
 
 ## Where commits go
 
-**Project management lands on `main`. The work itself lands on a feature branch.**
-
-Parallel tracks are the whole reason. A claim nobody else can see is not a claim, and a board
-that exists only in your branch cannot stop two workers taking the same task.
-
-| Goes straight to `main` | Goes on your feature branch |
-|---|---|
-| task frontmatter (`status`, `owner`) | library code, tools, tests |
-| `tasks/BOARD.md` | specs, metric specifications, write-ups |
-| `tasks/DECISIONS.md` | anything else a reviewer reads as the work |
-| this file | |
-
-So one task normally produces: a claim commit on `main`, the work on a branch, a decisions
-entry on `main` when an ambiguity is resolved, and a status commit on `main` when the task
-reaches `review` or `done`.
-
-Three rules make that safe:
-
-- **Push project management as soon as you commit it.** A claim sitting unpushed while you
-  work is worse than no claim, because the board says the task is taken and nobody can see it.
-- **Pull `main` before you touch it.** `DECISIONS.md` is append-only so appends merge cleanly;
-  `BOARD.md` is generated, so regenerate it after pulling rather than resolving a conflict in
-  it by hand. Run `python3 tools/board.py --check` after every such pull.
-- **Keep project-management commits free of work.** A commit that moves a status *and* changes
-  a tool cannot land on `main` without dragging unreviewed work with it.
-- **A task in flight names its branch.** While a task is `in-progress` or `review`, its file
-  records — on `main` — the branch its work sits on, what is finished, what is left, and what is
-  waiting on the project owner. Without that, the split loses the pointer: `main` says `review`
-  while the code sits somewhere only the last worker knows, and whoever picks the task up next
-  cannot find it.
-
-One consequence to accept rather than work around: `DECISIONS.md` on `main` can describe code
-still sitting in a branch, so the log runs slightly ahead of the repo. That is the cost of
-every track seeing a resolved ambiguity the moment it is resolved, and it is cheaper than two
-branches resolving the same ambiguity twice.
-
-## The frontmatter contract
-
-Every task file opens with:
-
-```yaml
----
-id: A2.1                      # stable, never reused, never renumbered
-title: ...
-phase: A                      # A | B | C | X (cross-cutting)
-status: blocked               # blocked | ready | in-progress | review | done | deferred
-gate: false                   # true = blocks downstream work unconditionally
-depends_on: [A1.4]            # task IDs
-blocks: [A3.2]                # reverse edges; board.py verifies these
-design_ref: "§A2"             # where in DESIGN.md this comes from
-deliverable: 1                # §5 deliverable number, or null
-owner: unassigned
----
-```
-
-`tools/board.py --check` validates the graph: unknown IDs, cycles, stale `blocks` lists, and
-status/dependency inconsistencies. Run it before every commit that touches `tasks/`. It is
-cheap and it catches the whole class of "board says ready, dependency says otherwise".
-
-`deferred` is for work `DESIGN.md` explicitly declines (see §4). Those stay visible as
-*deliberately not run*, so they end up in the paper as named future work rather than being
-forgotten.
+Everything lands on a feature branch and arrives on `main` through a pull request. There is no
+longer a class of change that goes straight to `main`: the project management that used to
+need that — task claims, a generated board, an append-only log — left the tree on
+19 November 2026 (`docs/working-record.md`).
 
 ## Gates
 
-Six tasks carry `gate: true`. They are not work items so much as checkpoints that make it
-*structurally impossible* to walk past a commitment by accident:
+Five commitments act as gates. They are not work items so much as checkpoints that make it
+*structurally impossible* to walk past a commitment by accident. Three are closed;
+`docs/status.md` carries their current state:
 
 | Gate | Holds | Why |
 |---|---|---|
@@ -202,14 +103,13 @@ Six tasks carry `gate: true`. They are not work items so much as checkpoints tha
 | **B5.1** pre-registration frozen | all Phase B analysis | §B5 requires the analysis plan fixed before results are seen. A freeze after the fact is not a freeze. |
 | **C6.3** headline curves independently reimplemented | cost-curve results, preprint | §7's second-method requirement, one phase over: a claim that filtering *cannot* work for a family is at least as consequential as a Phase A count. |
 | **X3.1** disclosure window honoured | preprint | §4 requires disclosure before any preprint; §7 requires treating the window as substance. |
-| **C2.2** whole-family holdout validated | nothing — `deferred` | Superseded by the collateral cost curve (C5.1–C7.1) in DESIGN v0.4; D-009. Carries `gate: true` and an empty `blocks` so it stays visible as a commitment deliberately not run, per `deferred` above. C6.3 is the live gate on Phase C results. |
 
-`tasks/BOARD.md`'s **Gates** section is generated from this frontmatter and lists the five live
-gates with what each currently holds. It is the authoritative view; this table explains *why*
-each exists. If they disagree, the board is right and this table is stale — fix it here.
+A sixth, whole-family holdout validation, was superseded by the collateral cost curve
+(D-009) and is deliberately not run; the independent reimplementation of the curves is the live
+gate on Phase C.
 
-If you believe a gate should open, that is a decision for the project owner, recorded in
-`DECISIONS.md`. It is never a judgement call made mid-task.
+**If you believe a gate should open, that is the project owner's call, and it is never a
+judgement made mid-task.** Record the answer in the pull request that acts on it.
 
 ## Non-negotiables
 
@@ -253,235 +153,11 @@ negotiable by a task that finds them inconvenient.
 
 ## Running work on EC2
 
-> **Before you launch anything: a remote run must be observable from its first minute, or it is
-> not a run, it is a bet.** Three things, all of them prerequisites rather than improvements, and
-> all of them verified working before the launch that depends on them:
->
-> 1. **It logs where you can always see it**, which means object storage, not the instance's
->    disk and not the console. A log that is uploaded when the work finishes tells you nothing
->    while the work is running and nothing at all if it never finishes.
-> 2. **It heartbeats on an interval**, from a loop that runs independently of whether the work
->    succeeds, fails or is killed. The question a heartbeat has to answer is *how far did it
->    get*, and it has to answer it for a run that was killed as readily as for one that ended.
-> 3. **You check on it often**, rather than finding out at the end. A run nobody looked at for
->    fourteen hours is fourteen hours you cannot get back.
->
-> This is a standing rule because it has already been paid for twice. D-127: two runs died
-> thirty-one seconds in and the quiet console looked exactly like a long pass still working.
-> D-233: the A2.6 census spent fourteen hours on two machines and published nothing whatsoever —
-> no result, no exit note, not one log line — because its hard stop powers the machine off from
-> outside the script and every publishing path it had ran only on completion. About five
-> dollars (D-234), and no evidence of how far it read. The detail behind all three points is in *Make a
-> long run report to object storage* below; this box is here because that detail was already
-> written when the census ignored it.
-
-**Launch an instance sparingly, and only when being in-region is the point.** The test is whether
-the work is bound by data movement that is free inside `us-east-1` and metered outside it — reading
-the staged corpora is the case that qualifies, because a full pass over them is tens of gigabytes.
-Compute that would run acceptably in the session container does not qualify, and neither does
-convenience. An instance costs money, leaves a resource that can be forgotten, and cannot be
-inspected once running: assume you get one shot at `UserData` and nothing else.
-
-A1.3 learned the following the hard way. `tools/ec2_count.py` is the worked example.
-
-**What the account's policy allows, and what it does not.** `ec2:RunInstances` is permitted, but
-only with a `Project=ClaudeSpike` tag and a non-empty `Owner` tag, from an allowlisted instance
-type, with volumes of 200 GB or less in `gp3`/`gp2`. Omit the tags and the refusal is a bare
-`UnauthorizedOperation`, which reads exactly like not having permission at all — that misreading
-cost a round trip. `iam:*` is denied, so you cannot create, inspect or list roles and instance
-profiles; the `AmazebioStager` instance profile and the matching `iam:PassRole` grant already exist
-and are the only way an instance gets AWS credentials. Do not try to supply credentials another
-way: the session's own are injected by a proxy and never exposed to it, so they cannot be copied
-onto a machine, and a presigned URL cannot be generated for the same reason.
-
-**You cannot talk to the instance.** `ssm:SendCommand` is denied, no key pair exists, and
-`ec2:AuthorizeSecurityGroupIngress` is denied, so there is no shell, no SSH and no inbound
-connection. Everything the instance will do must be decided before launch and written into
-`UserData`. Results come back by the instance writing them to S3. Progress comes back through
-`ec2:GetConsoleOutput`, which is allowed, best-effort, and empty for the first minute or so.
-
-**Make it terminate itself, and terminate it anyway.** Pass
-`InstanceInitiatedShutdownBehavior="terminate"` at launch — `ec2:ModifyInstanceAttribute` is denied,
-so it cannot be set afterwards, and without it a self-shutdown merely stops the instance and keeps
-billing its volume. Then also call `ec2:TerminateInstances` from the launcher in a `finally`, because
-a `UserData` that fails before its own `shutdown` would otherwise leave the instance running
-indefinitely. Both, not either.
-
-**Pick the interpreter explicitly.** Amazon Linux 2023 ships Python 3.9 as `python3`, and this
-project needs 3.12; `datetime.UTC` alone is 3.11+. Install `python3.12` and invoke it by name. A
-run that trusts `python3` dies on an `ImportError` about half a minute in, having read nothing.
-
-**Make a long run report to object storage, and do not trust silence.** `GetConsoleOutput` does
-keep recording well after boot — verified 2026-10-17, with per-cell progress lines arriving 103
-minutes in — so it is a real channel, just a best-effort one with no guarantee of freshness. What
-it cannot do is distinguish a process that has died from one that is printing nothing: on
-2026-10-16 two runs died 31 seconds in, the console held only their boot output, and that looked
-exactly like a long pass with a quiet console. Four hours were spent on that reading, and the
-correction is in D-127.
-
-The other channels are genuinely closed here: `cloudwatch:GetMetricStatistics` and
-`ec2:GetConsoleScreenshot` are both denied, on top of the SSH and SSM denials above, and
-`DescribeInstanceStatus` only reports that the OS is alive. One channel that *is* allowed and
-worth knowing: `ec2:DescribeInstanceAttribute` returns the instance's `UserData`, which settles
-what a running instance was actually told to do.
-
-So anything that runs longer than a few minutes writes a heartbeat to object storage on an
-interval and publishes each measurement as it is taken — `esm3_calibrate.py` is the worked
-example, and it took three attempts to apply that to every stage rather than only to the one that
-had just failed. A step with no heartbeat is a step whose silence means nothing at all.
-
-It is the worked example for the second half of that more than the first, measured 2026-10-19
-(D-192): in `--measure caps` the heartbeat is written once before a reading's slack cell and the
-interval heartbeat covers only the corpus pass, so through a 35-minute cell it does not move —
-`written_at` read 18:46 while the run was demonstrably alive at 19:43. What made that run
-observable was the artefact growing as each cell published. Both halves are the rule; only one of
-them is implemented everywhere, so check which one a mode gives you before reading its silence.
-
-**A log uploaded on exit is not a channel.** A2.6's census workers redirect stdout to a file on
-the instance and upload it when the worker finishes, which gives you nothing at all while it
-runs — the console stops recording after boot, and the parts appear only as each band completes.
-That is the same silence as a dead process. Upload the log on the heartbeat interval, not at the
-end, and do it from whichever loop is already running rather than from a handler that a hard
-failure skips.
-
-**The boot-armed shutdown timer works, and it also blocks the immediate shutdown — cancel it
-first.** Arm `shutdown -h +N` in `UserData` before anything that can fail; observed 2026-10-16, it
-fires on time, four hours after a watcher had been killed and the launcher could no longer
-terminate anything, and EC2 reports it in `StateTransitionReason` as `User initiated` — the same
-wording as a manual termination, and **not** `Server.SpotInstanceTermination`, so that field
-distinguishes a reclaim from a shutdown but not a shutdown from a human.
-
-The trap is the other direction. **`shutdown -h now` does nothing while that timer is pending**:
-systemd already has a shutdown scheduled and the immediate one does not replace it. So a script
-that fails in thirty seconds sits idle until the timer fires, burning the whole window, and from
-outside — no console after boot, no artefact, process alive, status checks `ok` — that is
-indistinguishable from a long pass still working. It cost two launches and most of a day to
-diagnose as exactly that (D-127). Run `shutdown -c` before `shutdown -h now`, keep
-`systemctl --no-block poweroff` and `halt -p` as fallbacks, and route every exit path through one
-helper; `tools/ec2_similarity.py`'s `die` is the worked example.
-
-**Ship the payload by derivation, not by hand.** The instance has no checkout, so the launcher
-tars up a list of files. Twice — 2026-10-16 and 2026-10-17 — a module was added to a tool's
-imports and not to that list, and the instance died on an `ImportError` about half a minute in,
-having read nothing. Derive the first-party import closure from the source and test it, as
-`tests/test_ec2_similarity.py` does, and import the shipped tool on the instance **before** the
-long work starts: on the instance a missing import costs an hour and a launch, and in a test it
-costs a second.
-
-**An import closure is not a dependency closure.** A2.6 spent four launches on this in one
-afternoon, each one dying in five or six minutes. The closure walk finds what a source
-*imports*; it cannot find what a source *reads*, and it cannot find an import that happens
-inside a function. The payload shipped no `policies/specs`, so eight workers died on `no
-policy specs found` — nothing imports a YAML directory. Then the specs shipped and the
-workers died again, because `policyspec` imports `yaml` inside `load_policy_dir` rather than
-at module scope, so the payload imported cleanly and failed on the first policy read, and no
-wheel carried PyYAML. Two things fix the class rather than the instance. Walk the shipped
-sources with `ast` for *every* third-party import, map each to the wheel that provides it,
-and fail the test on one that is not mapped. And unpack the payload into a bare directory in
-a test and run it there with nothing else on the path — `tests/test_ec2_detect_census.py`
-does both, and the second is the only check that fails for the same reasons the instance
-does. The pre-flight on the instance should likewise *load* what the run needs — the policy
-specs, the manifests — not merely import the module.
-
-**Parallel workers on one instance must not share an output name.** A2.6 runs eight bands of
-one release at once and every worker publishes to the same durable prefix. Anything named for
-the release alone is written eight times: the run manifest loses seven, and eight different
-index bodies under one key are refused outright by the commit-keyed copy (D-216) — *after*
-each worker's six hours, not before. Put the band in the name. A1.5 hit the same shape with
-two staging passes, which is why `detect_profiles` already named its manifest per release;
-one more level of parallelism needed one more level of naming.
-
-**`aws s3 cp --recursive` over an empty prefix exits 0.** A2.6's first launch copied the A1.4
-manifests from `s3://bucket/results/a1-4/` with the bucket prefix missing, the copy reported
-success, and the workers started on an empty directory. A copy that must bring something is
-followed by a `test -f` on something it must have brought.
-
-**Bring the logs back yourself; the console will not.** Across those four launches
-`GetConsoleOutput` truncated mid-way through staging twice and returned empty twice, including
-for ten minutes after the instance that needed reading had terminated. Tee the whole script to
-a file, give each worker its own log, and have the `die` helper upload all of them before it
-powers off. Write the exit reason as its own small object too: it is the one thing you always
-want and the cheapest thing to lose.
-
-**Probe without the flag that publishes.** `detect_profiles --band` publishes a part that
-`--assemble` reads as *the* result for that band, so a probe with `--limit-records` publishes
-a part covering twenty records and claiming the whole band — and the coverage check still
-passes, because the bands do tile. One reached the census prefix on 2026-10-20 and the store
-has no delete. Either refuse the pair in code, which is what was done, or redirect the durable
-destination for the probe.
-
-**Rehearse the shape the run will produce, not the shape the last run produced.** A2.6's
-assembly step failed twice in one day against the census's own shape, and both failures would
-have landed *after* the search, with the compute already spent: once because eight census parts
-do not fit in memory together where a sampled pass's did, and once because the assembler read
-the first pass's table for metadata and a census has no first pass — its bands start at the
-beginning and tile the whole rate. Neither is visible in a rehearsal that reuses the previous
-task's artefacts, which is what makes that rehearsal worse than none: it passes. Build the
-inputs the pending run will actually write — the right number of parts, the right bands, and
-nothing else present — and run the downstream step against them before launching.
-
-**A dry run authorizes; it does not execute.** `DryRun=True` checks permissions and parameters and
-returns `DryRunOperation` on success, which is worth doing. It runs no `UserData`, so it cannot
-catch a missing dependency, a wrong interpreter or a broken script. Those checks belong inside the
-script.
-
-**Carry provenance in, because the instance has none.** There is no git checkout on the instance, so
-`amazebio.repro` cannot discover the commit and a manifest produced there is untraceable. The
-launcher refuses to run from a dirty tree and passes the commit in explicitly; keep that. A result
-that cannot be traced to the code that produced it is not citable, which is the whole point of
-`repro`.
-
-**A memory ceiling is not a reason to launch an instance.** A4.2 hit one: reproducing IMG/VR's own
-marker search needs about 24 GB to hold the profile index in a single pass and the session container
-has 16. The test in this section is data movement, and a memory bound is not that — splitting the
-target database (`--splits 8` for geNomad, which is the same thing one rank down) made the search
-fit and changed nothing about the result. Check whether the work can be split before concluding it
-needs a bigger machine.
-
-**Know the parallelism before choosing a size.** A gzip stream cannot be decompressed in parallel,
-so one `.gz` file is one thread however many cores are present. For the UniRef tiers that caps
-useful parallelism at one process per tier, and the largest tier sets the wall clock; a bigger
-instance buys nothing. Work out the real ceiling first — the honest answer is often that a small
-instance is the right one.
-
-**The corpus bucket has no `s3:DeleteObject`.** Anything written there is permanent. That is
-deliberate — it is what makes a staged corpus un-rewritable — but it means a bug that writes junk
-writes it forever. Before a run that uploads, be sure about the keys it will produce; A1.3 left four
-0-byte objects behind that cannot be removed.
-
-**A rehearsal is the thing most likely to write junk there, because `--out` and the durable prefix
-are decided separately.** `repro.run`'s `durable` is derived from the task id, so it cannot see
-where the run was told to write: a probe from a scratch directory publishes to the real results
-prefix under the names the deliverable will use. The fix is one line per tool — publish only when
-`--out` resolves to the task's canonical `artifacts/<slug>`, claim `durable_exempt` otherwise, and
-print why. `tools/detect_segmented.py`'s `durable_for` is the worked example.
-
-**And when you fix something like that, fix the shape, not the tool.** A2.5 hit exactly this on
-2026-10-19, the guard went into `detect_segmented.py`, and on 2026-10-20 A2.6 hit it again in
-`detect_profiles.py` — permanently, in a bucket with no delete (D-193, then D-224). One tool was
-guarded and four were not. Before closing an incident, grep for every call site with the same
-shape and fix all of them, or say in the decision entry which ones you left and why.
-
-**Never build an S3 client. Call `amazebio.objectstore.client()`.** It pins
-`endpoint_url="https://s3.us-east-1.amazonaws.com"`, and `region_name` alone does not: boto3
-resolves an S3 client with no explicit endpoint to the legacy global hostname `s3.amazonaws.com`,
-which the egress proxy does not inject credentials for, so the request arrives unsigned and comes
-back as a terse `AccessDenied` that looks exactly like a missing IAM grant. Most of a day went on
-that in October, across three wrong theories about the account, and the owner was asked to loosen
-permissions that were already correct. The tell: a real denial names
-`arn:aws:iam::…:user/…`, and a signed-out one names nobody. Pass `config=` for a wider pool or a
-longer retry chain rather than reaching for `boto3.client` to get one.
-`tests/test_objectstore_writes.py` fails the build on a new bare client, so this is enforced
-rather than remembered.
-
-**Publish a result through `repro.run(durable=...)`, or through `objectstore.put_once`.** Not
-`put_object`. The bucket's missing `s3:DeleteObject` is not immutability — `PutObject` on an
-existing key succeeds and the earlier bytes stop being readable, which is D-216. Both paths write
-the stable key and a `by-commit/<commit>/` twin a later run cannot reach, and both refuse before
-writing anything when the same commit has already published different bytes, naming the object
-and both digests. If that fires, something undeclared moved; find it rather than passing
-`replace=`. A raw `put_object` is still right for a code payload or a heartbeat, which are not
-results and are not cited.
+The rules are in **`docs/runbooks/ec2.md`** — observability, teardown, account limits,
+spot handling, and the pre-launch checklist. Read it before launching anything. In short:
+launch only when being inside the region is the point, never construct an S3 client,
+copy a launcher rather than re-deriving one, and make the run observable from its first
+minute or it is a bet rather than a run.
 
 ## Reporting to the project owner
 
@@ -558,27 +234,27 @@ Ask; do not assume redistribution is permitted because the bytes are now on disk
 
 ## Decisions
 
-`tasks/DECISIONS.md` is append-only. Add an entry whenever you resolve an ambiguity that a
-later reader would otherwise have to reverse-engineer: a proxy substitution, a threshold, a
-reading of vague policy prose, a model-class choice, a scope call. One entry, dated, with the
-alternatives you rejected and why.
+A decision is any resolution a later reader would otherwise have to reverse-engineer: a proxy
+substitution, a threshold, a reading of vague policy prose, a model-class choice, a scope call.
+Record it with the alternatives you rejected and why. §A0 and §B1 both say under-specification
+is itself a finding, so these are material, not bureaucracy.
 
-This is not bureaucracy. §A0 and §B1 both say under-specification is itself a finding — the
-log is what turns scattered judgement calls into a paper appendix instead of lost context.
+Where it goes:
 
-**Take the number when you append, then check it again before you push.** Two tracks appending
-at once both pick the next free number, and because they are appends to different parts of the
-file they merge cleanly while colliding semantically — the log ends up with two entries sharing an
-ID, which makes every citation of it ambiguous. Pulling first does not prevent this: the other
-track's append can land between your pull and your push. So re-read the headings after the pull
-that precedes your push, and if your number has been taken, renumber yours to the next free one.
+- **If it bears on a published figure**, into `results/README.md` beside that figure, in the
+  same change. That file is what a reader is sent to, so a qualification that lives anywhere
+  else will not be read.
+- **Otherwise, into the pull request** that acts on it, and into the project thread where the
+  work is discussed.
 
-When renumbering, two rules. **Move the entry that is cited from fewer places** — an entry already
-referenced from `src/` or from a merged write-up is the expensive one to move, and which entry was
-committed first is the tie-breaker, not the deciding factor. And **leave a `Numbering:` line in the
-renumbered entry** recording what it used to be: commit messages and pull requests citing the old
-number are already published and cannot be rewritten, so that line is the only thing that makes
-them resolve. This happened once, between A1.2 and A1.5 at D-032; D-041 is the worked example.
+Decisions up to 19 November 2026 are in the append-only log in git history, cited throughout
+this repository as `D-NNN`; `docs/working-record.md` says how to read one. Do not start a new
+log. The log's purpose — that a number is readable against what was known when it was fixed —
+is served by keeping those ids resolvable and by keeping new qualifications next to the figures
+they qualify.
+
+**Never edit a historical decision.** It was append-only for a reason: an entry describes what
+was known on its date, and a result read against a rewritten record is not traceable.
 
 ## Definition of done
 
@@ -587,16 +263,17 @@ A task is `done` when all of:
 - every Done-when criterion is demonstrably met;
 - results regenerate from pinned inputs and seeds;
 - new code has tests, and CI is green;
-- any decision made along the way is in `DECISIONS.md`;
-- frontmatter is current and `python3 tools/board.py --check` passes.
+- any decision made along the way is written down where **Decisions** says it goes;
+- `results/README.md` and `docs/status.md` are true after the change.
 
 ## Things not to do
 
-- Do not hand-edit `tasks/BOARD.md`. Regenerate it.
-- Do not renumber or reuse task IDs. They are referenced from commits and write-ups.
-- Do not widen a task's scope to absorb an adjacent problem. New file, new ID, new entry.
-- Do not leave project management in a feature branch. A status, a board or a decision that
-  only exists in your branch is invisible to every other track until it merges.
+- Do not reuse or renumber a task or decision id. They are cited from commits, from the
+  metrics contracts, from `results/README.md` and from the write-up.
+- Do not widen a piece of work to absorb an adjacent problem. New branch, new pull request.
+- Do not start a replacement for the decision log. See **Decisions**.
+- Do not leave a figure's qualification only in a pull request. It belongs in
+  `results/README.md`, where it will be read.
 - Do not add models or assays for their own sake — §7 names scope creep as a live risk.
 - Do not trust secondary sources for any factual claim about a model's training data,
   `DESIGN.md` included. §B1 step 0 is explicit: verify from primary sources.

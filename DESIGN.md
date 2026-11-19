@@ -6,84 +6,6 @@ Design specification, v0.5 — 13 October 2026
 
 ---
 
-## 0. What changed from v0.4
-
-Four additions to Phase A, all of which exploit the same asset: the filter predicates are now
-formalised (A0), and nobody else has them. None needs a GPU, a hazard list, or any capability
-measurement. See `tasks/DECISIONS.md` D-011.
-
-- **§A7 Conformance re-execution.** Run each published predicate against the developer's own
-  released corpus and diff. A record that survives a rule its own authors stated is a
-  conformance failure — binary, and not an inference about homology.
-- **§A8 Filter agreement.** Apply both filters' predicates to one corpus and measure overlap.
-  If two labs' "remove viruses" safeguards disagree about what counts as viral, this class of
-  safeguard is not reproducible, which is what governance currently assumes it is.
-- **§A9 Safeguard decay.** Evo's denylist is 19 families and 12 orders fixed in 2024, against a
-  taxonomy that keeps changing. Quantify what newly-named diversity the frozen list no longer
-  names. The output is a re-validation schedule: a filter has a shelf life.
-- **§10 A disclosure standard for data filters.** The deepest finding in A0 is not leakage but
-  that these filters are unauditable as published. Define the minimum a developer must publish
-  for a filter to be auditable, and retro-fit it to all four models.
-
-**Phase A is now a paper on its own**, and the schedule in §6 reflects that: Phase A ships as
-the first paper, Phase B and C as the second. This replaces "Phase A alone is publishable if
-Phase B slips" with a deliberate split.
-
-## 0.1. What changed from v0.3
-
-Two changes, both from the prior-art check. See `tasks/DECISIONS.md` D-009 and D-010.
-
-- **Phase C becomes the collateral cost curve; the leakage score is dropped.** A predictor of
-  retained capability fitted to a few dozen measurements across three models cannot carry
-  honest uncertainty intervals narrow enough to guide a decision, and its users would be
-  extrapolating outside the fitted domain. The replacement asks a question that needs no fit:
-  for each hazard family, what else would have to be removed to actually remove the capability?
-  That prices the remedy instead of predicting the leak, and it is computable from public
-  databases with no GPU.
-- **Phase B shrinks to the homology check.** ESM-C's own preprint already publishes the model
-  comparison Phase B was built around — 25 viral DMS assays from ProteinGym against ESM-2 650M
-  and ESM3-open, with BLOSUM62 and EVMutation baselines. Redoing it would spend most of the
-  schedule re-deriving a published result. Phase B keeps the part that is new and that the cost
-  curve depends on: whether per-assay performance tracks homology to retained sequence.
-
-## 0.1. What changed from v0.2
-
-Three changes, all forced by primary-source verification in A0.1. See `tasks/DECISIONS.md`
-D-005 to D-007 for the evidence behind each.
-
-- **The protein-level test model changes from ESM-C to ESM3-open.** ESM-C's own preprint lists
-  IMG/VR viral genomes among its training sources and states no exclusion. ESM3-open is the
-  model that filtered. ESM-C stays in as a second viruses-included comparison, where its
-  largely bacteriophage-derived viral content is a useful contrast.
-- **The subject broadens from taxonomic filtering to hazard-driven data filtering generally.**
-  Evo filters by taxonomic label; ESM3-open filters by sequence similarity outwards from a
-  taxonomy-seeded denylist. These are different mechanisms with different failure modes, and
-  comparing them is stronger than auditing one.
-- **Phase A now leads with the scope gap rather than with leakage magnitude.** The Evo
-  exclusion is a curation step applied to the IMG/VR viral component. Evo 2 inherited it
-  unchanged while adding ~10.7T nucleotides of eukaryotic reference genomes that received only
-  assembly-quality and redundancy curation. The gap between what was filtered and what was
-  trained on is visible in the published methods, before any measurement.
-
-## 0.1. What changed from v0.1
-
-v0.1 measured the *effect* of viral exclusion on model capability. v0.2 adds the prior
-question — whether the exclusion was ever achieved — and the posterior one — whether leakage
-can be predicted before training. Three phases now:
-
-- **Phase A — Filter audit.** Do the stated filters remove what they claim to? Pure
-  bioinformatics, no GPU, no model inference.
-- **Phase B — Capability audit.** Does residual capability track homology to non-excluded
-  space? (This was v0.1.)
-- **Phase C — Leakage score.** A calibrated, pre-computable predictor of how much capability
-  a given filter will fail to remove, shipped as a tool.
-
-The framing is also broadened: the subject is **hazard-driven data filtering as a class of
-safeguard**, covering both label-based and similarity-based mechanisms. Viral exclusion is the
-test case because it is the one with public models, public policies and public ground truth.
-
----
-
 ## 1. The question
 
 Pre-training data filtering is becoming the default safeguard for biological AI models, and is
@@ -402,7 +324,7 @@ reviewers can apply to filters that do not exist yet.
 ## C1–C4 (superseded in v0.4)
 
 The leakage score — a predictor of retained capability, fitted to Phase B measurements — is
-superseded by §C5–C8 below. See `tasks/DECISIONS.md` D-009. Tasks C1.1, C2.1–C2.4 and C3.1 are
+superseded by §C5–C8 below; see D-009 (`docs/working-record.md`). Tasks C1.1, C2.1–C2.4 and C3.1 are
 `deferred` rather than deleted: the work is deliberately not run, and the paper names it as
 such, with the reason.
 

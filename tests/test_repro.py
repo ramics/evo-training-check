@@ -629,8 +629,6 @@ def test_a_test_run_never_reaches_the_real_object_store(tmp_path):
 NOT_PIPELINES: dict[str, str] = {
     # Repository validators and generators. Their output is either nothing or a git-tracked
     # file, and git is the one store D-188 found was never at risk.
-    "board.py": "regenerates tasks/BOARD.md, which is committed",
-    "decisions.py": "validates D-NNN citations; writes nothing",
     "policies.py": "verifies the quotes in policies/ against their sources; writes nothing",
     "specquotes.py": "checks spec quotes against the captures; writes nothing",
     "specs.py": "validates the filter policy specs; writes nothing",

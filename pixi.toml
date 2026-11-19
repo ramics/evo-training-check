@@ -272,21 +272,12 @@ foldseek = { features = [
   "foldseek",
 ], solve-group = "foldseek", no-default-feature = true }
 
-[tasks]
-# Regenerate the task board from task frontmatter.
-board = "python3 tools/board.py"
-
 [feature.dev.tasks]
-# Validate the task graph and board freshness. CI runs this.
-board-check = "python3 tools/board.py --check"
 test = "pytest -q"
 # Verify every quote in policies/ literally appears in the source it cites.
 policies-check = "python3 tools/policies.py"
 # Validate the filter policy specs: schema, and that every rule cites a retrieved source.
 specs-check = "python3 tools/specs.py"
-# Validate the decisions log's identifiers: duplicate IDs, dangling citations, dates.
-# board-check validates the task graph and never looks at the log; this is the other half.
-decisions-check = "python3 tools/decisions.py"
 # Validate the Phase B model inventory: every checkpoint's claims cite a retrieved source.
 models-check = "python3 tools/model_inventory.py --check"
 # Validate B2.4's assay provenance and licence register against its committed evidence: a
@@ -302,8 +293,6 @@ fmt-check = "ruff format --check ."
 check = { depends-on = [
   "lint",
   "fmt-check",
-  "board-check",
-  "decisions-check",
   "policies-check",
   "specs-check",
   "models-check",

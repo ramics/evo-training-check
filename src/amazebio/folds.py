@@ -6,7 +6,8 @@ those three phrases into an auditable denominator: a list of ECOD family identif
 and the representative domains whose structures become the search target. The search itself is
 `tools/detect_folds.py`; the detection schema is `amazebio.detect`.
 
-Four things here are decisions rather than code, and each has a `tasks/DECISIONS.md` entry.
+Four things here are decisions rather than code, and each has a decision-log entry
+(`docs/working-record.md`).
 
 **Selection is by enumerated family identifier, never by regex over names** (D-166). Names are
 how the lists below were built and must not be the mechanism that applies them. The measurement
