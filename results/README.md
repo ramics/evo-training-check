@@ -1,8 +1,8 @@
 # Results
 
 One row per published figure: what it says, what defines it, what computed it, where the
-artefact is, and which task and decision fixed it. Nothing here is a claim this repository
-cannot resolve to an artefact.
+artefact is, and which task and decision fixed it. Every claim on this page resolves to a stored
+artefact.
 
 **Internal until disclosure.** `../AGENTS.md` holds findings inside the project until the
 responsible-disclosure task (X3.1) has run. That gate is closed.
@@ -16,14 +16,15 @@ Artefacts live in the project's result store, `s3://amazebio-corpora-89764179766
 digests, the declared parameters and the commit that produced it. A few are committed instead,
 where the file is small and quoted often; those are named by repository path.
 
-Read the figures with their qualifications. The three that travel with every number:
+Three qualifications apply to everything below, so they are stated once here:
 
 - **Survival counts are lower bounds.** Phase A searched a 0.2% hash sample of Evo 1's
-  component and 0.1% of Evo 2's. Deepening tenfold raised the count and found no ceiling, so
-  "at least" is load-bearing, and the two releases were searched at rates that differ by a
-  factor of ten — never compare their counts without saying so (D-245, D-246).
-- **The two registries are reported separately and never pooled**, because the denominator is
-  a choice about where family boundaries fall (`../metrics/survival.md` §1).
+  component and 0.1% of Evo 2's. Searching ten times deeper raised the count and showed no sign
+  of a ceiling, so "at least" matters in every sentence that uses one of these numbers. The two
+  releases were also searched at rates ten-fold apart: do not compare their counts without
+  saying so (D-245, D-246).
+- **The two registries are reported separately and never pooled.** The denominator depends on
+  where each one draws family boundaries, which is a choice (`../metrics/survival.md` §1).
 - **Every hazard figure is Evo 2's.** Evo 1's released records carry no source accession, so
   37,278 of 57,487 hit records resolve to nothing and the question cannot be put to that
   release at all.
@@ -64,7 +65,7 @@ mostly leaves empty.
 |---|---|---|---|
 | Of 1,719 families, 1,265 have no curated non-viral occurrence, 212 do, 242 admit no verdict — **85.6% of the 1,477 judgeable are virus-only**; the median shared family appears in one non-viral organism | `../tools/family_background.py` | `../artifacts/a4-5/background-pfam-38.2.json` (committed) | A4.5 · D-250 |
 | InterPro at EBI as an independent second instrument, agreeing on all 1,719 | `../tools/family_background.py` | `../artifacts/a4-5/interpro.json` (committed) | A4.5 · D-250 |
-| **Detection-weighted, the figure runs against us**: 69.7% virus-only across Evo 1's detections and 77.4% across Evo 2's, because a family with cellular members is easier to find. Evo 1's 597 becomes 310–462, Evo 2's 812 becomes 498–667 | `../tools/detected_families.py` with `../tools/family_background.py` | `../artifacts/a4-5/detected/` (committed) | A4.5 · D-251 |
+| **Weighted by what was detected, the figure drops**: 69.7% virus-only across Evo 1's detections and 77.4% across Evo 2's, because a family with cellular members is easier to find. Evo 1's 597 becomes 310–462, Evo 2's 812 becomes 498–667 | `../tools/detected_families.py` with `../tools/family_background.py` | `../artifacts/a4-5/detected/` (committed) | A4.5 · D-251 |
 | Of seven families admitted only because a keyword sits inside a host word, none is detected on Evo 1 and two on Evo 2 — both on plasmid records the filter never claimed to cover | `../tools/family_background.py` | `../artifacts/a4-5/` | A4.5 · D-252 |
 
 ## 4. Does the surviving material look hazardous?
@@ -76,12 +77,12 @@ preamble apply to every row here.
 |---|---|---|---|
 | All 19,646 detected Evo 2 records join to their source-database entry; **31 carry a family label the policy itself names for removal and 308 a named order**; only 6.47% carry a family label at all | `../tools/denylist_label_records.py` | `corpora/results/x1-9/denylist-named-family-records-imgvr.tsv` | X1.9 · D-261 |
 | 41 of 1,719 families carry a Pfam name referring to a denylisted group — 9 detected on Evo 1, all 41 on Evo 2, 173 and 388 hits. The rule is published with the number, because a family's name records where its curators built the model | `../tools/denylist_named_families.py` | `corpora/results/x1-8/denylist-named-families.tsv` | X1.8 · D-261 |
-| The same question by biology rather than by name — the second instrument, reading no family name | `../tools/hazard_record_membership.py`, family set from `../tools/hazard_family_set.py` | `corpora/results/c5-1/` | C5.1 · D-261 |
+| The same question answered from biology instead of from names: a second instrument that reads no family name | `../tools/hazard_record_membership.py`, family set from `../tools/hazard_family_set.py` | `corpora/results/c5-1/` | C5.1 · D-261 |
 | No detected record names a regulated select agent, against the list as codified 2024-06-01 | `../tools/policies.py`, `../tools/specs.py` over `../policies/specs/select-agents-2024-06-01.json` | validated in CI | A4.6 · X1.4 |
 
 A worked example, one record end to end, is in `../docs/phase-a-worked-example-papillomavirus.md`.
-Record identifiers, accessions, coordinates and alignments stay internal and are not committed
-here; they live in the project's own files.
+Record identifiers, accessions, coordinates and alignments are not committed here. They stay in
+the project's own files.
 
 ## 5. Did the filter do what its authors said?
 
@@ -90,8 +91,8 @@ here; they live in the project's own files.
 | Re-executing the published predicates against the released corpora: 95 of 2,653,047 Evo 1 records non-conformant, all through one clause | `../tools/conformance_scan.py` then `../tools/conformance_diff.py` | `corpora/results/a7-1/scan-opengenome-stage2.json` | A7.1 |
 | Evo 2's released component carries 264,570 records the adopted procedure removes, split by rule | `../tools/imgvr_conformance_scan.py`, `../tools/conformance_close.py`, `../tools/evo2_denylist_detail.py` | `corpora/results/a7-2/` | A7.2, A7.3 |
 | **The filter cannot be checked against the artefact it produced**: the training-format copy matches the filtered output exactly, while the only copy carrying source accessions holds 304,448 more records; 39,974 repeated accessions | `../tools/evo2_json_tree.py`, `../tools/evo2_duplicates.py`, `../tools/training_accessions.py` | `corpora/results/a7-3/`, `corpora/results/a7-6/` | A7.3, A7.6 · see `../docs/evo2-two-representations.md` |
-| Evo 2's reuse of OpenGenome v1, verified by contig enumeration rather than by prose | `../tools/opengenome_contigs.py`, `../tools/opengenome_v1_contigs.py`, `../tools/opengenome_compare.py` | `corpora/results/a7-4/` | A7.4 · D-213 |
-| The three readings of each published rule — literal, charitable, strict — agree exactly, so the spread is a result rather than a caveat | `../tools/reading_spread.py`, specs validated by `../tools/specs.py` | `corpora/results/a0-4/` | A0.4 · D-221 |
+| Evo 2's reuse of OpenGenome v1, checked by enumerating contigs on both sides | `../tools/opengenome_contigs.py`, `../tools/opengenome_v1_contigs.py`, `../tools/opengenome_compare.py` | `corpora/results/a7-4/` | A7.4 · D-213 |
+| The three readings of each published rule — literal, charitable, strict — agree exactly, which makes the spread a finding in itself | `../tools/reading_spread.py`, specs validated by `../tools/specs.py` | `corpora/results/a0-4/` | A0.4 · D-221 |
 | Two labs' filters compared on one corpus: where "viral" means the same thing and where it does not | `../tools/filter_agreement.py`, `../tools/agreement_report.py` | `corpora/results/a8-1/` | A8.1 |
 
 ## 6. Does a denylist keep working?
@@ -101,10 +102,10 @@ here; they live in the project's own files.
 | Reach of the 31 names fell from 75.83% to 65.17% of viral taxonomy, **−4.34% a year**; 3 of 31 no longer resolve; 44,261 taxa (15.18%) are new material unreachable through merge records | `../tools/denylist_decay.py` over 28 quarterly taxonomy dumps | `corpora/results/a9-1/` | A9.1 · D-199, D-201, D-202 |
 | Whether the imported catalogues the denylist depends on can be benchmarked at all | `../tools/taxonomy_catalogues.py` | `corpora/results/a4-4/` | A4.4 |
 
-Churn and new diversity are reported separately and never summed: 787 renames, 890
-renumberings and 7,723 re-ranks are a different thing from 44,261 taxa that no merge record
-reaches. Following a synonym can also change what a rule means, which is why a rule that cannot
-execute is fixed and declared while a rule that executes and fails is reported as it stands.
+Churn and new diversity are reported separately and never summed: 787 renames, 890 renumberings
+and 7,723 re-ranks are a different thing from 44,261 taxa that no merge record reaches. Following
+a synonym can also change what a rule means, so a rule that cannot execute at all is fixed and
+the fix declared, while a rule that executes and gets the wrong answer is reported as it stands.
 
 ## 7. Phase B — does surviving capability track homology?
 
@@ -122,7 +123,8 @@ Phase B's instruments are built and validated; the analysis is pre-registered an
 
 ## 8. What was measured and not bought
 
-Named limitations, each with its price, are part of the result rather than an embarrassment.
+Each of these was measured and costed before it was declined, and the price is part of what the
+project has to report.
 
 | Limitation | What it would take | Recorded in |
 |---|---|---|

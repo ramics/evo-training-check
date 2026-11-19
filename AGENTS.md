@@ -40,22 +40,22 @@ Three phases, strictly ordered by dependency rather than preference:
 
 ## Repo map
 
-`README.md` carries the map and `results/README.md` carries the figures; neither is duplicated
-here, because the two maps this file used to hold drifted apart. What an agent needs on top of
-the README:
+`README.md` has the map and `results/README.md` has the figures. Neither is repeated here: this
+file used to carry a second map, and the two drifted apart. What an agent needs on top of the
+README:
 
-- **`results/README.md`** is the record that matters now: every published figure with the
-  contract defining it, the tool that computed it, its artefact, and the task and decision ids
-  it was fixed under. Update it in the same change as any figure it describes.
-- **`docs/status.md`** is what is done, what is open and which gates are closed. It is
-  hand-maintained, so correct it rather than working around it.
+- **`results/README.md`** lists every published figure with the contract defining it, the tool
+  that computed it, its artefact, and the task and decision ids it was fixed under. Update it in
+  the same change as any figure it describes.
+- **`docs/status.md`** says what is done, what is open and which gates are closed. It is
+  hand-maintained, so correct it when it is wrong.
 - **`docs/working-record.md`** says how to resolve a task id (`A2.1`) or a decision id (`D-245`):
   the 80 task cards, the append-only decision log and the generated board left the tree on
   19 November 2026 and are in git history at `fbc8b41`, plus a copy in the project's own files.
 - **`metrics/`** holds the output contracts, and they are still authoritative definitions.
 - **`tools/README.md`** indexes all 97 scripts by purpose and marks the ones a published figure
-  rests on. Every tool and module opens with a docstring naming its task; read that rather than
-  inferring from a list.
+  rests on. Every tool and module opens with a docstring naming its task, so read that before
+  guessing from a filename.
 - **`src/amazebio/repro.py`** is the one module to know before writing a pipeline: seeding, input
   pinning, run provenance, and the two refusals (dirty tree, parameter declared after an output).
 - **`src/amazebio/objectstore.py`** is the only way to reach the result store. Never construct an
@@ -76,19 +76,18 @@ documentation-only change is safe.
 4. Work on a feature branch, one piece of work per branch, and open a pull request.
 
 A piece of work that turns out to be two should be split into two branches and two pull
-requests, not quietly widened. Say in the pull request what the work was for and what it
-settles, because that description is now the record: it is what a later reader finds when they
-ask why something is the way it is.
+requests. Say in the pull request what the work was for and what it settles. That description is
+the record now, and it is what a later reader will find.
 
-If a figure changes, or a decision bears on one, the change is not finished until
+If a figure changes, or a decision bears on one, the work is not finished until
 `results/README.md` says so in the same pull request.
 
 ## Where commits go
 
-Everything lands on a feature branch and arrives on `main` through a pull request. There is no
-longer a class of change that goes straight to `main`: the project management that used to
-need that — task claims, a generated board, an append-only log — left the tree on
-19 November 2026 (`docs/working-record.md`).
+Everything lands on a feature branch and arrives on `main` through a pull request. Nothing goes
+straight to `main` any more. The changes that used to need that — task claims, a regenerated
+board, an appended decision — left the tree on 19 November 2026
+(`docs/working-record.md`).
 
 ## Gates
 
@@ -236,25 +235,24 @@ Ask; do not assume redistribution is permitted because the bytes are now on disk
 
 A decision is any resolution a later reader would otherwise have to reverse-engineer: a proxy
 substitution, a threshold, a reading of vague policy prose, a model-class choice, a scope call.
-Record it with the alternatives you rejected and why. §A0 and §B1 both say under-specification
-is itself a finding, so these are material, not bureaucracy.
+Record it with the alternatives you rejected and why. §A0 and §B1 both treat
+under-specification as a finding in its own right, so this is part of the result.
 
 Where it goes:
 
 - **If it bears on a published figure**, into `results/README.md` beside that figure, in the
-  same change. That file is what a reader is sent to, so a qualification that lives anywhere
-  else will not be read.
+  same change. That file is where a reader is sent, and a qualification kept anywhere else will
+  be missed.
 - **Otherwise, into the pull request** that acts on it, and into the project thread where the
   work is discussed.
 
 Decisions up to 19 November 2026 are in the append-only log in git history, cited throughout
-this repository as `D-NNN`; `docs/working-record.md` says how to read one. Do not start a new
-log. The log's purpose — that a number is readable against what was known when it was fixed —
-is served by keeping those ids resolvable and by keeping new qualifications next to the figures
-they qualify.
+this repository as `D-NNN`, and `docs/working-record.md` says how to read one. Do not start a new
+log. What the log was for was letting someone read a number against what was known when it was
+fixed, and the old ids stay resolvable, so that still works.
 
-**Never edit a historical decision.** It was append-only for a reason: an entry describes what
-was known on its date, and a result read against a rewritten record is not traceable.
+**Never edit a historical decision.** An entry describes what was known on its date. A result
+read against a rewritten record cannot be traced.
 
 ## Definition of done
 

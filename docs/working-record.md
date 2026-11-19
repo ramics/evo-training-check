@@ -7,10 +7,10 @@ Figures, contracts and docstrings throughout this repository cite two kinds of i
 - **Decision ids** — `D-075`, `D-245`, `D-261`. One resolved ambiguity, appended to a log and
   never edited afterwards, so a figure can be read against what was known when it was fixed.
 
-Both resolve into the working record: 80 task cards, the 12,156-line append-only decision log and
-the board generated from the cards. **It was removed from the tree on 19 November 2026** — it is
-project management, and a reader arriving at this repository should meet the work instead — but it
-was not deleted and the citations still resolve.
+Both resolve into the working record: 80 task cards, the 12,156-line append-only decision log,
+and the board generated from the cards. **It was removed from the tree on 19 November 2026**, to
+keep the project management out of the way of someone reading the work. It was not deleted, and
+the citations still resolve.
 
 ## Reading it
 
@@ -33,10 +33,10 @@ you have those files but not the repository.
   that computed it, the artefact it lives in, and the task and decision ids that fixed it. This
   is the file to update when a figure changes.
 - **`status.md`** — what is done, what is open, and which gates are closed.
-- **`../metrics/`** — the frozen output contracts. These are still the authoritative definitions;
-  what changed is only where a change to one gets recorded.
+- **`../metrics/`** — the frozen output contracts, still the authoritative definitions. The only
+  thing that changed is where a change to one gets recorded.
 
 Decisions from here on are recorded in the project thread where the work is discussed, and in
-`../results/README.md` wherever they bear on a published figure. The reason the log existed —
-that a number must be readable against what was known when it was fixed — is served by keeping
-the ids and keeping them resolvable, not by continuing to grow a 12,000-line file.
+`../results/README.md` wherever they bear on a published figure. The log existed so that a number
+could be read against what was known when it was fixed. Keeping the old ids resolvable does that
+job; growing the file past 12,000 lines was not doing it.

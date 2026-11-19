@@ -1,13 +1,13 @@
 # Status
 
-Hand-maintained, 19 November 2026. The figures and their provenance are in
-`../results/README.md`; this page is only *where the work has got to*.
+Hand-maintained, 19 November 2026. This page says where the work has got to. The figures and
+their provenance are in `../results/README.md`.
 
 ## Phase A — does the filter remove what it claims to?
 
-**Complete as a result, and being written up.** Both corpora were reconstructed from pinned
-revisions, each published policy was transcribed into executable predicates in three readings,
-the surviving records were searched by sequence and by structure, and the headline counts were
+**Complete, and being written up.** Both corpora were reconstructed from pinned revisions, each
+published policy was transcribed into executable predicates in three readings, the surviving
+records were searched by sequence and by structure, and the headline counts were
 reimplemented independently and reproduced to the number (334 of them). The audit of the
 taxonomy dependency, the conformance re-execution, the specificity join, the label arm and the
 decay measurement are all done.
@@ -15,12 +15,12 @@ decay measurement are all done.
 Open:
 
 - The write-up. A draft exists outside the repository and is being cut down.
-- The deepening pass at census depth is priced, pre-registered and not bought. The sampling
-  design was pre-registered, so the lower bounds are the result rather than a shortfall; the
-  runbook is in `a2-6-census-runbook.md`.
-- The protein-model arm (ESM3-open) is staged and priced, and publishes no figure. Its filter is
-  similarity-based rather than label-based, so re-executing it needs two denylists neither
-  publisher released, which is what the arm reconstructs.
+- The deepening pass at census depth has been priced and not bought. The sampling design was
+  pre-registered, so the lower bounds are the result the project set out to get, not a
+  shortfall. The runbook is in `a2-6-census-runbook.md`.
+- The protein-model arm (ESM3-open) is staged and priced, and publishes no figure. That filter
+  works by similarity instead of by label, so re-executing it needs two denylists neither
+  publisher released. Reconstructing them is most of the arm.
 - Two reporting tasks: per-region metrics for a named record set, and the training-membership
   accession list.
 
@@ -28,8 +28,9 @@ Open:
 
 **Instruments built and validated; the analysis has not run.** The zero-shot scoring harness
 reproduces the benchmark's published numbers (27 of 27 comparisons, lowest 0.9957, runs bitwise
-reproducible). The parameter-free baseline is at published strength and deliberately not tuned
-towards the column it is validated against. The homology axis, the domain-level presence measure
+reproducible). The parameter-free baseline is at published strength, and was not tuned towards
+the published column it is checked against: maximising agreement with that column would measure
+the tuning instead of the method. The homology axis, the domain-level presence measure
 and the alignment-depth covariate are computed, and the assay provenance register is validated
 in CI.
 
@@ -43,14 +44,14 @@ than produce a new result, and the sequence measure stays secondary.
 ## Phase C — can leakage be predicted from the filter spec alone?
 
 **Deferred.** The cost-curve definitions and the hazard-family set are frozen
-(`../metrics/costcurve.md`), including the second instrument that reads biology rather than
+(`../metrics/costcurve.md`), including the second instrument, which reads biology instead of
 family names. The leakage-score model itself is not started, and the curve work is blocked behind
 its own independent-reimplementation gate.
 
 ## Gates
 
-Gates are commitments, not milestones. Two have passed and three are closed; nothing downstream
-of a closed gate is worked on.
+A gate is a commitment the project made in advance, and work downstream of a closed one does not
+start. Two have passed and three are still closed.
 
 | Gate | State | What it holds |
 |---|---|---|
@@ -61,12 +62,12 @@ of a closed gate is worked on.
 | Responsible-disclosure process run | **closed** | **all external circulation**, and the preprint |
 
 **Nothing has been circulated outside the project, and nothing may be until the disclosure gate
-opens.** That is the one rule in `../AGENTS.md` that no convenience lifts.
+opens.** No deadline or convenience lifts that one.
 
 ## The working record
 
 The task cards, the append-only decision log and the generated board were removed from the tree
-on 19 November 2026 so that a reader meets the work rather than the project management. They are
-in git history at commit `fbc8b41`, and copied in full to the project's own files. Figures and
-contracts still cite task ids (`A2.1`) and decision ids (`D-245`); see
-`working-record.md` for how to read them.
+on 19 November 2026, to keep the project management out of a reader's way. They are in git
+history at commit `fbc8b41`, and copied in full to the project's own files. Figures and contracts
+still cite task ids (`A2.1`) and decision ids (`D-245`); `working-record.md` says how to look one
+up.
