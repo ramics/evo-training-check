@@ -3,9 +3,9 @@
 97 scripts. Every one opens with a docstring saying what it is for, which task it belongs to and
 how to invoke it; this page is the index, grouped by what the tool is for.
 
-**★ marks a tool a published figure rests on** — see `../results/README.md` for the figure. The
-rest stage inputs, price a pass that was not bought, validate evidence in CI, or belong to an arm
-that has not published yet; the groups below say which.
+**★ marks a tool that a published figure rests on**; `../results/README.md` says which figure.
+The others stage inputs, price a pass that was never bought, validate evidence in CI, or belong
+to an arm that has not published anything yet. Each group below says which of those it is.
 
 ## Staging the pinned inputs
 
@@ -105,9 +105,9 @@ and a cheap half that decides everything.
 
 ## Hazard and denylist naming
 
-Two instruments for one question, deliberately: one reads family names, one reads biology. A
-family's name records where its curators built the model, not what a record is, so the rule is
-published with the number.
+Two instruments for one question: one reads family names, the other reads biology. A family's
+name tells you where its curators built the model, which is not the same as what a record
+contains, so the naming rule is published alongside the count it produces.
 
 - ★ `denylist_label_records.py` — Which detected Evo 2 records carry a label naming a denylisted group
 - ★ `denylist_named_families.py` — Regenerate the table of detected families whose Pfam name refers to a denylisted group
@@ -128,9 +128,9 @@ Does a denylist keep working, and do two labs mean the same thing by "viral"?
 
 ## The protein-model arm
 
-ESM3-open's filter is similarity-based rather than label-based, so re-executing it needs the
-denylists it queries against, neither of which is published. This arm is staged and priced; it
-publishes no figure yet.
+ESM3-open filters by similarity instead of by label, so re-executing it needs the two denylists
+it queries against, and neither was published. That is what this arm reconstructs. It is staged
+and priced, and publishes no figure yet.
 
 - `esm3_calibrate.py` — Price ESM3-open's alignment pass by measuring it in region
 - `esm3_composition.py` — Emit ESM3-open's stated corpus composition, and what reconciles against it

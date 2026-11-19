@@ -9,8 +9,8 @@ documents a reader needs when a figure's method is the question.
   history, with a copy in the project's own files.
 - **`disclosure-standard.md`** — a checklist a model release could be held to if a data filter is
   to be auditable at all, the four models scored against it, and this project's own filter specs
-  put in the same format. The generalisable output of the audit, and deliberately written so it
-  survives the specific findings.
+  put in the same format. It is the part of the audit that generalises, and it was written so
+  that it still stands if any particular finding is overturned.
 - **`phase-a-worked-example-papillomavirus.md`** — one record end to end: from the released
   corpus to the source database entry to the label and the matched region, with every step
   resolvable to a published artefact. The fastest way to see what a "detection" is.
@@ -18,9 +18,10 @@ documents a reader needs when a figure's method is the question.
   produced: the same viral data published twice, one copy matching the filtered output exactly,
   the other carrying the only source accessions and 304,448 more records.
 - **`training-data-membership-test.md`** — the join that decides whether a detected record is in
-  the training data rather than merely in a release, and what it can and cannot settle.
+  the training data or only in a release, and what that join can and cannot settle.
 - **`hazard-family-set-independent-instrument.md`** — the second instrument for the hazard
-  question, which reads biology rather than family names, and why one instrument was not enough.
+  question. It reads biology instead of family names, and the entry explains why one instrument
+  was not enough.
 - **`filter-audit.md`** — the one interface the audit runs behind: a policy, a corpus, a set of
   detectors. What it takes to point it at a filter this project has never seen.
 - **`a2-6-census-runbook.md`** — the pre-flight and watch procedure for the census-depth pass,
