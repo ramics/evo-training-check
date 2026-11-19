@@ -8,7 +8,7 @@ recoverable from the artefact rather than from this directory's contents.
 
 Acquisition is the job of the task that needs the input — `A1.2` and `A1.3` for the
 corpora, `B2.1`–`B2.3` for the assay collections. Each records its version pins and
-any proxy substitution in `tasks/DECISIONS.md`, per `AGENTS.md`.
+any proxy substitution as a decision, per `AGENTS.md`.
 
 ## What is staged, and how to get it back
 

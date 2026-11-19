@@ -1,8 +1,8 @@
 # metrics/
 
 The output contracts. Each fixes what a number *means* before any code computes it, so a
-definition cannot drift towards a result. **A change to one of these is an entry in
-`../tasks/DECISIONS.md` saying what was known at the time and what changed — not an edit.**
+definition cannot drift towards a result. **A change to one of these is recorded as a decision — see `../AGENTS.md` — saying
+what was known at the time and what changed, not made as a silent edit.**
 
 The two that carry the headline are written to be reimplementable from themselves alone, because
 an independent second implementation has to reproduce the figures without reading the first.

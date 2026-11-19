@@ -7,6 +7,10 @@ cannot resolve to an artefact.
 **Internal until disclosure.** `../AGENTS.md` holds findings inside the project until the
 responsible-disclosure task (X3.1) has run. That gate is closed.
 
+Each row cites the task (`A2.1`) and decision (`D-245`) ids it was fixed under.
+`../docs/working-record.md` says how to read one: the task cards and the append-only decision log
+left the tree on 19 November 2026 and are in git history, with a copy in the project's own files.
+
 Artefacts live in the project's result store, `s3://amazebio-corpora-897641797669/` under
 `corpora/results/<task>/`, each beside the `run-*.json` manifest recording its inputs, their
 digests, the declared parameters and the commit that produced it. A few are committed instead,

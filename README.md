@@ -72,7 +72,7 @@ Three commitments do the work, and they are enforced rather than described.
 | `tests/` | ~2,600 tests, run on every push |
 | `docs/` | method notes, runbooks, the worked example, and the draft disclosure standard |
 | `assays/` | Phase B's assay provenance and licence register, validated in CI |
-| `tasks/` | the working record: one card per unit of work, the append-only decision log, and the generated board |
+| `docs/status.md` | where the work has got to, and which gates are closed |
 | `AGENTS.md` | the operating manual for whoever picks the work up |
 
 `data/` and `artifacts/` are git-ignored, with one deliberate exception (`artifacts/a4-5/`,
@@ -109,5 +109,7 @@ Anything that launches an instance follows `docs/runbooks/ec2.md`.
 Phase A's headline results are in and are being written up; the deepening pass, the protein-model
 arm and two reporting tasks are still open. Phase B's instruments are built and validated, with
 the analysis pre-registration as the next gate. Phase C is deferred.
-`tasks/BOARD.md` is generated from the task cards and carries the current state, so it does not
-go stale the way this paragraph will.
+`docs/status.md` carries the current state in more detail, and `docs/working-record.md` says how
+to resolve the task and decision ids this repository cites — the task cards and the append-only
+decision log left the tree on 19 November 2026 so that a reader meets the work rather than the
+project management. They are in git history, and nothing that cites them stopped resolving.

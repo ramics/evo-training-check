@@ -44,11 +44,16 @@ Three phases, strictly ordered by dependency rather than preference:
 here, because the two maps this file used to hold drifted apart. What an agent needs on top of
 the README:
 
-- **`tasks/`** is the working record and the thing you edit most: one card per unit of work with
-  the frontmatter contract below, `DECISIONS.md` as the append-only log of resolved ambiguities,
-  and `BOARD.md` generated from the cards — never hand-edited.
-- **`metrics/`** holds the output contracts. A change to one is a `DECISIONS.md` entry, not an edit.
-- **`tools/README.md`** indexes all 99 scripts by purpose and marks the ones a published figure
+- **`results/README.md`** is the record that matters now: every published figure with the
+  contract defining it, the tool that computed it, its artefact, and the task and decision ids
+  it was fixed under. Update it in the same change as any figure it describes.
+- **`docs/status.md`** is what is done, what is open and which gates are closed. It is
+  hand-maintained, so correct it rather than working around it.
+- **`docs/working-record.md`** says how to resolve a task id (`A2.1`) or a decision id (`D-245`):
+  the 80 task cards, the append-only decision log and the generated board left the tree on
+  19 November 2026 and are in git history at `fbc8b41`, plus a copy in the project's own files.
+- **`metrics/`** holds the output contracts, and they are still authoritative definitions.
+- **`tools/README.md`** indexes all 97 scripts by purpose and marks the ones a published figure
   rests on. Every tool and module opens with a docstring naming its task; read that rather than
   inferring from a list.
 - **`src/amazebio/repro.py`** is the one module to know before writing a pipeline: seeding, input
@@ -57,7 +62,7 @@ the README:
   S3 client; a test fails the build if a module under `src/` or `tools/` builds its own.
 
 Run `pixi run -e dev check` before every commit — it is exactly what CI runs, so a green local
-run means a green CI run. Nine steps, in order: lint, format, task graph, decisions log, **policy evidence**,
+run means a green CI run. Seven steps, in order: lint, format, **policy evidence**,
 **filter specs**, **model inventory**, **assay register**, tests. The four in bold are the evidence checks, and
 they are the ones a change to `policies/` or `assays/` trips; do not read "lint and tests" and assume a
 documentation-only change is safe.
@@ -65,88 +70,31 @@ documentation-only change is safe.
 ## How to pick up work
 
 1. Read `DESIGN.md` for the phase you are entering, and this file.
-2. Run `python3 tools/board.py` and read **Ready to pick up**. Take a task from there.
-   If nothing is ready, the blocking dependency *is* the work — do not invent a side quest.
-3. Check the task's **Gates** column. Never work past a `HOLDING` gate (see below).
-4. Set `status: in-progress` and `owner:` in the task's frontmatter, regenerate the board,
-   and commit that **on `main`** as its own small commit — pushed immediately, so parallel
-   workers see the claim. See **Where commits go**.
-5. Do the work, on a feature branch.
-6. Set `status: review`, regenerate, commit on `main`. Move to `done` only when every
-   Done-when criterion is demonstrably met — not when the code runs.
+2. Read `docs/status.md` for where the work has got to, and `results/README.md` for what is
+   already measured and how. Do not re-derive a figure that has a row there.
+3. Check the **Gates** below. Never work past a closed gate, however convenient it would be.
+4. Work on a feature branch, one piece of work per branch, and open a pull request.
 
-Keep one task per branch and per commit series where you can. A task that turns out to be
-two tasks should be split into two files, not quietly widened.
+A piece of work that turns out to be two should be split into two branches and two pull
+requests, not quietly widened. Say in the pull request what the work was for and what it
+settles, because that description is now the record: it is what a later reader finds when they
+ask why something is the way it is.
+
+If a figure changes, or a decision bears on one, the change is not finished until
+`results/README.md` says so in the same pull request.
 
 ## Where commits go
 
-**Project management lands on `main`. The work itself lands on a feature branch.**
-
-Parallel tracks are the whole reason. A claim nobody else can see is not a claim, and a board
-that exists only in your branch cannot stop two workers taking the same task.
-
-| Goes straight to `main` | Goes on your feature branch |
-|---|---|
-| task frontmatter (`status`, `owner`) | library code, tools, tests |
-| `tasks/BOARD.md` | specs, metric specifications, write-ups |
-| `tasks/DECISIONS.md` | anything else a reviewer reads as the work |
-| this file | |
-
-So one task normally produces: a claim commit on `main`, the work on a branch, a decisions
-entry on `main` when an ambiguity is resolved, and a status commit on `main` when the task
-reaches `review` or `done`.
-
-Three rules make that safe:
-
-- **Push project management as soon as you commit it.** A claim sitting unpushed while you
-  work is worse than no claim, because the board says the task is taken and nobody can see it.
-- **Pull `main` before you touch it.** `DECISIONS.md` is append-only so appends merge cleanly;
-  `BOARD.md` is generated, so regenerate it after pulling rather than resolving a conflict in
-  it by hand. Run `python3 tools/board.py --check` after every such pull.
-- **Keep project-management commits free of work.** A commit that moves a status *and* changes
-  a tool cannot land on `main` without dragging unreviewed work with it.
-- **A task in flight names its branch.** While a task is `in-progress` or `review`, its file
-  records — on `main` — the branch its work sits on, what is finished, what is left, and what is
-  waiting on the project owner. Without that, the split loses the pointer: `main` says `review`
-  while the code sits somewhere only the last worker knows, and whoever picks the task up next
-  cannot find it.
-
-One consequence to accept rather than work around: `DECISIONS.md` on `main` can describe code
-still sitting in a branch, so the log runs slightly ahead of the repo. That is the cost of
-every track seeing a resolved ambiguity the moment it is resolved, and it is cheaper than two
-branches resolving the same ambiguity twice.
-
-## The frontmatter contract
-
-Every task file opens with:
-
-```yaml
----
-id: A2.1                      # stable, never reused, never renumbered
-title: ...
-phase: A                      # A | B | C | X (cross-cutting)
-status: blocked               # blocked | ready | in-progress | review | done | deferred
-gate: false                   # true = blocks downstream work unconditionally
-depends_on: [A1.4]            # task IDs
-blocks: [A3.2]                # reverse edges; board.py verifies these
-design_ref: "§A2"             # where in DESIGN.md this comes from
-deliverable: 1                # §5 deliverable number, or null
-owner: unassigned
----
-```
-
-`tools/board.py --check` validates the graph: unknown IDs, cycles, stale `blocks` lists, and
-status/dependency inconsistencies. Run it before every commit that touches `tasks/`. It is
-cheap and it catches the whole class of "board says ready, dependency says otherwise".
-
-`deferred` is for work `DESIGN.md` explicitly declines (see §4). Those stay visible as
-*deliberately not run*, so they end up in the paper as named future work rather than being
-forgotten.
+Everything lands on a feature branch and arrives on `main` through a pull request. There is no
+longer a class of change that goes straight to `main`: the project management that used to
+need that — task claims, a generated board, an append-only log — left the tree on
+19 November 2026 (`docs/working-record.md`).
 
 ## Gates
 
-Six tasks carry `gate: true`. They are not work items so much as checkpoints that make it
-*structurally impossible* to walk past a commitment by accident:
+Five commitments act as gates. They are not work items so much as checkpoints that make it
+*structurally impossible* to walk past a commitment by accident. Three are closed;
+`docs/status.md` carries their current state:
 
 | Gate | Holds | Why |
 |---|---|---|
@@ -155,14 +103,13 @@ Six tasks carry `gate: true`. They are not work items so much as checkpoints tha
 | **B5.1** pre-registration frozen | all Phase B analysis | §B5 requires the analysis plan fixed before results are seen. A freeze after the fact is not a freeze. |
 | **C6.3** headline curves independently reimplemented | cost-curve results, preprint | §7's second-method requirement, one phase over: a claim that filtering *cannot* work for a family is at least as consequential as a Phase A count. |
 | **X3.1** disclosure window honoured | preprint | §4 requires disclosure before any preprint; §7 requires treating the window as substance. |
-| **C2.2** whole-family holdout validated | nothing — `deferred` | Superseded by the collateral cost curve (C5.1–C7.1) in DESIGN v0.4; D-009. Carries `gate: true` and an empty `blocks` so it stays visible as a commitment deliberately not run, per `deferred` above. C6.3 is the live gate on Phase C results. |
 
-`tasks/BOARD.md`'s **Gates** section is generated from this frontmatter and lists the five live
-gates with what each currently holds. It is the authoritative view; this table explains *why*
-each exists. If they disagree, the board is right and this table is stale — fix it here.
+A sixth, whole-family holdout validation, was superseded by the collateral cost curve
+(D-009) and is deliberately not run; the independent reimplementation of the curves is the live
+gate on Phase C.
 
-If you believe a gate should open, that is a decision for the project owner, recorded in
-`DECISIONS.md`. It is never a judgement call made mid-task.
+**If you believe a gate should open, that is the project owner's call, and it is never a
+judgement made mid-task.** Record the answer in the pull request that acts on it.
 
 ## Non-negotiables
 
@@ -287,27 +234,27 @@ Ask; do not assume redistribution is permitted because the bytes are now on disk
 
 ## Decisions
 
-`tasks/DECISIONS.md` is append-only. Add an entry whenever you resolve an ambiguity that a
-later reader would otherwise have to reverse-engineer: a proxy substitution, a threshold, a
-reading of vague policy prose, a model-class choice, a scope call. One entry, dated, with the
-alternatives you rejected and why.
+A decision is any resolution a later reader would otherwise have to reverse-engineer: a proxy
+substitution, a threshold, a reading of vague policy prose, a model-class choice, a scope call.
+Record it with the alternatives you rejected and why. §A0 and §B1 both say under-specification
+is itself a finding, so these are material, not bureaucracy.
 
-This is not bureaucracy. §A0 and §B1 both say under-specification is itself a finding — the
-log is what turns scattered judgement calls into a paper appendix instead of lost context.
+Where it goes:
 
-**Take the number when you append, then check it again before you push.** Two tracks appending
-at once both pick the next free number, and because they are appends to different parts of the
-file they merge cleanly while colliding semantically — the log ends up with two entries sharing an
-ID, which makes every citation of it ambiguous. Pulling first does not prevent this: the other
-track's append can land between your pull and your push. So re-read the headings after the pull
-that precedes your push, and if your number has been taken, renumber yours to the next free one.
+- **If it bears on a published figure**, into `results/README.md` beside that figure, in the
+  same change. That file is what a reader is sent to, so a qualification that lives anywhere
+  else will not be read.
+- **Otherwise, into the pull request** that acts on it, and into the project thread where the
+  work is discussed.
 
-When renumbering, two rules. **Move the entry that is cited from fewer places** — an entry already
-referenced from `src/` or from a merged write-up is the expensive one to move, and which entry was
-committed first is the tie-breaker, not the deciding factor. And **leave a `Numbering:` line in the
-renumbered entry** recording what it used to be: commit messages and pull requests citing the old
-number are already published and cannot be rewritten, so that line is the only thing that makes
-them resolve. This happened once, between A1.2 and A1.5 at D-032; D-041 is the worked example.
+Decisions up to 19 November 2026 are in the append-only log in git history, cited throughout
+this repository as `D-NNN`; `docs/working-record.md` says how to read one. Do not start a new
+log. The log's purpose — that a number is readable against what was known when it was fixed —
+is served by keeping those ids resolvable and by keeping new qualifications next to the figures
+they qualify.
+
+**Never edit a historical decision.** It was append-only for a reason: an entry describes what
+was known on its date, and a result read against a rewritten record is not traceable.
 
 ## Definition of done
 
@@ -316,16 +263,17 @@ A task is `done` when all of:
 - every Done-when criterion is demonstrably met;
 - results regenerate from pinned inputs and seeds;
 - new code has tests, and CI is green;
-- any decision made along the way is in `DECISIONS.md`;
-- frontmatter is current and `python3 tools/board.py --check` passes.
+- any decision made along the way is written down where **Decisions** says it goes;
+- `results/README.md` and `docs/status.md` are true after the change.
 
 ## Things not to do
 
-- Do not hand-edit `tasks/BOARD.md`. Regenerate it.
-- Do not renumber or reuse task IDs. They are referenced from commits and write-ups.
-- Do not widen a task's scope to absorb an adjacent problem. New file, new ID, new entry.
-- Do not leave project management in a feature branch. A status, a board or a decision that
-  only exists in your branch is invisible to every other track until it merges.
+- Do not reuse or renumber a task or decision id. They are cited from commits, from the
+  metrics contracts, from `results/README.md` and from the write-up.
+- Do not widen a piece of work to absorb an adjacent problem. New branch, new pull request.
+- Do not start a replacement for the decision log. See **Decisions**.
+- Do not leave a figure's qualification only in a pull request. It belongs in
+  `results/README.md`, where it will be read.
 - Do not add models or assays for their own sake — §7 names scope creep as a live risk.
 - Do not trust secondary sources for any factual claim about a model's training data,
   `DESIGN.md` included. §B1 step 0 is explicit: verify from primary sources.

@@ -1,9 +1,9 @@
 name: ci
 
-# Feature work is reviewed through a pull request and project management lands on
-# `main` (AGENTS.md, "Where commits go"), so those are the two things worth CI:
-# `main` on push, and every PR. Scoping push to `main` is what stops a PR branch
-# running CI twice per commit (once for its push, once for the pull_request event).
+# Work is reviewed through a pull request and lands on `main`, so those are the two
+# things worth CI: `main` on push, and every PR. Scoping push to `main` is what stops
+# a PR branch running CI twice per commit (once for its push, once for the
+# pull_request event).
 on:
   push:
     branches: [main]
@@ -40,19 +40,6 @@ jobs:
 
       - name: Format check
         run: pixi run -e dev fmt-check
-
-      # Validates the task dependency graph (unknown IDs, cycles, stale `blocks`
-      # lists, status/dependency inconsistencies) and that tasks/BOARD.md is not
-      # stale. This is the mechanism that makes the gates in AGENTS.md enforceable.
-      - name: Task graph
-        run: pixi run -e dev board-check
-
-      # Validates the decisions log's identifiers: duplicate IDs (two tracks appending at once
-      # both take the next free number, and the appends merge cleanly while colliding), dangling
-      # D-NNN citations anywhere in the repo, and missing or future dates. The task-graph check
-      # above never looks at the log; see tools/decisions.py.
-      - name: Decisions log
-        run: pixi run -e dev decisions-check
 
       # Verifies every quote in policies/ literally appears in the source it cites, and
       # that no stored source has changed since its checksum was recorded. See policies/README.md.

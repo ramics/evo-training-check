@@ -6,7 +6,7 @@ record, and writes the manifests A2.* and B3.* consume. The rule predicates are 
 here — :func:`amazebio.policyspec.decide` is called for every rule, so there is one
 implementation of what each kind means and A7.1 can reuse it unchanged.
 
-Three decisions make this more than a loop, and each is in `tasks/DECISIONS.md`.
+Three decisions make this more than a loop, and each is in the project decision log (see `docs/working-record.md`).
 
 **Resolution runs every applicable rule, rather than stopping at the first decision** (D-044).
 The reference evaluator stops, which is how a filter implementation behaves. On a real release

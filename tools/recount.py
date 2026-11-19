@@ -399,7 +399,7 @@ def main(argv: list[str] | None = None) -> int:
 #: A7.1's headline conformance numbers as that task reports them. Its diff artefact was never
 #: copied to the result store — only the scan it is computed from was — so there is no machine
 #: readable copy to join against, and these are transcribed from the task's own state block
-#: (`tasks/A7-1-reexecute-published-predicates-against-released-corpora.md`, D-051). That gap
+#: (A7.1, D-051). That gap
 #: is itself reported in the comparison.
 A7_1_AS_REPORTED = {
     "records_in_release": 2653047,

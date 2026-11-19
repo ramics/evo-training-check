@@ -3,6 +3,10 @@
 Method notes and runbooks. The figures themselves are in `../results/README.md`; these are the
 documents a reader needs when a figure's method is the question.
 
+- **`status.md`** — where the work has got to, phase by phase, and which gates are closed.
+- **`working-record.md`** — how to resolve a task id (`A2.1`) or a decision id (`D-245`): the
+  task cards and the append-only decision log left the tree on 19 November 2026 and are in git
+  history, with a copy in the project's own files.
 - **`disclosure-standard.md`** — a checklist a model release could be held to if a data filter is
   to be auditable at all, the four models scored against it, and this project's own filter specs
   put in the same format. The generalisable output of the audit, and deliberately written so it

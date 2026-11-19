@@ -1,6 +1,6 @@
 # tools/
 
-99 scripts. Every one opens with a docstring saying what it is for, which task it belongs to and
+97 scripts. Every one opens with a docstring saying what it is for, which task it belongs to and
 how to invoke it; this page is the index, grouped by what the tool is for.
 
 **★ marks a tool a published figure rests on** — see `../results/README.md` for the figure. The
@@ -174,8 +174,3 @@ Read `../docs/runbooks/ec2.md` before using any of them.
 - `ec2_select_agent_seeds.py` — Run A1.8's select-agent seed pass in-region on EC2
 - `ec2_similarity.py` — Run A1.6's alignment calibration in us-east-1, and report back
 - `ec2_uniprot_count.py` — Stage UniProtKB 2023_02 and count it by taxon, in-region on EC2
-
-## Repository machinery
-
-- `board.py` — Generate tasks/BOARD.md from the frontmatter of tasks/*.md
-- `decisions.py` — Validate `tasks/DECISIONS.md` — the log's identifiers, not its judgement

@@ -7,7 +7,7 @@ published (§7), so nothing here is load-bearing for the published result on its
 **Nothing in this module trains, fine-tunes or runs a model** (§C5). Every quantity is a count
 over pinned databases, or arithmetic on such counts.
 
-Three things here are the frozen decisions rather than code, each with a `tasks/DECISIONS.md`
+Three things here are the frozen decisions rather than code, each with a the project decision log (see `docs/working-record.md`)
 entry (D-204):
 
 **The regime boundary is anchored to a measured quantity, not to a round number.** A family is

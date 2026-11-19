@@ -324,7 +324,7 @@ reviewers can apply to filters that do not exist yet.
 ## C1–C4 (superseded in v0.4)
 
 The leakage score — a predictor of retained capability, fitted to Phase B measurements — is
-superseded by §C5–C8 below. See `tasks/DECISIONS.md` D-009. Tasks C1.1, C2.1–C2.4 and C3.1 are
+superseded by §C5–C8 below; see D-009 (`docs/working-record.md`). Tasks C1.1, C2.1–C2.4 and C3.1 are
 `deferred` rather than deleted: the work is deliberately not run, and the paper names it as
 such, with the reason.
 

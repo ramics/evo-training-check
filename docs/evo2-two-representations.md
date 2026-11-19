@@ -171,7 +171,8 @@ separately rather than assign one verdict to the population, and three of the fo
 empty: nothing republished whole, nothing disagreeing with the input, nothing missing from it.
 
 This is a correction to two `done` tasks' wording rather than to their arithmetic — both counted
-39,974 of something and the something was headers. Recorded in `tasks/DECISIONS.md`.
+39,974 of something and the something was headers. Recorded as a decision at the time
+(`working-record.md`).
 
 ## Reconciliation against Evo 2's own published figures
 
