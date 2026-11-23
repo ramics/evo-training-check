@@ -2,26 +2,26 @@
 
 An independent audit of exclusion-based data filtering in open-weight biological models.
 
-Two open-weight genome models, Evo 1 and Evo 2, state that viral genomes infecting eukaryotic hosts were excluded from their training data, and both publish the corpora they trained on. The exclusion was done by taxonomy: records in IMG/VR, a database of viruses assembled from environmental samples, were dropped when their taxonomic labels matched a list of named viral groups. This project asks whether the published corpora still hold what those rules were meant to remove — searching them by sequence, then re-executing the published rules against them.
+Two open-weight genome models, Evo 1 and Evo 2, state that viral genomes infecting eukaryotic hosts were excluded from their training data, and both publish the corpora they trained on. The exclusion was done by taxonomy: records in IMG/VR, a database of viruses assembled from environmental samples, were dropped when their taxonomic labels matched a list of named viral groups. This project asks whether the published corpora still hold what those rules were meant to remove. It searches them by sequence, then re-executes the published rules against them.
 
 Findings are held inside the project until the responsible-disclosure task has run.
 
 ## What the audit found
 
-**The published corpora still contain viral protein families.** Pfam lists 1,719 families in its viral clans; searching the released records with those families' sequence models matches at least 597 in Evo 1 and 812 in Evo 2. Both are lower bounds — only a sample of each corpus was searched, the count was still climbing when the search stopped, and the two corpora were sampled at rates ten-fold apart.
+**The published corpora still contain viral protein families.** Pfam lists 1,719 families in its viral clans; searching the released records with those families' sequence models matches at least 597 in Evo 1 and 812 in Evo 2. Both are lower bounds: only a sample of each corpus was searched, the count was still climbing when the search stopped, and the two corpora were sampled at rates ten-fold apart.
 
 What survived is mostly bacteriophage structural and packaging machinery, which is what IMG/VR mostly holds; the single most detected family is a phage terminase. Phage fall outside the stated exclusion and infect bacteria rather than people. The exceptions are small and bounded: 31 records carry a label from a virus family the policy itself names, one of them a complete flavivirus genome with no recorded human infection, and nothing detected is a regulated select agent.
 
-The mechanism is where the result generalises:
+Why they survived. The first of the three is the one that should generalise to other filters:
 
-- **The rules that name organisms read taxonomy fields that are usually empty.** Both such published rules key on a record's family or order. IMG/VR fills the family field on 6.25% of its 15.7 M records, and only 2.62% of Evo 1's released records carry one, so most records could never have matched a rule of that kind. The limit sits in the metadata, so a better-written rule would not have helped — which makes this the finding most likely to apply to other filters.
+- **The rules that name organisms read taxonomy fields that are usually empty.** Both such published rules key on a record's family or order. IMG/VR fills the family field on 6.25% of its 15.7 M records, and only 2.62% of Evo 1's released records carry one, so most records could never have matched a rule of that kind. The limit sits in the metadata, so a better-written rule would have reached no further.
 - **The rules name 31 taxa, and taxonomy renames things.** When a name is retired the rule citing it keeps executing and stops matching anything: *Herpesviridae* became a synonym of *Orthoherpesviridae* in January 2026, so a rule naming it now reaches no herpesvirus at all while still reporting success. Across the list, the share of viral taxonomy those 31 names reach has fallen from 75.83% to 65.17%, about 4.34% a year.
 - **The filter cannot be audited against the corpus it produced.** Working out which records a rule removed means joining the released corpus back to IMG/VR, and that join needs each record's source accession. Evo 2 publishes its viral data twice: the training-format copy carries no accessions, and the copy that carries them holds 304,448 records more. Evo 1's released records carry no accessions at all.
 
-Two qualifications on the headline, both of which should be quoted with it:
+Two qualifications that travel with the headline:
 
 - **Most matched families really are virus-specific, though fewer than the headline suggests.** Against the reviewed section of UniProtKB, 85.6% of the families that admit a verdict occur in no non-viral organism. Weighted by what was actually detected that falls to 69.7% on Evo 1 and 77.4% on Evo 2, because a family with cellular members is easier to find. Quote the second pair.
-- **The hazard question can only be put to Evo 2, and only through labels.** 19,646 detected Evo 2 records trace back to their IMG/VR entry; Evo 1's carry no accession, so that release cannot be asked. Of those 19,646, the 31 above are what carry a denylisted family label — and only 6.47% of detected records carry a family label of any kind, so 31 is a floor from a small window rather than a count. No hazard assessment was performed: these are label lookups.
+- **The hazard question can only be put to Evo 2, and only through labels.** 19,646 detected Evo 2 records trace back to their IMG/VR entry; Evo 1's carry no accession, so that release cannot be asked. Of those 19,646, the 31 above are what carry a denylisted family label. Only 6.47% of detected records carry a family label of any kind, so 31 is a floor from a small window rather than a count. No hazard assessment was performed: these are label lookups.
 
 The published filter did not do what its description implies, and the reasons are mostly about process and auditability.
 
@@ -31,8 +31,8 @@ The published filter did not do what its description implies, and the reasons ar
 
 Three parts of the method are enforced by code and by CI.
 
-1. **The policy is executable.** Each published filter is transcribed into predicates under `policies/specs/` in three readings — literal, charitable and strict — so the audit cannot quietly pick whichever suits it, and the spread between them is reported as a finding of its own. Every quotation in `policies/` is checked against a checksummed copy of the source it cites, and CI fails if a quote drifts.
-2. **Detection avoids the labels under test.** Surviving records are searched by sequence and by structure, so a hit says something about the corpus rather than about its labels.
+1. **The policy is executable.** Each published filter is transcribed into predicates under `policies/specs/`, in three readings: literal, charitable and strict. The audit therefore cannot quietly pick whichever reading suits it, and the spread between the three is reported as a finding of its own. Every quotation in `policies/` is checked against a checksummed copy of the source it cites, and CI fails if a quote drifts.
+2. **Detection avoids the labels under test.** Surviving records are searched by sequence and by structure. The taxonomy the filter depends on plays no part in finding a hit, so a hit says something about the corpus rather than its labels.
 3. **Thresholds and metrics were frozen before any result existed.** `metrics/survival.md` fixes the headline definitions, written so that someone could reimplement them from that file alone. Someone did, and got the same 334 numbers. `amazebio.repro.run` also refuses a dirty git tree, and refuses a parameter declared after an output exists.
 
 `DESIGN.md` is the specification and is authoritative for scope, method and commitments.
